@@ -17,7 +17,7 @@
 import os
 
 # start tracer - pylint/flakes friendly
-# NOTE: this will load checklmate which wil monkeypatch if eventlet is
+# NOTE: this will load checkmate which will monkeypatch if eventlet is
 #       requested. We also load this ASAP so we can trace as much code as
 #       possible. So position is important.  KEEP THIS FIRST
 __import__('checkmate.common.tracer')

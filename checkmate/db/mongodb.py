@@ -12,14 +12,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Driver for MongoDB
+"""Driver for MongoDB.
 
 TODO:
 - Fix mapping between API ID and mongoDB _id field
 - Check indeces; if we fix mapping do we still need an index on workflow.id?
-
 """
+
 import copy
 import json
 import logging
@@ -85,7 +84,9 @@ def _parse_comparison(fields):
 
 
 class Driver(common.DbBase):
+
     """MongoDB Database Driver"""
+
     _workflow_collection_name = "workflows"
     _blueprint_collection_name = "blueprints"
     _deployment_collection_name = "deployments"

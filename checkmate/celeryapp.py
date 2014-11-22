@@ -15,9 +15,7 @@
 # Author: Ziad Sawalha (http://launchpad.net/~ziad-sawalha)
 # Original maintained at: https://github.com/ziadsawalha/Python-tracer
 
-"""
-Module Registration with/for Celery.
-"""
+"""Module Registration with/for Celery."""
 
 from checkmate.providers import core
 from checkmate.providers import opscode

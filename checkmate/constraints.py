@@ -1,14 +1,27 @@
-"""
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
-Constraint Validation Classes
+"""Constraint Validation Classes.
 
 To add a new constraint type, add:
 
 1. Create a class that inherits from Constraint
 2. Override the allowed_keys and required_keys
 3. override at a minimum the 'test' method
-
 """
+
 import inspect
 import logging
 import re
@@ -21,6 +34,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Constraint(object):
+
     """Base Class for all Constraints."""
 
     required_keys = []
@@ -66,7 +80,8 @@ class Constraint(object):
 
 
 class RegExConstraint(Constraint):
-    """RegEx Constraint
+
+    """RegEx Constraint.
 
     Syntax:
 
@@ -89,7 +104,6 @@ class RegExConstraint(Constraint):
        message: must contain a lower case letter
      - regex: ^(?=.*[A-Z])
        message: must contain an upper case letter
-
     """
     required_keys = ['regex']
     allowed_keys = ['regex', 'message']
@@ -115,7 +129,8 @@ class RegExConstraint(Constraint):
 
 
 class ProtocolsConstraint(Constraint):
-    """URL Protocols Constraint
+
+    """URL Protocols Constraint.
 
     Syntax:
 
@@ -127,8 +142,8 @@ class ProtocolsConstraint(Constraint):
      constraints:
      - protocols: ['http', 'https']
        message: only http and https URLs are supported
-
     """
+
     required_keys = ['protocols']
     allowed_keys = ['protocols', 'message']
 
@@ -155,7 +170,8 @@ class ProtocolsConstraint(Constraint):
 
 
 class InConstraint(Constraint):
-    """Constraint to limit to a list
+
+    """Constraint to limit to a list.
 
     Syntax:
 
@@ -172,8 +188,8 @@ class InConstraint(Constraint):
      constraints:
      - in: ['Ubuntu 12.04']
        message: only http and https URLs are supported
-
     """
+
     required_keys = ['in']
     allowed_keys = ['in', 'message']
 
@@ -193,7 +209,8 @@ class InConstraint(Constraint):
 
 
 class SimpleComparisonConstraint(Constraint):
-    """Constraint to for simple comparisons: >, <, >=, <=
+
+    """Constraint to for simple comparisons: >, <, >=, <=.
 
     Syntax (one or more of the following):
 
@@ -215,8 +232,8 @@ class SimpleComparisonConstraint(Constraint):
      - less-than: 8
        greater-than: 1
        message: must be between 3 and 7
-
     """
+
     required_keys = [
         'less-than',
         'greater-than',
@@ -273,7 +290,8 @@ class SimpleComparisonConstraint(Constraint):
 
 
 class StaticConstraint(Constraint):
-    """Constraint that is evaluated to true or false
+
+    """Constraint that is evaluated to true or false.
 
     Syntax:
 
@@ -289,8 +307,8 @@ class StaticConstraint(Constraint):
     Note: the evaluation of the "if:" construct above happens outside of the
     constraint as it requires the deployment. The constraint class just
     determines true/false. See deployment.py for the evaluation code.
-
     """
+
     required_keys = ['check']
     allowed_keys = ['check', 'message']
 

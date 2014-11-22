@@ -12,9 +12,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-Module for testing mailgun tasks.
-"""
+
+"""Module for testing mailgun tasks."""
+
 import mock
 import unittest
 
@@ -26,6 +26,7 @@ from checkmate.providers.rackspace.mailgun import tasks
 
 
 class TestAddDomain(unittest.TestCase):
+
     """Class to test mailgun add_domain."""
 
     def setUp(self):
@@ -138,7 +139,7 @@ class TestAddDomain(unittest.TestCase):
                                 self.domain_name, self.password, api=self.api)
 
     def test_resumable_exc_raised(self):
-        """Verifies a CheckmateResumableException is raised from a
+        """Verifies a Resumable Exception is raised from a
         ClientException with a code not 400.
         """
         self.api.create.side_effect = pyrax.exceptions.ClientException(
@@ -155,6 +156,7 @@ class TestAddDomain(unittest.TestCase):
 
 
 class TestDeleteDomain(unittest.TestCase):
+
     """Class for testing the mailgun delete_domain function."""
 
     def setUp(self):
@@ -222,7 +224,7 @@ class TestDeleteDomain(unittest.TestCase):
                                 self.domain_name, False, api=self.api)
 
     def test_resumable_exc_raised(self):
-        """Verifies a CheckmateResumableException is raised from a
+        """Verifies a Resumable Exception is raised from a
         ClientException with a code not 400.
         """
         self.api.delete.side_effect = pyrax.exceptions.ClientException(

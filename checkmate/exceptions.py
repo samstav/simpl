@@ -11,7 +11,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Custom Exceptions for Checkmate
+
+"""Custom Exceptions for Checkmate.
 
 To be serialization-friendly, call the Exception __init__ with any extra
 attributes:
@@ -24,6 +25,7 @@ class CheckmateCustomException(Exception):
 This is important to allow exceptions to flow back from the message queue
 tasks.
 """
+
 import logging
 
 #Error message constants
@@ -39,7 +41,8 @@ LOG = logging.getLogger(__name__)
 
 
 class CheckmateException(Exception):
-    """Checkmate Error
+
+    """Checkmate Error.
 
     Base for all Checkmate server errors
     """
@@ -101,16 +104,18 @@ class CheckmateException(Exception):
 
 
 class CheckmateDatabaseConnectionError(CheckmateException):
+
     """Error connecting to backend database."""
-    pass
 
 
 class CheckmateNoTokenError(CheckmateException):
+
     """No cloud auth token.
 
     Auth token was not available in this session.
     Try logging on using an auth token
     """
+
     @property
     def friendly_message(self):
         """Return a friendly message always."""
@@ -118,7 +123,9 @@ class CheckmateNoTokenError(CheckmateException):
 
 
 class CheckmateNoMapping(CheckmateException):
+
     """No mapping found between parameter types."""
+
     @property
     def friendly_message(self):
         """Return a friendly message always."""
@@ -126,7 +133,9 @@ class CheckmateNoMapping(CheckmateException):
 
 
 class CheckmateInvalidParameterError(CheckmateException):
+
     """Parameters provided are not valid, not permitted or incongruous."""
+
     @property
     def friendly_message(self):
         """Return a friendly message always."""
@@ -134,12 +143,14 @@ class CheckmateInvalidParameterError(CheckmateException):
 
 
 class CheckmateNoData(CheckmateException):
+
     """No data found."""
-    pass
 
 
 class CheckmateDoesNotExist(CheckmateException):
+
     """Object does not exist."""
+
     @property
     def friendly_message(self):
         """Return a friendly message always."""
@@ -147,7 +158,9 @@ class CheckmateDoesNotExist(CheckmateException):
 
 
 class CheckmateBadState(CheckmateException):
+
     """Object is not in correct state for the requested operation."""
+
     @property
     def friendly_message(self):
         """Return a friendly message always."""
@@ -155,12 +168,14 @@ class CheckmateBadState(CheckmateException):
 
 
 class CheckmateIndexError(CheckmateException):
-    """Checkmate Index Error"""
-    pass
+
+    """Checkmate Index Error."""
 
 
 class CheckmateCalledProcessError(CheckmateException):
-    """Wraps CalledProcessError but supports passing in specific error_info."""
+
+    """Wrap CalledProcessError but support passing in specific error_info."""
+
     def __init__(self, returncode, cmd, output=None, error_info=None):
         self.returncode = returncode
         self.cmd = cmd
@@ -188,12 +203,14 @@ class CheckmateCalledProcessError(CheckmateException):
 
 
 class CheckmateServerBuildFailed(CheckmateException):
+
     """Error Building Server."""
-    pass
 
 
 class CheckmateValidationException(CheckmateException):
+
     """Validation Error."""
+
     @property
     def friendly_message(self):
         """Return a friendly message always."""
@@ -201,37 +218,11 @@ class CheckmateValidationException(CheckmateException):
 
 
 class CheckmateDataIntegrityError(CheckmateException):
+
     """Data has failed integrity checks."""
-    pass
 
 
 class CheckmateHOTTemplateException(CheckmateException):
-    """Raise when a HOT template is encountered where a Checkmate blueprint is
-    expected.
+
+    """A HOT template was encountered where a Checkmate blueprint was expected.
     """
-    pass
-
-
-# TODO(zns): deprecate when all workflows and celery tasks have been purged
-class CheckmateUserException(CheckmateException):
-    """DEPRECATED: use CheckmateException with friendly_message kwarg."""
-    def __init__(self, *args):
-        LOG.error("DEPRECATED call to CheckmateUserException: %s", args)
-        super(CheckmateUserException, self).__init__(
-            args[0], friendly_message=args[2])
-
-
-class CheckmateRetriableException(CheckmateException):
-    """DEPRECATED: use CheckmateException with options=CAN_RETRY."""
-    def __init__(self, *args):
-        LOG.error("DEPRECATED call to CheckmateRetriableException: %s", args)
-        super(CheckmateRetriableException, self).__init__(
-            args[0], friendly_message=args[2])
-
-
-class CheckmateResumableException(CheckmateException):
-    """DEPRECATED: use CheckmateException with option CAN_RESUME."""
-    def __init__(self, *args):
-        LOG.error("DEPRECATED call to CheckmateResumableException: %s", args)
-        super(CheckmateResumableException, self).__init__(
-            args[0], friendly_message=args[2])

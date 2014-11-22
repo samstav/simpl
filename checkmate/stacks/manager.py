@@ -11,11 +11,12 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-Stacks Manager
 
-Handles stack logic
+"""Stacks Manager.
+
+Handles stack logic.
 """
+
 import json
 import logging
 
@@ -30,6 +31,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
+
     """Contains Stacks Model and Logic for Accessing Stacks."""
 
     def get_stacks(self, context, tenant_id):
@@ -45,7 +47,6 @@ class Manager(object):
 
     def get_stacks_only(self, context, tenant_id):
         """Get existing stacks."""
-
         headers = {
             'X-Auth-Token': context.auth_token,
             'Accept': 'application/json',
@@ -59,7 +60,6 @@ class Manager(object):
 
     def get_deployments_as_stacks(self, context, tenant_id):
         """Get existing deployments as stack list."""
-
         stacks = {'stacks': []}
 
         results = db.get_driver().get_deployments(
@@ -82,7 +82,6 @@ class Manager(object):
 
     def create_stack(self, context, tenant_id, stack, auth_key):
         """Create Stack."""
-
         headers = {
             'X-Auth-Token': context.auth_token,
             'X-Auth-User': context.username,
@@ -105,7 +104,6 @@ class Manager(object):
 
     def get_stack(self, context, tenant_id, stack_id):
         """Get existing stack."""
-
         headers = {
             'X-Auth-Token': context.auth_token,
             'Accept': 'application/json',
@@ -119,7 +117,6 @@ class Manager(object):
 
     def get_stack_resources(self, context, tenant_id, stack_id):
         """Get existin stack resources."""
-
         headers = {
             'X-Auth-Token': context.auth_token,
             'Accept': 'application/json',
@@ -134,8 +131,7 @@ class Manager(object):
 
     def get_stack_resource(self, context, tenant_id, name, stack_id,
                            resource_id):
-        """Get existin stack resource."""
-
+        """Get existing stack resource."""
         headers = {
             'X-Auth-Token': context.auth_token,
             'Accept': 'application/json',

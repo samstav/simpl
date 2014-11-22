@@ -12,9 +12,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-Utilities with minimum-dependencies for use in setup.py
-"""
+
+"""Utilities with minimum-dependencies for use in setup.py."""
+
 import logging
 import os
 import re
@@ -64,7 +64,7 @@ def parse_dependency_links(requirements_files=None):
 
 
 def _parse_requirement_line(line):
-    """Parses a line in a pip requirements file and returns modules (with
+    """Parse a line in a pip requirements file and return modules (with
     version constraints if they exist).
     """
     parsed = None
@@ -127,7 +127,7 @@ def parse_requirements(requirements_files=None):
 
 
 def required_imports(requirements_files=None):
-    """Returns the imports for the required packages."""
+    """Return the imports for the required packages."""
     imports = []
     requirements = parse_requirements(requirements_files=requirements_files)
     for entry in requirements:

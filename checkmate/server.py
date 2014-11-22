@@ -21,7 +21,6 @@ Note: To support running with a wsgiref server with auto reloading and also
 full eventlet support, we need to handle eventlet up front. If we are using
 eventlet, then we'll monkey_patch ASAP. If not, then we won't monkey_patch at
 all as that breaks reloading.
-
 """
 
 # start tracer - pylint/flakes friendly

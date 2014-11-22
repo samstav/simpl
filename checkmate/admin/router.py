@@ -12,7 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Module to initialize the Checkmate REST Admin API
+"""Module to initialize the Checkmate REST Admin API.
 
 This module load the /admin/* routes. It validates that all calls are performed
 by a user with an admin context. It is optionally loadable (as determined by
@@ -44,11 +44,12 @@ LOG = logging.getLogger(__name__)
 
 
 class Router(object):
+
     """Route /admin/ calls."""
 
     def __init__(self, app, deployments_manager, tenants_manager,
                  blueprints_manager=None):
-        """Takes a bottle app and routes traffic for it.
+        """Take a bottle app and route traffic for it.
 
         :param app: bottle application to route to
         :param deployments_manager: for /admin/deployments calls

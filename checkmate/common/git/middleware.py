@@ -12,9 +12,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-Middleware to detect and handle git SmartHTTP traffic
 
+"""Middleware to detect and handle git SmartHTTP traffic.
 
 
 -----------------------------------------------------------------------
@@ -108,6 +107,7 @@ to/by gitHttpBackend.
 
 -----------------------------------------------------------------------
 """
+
 import json
 import logging
 import os
@@ -142,7 +142,8 @@ LOG = logging.getLogger(__name__)
 
 
 class GitMiddleware(object):
-    """Adds support for git http-backend interaction."""
+
+    """Add support for git http-backend interaction."""
 
     def __init__(self, app, root_path):
         self.app = app
@@ -207,7 +208,7 @@ def _check_git_auth(user, password):
 
 
 def _auth_racker(endpoint_uri, username, password):
-    """Authenticates to Global Auth."""
+    """Authenticate to Global Auth."""
     if not username:
         LOG.info("Username not supplied")
         return None
@@ -312,12 +313,12 @@ def _git_route_callback(dep_id, path):
 @GIT_SERVER_APP.get("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
 @bottle.auth_basic(_check_git_auth)
 def git_route_get(tenant_id, dep_id, path):
-    """Calls git-http-server callback for GET."""
+    """Call git-http-server callback for GET."""
     return _git_route_callback(dep_id, path)
 
 
 @GIT_SERVER_APP.post("/<tenant_id>/deployments/<dep_id>.git/<path:re:.+>")
 @bottle.auth_basic(_check_git_auth)
 def git_route_post(tenant_id, dep_id, path):
-    """Calls git-http-server callback for POST."""
+    """Call git-http-server callback for POST."""
     return _git_route_callback(dep_id, path)

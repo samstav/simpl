@@ -14,7 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Driver for SQL ALchemy."""
+"""Driver for SQL Alchemy."""
 
 import copy
 import json
@@ -110,22 +110,28 @@ def _parse_comparison(field, values):
 
 
 class TextPickleType(PickleType):
+
     """Type that can be set to dict and stored in the database as Text.
 
     This allows us to read and write the 'body' attribute as dicts
     """
+
     impl = Text
 
 
 class Tenant(BASE):
+
     """Class to encapsulate tenants table."""
+
     __tablename__ = "tenants"
     id = Column(String(255), primary_key=True)
     tags = relationship("TenantTag", cascade="all, delete, delete-orphan")
 
 
 class TenantTag(BASE):
+
     """Class to encapsulate tenant_tags table."""
+
     __tablename__ = "tenant_tags"
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant = Column(
@@ -140,7 +146,9 @@ class TenantTag(BASE):
 
 
 class Environment(BASE):
+
     """Class to encapsulate environments table."""
+
     __tablename__ = 'environments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -153,7 +161,9 @@ class Environment(BASE):
 
 
 class Deployment(BASE):
+
     """Class to encapsulate deployments table."""
+
     __tablename__ = 'deployments'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -168,7 +178,9 @@ class Deployment(BASE):
 
 
 class Blueprint(BASE):
+
     """Class to encapsulate blueprints table."""
+
     __tablename__ = 'blueprints'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -181,7 +193,9 @@ class Blueprint(BASE):
 
 
 class Workflow(BASE):
+
     """Class to encapsulate workflows table."""
+
     __tablename__ = 'workflows'
     dbid = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(32), index=True, unique=True)
@@ -203,7 +217,9 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 
 class Driver(DbBase):
+
     """Driver class for SQL database abstraction."""
+
     def __init__(self, connection_string, driver=None, *args, **kwargs):
         """Initializes globals for this driver"""
         DbBase.__init__(self, connection_string, driver=driver, *args,

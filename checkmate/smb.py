@@ -33,8 +33,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Alarm(Exception):
+
     """Alarm Exception."""
-    pass
 
 
 def alarm_handler(signum, frame):  # pylint: disable=W0613
@@ -45,7 +45,7 @@ def alarm_handler(signum, frame):  # pylint: disable=W0613
 # pylint: disable=R0913,R0914
 def execute_script(host, script, remote_filename, username, password,
                    command=None, port=445, timeout=300):
-    """Executes a powershell script on a remote windows host.
+    """Execute a powershell script on a remote windows host.
 
     :param host:            the ip address or host name of the remote server
     :param script:          the script to execute remotely
@@ -58,7 +58,6 @@ def execute_script(host, script, remote_filename, username, password,
     :param timeout:         timeout in seconds
     :returns: a dict with stdin and stdout of the call.
     """
-
     args = ''
     path = "temp"
     save_path = "c:\\windows\\%s" % path
@@ -144,7 +143,7 @@ def wait_net_service(server, port, timeout=None):
 
 
 def run_command(cmd, lines=None, timeout=None):
-    """Executes commands against an executable.
+    """Execute commands against an executable.
 
     :param cmd: the command or shell to launch
     :param lines: a list of commands to execute

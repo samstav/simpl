@@ -1,4 +1,20 @@
-""" Utility Classes """
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Utility Classes."""
+
 import collections
 import json
 
@@ -7,9 +23,9 @@ from checkmate.exceptions import CheckmateValidationException
 
 
 class ExtensibleDict(collections.MutableMapping):
-    """
-    TODO: docstring
-    """
+
+    """TODO: docstring."""
+
     #used to define if the object is locked or not
     LOCK = {'INITIAL': 0, 'LOCKED': 1, 'UNLOCKED': 2}
 
@@ -47,7 +63,7 @@ class ExtensibleDict(collections.MutableMapping):
         return self._data
 
     def dumps(self, *args, **kwargs):
-        """Dump json string of this class
+        """Dump json string of this class,
 
         Utility function to use since this is not detected as a dict by json
         """
@@ -57,11 +73,9 @@ class ExtensibleDict(collections.MutableMapping):
 
     @classmethod
     def validate(cls, obj):
-        """
-        Checks schema and validates data. Raises error if errors exist.
+        """Check schema and validate data. Raise error if errors exist.
 
         Call inspect if you want to check the data without raising and error.
-
         """
         errors = cls.inspect(obj)
         if errors:
@@ -70,14 +84,11 @@ class ExtensibleDict(collections.MutableMapping):
 
     @classmethod
     def inspect(cls, obj):
-        """
-
-        Checks schema and validates data
+        """Check schema and validate data.
 
         This can be called to inspect syntax without raising and error.
         Validate will raise an error if called.
 
         returns: list of errors
-
         """
         return schema.validate(obj, None)

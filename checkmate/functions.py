@@ -11,19 +11,20 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-Blueprint functions
+
+"""Blueprint functions.
 
 Functions that can be used in blueprints:
 - if
 - or
 - and
 - value: accepts URI-type values (ex. resoures://0/instance/ip)
-
 """
+
 import copy
 import os
 import urlparse
+
 import yaml
 
 from checkmate import exceptions
@@ -49,7 +50,7 @@ PATTERNS = {'patterns': get_patterns()}
 
 
 def evaluate(obj, **kwargs):
-    """Evaluates the passed in object using Checkmate syntax."""
+    """Evaluate the passed in object using Checkmate syntax."""
     if isinstance(obj, dict):
         for key, value in obj.iteritems():
             value = evaluate(value, **kwargs)

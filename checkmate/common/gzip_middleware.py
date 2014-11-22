@@ -11,6 +11,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """A WSGI middleware application that automatically gzips output
     to the client.
     Before doing any gzipping, it first checks the environ to see if

@@ -13,6 +13,7 @@
 #    under the License.
 
 """This is where celery picks up its settings."""
+
 import copy
 import json
 import logging

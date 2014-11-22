@@ -44,7 +44,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
-    """Contains Deployments Model and Logic for Accessing Deployments."""
+
+    """Deployments Model and Logic for Accessing Deployments."""
 
     def count(self, tenant_id=None, blueprint_id=None, status=None,
               query=None):
@@ -134,7 +135,7 @@ class Manager(object):
                                                             partial=partial)
 
     def deploy(self, deployment, context):
-        """Saves a new deployment and creates a deployment operation.
+        """Save a new deployment and creates a deployment operation.
 
         :returns: the operation
         """
@@ -206,8 +207,7 @@ class Manager(object):
         self.save_deployment(delta, api_id=api_id, partial=True)
 
     def get_deployment_secrets(self, api_id, tenant_id=None):
-        """Get the passwords and keys of a single deployment by id.
-        """
+        """Get the passwords and keys of a single deployment by id."""
         entity = db.get_driver(api_id=api_id).get_deployment(api_id,
                                                              with_secrets=True)
         if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
@@ -232,8 +232,7 @@ class Manager(object):
         return data
 
     def update_deployment_secrets(self, api_id, data, tenant_id=None):
-        """Update the passwords and keys of a single deployment.
-        """
+        """Update the passwords and keys of a single deployment."""
         #FIXME: test this
         entity = self.get_deployment(api_id, tenant_id=tenant_id,
                                      with_secrets=True)
@@ -350,7 +349,7 @@ class Manager(object):
         return deployment
 
     def reset_failed_resource(self, deployment_id, resource_id):
-        """Creates a copy of a failed resource and appends it at the end of
+        """Create a copy of a failed resource and appends it at the end of
         the resources collection.
 
         :param deployment_id:
@@ -381,7 +380,8 @@ class Manager(object):
 
     def postback(self, dep_id, contents):
         #TODO(any): we need to receive a context and check access?
-        """This is a generic postback intended to handle all postback calls.
+        """Generic postback intended to handle all postback calls.
+
         Accepts back results from a remote call and updates the deployment with
         the result data.
 
@@ -439,7 +439,7 @@ class Manager(object):
 
     def deploy_workflow(self, context, deployment, tenant_id, wf_type,
                         workflow_id=None, **kwargs):
-        """Creates a workflow and operation based in the passed in workflow
+        """Create a workflow and operation based in the passed in workflow
         type.
 
         :param context: request context
@@ -463,7 +463,7 @@ class Manager(object):
         return operation
 
     def execute(self, api_id, context, timeout=None):
-        """Process a checkmate deployment workflow
+        """Process a checkmate deployment workflow.
 
         Executes and moves the workflow forward.
         Retrieves results (final or intermediate) and updates them into

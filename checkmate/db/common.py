@@ -13,6 +13,7 @@
 #    under the License.
 
 """Common Exceptions and functions for database drivers."""
+
 import logging
 import os
 
@@ -42,22 +43,22 @@ DRIVERS_AVAILABLE = {
 
 
 class DatabaseTimeoutException(Exception):
+
     """Timeout or Retry value exceeded while trying to access the database."""
-    pass
 
 
 class ObjectLockedError(Exception):
-    """Raised when trying to access a database resource with an invalid key."""
-    pass
+
+    """Trying to access a database resource with an invalid key."""
 
 
 class InvalidKeyError(Exception):
-    """Raised when a specified key is invalid."""
-    pass
+
+    """Specified key is invalid."""
 
 
 def get_driver(name=None, reset=False, connection_string=None, api_id=None):
-    """Get Shared Driver Instance
+    """Get Shared Driver Instance.
 
     :param name: the class of the driver to load
     :param reset: whether to reset the driver before returning it
@@ -103,16 +104,13 @@ def get_driver(name=None, reset=False, connection_string=None, api_id=None):
 
 
 def get_lock_db_driver():
-    """
-    Get the driver for connecting to the lock db
-    :return:
-    """
+    """Get the driver for connecting to the lock db."""
     return get_driver(connection_string=os.environ.get(
         'CHECKMATE_LOCK_CONNECTION_STRING'))
 
 
 def any_id_problems(api_id):
-    """Validates the ID provided is safe and returns problems as a string.
+    """Validate the ID provided is safe and returns problems as a string.
 
     To use this, call it with an ID you want to validate. If the response is
     None, then the ID is good. Otherwise, the response is a string explaining
@@ -139,7 +137,7 @@ def any_id_problems(api_id):
 
 
 def any_tenant_id_problems(api_id):
-    """Validates the tenant provided is safe and returns problems as a string.
+    """Validate the tenant provided is safe and returns problems as a string.
 
     To use this, call it with a tenant ID you want to validate. If the response
     is None, then the ID is good. Otherwise, the response is a string

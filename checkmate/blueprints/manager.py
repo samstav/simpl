@@ -12,11 +12,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Blueprints Manager
+"""Blueprints Manager.
 
 Handles blueprint logic
 """
+
 import logging
 import uuid
 
@@ -27,7 +27,9 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
-    """Contains Blueprints Model and Logic for Accessing Blueprints."""
+
+    """Blueprints Model and Logic for Accessing Blueprints."""
+
     def __init__(self, driver):
         """Initialize manager with driver.
 

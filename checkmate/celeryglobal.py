@@ -14,8 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Preparing for organizing celery app & tasks
+"""Preparing for organizing celery app & tasks.
 
 See:
     http://docs.celeryproject.org/en/latest/getting-started/

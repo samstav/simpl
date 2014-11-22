@@ -11,7 +11,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Environment"""
+
+"""Environment."""
 
 import eventlet
 import logging
@@ -25,7 +26,9 @@ API_POOL = eventlet.GreenPool()
 
 
 class Environment(object):
+
     """Environment class."""
+
     def __init__(self, environment):
         self.dict = environment
         self.providers = None
@@ -46,7 +49,7 @@ class Environment(object):
         return None
 
     def get_providers(self, context):
-        """Returns provider class instances for this environment."""
+        """Return provider class instances for this environment."""
         if not self.providers:
             self.providers = {}
             providers = self.dict.get('providers') or {}
@@ -60,7 +63,7 @@ class Environment(object):
         return self.providers
 
     def get_provider(self, key):
-        """Returns provider class instance from this environment."""
+        """Return provider class instance from this environment."""
         if self.providers and key in self.providers:
             return self.providers[key]
 
@@ -81,7 +84,7 @@ class Environment(object):
         return provider_class(provider, key=key)
 
     def find_component(self, blueprint_entry, context):
-        """Resolve blueprint component into actual provider component
+        """Resolve blueprint component into actual provider component.
 
         Examples of blueprint_entries:
         - type: application

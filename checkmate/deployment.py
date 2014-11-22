@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""The Deployment class, the Resource class and functions
-for dealing with same.
-"""
+"""The Deployment and Resource classes and functions for dealing with same."""
+
 import collections
 import copy
 import logging
@@ -72,7 +71,6 @@ def validate_blueprint_options(deployment):
 
 def check_option_url(key, option, deployment):
     """Check that if an option is a URL, then its cert info is consistent."""
-
     inputs = deployment.get('inputs', {})
     bp_inputs = inputs.get('blueprint', {})
 
@@ -122,7 +120,7 @@ def check_option_required(key, option, deployment):
 
 
 def validate_input_constraints(deployment):
-    """Check that inputs meet the option constraint criteria
+    """Check that inputs meet the option constraint criteria.
 
     Raise error if not
     """
@@ -193,7 +191,7 @@ def get_os_env_keys():
 
 
 def get_client_keys(inputs):
-    """Get/generate client-supplied or requested keys keys
+    """Get/generate client-supplied or requested keys keys.
 
     Inputs can supply a 'client' public key to be added to all servers or
     specify a command to generate the keys.
@@ -218,7 +216,7 @@ def get_client_keys(inputs):
 
 
 def generate_keys(deployment):
-    """Generates keys for the deployment and stores them as a resource.
+    """Generate keys for the deployment and stores them as a resource.
 
     Generates:
         private_key
@@ -260,6 +258,7 @@ def generate_keys(deployment):
 
 
 class Deployment(morpheus.MorpheusDict):
+
     """A checkmate deployment.
 
     Acts like a dict. Includes validation, setting logic and other useful
@@ -267,6 +266,7 @@ class Deployment(morpheus.MorpheusDict):
     Holds the Environment and providers during the processing of a deployment
     and creation of a workflow
     """
+
     __schema__ = [
         'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
         'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
@@ -349,7 +349,7 @@ class Deployment(morpheus.MorpheusDict):
         return errors
 
     def get_resources_for_service(self, service_name):
-        """Gets all the non deleted resources for the given service name
+        """Get all the non deleted resources for the given service name.
 
         :param service_name: The name of the service
         :return: Dict of resources for the given service
@@ -403,7 +403,7 @@ class Deployment(morpheus.MorpheusDict):
         return statuses
 
     def _calc_dep_and_op_statuses(self, resources):
-        """Determine deployment and operation status from resources statuses
+        """Determine deployment and operation status from resources statuses.
 
         :param resources:
         :return:
@@ -452,8 +452,7 @@ class Deployment(morpheus.MorpheusDict):
         return self.get('inputs', {})
 
     def settings(self):
-        """Returns (inits if does not exist) a reference to the deployment
-        settings
+        """Return/init a reference to the deployment settings.
 
         Note: this is to be used instead of the old context object
         """
@@ -635,7 +634,7 @@ class Deployment(morpheus.MorpheusDict):
             return node
 
     def _get_setting_by_resource_path(self, path, default=None):
-        """Read a setting that constrains a static resource by path name
+        """Read a setting that constrains a static resource by path name.
 
         The name must be resources/:resource_key/:setting
         """
@@ -694,7 +693,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def _check_options_constraints(self, name, service_name=None,
                                    resource_type=None):
-        """Get a setting implied through blueprint option constraint
+        """Get a setting implied through blueprint option constraint.
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
@@ -721,7 +720,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def _check_resources_constraints(self, name, service_name=None,
                                      resource_type=None):
-        """Get a setting implied through a static resource constraint
+        """Get a setting implied through a static resource constraint.
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
@@ -749,7 +748,7 @@ class Deployment(morpheus.MorpheusDict):
                                 return result
 
     def _get_svc_relation_attribute(self, name, service_name, relation_to):
-        """Get a setting implied through a blueprint service attribute
+        """Get a setting implied through a blueprint service attribute.
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
@@ -779,7 +778,7 @@ class Deployment(morpheus.MorpheusDict):
                                         return attribute
 
     def _check_services_constraints(self, name, service_name):
-        """Get a setting implied through a blueprint service constraint
+        """Get a setting implied through a blueprint service constraint.
 
         :param name: the name of the setting
         :param service_name: the name of the service being evaluated
@@ -818,12 +817,11 @@ class Deployment(morpheus.MorpheusDict):
 
     @staticmethod
     def parse_constraints(constraints):
-        """Ensure constraint syntax is valid
+        """Ensure constraint syntax is valid.
 
         If it is key/values, convert it to a list.
         If the list has key/values, convert them to the expected format with
         setting, service, etc...
-
         """
         constraint_list = []
         if isinstance(constraints, list):
@@ -848,7 +846,7 @@ class Deployment(morpheus.MorpheusDict):
     @staticmethod
     def constraint_applies(constraint, name, resource_type=None,
                            service_name=None):
-        """Checks if a constraint applies
+        """Check if a constraint applies.
 
         :param constraint: the constraint dict
         :param name: the name of the setting
@@ -875,7 +873,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def _apply_constraint(self, name, constraint, option=None, resource=None,
                           option_key=None):
-        """Returns the value of the option applying any constraint definitions
+        """Return the value of the option applying any constraint definitions.
 
         :param name: the name of the option we are seeking
         :param constraint: the dict of any constraint used to find the option
@@ -952,7 +950,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def _get_input_service_override(self, name, service_name,
                                     resource_type=None):
-        """Get a setting applied through a deployment setting on a service
+        """Get a setting applied through a deployment setting on a service.
 
         Params are ordered similar to how they appear in yaml/json::
             inputs/services/:id/:resource_type/:option-name
@@ -977,7 +975,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def _get_input_provider_option(self, name, provider_key,
                                    resource_type=None):
-        """Get a setting applied through a deployment setting to a provider
+        """Get a setting applied through a deployment setting to a provider.
 
         Params are ordered similar to how they appear in yaml/json::
             inputs/providers/:id/[:resource_type/]:option-name
@@ -1027,7 +1025,7 @@ class Deployment(morpheus.MorpheusDict):
                     return result
 
     def get_components(self, context):
-        """Collect all requirements from components
+        """Collect all requirements from components.
 
         :param context: the call context. Component catalog may depend on
                 current context
@@ -1077,7 +1075,7 @@ class Deployment(morpheus.MorpheusDict):
 
     @staticmethod
     def parse_source_uri(uri):
-        """Parses the URI format of source
+        """Parses the URI format of source.
 
         :param uri: string uri based on display-output sources
         :returns: dict
@@ -1101,7 +1099,7 @@ class Deployment(morpheus.MorpheusDict):
         return result
 
     def evaluator(self, parsed_url, **kwargs):
-        """given a parsed source URI, evaluate and return the value."""
+        """Evaluate and return the value given a parsed source URI."""
         if parsed_url['scheme'] == 'options':
             return self.get_setting(parsed_url['netloc'])
         elif parsed_url['scheme'] == 'resources':
@@ -1115,7 +1113,7 @@ class Deployment(morpheus.MorpheusDict):
         return None
 
     def find_display_output_definitions(self):
-        """Finds all display-output definitions."""
+        """Find all display-output definitions."""
         result = {}
         if 'blueprint' not in self:
             return result
@@ -1233,7 +1231,7 @@ class Deployment(morpheus.MorpheusDict):
 
     def create_resource_template(self, index, definition, service_name,
                                  context):
-        """Create a new resource dict to add to the deployment
+        """Create a new resource dict to add to the deployment.
 
         :param index: the index of the resource within its service (ex. web2)
         :param definition: the component definition coming from the Plan
@@ -1241,7 +1239,6 @@ class Deployment(morpheus.MorpheusDict):
 
         :returns: a validated dict of the resource ready to add to deployment
         """
-
         # Call provider to give us a resource template
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
@@ -1268,7 +1265,7 @@ class Deployment(morpheus.MorpheusDict):
         return resources
 
     def on_postback(self, contents, target=None):
-        """Called to merge in all deployment and operation data in one
+        """Merge in all deployment and operation data in one.
 
         Validates and assigns contents data to target
 
@@ -1296,8 +1293,8 @@ class Deployment(morpheus.MorpheusDict):
         utils.merge_dictionary(target, updated)
 
     def on_resource_postback(self, contents, target=None):
-        """Called to merge in contents when a postback with new resource data
-        is received.
+        """Merge in contents when a postback with new resource data is
+        received.
 
         Translates values to canonical names. Iterates to one level of depth to
         handle postbacks that write to instance key

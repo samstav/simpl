@@ -12,9 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Tenants
-"""
+"""Tenants."""
+
 import logging
 
 from checkmate import db
@@ -24,7 +23,8 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
-    """Contains Tenants Model and Logic for Accessing Tenants."""
+
+    """Tenants Model and Logic for Accessing Tenants."""
 
     @staticmethod
     def list_tenants(*tags):

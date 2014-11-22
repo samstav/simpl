@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Module for testing loadbalancer manager
-"""
+"""Module for testing loadbalancer manager."""
+
 import logging
 import mock
 import requests
@@ -580,7 +579,9 @@ class TestVerifySSHConnectivity(unittest.TestCase):
                                          "root", timeout=10,
                                          password=None,
                                          identity_file=None, port=22,
-                                         private_key=None)
+                                         private_key=None,
+                                         proxy_credentials=None,
+                                         proxy_address=None)
 
     @mock.patch.object(rdp, "test_connection")
     def test_verify_ssh_connectivity_windows(self, mock_rdp):
@@ -640,6 +641,8 @@ class TestVerifySSHConnectivity(unittest.TestCase):
         mock_ssh.assert_called_once_with(context, "SERVER_IP", "root",
                                          timeout=10, password=None,
                                          identity_file=None, port=22,
+                                         proxy_credentials=None,
+                                         proxy_address=None,
                                          private_key=None)
 
     @mock.patch.object(rdp, "test_connection")

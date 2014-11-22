@@ -12,6 +12,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """Modules for manageing and exposing Resources as a REST resources."""
+
 from checkmate.resources.router import Router
 from checkmate.resources.manager import Manager

@@ -27,7 +27,7 @@ class TestCheckmateException(unittest.TestCase):
         self.assertFalse(exc.resetable)
         self.assertFalse(exc.retriable)
         self.assertFalse(exc.resumable)
-        self.assertEqual(str(exc), "Checkmate Error")
+        self.assertEqual(str(exc), "Checkmate Error.")
         self.assertEqual(repr(exc), "CheckmateException(None, None, 0, None)")
 
     def test_checkmate_exception_message(self):

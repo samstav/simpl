@@ -12,7 +12,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """Resource Router Class."""
+
 import bottle
 import logging
 
@@ -22,6 +24,9 @@ LOG = logging.getLogger(__name__)
 
 
 class Router(object):
+
+    """Resources Router."""
+
     def __init__(self, app, manager):
         self.app = app
         self.manager = manager

@@ -27,7 +27,7 @@ HANDLERS = [AutomaticResetAndRetryHandler]
 
 
 def get_handlers(workflow, failed_tasks_ids, context, driver):
-    """Gets an exception handler based on the task_state exception.
+    """Get an exception handler based on the task_state exception.
 
     Also updates the friendly error message using the handler's formatter.
 

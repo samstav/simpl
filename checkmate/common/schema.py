@@ -1,10 +1,25 @@
-""" This files contains initial schema validation and utilities
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 
-It is currently used for debugging and so is limited to known resource types,
-interfaces, and such. The intent is to broaden it once we have stabilized the
-schema.
+"""Schema validation and utilities.
 
+Initial implementation. Currently used for debugging and so is limited to known
+resource types, interfaces, and such. The intent is to broaden it once we have
+stabilized theschema.
 """
+
 import logging
 
 from checkmate.inputs import Input
@@ -246,7 +261,7 @@ WORKFLOW_SCHEMA = [
 
 
 def validate_catalog(obj):
-    '''Validates provider catalog.'''
+    """Validate provider catalog."""
     errors = []
     if obj:
         for key, value in obj.iteritems():
@@ -262,13 +277,13 @@ def validate_catalog(obj):
 
 
 def validate(obj, schema):
-    '''Validates an object
+    """Validate an object.
 
     :param obj: a dict of the object to validate
     :param schema: a schema to validate against (usually from this file)
 
     This is a simple, initial attempt at validation.
-    '''
+    """
     errors = []
     if obj:
         if schema:
@@ -280,7 +295,7 @@ def validate(obj, schema):
 
 
 def validate_inputs(deployment):
-    '''Validates deployment inputs.'''
+    """Validate deployment inputs."""
     errors = []
     if deployment:
         inputs = deployment.get('inputs') or {}
@@ -318,9 +333,9 @@ def validate_inputs(deployment):
 
 
 def validate_type_inputs(inputs):
-    '''Validates deployment inputs in a type hierarchy
+    """Validate deployment inputs in a type hierarchy
     This is the structure under inputs/services and inputs/providers.
-    '''
+    """
     errors = []
     if inputs:
         if isinstance(inputs, dict):
@@ -340,7 +355,7 @@ def validate_type_inputs(inputs):
 
 
 def validate_input(key, value):
-    '''Validates a deployment input.'''
+    """Validate a deployment input."""
     errors = []
     if value:
         if isinstance(value, dict):
@@ -350,7 +365,7 @@ def validate_input(key, value):
 
 
 def validate_url_input(key, value):
-    '''Validates a deployment input of type url.'''
+    """Validate a deployment input of type url."""
     errors = []
     if value:
         if isinstance(value, dict):
@@ -364,7 +379,7 @@ def validate_url_input(key, value):
 
 
 def validate_option(key, option):
-    '''Validates a blueprint option.'''
+    """Validate a blueprint option."""
     errors = []
     if option:
         if isinstance(option, dict):
@@ -380,7 +395,7 @@ def validate_option(key, option):
 
 
 def validate_options(options):
-    '''Validates a blueprint's options.'''
+    """Validate a blueprint's options."""
     errors = []
     if options:
         if isinstance(options, dict):
@@ -530,7 +545,7 @@ ALIASES.update({
 
 
 def translate(name):
-    """Convert any aliases to the canonical names as per ALIASES map
+    """Convert any aliases to the canonical names as per ALIASES map.
 
     Canonicalizes composite names to be separated by underscores.
     Keeps path separators intack (name/alias becomes name/canonical_name)
@@ -576,7 +591,7 @@ def translate(name):
 
 
 def translate_dict(data):
-    """Translates dictionary keys to canonical checkmate names
+    """Translate dictionary keys to canonical checkmate names.
 
     :returns: translated dict
     """

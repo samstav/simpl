@@ -11,9 +11,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-All the git things (git calls, repo management, configs, etc...)
-"""
+
+"""All the git things (git calls, repo management, configs, etc...)."""
+
 import errno
 import os
 import re
@@ -22,12 +22,12 @@ import git
 
 
 def is_git_repo(path):
-    """Checks if a folder is a git repo."""
+    """Check if a folder is a git repo."""
     return os.path.isfile(os.path.join(path, '.git', 'config'))
 
 
 def _find_unregistered_submodules(dep_path):
-    """Loops through directory and finds unregistered submodules
+    """Loop through directory and finds unregistered submodules.
 
     :param path: a path to check
     :returns: dict of paths and submodule urls
@@ -64,7 +64,7 @@ def _find_unregistered_submodules(dep_path):
 
 
 def _add_submodules_to_config(dep_path, submodules_to_add):
-    """Adds list of path/urls to existing repo."""
+    """Add list of path/urls to existing repo."""
     with open(os.path.join(dep_path, '.gitmodules'), 'ab+') as sms_f:
         for path, url in submodules_to_add.items():
             sms_f.write(

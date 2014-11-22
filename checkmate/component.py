@@ -1,6 +1,19 @@
-'''
-Components
-'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Components."""
 
 #!/usr/bin/env python
 import copy
@@ -15,9 +28,9 @@ LOG = logging.getLogger(__name__)
 
 
 class Component(ExtensibleDict):
-    """
-    TODO: docstring
-    """
+
+    """TODO: docstring."""
+
     def __init__(self, *args, **kwargs):
         self._provider = kwargs.pop('provider', None)
         ExtensibleDict.__init__(self, *args, **kwargs)
@@ -26,9 +39,7 @@ class Component(ExtensibleDict):
 
     @property
     def provider(self):
-        """
-        TODO: docstring
-        """
+        """TODO: docstring."""
         return self._provider
 
     def __repr__(self):
@@ -88,7 +99,7 @@ class Component(ExtensibleDict):
 
     @property
     def provides(self):
-        """Returns the 'provides' list in the expanded format"""
+        """Return the 'provides' list in the expanded format"""
         results = copy.copy(self._data.get('provides'))
         if isinstance(results, list):
             expanded_results = {}
@@ -123,7 +134,7 @@ class Component(ExtensibleDict):
 
     @property
     def requires(self):
-        """Returns the 'requires' list in the expanded format"""
+        """Return the 'requires' list in the expanded format"""
         results = copy.copy(self._data.get('requires'))
         if isinstance(results, list):
             expanded_results = {}

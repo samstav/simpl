@@ -11,15 +11,15 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-Deployments Resource Router
+
+"""Deployments Resource Router.
 
 Handles API calls to /deployments and routes them appropriately
 """
+
 import logging
 
 import bottle  # pylint: disable=E0611
-
 
 from checkmate import exceptions
 from checkmate import utils
@@ -28,10 +28,11 @@ LOG = logging.getLogger(__name__)
 
 
 class Router(object):
+
     """Route /stacks/ calls."""
 
     def __init__(self, app, manager):
-        """Takes a bottle app and routes traffic for it."""
+        """Take a bottle app and routes traffic for it."""
         self.app = app
         self.manager = manager
 

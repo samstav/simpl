@@ -11,7 +11,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Environments"""
+
+"""Environments."""
+
 import logging
 import uuid
 
@@ -247,8 +249,11 @@ def get_provider_catalog(provider_id, tenant_id=None):
     else:
         if len(bottle.request.query) > 16:
             bottle.abort(403, "Invalid url parameters.")
-        catalog = provider.get_catalog(bottle.request.environ['context'],
-                                       **bottle.request.query)
+        if 'source' in bottle.request.query:
+            catalog = provider.get_remote_catalog(**bottle.request.query)
+        else:
+            catalog = provider.get_catalog(bottle.request.environ['context'],
+                                           **bottle.request.query)
 
     return utils.write_body(catalog, bottle.request, bottle.response)
 

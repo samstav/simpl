@@ -14,7 +14,9 @@
 #    under the License.
 
 #!/usr/bin/env python
+
 """File with testing primitives for use in tests and external providers."""
+
 import json
 import logging
 import os

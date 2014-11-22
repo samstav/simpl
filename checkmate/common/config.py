@@ -13,8 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Global configuration
+"""Global configuration.
 
 Usage:
 
@@ -26,8 +25,8 @@ To update the config:
 
 To load config from sys.args and environment variables:
     CONFIG.initialize()
-
 """
+
 import argparse
 import logging
 import os

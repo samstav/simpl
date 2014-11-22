@@ -13,10 +13,9 @@
 #    under the License.
 #
 # Author: Ziad Sawalha (http://launchpad.net/~ziad-sawalha)
-# Original maintained at: https://github.com/ziadsawalha/Python-tracer
+# Original maintained at: https://github.com/ziadsawalha/python-tracer
 
-"""
-Python Call Tracing Tool
+"""Python Call Tracing Tool
 
 To use this:
 1. include the tools directory in your project (__init__.py and tracer.py)

@@ -14,7 +14,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Task Class and Helper Functions"""
+"""Task Class and Helper Functions."""
+
 import inspect
 
 from celery.exceptions import MaxRetriesExceededError
@@ -31,8 +32,10 @@ EVAL_GLOBALS = {'nothing': None}
 
 
 def set_exception(exception, task):
-    """Sets an exception info in a task. Used to report errors that occurred
-    during workflow run
+    """Set an exception info in a task.
+
+    Used to report errors that occurred during workflow run.
+
     @param exception: Exception to set
     @param task: Task
     @return:
@@ -43,7 +46,8 @@ def set_exception(exception, task):
 
 
 def get_exception(task):
-    """Gets the exception info from a task, evals it and returns the result
+    """Get the exception info from a task, eval it and returns the result.
+
     @param task: Task
     @return:
     """
@@ -54,8 +58,11 @@ def get_exception(task):
 
 
 def is_failed(task):
-    """Checks whether a task has failed by checking the task_state dict in
-    internal attribs. The format of task_state is
+    """Check whether a task has failed.
+
+    Done by checking the task_state dict in internal attribs.
+
+    The format of task_state is
     task_state: {
         'state': 'FAILURE',
         'traceback': 'Has the stacktrace of the exception',

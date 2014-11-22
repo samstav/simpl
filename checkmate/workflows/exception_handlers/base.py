@@ -13,7 +13,7 @@
 #    under the License.
 # pylint: disable=R0903
 
-"""ExceptionHandler Base Class"""
+"""ExceptionHandler Base Class."""
 
 import logging
 
@@ -21,6 +21,7 @@ LOG = logging.getLogger(__name__)
 
 
 class ExceptionHandlerBase(object):
+
     """Base Class for Exception Handlers."""
 
     def __init__(self, workflow, task, context, driver):

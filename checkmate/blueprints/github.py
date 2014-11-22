@@ -14,12 +14,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-GitHub Classes
+"""GitHub Classes.
 
 Manager for caching GitHub blueprints
 Router for responding to webhooks
 """
+
 from __future__ import absolute_import
 
 import base64
@@ -30,7 +30,6 @@ import logging
 import os
 import time
 import urlparse
-import yaml
 
 import bottle
 import eventlet
@@ -41,6 +40,7 @@ import github
 from github import GithubException
 import redis
 from redis import exceptions as redisexc
+import yaml
 
 from checkmate.common import caching
 from checkmate.common import config
@@ -66,7 +66,9 @@ def _handle_ghe(ghe, msg="Unexpected Github error"):
 
 
 class GitHubManager(object):
+
     """Manage the catalog of "known good" blueprints."""
+
     def __init__(self, git_config):
         """Init Github blueprint manager.
 
@@ -80,7 +82,8 @@ class GitHubManager(object):
         """
         self._github_api_base = git_config.github_api
         if self._github_api_base:
-            self._github = github.Github(CONFIG.github_token, base_url=self._github_api_base)
+            self._github = github.Github(CONFIG.github_token,
+                                         base_url=self._github_api_base)
             self._api_host = urlparse.urlparse(self._github_api_base).netloc
         self._repo_org = git_config.organization
         self._ref = git_config.ref
@@ -131,7 +134,7 @@ class GitHubManager(object):
 
     @property
     def api_host(self):
-        """Source for github request
+        """Source for github request.
 
         :return: source Github api host (not url)
         """
@@ -451,11 +454,11 @@ class GitHubManager(object):
     # blueprint parsing
     #
     def blueprint_is_invalid(self, untrusted_blueprint):
-        """Returns true if passed-in blueprint does NOT pass validation."""
+        """Return true if passed-in blueprint does NOT pass validation."""
         return not self.blueprint_is_valid(untrusted_blueprint)
 
     def blueprint_is_valid(self, untrusted_blueprint):
-        """Returns true if passed-in blueprint passes validation."""
+        """Return true if passed-in blueprint passes validation."""
         self._blocking_refresh_if_needed()
         for key, trusted_blueprint in self._blueprints.iteritems():
             try:
@@ -649,7 +652,7 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
 
     @staticmethod
     def _repo_find_ref(repo, ref_name):
-        """Returns a reference or tag if the repo contains it."""
+        """Return a reference or tag if the repo contains it."""
         refs = repo.get_git_refs()
         if '/' in ref_name:
             return refs.get(ref_name)
@@ -731,7 +734,6 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
 
         :param blueprint: the deployment blueprint to store
         """
-
         if blueprint and tag and isinstance(blueprint, collections.Mapping):
             if "repo_id" not in blueprint:
                 LOG.warn("Blueprint id missing in: %s", blueprint)
@@ -742,6 +744,7 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
 
 
 class WebhookRouter(object):
+
     """Handler for processing web-hook updates from Github.
 
     Note: Code ported from CrossCheck

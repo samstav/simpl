@@ -12,7 +12,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """Deployment Inputs parser"""
+
 import urlparse
 
 
@@ -27,7 +29,8 @@ register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
 class Input(str):
-    """Class to handle inputs
+
+    """Class to handle inputs.
 
     Treats all inputs as strings. Allows for 'url' type to extend string and
     still behave like a string.
@@ -37,8 +40,8 @@ class Input(str):
         i = Input({'url': 'http://test.com/', 'protocol': 'http'})
         print i, i.protocol, i.hostname
         >>> 'http://test.com/', 'http', 'test.com'
-
     """
+
     def __new__(cls, string):
         """init new instance and handle url type."""
         if isinstance(string, int):
@@ -63,7 +66,6 @@ class Input(str):
 
         Called automatically if this class is initialized with a dict.
         Can be called manually when we want the type to be parsed as a url.
-
         """
         parts = urlparse.urlparse(self)
         properties = [

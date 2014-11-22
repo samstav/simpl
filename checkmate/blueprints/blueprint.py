@@ -1,7 +1,20 @@
-#!/usr/bin/env python
-'''
-Blueprint dict-like class
-'''
+# Copyright (c) 2011-2013 Rackspace Hosting
+# All Rights Reserved.
+#
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+"""Blueprint dict-like class."""
+
 import copy
 import logging
 
@@ -13,11 +26,13 @@ LOG = logging.getLogger(__name__)
 
 
 class Blueprint(ExtensibleDict):
+
     """A checkmate blueprint.
 
     Acts like a dict. Includes validation, setting logic and other useful
     methods.
     """
+
     def __init__(self, *args, **kwargs):
         obj = dict(*args, **kwargs)
         Blueprint.convert(obj)
@@ -25,7 +40,7 @@ class Blueprint(ExtensibleDict):
 
     @classmethod
     def is_supported_syntax(cls, obj):
-        """Tests if the blueprint is in a supported syntax"""
+        """Test if the blueprint is in a supported syntax"""
         try:
             obj = copy.deepcopy(obj)
             Blueprint.convert(obj)
@@ -49,16 +64,13 @@ class Blueprint(ExtensibleDict):
 
     @classmethod
     def from_v0_6(cls, data):
-        """
-
-        Convert a pre v0.7 blueprint to a v0.7 one
+        """Convert a pre v0.7 blueprint to a v0.7 one.
 
         Handles the following option changes:
         - no select or comobo types (convert them to strings)
         - no regex attirbute (move to constraint)
         - no protocols attribute (move to constraint)
         - set missing 'type' to 'string'
-
         """
         for option in data.get('options', {}).values():
 
