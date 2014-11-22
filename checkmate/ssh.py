@@ -254,59 +254,6 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
         raise exc
 
 
-def old_connect(ip, port=22, username="root", timeout=10, identity_file=None,
-                private_key=None, password=None):
-    """Attempts SSH connection and returns SSHClient object
-    ip:             the ip address or host name of the server
-    username:       the username to use
-    timeout:        timeout in seconds
-    password:       password to use for username/password auth
-    identity_file:  a private key file to use
-    port:           TCP IP port to use (ssh default is 22)
-    private_key:    an RSA string for the private key to use (instead of using
-                    a file)
-    """
-    client = paramiko.SSHClient()
-    client.load_system_host_keys()
-    client.set_missing_host_key_policy(AcceptMissingHostKey())
-    try:
-        if private_key is not None:
-            file_obj = StringIO.StringIO(private_key)
-            pkey = paramiko.RSAKey.from_private_key(file_obj)
-            LOG.debug("Trying supplied private key string")
-            client.connect(ip, timeout=timeout, port=port, username=username,
-                           pkey=pkey)
-        elif identity_file is not None:
-            LOG.debug("Trying key file: %s", os.path.expanduser(identity_file))
-            client.connect(ip, timeout=timeout, port=port, username=username,
-                           key_filename=os.path.expanduser(identity_file))
-        else:
-            client.connect(ip, port=port, username=username, password=password)
-            LOG.debug("Authentication for ssh://%s@%s:%d using "
-                      "password succeeded", username, ip, port)
-        LOG.debug("Connected to ssh://%s@%s:%d.", username, ip, port)
-        return client
-    except paramiko.PasswordRequiredException, exc:
-        #Looks like we have cert issues, so try password auth if we can
-        if password:
-            LOG.debug("Retrying with password credentials")
-            return old_connect(ip, username=username, timeout=timeout,
-                               password=password, port=port)
-        else:
-            raise exc
-    except paramiko.BadHostKeyException, exc:
-        msg = ("ssh://%s@%s:%d failed:  %s. You might have a bad key "
-               "entry on your server, but this is a security issue and won't "
-               "be handled automatically. To fix this you can remove the "
-               "host entry for this host from the /.ssh/known_hosts file" %
-               (username, ip, port, exc))
-        LOG.info(msg)
-        raise exc
-    except Exception, exc:
-        LOG.info('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
-        raise exc
-
-
 def ps_execute(host, script, filename, username, password, port=445,
                timeout=300, gateway=None):
     """Make ps_exec available to be used as an api object in compute."""
