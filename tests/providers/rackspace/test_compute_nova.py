@@ -286,7 +286,7 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {}
 
         #Stub out postback call
-        self.mox.StubOutWithMock(cm_deps.resource_postback, 'delay')
+        self.mox.StubOutWithMock(cm_deps.tasks.resource_postback, 'delay')
         self.mox.StubOutWithMock(ssh, 'test_connection')
 
         #Create appropriate api mocks
@@ -301,8 +301,8 @@ class TestNovaCompute(test.ProviderTester):
         ssh.test_connection(context, "4.4.4.4", "root", timeout=10,
                             password=None, identity_file=None, port=22,
                             private_key=None).AndReturn(True)
-        cm_deps.resource_postback.delay(context['deployment_id'],
-                                        mox.IgnoreArg()).AndReturn(True)
+        cm_deps.tasks.resource_postback.delay(
+            context['deployment_id'], mox.IgnoreArg()).AndReturn(True)
 
         self.mox.ReplayAll()
         self.assertRaises(exceptions.CheckmateException,

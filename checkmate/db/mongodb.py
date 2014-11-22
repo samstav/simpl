@@ -289,7 +289,7 @@ class Driver(common.DbBase):
         for result in results:
             if 'id' not in result and 'tenant_id' in result:
                 result['id'] = result.pop('tenant_id')
-            ret.update({result['id']: result}, manipulate=True)
+            ret.update({result['id']: result})
         return ret
 
     def get_tenant(self, tenant_id):
