@@ -430,8 +430,8 @@ For running the service:
 
 For development (only checkmate hacking):
 
-    sudo pip install -r pip-requirements.txt
-    sudo pip install -r pip-test-requirements.txt
+    sudo pip install -r requirements.txt
+    sudo pip install -r test-requirements.txt
     sudo python setup.py develop
 
 For development (hacking on other dependencies)
@@ -457,8 +457,8 @@ Run tests:
 
 Requirements lists:
 
-- production: pip-requirements.txt
-- development: pip-test-requirements.txt
+- production: requirements.txt
+- development: test-requirements.txt
 
 
 ## Usage

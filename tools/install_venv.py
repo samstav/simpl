@@ -30,8 +30,8 @@ import traceback
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 VENV = os.path.join(ROOT, 'venv-checkmate')
-PIP_REQUIRES = os.path.join(ROOT, 'pip-requirements.txt')
-TEST_REQUIRES = os.path.join(ROOT, 'pip-test-requirements.txt')
+PIP_REQUIRES = os.path.join(ROOT, 'requirements.txt')
+TEST_REQUIRES = os.path.join(ROOT, 'test-requirements.txt')
 PY_VERSION = "python%s.%s" % (sys.version_info[0], sys.version_info[1])
 
 

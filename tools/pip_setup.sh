@@ -8,16 +8,16 @@ PYENV_HOME=$WORKSPACE/../.checkmate_pyenv/
 
 if [ "$CLEAN_DEPS" != "false" ]
 then
-    pip install -U --force-reinstall -r $WORKSPACE/pip-requirements.txt $WORKSPACE/
+    pip install -U --force-reinstall -r $WORKSPACE/requirements.txt $WORKSPACE/
 else
-    pip install -r $WORKSPACE/pip-requirements.txt $WORKSPACE/
+    pip install -r $WORKSPACE/requirements.txt $WORKSPACE/
 fi
 
 if [ "$CLEAN_DEPS" != "false" ]
 then
-    pip install -U --force-reinstall -r $WORKSPACE/pip-test-requirements.txt $WORKSPACE/
+    pip install -U --force-reinstall -r $WORKSPACE/test-requirements.txt $WORKSPACE/
 else
-    pip install -r $WORKSPACE/pip-test-requirements.txt $WORKSPACE/
+    pip install -r $WORKSPACE/test-requirements.txt $WORKSPACE/
 fi
 
 # make sure we pull the latest chef recipies

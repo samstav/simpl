@@ -146,7 +146,7 @@ class Router(object):
         pip_path = os.path.join(os.path.dirname(__file__),  # admin
                                 os.path.pardir,             # checkmate
                                 os.path.pardir,             # the root
-                                'pip-requirements.txt')
+                                'requirements.txt')
         libraries = setup.required_imports(requirements_files=[pip_path])
         result = {}
         for library, constraints in libraries:

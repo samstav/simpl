@@ -1,5 +1,5 @@
 # Use pip to install these requirements before installing checkmate:
-# pip install -r pip-requirements.txt
+# pip install -r requirements.txt
 #
 # Note - uncomment the following line to have this also install checkmate
 # (Note the relative directory, must run pip from the correct relative directory.)
