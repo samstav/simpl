@@ -21,7 +21,6 @@ import unittest
 
 import mox
 import pyrax
-import tldextract
 
 from checkmate import middleware as cmmid
 from checkmate.providers.rackspace import dns
@@ -92,7 +91,6 @@ class TestDnsProvider(unittest.TestCase):
     def test_verify_limits_negative(self):
         """Test that verify_limits() returns warning if limits exceeded."""
         result = self.verify_limits([1], 1, 0)
-        LOG.debug(result)
         self.assertEqual(2, len(result))
         self.assertEqual(result[0]['type'], "INSUFFICIENT-CAPACITY")
 
@@ -123,8 +121,6 @@ class TestDnsProvider(unittest.TestCase):
 class TestParseDomain(unittest.TestCase):
     def setUp(self):
         self.sample_domain = ('www.sample.com', 'sample.com')
-        tld_path = os.path.dirname(tldextract.__file__)
-        self.default_tld_cache_file = os.path.join(tld_path, '.tld_set')
         self.tld_cache_env = 'CHECKMATE_TLD_CACHE_FILE'
         self.custom_tld_cache_file = os.path.join(os.path.dirname(__file__),
                                                   'tld_set.tmp')
@@ -135,7 +131,6 @@ class TestParseDomain(unittest.TestCase):
             ('ftp.regaion1.sample.co.uk', 'sample.co.uk')
         ]
         self.mox = mox.Mox()
-        self.save_failed = False
 
     def tearDown(self):
         self.mox.UnsetStubs()
@@ -143,39 +138,12 @@ class TestParseDomain(unittest.TestCase):
             os.remove(self.custom_tld_cache_file)
 
     def test_parse_domain_without_custom_cache(self):
-        if os.path.exists(self.default_tld_cache_file):
-            try:
-                os.remove(self.default_tld_cache_file)
-            except StandardError:
-                # Not that big a deal if the file couldn't be removed by the
-                # user running the test.
-                pass
         if self.tld_cache_env in os.environ:
             os.environ.pop(self.tld_cache_env)
         domain, expected = self.sample_domain
 
-        # Detect permission failure, log it, and let the test pass
-
-        tldlog = tldextract.tldextract.LOG
-        self.mox.StubOutWithMock(tldlog, 'warn')
-        self.save_failed = False
-
-        def failed(*args):
-            """Helper method to ignore expected failure."""
-            LOG.warn("A tldextract test failure is being ignored")
-            LOG.warn(*args)
-            self.save_failed = True
-
-        tldlog.warn(
-            "unable to cache TLDs in file %s: %s",
-            self.default_tld_cache_file, mox.IgnoreArg()
-        ).WithSideEffects(failed)
-        self.mox.ReplayAll()
-
         answer = provider.parse_domain(domain)
         self.assertEquals(answer, expected)
-        if not self.save_failed:
-            self.assertTrue(os.path.exists(self.default_tld_cache_file))
 
     def test_parse_domain_with_custom_cache(self):
         if os.path.exists(self.custom_tld_cache_file):
@@ -190,6 +158,7 @@ class TestParseDomain(unittest.TestCase):
         for domain, expected in self.sample_data:
             answer = provider.parse_domain(domain)
             self.assertEquals(answer, expected)
+
 
 if __name__ == '__main__':
     import sys

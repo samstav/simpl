@@ -190,10 +190,10 @@ class TestCreateKitchen(TestKitchenSolo):
         ]
         path_exists_calls = [
             mock.call(self.kitchen_path),
-            mock.call(nodes_path),
             mock.call(bootstrap_path),
             mock.call(certs_path),
             mock.call(secret_key_path),
+            mock.call(nodes_path),
         ]
         mock_mkdir.assert_has_calls(mkdir_calls)
         mock_path_exists.assert_has_calls(path_exists_calls)
