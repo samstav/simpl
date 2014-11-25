@@ -47,27 +47,22 @@
 #			integrated into pyrax shortly and can be removed.
 -e git://github.com/ziadsawalha/pyrax.git@7c5eda1f8be2ab4da45da2747d508e1c48da7025#egg=pyrax
 
-# impacket
-# Notes:     pypi lost its copy of impacket, and pip is unable to locate it.
-#            As of  10/01/2013 it will
-#            fetch from code.google.com.
-#            impacket is a Collection of Python classes providing
-#            access to network packets.
-https://impacket.googlecode.com/files/impacket-0.9.10.tar.gz#egg=impacket
+# Requires a newer version of pbr, so install it first
+-e git://github.com/samstav/satori.git@bug/1389034#egg=satori
 
-#### Checkmate applications
-
+#### Checkmate packages
 amqp==1.0.13
 anyjson==0.3.3
 billiard==2.7.3.32
 bottle==0.11.6
 celery==3.0.23
 eventlet==0.14.0
+impacket==0.9.12
 Jinja2==2.7.1
 kombu==2.5.14
 morpheus==0.0.4
 pam==0.1.4
-paramiko==1.7.7.2
+paramiko==1.15.1
 passlib==1.6.1
 prettytable==0.6
 pycrypto==2.6
@@ -81,11 +76,10 @@ PyGithub==1.14.0
 PyYAML==3.10
 redis==2.7.6
 requests==1.2.3
-git+https://github.com/samstav/satori.git@bug/1389034
 simplefsm==0.1.3
 six==1.5.2
 SQLAlchemy==0.8.1
-tldextract==1.1.2
+tldextract==1.5.1
 WebOb==1.2.3
 
 
