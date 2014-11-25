@@ -17,8 +17,8 @@ Setup for Checkmate
 
 All dependencies are listed in:
 
-- pip-requiremets.txt for production
-- pip-test-requiremets.txt for test and development
+- requirements.txt for production
+- test-requirements.txt for test and development
 """
 
 import os
@@ -35,7 +35,7 @@ REQUIRES = setup_tools.parse_requirements()
 if 'develop' in sys.argv:
     print ("We are assuming that since you're developing you have the\n"
            "dependency repos set up for development as well. If not,\n"
-           "run 'pip install -r pip-requirements.txt' to install them")
+           "run 'pip install -r requirements.txt' to install them")
     DEPENDENCYLINKS = []
 else:
     DEPENDENCYLINKS = setup_tools.parse_dependency_links()

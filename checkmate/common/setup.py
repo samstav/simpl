@@ -47,7 +47,7 @@ def parse_dependency_links(requirements_files=None):
     as git URLs.
     """
     if requirements_files is None:
-        requirements_files = ['pip-requirements.txt', 'requirements.txt']
+        requirements_files = ['requirements.txt']
 
     dependency_links = []
     for line in get_reqs_from_files(requirements_files):
@@ -115,7 +115,7 @@ def parse_requirements(requirements_files=None):
     :returns: list of packages with version constraints
     """
     if requirements_files is None:
-        requirements_files = ['pip-requirements.txt', 'requirements.txt']
+        requirements_files = ['requirements.txt']
 
     requirements = []
     for line in get_reqs_from_files(requirements_files):

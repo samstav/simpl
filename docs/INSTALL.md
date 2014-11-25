@@ -67,7 +67,7 @@ If you do not wish to use a virtual environment and want to develop using your
 system python, you can set up all requirements using the following commands:
 
     # Install forks and other non-standard dependencies
-    sudo pip install -r pip-requirements.txt
+    sudo pip install -r requirements.txt
 
     # Install dependencies for running tests
     sudo pip install -r tools/test-requirements.txt
@@ -80,7 +80,7 @@ system python, you can set up all requirements using the following commands:
 
     git clone git://github.rackspace.com/checkmate/checkmate.git
     cd checkmate
-    pip install -r pip-requirements.txt
+    pip install -r requirements.txt
     python setup.py install
     cd ..
 
