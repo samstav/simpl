@@ -55,7 +55,6 @@ class DBDriverTests(object):
         return None  # meant to be overridden
 
     def setUp(self):
-        self.maxDiff = None
         if self.connection_string:
             self.driver = db.get_driver(
                 connection_string=self.connection_string, reset=True)

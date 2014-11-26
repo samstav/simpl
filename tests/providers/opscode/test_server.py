@@ -195,6 +195,30 @@ class TestChefServerProvider(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_cleanup_environment(self):
+        expected_args = [
+            {
+                'auth_source': None,
+                'auth_token': 'MOCK_TOKEN',
+                'authenticated': False,
+                'base_url': None,
+                'catalog': None,
+                'deployment_id': 'DEP1',
+                'domain': None,
+                'is_admin': False,
+                'kwargs': {},
+                'read_only': False,
+                'region': None,
+                'resource': None,
+                'roles': [],
+                'show_deleted': False,
+                'simulation': False,
+                'tenant': None,
+                'user_id': None,
+                'user_tenants': None,
+                'username': 'MOCK_USER'
+            },
+            'DEP1'
+        ]
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         wf_spec = workflow_spec.WorkflowSpec()
@@ -203,7 +227,7 @@ class TestChefServerProvider(test.ProviderTester):
             wf_spec, {'id': 'DEP1'}, context)
         cleanup_task_spec = cleanup_result['root']
         self.assertIsInstance(cleanup_task_spec, specs.Celery)
-        self.assertEqual(cleanup_task_spec.args, ['DEP1'])
+        self.assertEqual(cleanup_task_spec.args, expected_args)
         defines = {'provider': server_provider.key, 'resource': 'workspace'}
         properties = {
             'estimated_duration': 1,
@@ -270,16 +294,16 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             wf_spec, self.deployment, context, "w_id", "BUILD")
 
         task_list = workflow.spec.task_specs.keys()
-        expected = ['Root',
-                    'Start',
-                    'Create Chef Environment',
+        expected = ['After server 1 (db) is registered and options are ready',
+                    'Apt-get Fix:0 (db)',
+                    'Bootstrap Server:0 (db)',
+                    'Create Chef Server Environment',
                     'Create Resource 1',
-                    'After Environment is Ready and Server 1 (db) is Up',
-                    'Pre-Configure Server 1 (db)',
-                    'Register Server 1 (db)',
-                    'After server 1 (db) is registered and options are ready',
-                    'Configure mysql: 0 (db)',
-                    'Delete Cookbooks']
+                    'Create Workspace',
+                    'Register Server:0 (db)',
+                    'Root',
+                    'Start',
+                    'Upload Cookbooks']
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
@@ -293,20 +317,16 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         expected.append({
             # Use chef-server tasks for now
             # Use only one kitchen. Call it "kitchen" like we used to
-            'call': 'checkmate.providers.opscode.server.tasks'
-                    '.create_environment',
+            'call': 'checkmate.providers.opscode.server.tasks.create_kitchen',
             'args': [context.get_queued_task_dict(
                     deployment_id=self.deployment['id']),
                 self.deployment['id'], 'kitchen'],
-            'kwargs': mox.And(
-                mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
-                mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
-                mox.ContainsKeyValue(
-                    'public_key_ssh',
-                    mox.IgnoreArg()
-                ),
-                mox.ContainsKeyValue('source_repo', mox.IgnoreArg())
-            ),
+            'kwargs': {'server_credentials': {
+                'server_user_key': None,
+                'server_username': None,
+                'validator_pem': None,
+                'server_url': None,
+                'validator_username': None}, 'source_repo': None},
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
                 'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'],
@@ -318,10 +338,66 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             },
         })
         expected.append({
-            'call': 'checkmate.providers.opscode.server.tasks.delete_cookbooks',
-            'args': [self.deployment['id'], 'kitchen'],
-            'result': None,
-            'kwargs': None
+            'call': 'checkmate.providers.opscode.server.tasks.'
+                    'manage_environment',
+            'args': [
+                {
+                    'username': 'MOCK_USER',
+                    'domain': None,
+                    'user_tenants': None,
+                    'auth_token': 'MOCK_TOKEN',
+                    'catalog': None,
+                    'is_admin': False,
+                    'resource': None,
+                    'tenant': None,
+                    'read_only': False,
+                    'user_id': None,
+                    'show_deleted': False,
+                    'roles': [],
+                    'region': None,
+                    'authenticated': False,
+                    'base_url': None,
+                    'simulation': False,
+                    'kwargs': {},
+                    'auth_source': None,
+                    'deployment_id': 'DEP-ID-1000'
+                },
+                'DEP-ID-1000',
+                'DEP-ID-1000'
+            ],
+            'kwargs': {'desc': 'Checkmate Environment'},
+            'result': {}
+        })
+        expected.append({
+            'call': 'checkmate.providers.opscode.server.tasks'
+                    '.upload_cookbooks',
+            'args': [
+                {
+                    'username': 'MOCK_USER',
+                    'domain': None,
+                    'user_tenants': None,
+                    'auth_token': 'MOCK_TOKEN',
+                    'catalog': None,
+                    'is_admin': False,
+                    'resource': None,
+                    'tenant': None,
+                    'read_only': False,
+                    'user_id': None,
+                    'show_deleted': False,
+                    'roles': [],
+                    'region': None,
+                    'authenticated': False,
+                    'base_url': None,
+                    'simulation': False,
+                    'kwargs': {},
+                    'auth_source': None,
+                    'deployment_id': 'DEP-ID-1000'
+                },
+                'DEP-ID-1000',
+                'DEP-ID-1000'
+            ],
+            'kwargs': None,
+            'result': {}
         })
 
         for key, resource in self.deployment['resources'].iteritems():
@@ -360,60 +436,92 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                             '.register_node',
                     'args': [
                         context_dict,
-                        '4.4.4.1',
                         self.deployment['id'],
+                        'db01.checkmate.local',
                     ],
-                    'kwargs': mox.And(
-                        mox.In('password'),
-                        mox.ContainsKeyValue('bootstrap_version', '10.24.0')
-                    ),
+                    'kwargs': {
+                        'environment': 'DEP-ID-1000',
+                        'recipes': ['mysql::server']
+                    },
                     'result': None,
                     'resource': key,
                 })
-
+                expected.append({
+                    'call': 'checkmate.ssh.execute_2',
+                    'args': [
+                        {
+                            'username': 'MOCK_USER',
+                            'domain': None,
+                            'user_tenants': None,
+                            'resource_key': '0',
+                            'auth_token': 'MOCK_TOKEN',
+                            'catalog': None,
+                            'is_admin': False,
+                            'resource': None,
+                            'tenant': None,
+                            'read_only': False,
+                            'user_id': None,
+                            'show_deleted': False,
+                            'roles': [],
+                            'region': None,
+                            'authenticated': False,
+                            'base_url': None,
+                            'simulation': False,
+                            'kwargs': {},
+                            'auth_source': None,
+                            'deployment_id': 'DEP-ID-1000'
+                        },
+                        '4.4.4.1',
+                        'sudo apt-get update',
+                        'root'
+                    ],
+                    'kwargs': {
+                        'proxy_credentials': {},
+                        'password': None,
+                        'proxy_address': None,
+                        'identity_file': None
+                    },
+                    'result': {}
+                })
                 # build-essential (now just cook with bootstrap.json)
                 expected.append({
-                    'call': 'checkmate.providers.opscode.server.tasks.cook',
+                    'call': 'checkmate.providers.opscode.server.tasks.'
+                            'bootstrap',
                     'args': [
-                        context_dict,
-                        '4.4.4.1',
-                        self.deployment['id'],
+                        {
+                            'username': 'MOCK_USER',
+                            'domain': None,
+                            'user_tenants': None,
+                            'resource_key': '0',
+                            'auth_token': 'MOCK_TOKEN',
+                            'catalog': None,
+                            'is_admin': False,
+                            'resource': None,
+                            'tenant': None,
+                            'read_only': False,
+                            'user_id': None,
+                            'show_deleted': False,
+                            'roles': [],
+                            'region': None,
+                            'authenticated': False,
+                            'base_url': None,
+                            'simulation': False,
+                            'kwargs': {},
+                            'auth_source': None,
+                            'deployment_id': 'DEP-ID-1000'
+                        },
+                        'DEP-ID-1000',
+                        'db01.checkmate.local',
+                        '4.4.4.1'
                     ],
-                    'kwargs': mox.And(
-                        mox.In('password'),
-                        mox.Not(mox.In('recipes')),
-                        mox.Not(mox.In('roles')),
-                        mox.ContainsKeyValue(
-                            'identity_file',
-                            '/var/tmp/%s/private.pem' % self.deployment['id']
-                        )
-                    ),
-                    'result': None,
-                    'resource': key,
-                })
-            else:
-                # Cook with cookbook (special mysql handling calls server role)
-                context_dict = context.get_queued_task_dict(
-                    deployment_id=self.deployment['id'],
-                    resource_key=key)
-
-                expected.append({
-                    'call': 'checkmate.providers.opscode.server.tasks.cook',
-                    'args': [
-                        context_dict,
-                        '4.4.4.1',
-                        self.deployment['id'],
-                    ],
-                    'kwargs': mox.And(
-                        mox.In('password'),
-                        mox.ContainsKeyValue('recipes', ['mysql::server']),
-                        mox.ContainsKeyValue(
-                            'identity_file',
-                            '/var/tmp/%s/private.pem' % self.deployment['id']
-                        )
-                    ),
-                    'result': None,
-                    'resource': key,
+                    'kwargs': {
+                        'environment': 'DEP-ID-1000',
+                        'recipes': ['mysql::server'],
+                        'password': None,
+                        'bootstrap_version': '10.24.0',
+                        'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                    },
+                    'result': {}
                 })
 
         self.workflow = self._get_stubbed_out_workflow(
@@ -622,16 +730,16 @@ interfaces/mysql/host
         workflow = cm_wf.init_spiff_workflow(
             wf_spec, self.deployment, context, "w_id", "BUILD")
         task_list = workflow.spec.task_specs.keys()
-        expected = ['Root',
-                    'Start',
-                    'Create Chef Environment',
-                    'Create Resource 1',
-                    'After Environment is Ready and Server 1 (db) is Up',
-                    'Register Server 1 (db)',
-                    'Pre-Configure Server 1 (db)',
+        expected = ['Apt-get Fix:0 (db)',
+                    'Bootstrap Server:0 (db)',
                     'Collect Chef Data for 0',
-                    'Configure mysql: 0 (db)',
-                    'Delete Cookbooks',
+                    'Create Chef Server Environment',
+                    'Create Resource 1',
+                    'Create Workspace',
+                    'Register Server:0 (db)',
+                    'Root',
+                    'Start',
+                    'Upload Cookbooks',
                     ]
         task_list.sort()
         expected.sort()
@@ -639,8 +747,9 @@ interfaces/mysql/host
         self.mox.VerifyAll()
 
         # Make sure hash value was generated
-        resources = self.deployment['resources']
-        self.assertIn("hash", resources['admin']['instance'])
+        instance = self.deployment['resources']['admin']['instance']
+        self.assertEqual(12, len(instance['password']))
+        self.assertIn('admin', instance['name'])
 
     def test_workflow_execution(self):
         self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
@@ -659,34 +768,87 @@ interfaces/mysql/host
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
         expected_calls = [{
             # Create Chef Environment
-            'call': 'checkmate.providers.opscode.server.tasks'
-                    '.create_environment',
-            'args': [
-                context.get_queued_task_dict(
+            'call': 'checkmate.providers.opscode.server.tasks.create_kitchen',
+            'args': [context.get_queued_task_dict(
                     deployment_id=self.deployment['id']),
                 self.deployment['id'], 'kitchen'],
-            'kwargs': mox.And(
-                mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
-                mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
-                mox.ContainsKeyValue('public_key_ssh', mox.IgnoreArg())
-            ),
+            'kwargs': {'server_credentials': {
+                'server_user_key': None,
+                'server_username': None,
+                'validator_pem': None,
+                'server_url': None,
+                'validator_username': None},
+                'source_repo': 'http://mock_url'},
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
-                'kitchen': '/var/tmp/%s/kitchen',
+                'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'],
                 'private_key_path':
                 '/var/tmp/%s/private.pem' % self.deployment['id'],
                 'public_key_path':
                 '/var/tmp/%s/checkmate.pub' % self.deployment['id'],
-                'public_key':
-                test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
-            }
+                'public_key': test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY'],
+            },
         }, {
-            'call': 'checkmate.providers.opscode.server.tasks.delete_cookbooks',
-            'args': [self.deployment['id'], 'kitchen'],
-            'result': None,
-            'kwargs': None
-        },
-        ]
+            'call': 'checkmate.providers.opscode.server.tasks.'
+                    'manage_environment',
+            'args': [
+                {
+                    'username': 'MOCK_USER',
+                    'domain': None,
+                    'user_tenants': None,
+                    'auth_token': 'MOCK_TOKEN',
+                    'catalog': None,
+                    'is_admin': False,
+                    'resource': None,
+                    'tenant': None,
+                    'read_only': False,
+                    'user_id': None,
+                    'show_deleted': False,
+                    'roles': [],
+                    'region': None,
+                    'authenticated': False,
+                    'base_url': None,
+                    'simulation': False,
+                    'kwargs': {},
+                    'auth_source': None,
+                    'deployment_id': 'DEP-ID-1000'
+                },
+                'DEP-ID-1000',
+                'DEP-ID-1000'
+            ],
+            'kwargs': {'desc': 'Checkmate Environment'},
+            'result': {}
+        }, {
+            'call': 'checkmate.providers.opscode.server.tasks'
+                    '.upload_cookbooks',
+            'args': [
+                {
+                    'username': 'MOCK_USER',
+                    'domain': None,
+                    'user_tenants': None,
+                    'auth_token': 'MOCK_TOKEN',
+                    'catalog': None,
+                    'is_admin': False,
+                    'resource': None,
+                    'tenant': None,
+                    'read_only': False,
+                    'user_id': None,
+                    'show_deleted': False,
+                    'roles': [],
+                    'region': None,
+                    'authenticated': False,
+                    'base_url': None,
+                    'simulation': False,
+                    'kwargs': {},
+                    'auth_source': None,
+                    'deployment_id': 'DEP-ID-1000'
+                },
+                'DEP-ID-1000',
+                'DEP-ID-1000'
+            ],
+            'kwargs': None,
+            'result': {}
+        }]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
                 context_dict = context.get_queued_task_dict(
@@ -727,61 +889,94 @@ interfaces/mysql/host
                         '.register_node',
                         'args': [
                             context_dict,
-                            "4.4.4.4",
                             self.deployment['id'],
+                            'db01.checkmate.local'
                         ],
-                        'kwargs': mox.And(
-                            mox.In('password'),
-                            mox.ContainsKeyValue('attributes', attributes),
-                            mox.ContainsKeyValue('bootstrap_version',
-                                                 '10.24.0')
-                        ),
+                        'kwargs': {
+                            'environment': 'DEP-ID-1000',
+                            'recipes': ['mysql::server']
+                        },
                         'result': None,
                         'resource': key,
                     },
                     {
-                        # Prep host - bootstrap.json means no recipes passed in
-                        'call': 'checkmate.providers.opscode.server.tasks'
-                                '.cook',
+                        'call': 'checkmate.ssh.execute_2',
                         'args': [
-                            context_dict,
+                            {
+                                'username': 'MOCK_USER',
+                                'domain': None,
+                                'user_tenants': None,
+                                'resource_key': '0',
+                                'auth_token': 'MOCK_TOKEN',
+                                'catalog': None,
+                                'is_admin': False,
+                                'resource': None,
+                                'tenant': None,
+                                'read_only': False,
+                                'user_id': None,
+                                'show_deleted': False,
+                                'roles': [],
+                                'region': None,
+                                'authenticated': False,
+                                'base_url': None,
+                                'simulation': False,
+                                'kwargs': {},
+                                'auth_source': None,
+                                'deployment_id': 'DEP-ID-1000'
+                            },
                             '4.4.4.4',
-                            self.deployment['id'],
+                            'sudo apt-get update',
+                            'root'
                         ],
-                        'kwargs': mox.And(
-                            mox.In('password'),
-                            mox.Not(mox.In('recipes')),
-                            mox.ContainsKeyValue(
-                                'identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id']
-                            )
-                        ),
-                        'result': None
-                    }
+                        'kwargs': {
+                            'proxy_credentials': {},
+                            'password': 'shecret',
+                            'proxy_address': None,
+                            'identity_file': None
+                        },
+                        'result': {}
+                        },
+                    {
+                        'call': 'checkmate.providers.opscode.server.tasks.'
+                                'bootstrap',
+                        'args': [
+                            {
+                                'username': 'MOCK_USER',
+                                'domain': None,
+                                'user_tenants': None,
+                                'resource_key': '0',
+                                'auth_token': 'MOCK_TOKEN',
+                                'catalog': None,
+                                'is_admin': False,
+                                'resource': None,
+                                'tenant': None,
+                                'read_only': False,
+                                'user_id': None,
+                                'show_deleted': False,
+                                'roles': [],
+                                'region': None,
+                                'authenticated': False,
+                                'base_url': None,
+                                'simulation': False,
+                                'kwargs': {},
+                                'auth_source': None,
+                                'deployment_id': 'DEP-ID-1000'
+                            },
+                            'DEP-ID-1000',
+                            'db01.checkmate.local',
+                            '4.4.4.4'
+                        ],
+                        'kwargs': {
+                            'environment': 'DEP-ID-1000',
+                            'recipes': ['mysql::server'],
+                            'password': 'shecret',
+                            'bootstrap_version': '10.24.0',
+                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                        },
+                        'result': {}
+                        }
                 ])
-            elif resource.get('type') == 'database':
-                context_dict = context.get_queued_task_dict(
-                    deployment_id=self.deployment['id'],
-                    resource_key=key)
-                expected_calls.extend([{
-                    # Cook mysql
-                    'call': 'checkmate.providers.opscode.server.tasks.cook',
-                    'args': [
-                        context_dict,
-                        '4.4.4.4',
-                        self.deployment['id'],
-                    ],
-                    'kwargs': mox.And(
-                        mox.In('password'),
-                        mox.ContainsKeyValue('recipes', ['mysql::server']),
-                        mox.ContainsKeyValue(
-                            'identity_file',
-                            '/var/tmp/%s/private.pem' % self.deployment['id']
-                        )
-                    ),
-                    'result': None
-                }])
+
         workflow = self._get_stubbed_out_workflow(
             context=context, expected_calls=expected_calls)
 
@@ -803,20 +998,18 @@ interfaces/mysql/host
         expected = utils.yaml_to_dict("""
                 chef_options:
                 instance:0:
-                    name: app_db
+                    name: ''
                     instance:
                       interfaces:
                         mysql:
-                          database_name: app_db      # from mapfile defaults
+                          host: 4.4.4.4              # from host requirement
                           password: myPassW0rd       # from constraints
                           username: u1               # from blueprint settings
-                          host: 4.4.4.4              # from host requirement
                     interfaces:                      # add this for v3.0 compat
                       mysql:
-                        database_name: app_db
+                        host: 4.4.4.4
                         password: myPassW0rd
                         username: u1
-                        host: 4.4.4.4
             """)
         self.assertDictEqual(final.attributes['instance:0'],
                              expected['instance:0'])
