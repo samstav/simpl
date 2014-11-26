@@ -1,0 +1,48 @@
+<!--TODO: collapsing not yet clean -->
+<div id="user_control" class="nav pull-right">
+  <ul class="nav">
+    <li class="divider-vertical"></li>
+
+    <!-- NOT LOGGED IN -->
+    <li class="pull-right" ng-cloak ng-hide="auth.is_logged_in()">
+      <a ng-click="loginPrompt()">
+        <i class="icon-user icon-white"></i>
+        Log In
+      </a>
+    </li>
+
+    <!-- LOGGED IN -->
+    <li class="dropdown pull-right" ng-show="auth.is_logged_in()" title="Token expires {{auth.context.token.expires | formattedDate}}">
+      <a class="dropdown-toggle" id="user_button">
+            <i class="icon-user icon-white"></i> {{auth.context.username}}
+            <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
+            <i class="caret"></i>
+      </a>
+      <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
+        <!-- User Tenants -->
+        <li ng-show="auth.get_tenants().length > 0" class="nav-header">Tenants</li>
+        <li role="presentation" ng-repeat="tenant in auth.get_tenants()">
+            <a role="menutitem" ng-click="auth.switch_tenant(tenant.tenantId)">{{tenant.username}}</a>
+        </li>
+        <li ng-show="auth.get_tenants().length > 0" class="divider"></li>
+
+        <!-- Impersonation -->
+        <li ng-show="auth.is_admin()" class="nav-header">Impersonation</li>
+        <li ng-show="auth.is_admin()">
+          <form id="impersonate" ng-submit="impersonate(impersonation.username)">
+            <input ng-model="impersonation.username" type="text" placeholder="Username" cm-stop-click-propagation />
+          </form>
+        </li>
+        <li ng-show="auth.is_admin()" role="presentation" ng-repeat="tenant in auth.cache.tenants">
+            <a role="menutitem" ng-click="impersonate(tenant.username)">{{tenant.username}} ({{tenant.tenantId}})</a>
+        </li>
+        <li ng-show="auth.is_admin() &amp;&amp; auth.cache.tenants" class="divider"></li>
+
+        <li><a ng-show="is_impersonating()" ng-click="exit_impersonation()">Exit Impersonation</a></li>
+        <li ng-show="is_impersonating()" class="divider"></li>
+
+        <li><a ng-click="auth.logOut()">Log Out</a></li>
+      </ul>
+    </li>
+  </ul>
+</div>

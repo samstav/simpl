@@ -1,0 +1,36 @@
+<dl ng-show="resources_info.error">
+  <dd class="alert alert-error">
+    <span class="text-error">There was a problem while checking for errors!</span>
+    <br />
+    <span>{{resources_info.error}}</span>
+  </dd>
+</dl>
+
+<dl ng-hide="resources_info.has_errors">
+  <dd class="alert alert-success">
+    <span class="text-success">No errors found. You're good to go!</span>
+  </dd>
+</dl>
+
+<dl ng-repeat="(resource_id, info_list) in resources_info"
+    ng-hide="info_list.success || resource_id == 'has_errors'"
+    class="dl-vertical">
+  <dt>
+    {{data.resources[resource_id]['dns-name']}}
+    ({{data.resources[resource_id]['type']}})
+  </dt>
+
+  <br />
+
+  <dd class="alert alert-error" ng-show="info_list.error.length > 0">
+    <div ng-repeat="message in info_list['error']">{{message}}</div>
+  </dd>
+
+  <dd class="alert alert-warning" ng-show="info_list.warning.length > 0">
+    <div ng-repeat="message in info_list['warning']">{{message}}</div>
+  </dd>
+
+  <dd class="alert alert-info" ng-show="info_list.info.length > 0">
+    <div ng-repeat="message in info_list['info']">{{message}}</div>
+  </dd>
+</dl>

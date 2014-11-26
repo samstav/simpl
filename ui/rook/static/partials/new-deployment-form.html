@@ -1,0 +1,135 @@
+<!--
+Display updates based on the following values in the scope:
+
+Headers:
+- blueprints | blueprint: displays list or only one entry
+  - branches: will diplay branches/tags if they exist
+- environments | environment: determines if list or single one shows up
+  - region: if an option with id=region exists, it is displayed after region
+
+Options:
+- url: if an option with id=url exists, it is displayed as a URL control at the top of the options list
+  - domain: if an option with the id=domain exists, it is assumed to be part of the url control group
+    Note: This is also then populated with an autocomplete list of domains from the server
+  - web_server_protocol: if an option with id=web_server_protocol exists, it is assumed to be part of the url control group
+  - path: if an option with id=path exists, it is assumed to be part of the url control group
+
+  - register_dns: if an option with id=register_dns exists, it is assumed to be part of the url control group
+
+  - ssl_certificate, ssl_intermediate_certificate, ssl_private_key are also handled this way
+- username: if an option with id=username exists, it is displayed at the top of the options list
+- password: if an option with id=password exists, it is displayed at the top of the options list
+
+All other options are placed uhnder the "Show More Options" group
+
+Special Type Handling:
+string: displayed as a text control
+password: displayed as a password control which only shows asterisks for characters. Also has generate and show buttons added.
+text: displayed as a textarea
+int: displayed as number control (with up/down buttons)
+boolean: displayed as a checkbox
+select: displayed as a drop-down with 'choice' providing the list of items
+  Note: If choice is a key/value list, it is displayed using a separate template called select-kv
+combo: composite controlshowing a textbox and dropdown so that the dropdown is optional (used in domains, for example)
+url: shows "Address Builder" to handle url options
+
+
+
+-->
+
+<style>
+.required:after {
+    color: #b94a48;
+    content: ' *';
+    display:inline;
+}
+</style>
+
+<div class="alert" ng-class="{'alert-info': stable}" ng-show="blueprint &amp;&amp; remote.branch.name != 'stable'">
+  <h4 ng-show="!stable">Warning!</h4>
+  You have selected an <strong>unsupported</strong> <span ng-show="stable">version of this</span> blueprint.
+  <span ng-show="stable">
+    <a ng-href="/deployments/new?blueprint={{stable.url}}">This</a> is a supported version of this blueprint.
+  </span>
+  <span ng-show="!stable">
+    Try a supported blueprint from the list on the home page instead.
+  </span>
+</div>
+
+<form id="newDeploymentForm" name="newDeploymentForm" class="form-horizontal" autocomplete="off" ng-show="blueprint" style="background-position: right top; background-repeat: no-repeat; background-size: auto 140px; background-image: url({{blueprint['meta-data']['reach-info'].tattoo}})">
+  <fieldset>
+    <!-- Name -->
+    <div class="row-fluid">
+        <div class="control-group span10" ng-form="subForm" ng-class="{error: subForm.$invalid &amp;&amp; subForm.$dirty}">
+            <label class="control-label" for="deployment_name">Deployment Name</label>
+            <div class="controls">
+              <input id="deployment_name" type="text" ng-model="$parent.deployment_name" class="input-xlarge" maxlength="32" ng-maxlength="32" placeholder="ex. My Favorite App">
+            </div>
+        </div>
+    </div>
+    <!-- Blueprint -->
+    <div class="row-fluid">
+        <img class="span2" style="width: 60px; height: 60px;" src="/img/design-icon.png"/>
+        <div class="control-group span10">
+            <legend>Blueprint</legend>
+            <label class="control-label" for="blueprint">What to deploy?</label>
+            <div class="controls">
+                <!-- Show list if list exists -->
+                <select ng-show="blueprints" id="blueprint" ng-class="{span7: branches, span9: !branches}" ng-model="blueprint" ng-change="setBlueprint(blueprint)"
+                        ng-options="blueprint.name for (id, blueprint) in blueprints" required>
+                </select>
+                <!-- Show text if only one exists -->
+                <input ng-show="!blueprints" readonly="" type="text" value="{{blueprint.name}}" ng-class="{span7: branches, span9: !branches}"><span ng-show="branches"> branch/tag: <select id="branch" name="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
+                <div ng-show="blueprint.documentation.abstract">
+                  <markdown text="blueprint.documentation.abstract"></markdown>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Environment -->
+    <div class="row-fluid">
+      <img class="span2" style="width: 60px; height: 60px" src="/img/world-icon.png"/>
+      <div class="control-group span10">
+        <legend>Environment</legend>
+        <label class="control-label" for="environment">Where to deploy?</label>
+        <div class="controls">
+          <!-- Show list if list exists -->
+          <select ng-show="environments" id="environment" class="span6" ng-model="environment" ng-change="setEnvironment(environment)" ng-options="environment.name for (id,environment) in environments" required>
+          </select>
+          <!-- Show text if only one exists -->
+          <input ng-show="!environments" readonly="" type="text" value="{{environment.name}}" class="input-xlarge">
+          <!-- region -->
+          <span ng-repeat="option in [region_option]" ng-show="region_option">
+              in <select id="region" style="width: 80px;" ng-model="inputs['region']" ng-options="o for o in option.choice"></select>
+              <span ng-hide="!option.description" class="help-block">{{option.description}}</span>
+          </span>
+        </div>
+      </div>
+    </div>
+    <ng-include src="'/partials/blueprints/_options.html'"></ng-include>
+
+  </fieldset>
+
+
+  <div ng-show="newDeploymentForm.$invalid"><hr><div class="alert"><strong>WARNING!</strong> There seem to be some fields with invalid or missing data. Fields with bad data should be shown in red. Fields that are required will have a <span style="color: #b94a48;">*</span> next to their label. You can still try to launch this deployment if you believe the data is valid.</div></div>
+
+  <div class="form-actions">
+    <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
+    <button ng-show="simulator" ng-click="simulate()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
+    <button ng-click="preview()" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Preview It</button>
+    <button ng-click="loginPrompt()" class="btn" ng-hide="auth.identity.loggedIn">Log in to execute this workflow</button>
+
+  </div>
+
+</form>
+
+<div id="debug_yaml" class="well summary" style="display: none;">
+  <ul class="nav nav-list">
+    <li class="nav-header">YAML</li>
+    <li>
+      <pre class="prettyprint lang-yaml">{{inputs | yaml}}</pre>
+    </li>
+  </ul>
+</div>
+

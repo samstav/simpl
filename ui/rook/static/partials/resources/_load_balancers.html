@@ -1,0 +1,45 @@
+<div class='well'>
+  <h4>
+    Load Balancers
+    <button ng-click="get_resources('load-balancer')" class="btn btn-small pull-right">
+      <i class="icon-refresh"></i>
+    </button>
+  </h4>
+  <div class='alert alert-info'>Displaying only load balancers that are not already part of a deployment</div>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>ID</th>
+        <th>Region</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="decorated_lb in resources_by_provider['load-balancer'] | orderBy:'object.instance.id'">
+        <td>{{decorated_lb.object['dns-name']}}</td>
+        <td>{{decorated_lb.object['instance']['id']}}</td>
+        <td>{{decorated_lb.object['region']}}</td>
+        <td>{{decorated_lb.object['status']}}</td>
+        <td><i ng-click="add_to_deployment(decorated_lb)" class="icon-plus-sign-alt clickable"></i></td>
+      </tr>
+
+      <tr class='messages'>
+        <td colspan="5">
+          <div ng-show="loading_status['load-balancer']">
+            <img class="loading" src="/img/ajax-loader.gif" />
+            Loading...
+          </div>
+
+          <div ng-show="resources_by_provider['load-balancer'].length == 0">
+            No load balancers found
+          </div>
+
+          <div ng-show="error_msgs['load-balancer']">
+            {{error_msgs['load-balancer']}}
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>

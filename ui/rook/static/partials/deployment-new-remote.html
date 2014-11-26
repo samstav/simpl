@@ -1,0 +1,17 @@
+<div class="entries container-fluid">
+  <div class="entry well">
+    <div class="row-fluid">
+      <div class="span12">
+        <div class="page-header">
+          <h2 class="hero">Create Deployment</h2>
+        </div>
+        <p ng-show="is_unsupported_account()" class="alert">
+          This account is a not supported.
+        </p>
+
+        <ng-include src="'/partials/new-deployment-form.html'"></ng-include>
+      </div>
+    </div>
+  </div>
+
+</div>

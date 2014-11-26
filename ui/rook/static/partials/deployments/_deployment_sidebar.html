@@ -1,0 +1,84 @@
+<ul class="nav nav-list">
+  <!-- INFO -->
+  <li class="nav-header">
+    Info
+  </li>
+
+  <li ng-show="is_resumable()">
+    <a ng-click="resume()">Resume</a>
+  </li>
+
+  <li ng-show="is_retriable()">
+    <a ng-click="retry()">Retry</a>
+  </li>
+
+  <li>
+  <a class="controls" ng-switch="data.secrets" ng-class="{muted: data.secrets != 'AVAILABLE'}" ng-click="showSecrets()">
+      <i class="icon-lock"></i>
+      <span ng-switch-when="AVAILABLE">Secrets available</span>
+      <span ng-switch-when="LOCKED">Secrets Dismissed</span>
+      <span ng-switch-when="GENERATING">available soon</span>
+      <span ng-switch-default>No secrets</span>
+    </a>
+  </li>
+
+  <!-- COMMANDS -->
+  <li class="nav-header">
+    Commands
+  </li>
+  <li>
+    <a ng-click="save()" tooltip="Save any edits of the JSON. The JSON on the right is editable!" tooltip-placement="right">
+      <i class="icon-ok"></i>
+      Save
+    </a>
+  </li>
+
+  <li>
+    <a ng-click="wrap_admin_call(data['created-by'], sync, data)" tooltip="Sync the deployment resources" tooltip-placement="right">
+      <i class="icon-retweet"></i>
+      Sync
+    </a>
+  </li>
+
+  <li>
+    <a ng-click="open_modal('/partials/deployments/_check_warning.html', {}, this); wrap_admin_call(data['created-by'], check, data)" tooltip="Check the currect deployment for common errors" tooltip-placement="right">
+      <i class="icon-check"></i>
+      Check for errors
+    </a>
+  </li>
+
+  <li>
+    <a ng-click="open_modal('/partials/deployments/_delete_warning.html', {}, this)" tooltip="Delete Resources and Deployment" tooltip-placement="right">
+      <i class="icon-remove"></i>
+      Delete
+    </a>
+  </li>
+
+  <li>
+    <a ng-click="open_modal('/partials/deployments/_force_delete_warning.html', {}, this)" tooltip="Delete Resources and Deployment even if status does not allow it" tooltip-placement="right">
+      <i class="icon-remove"></i> Force Delete
+    </a>
+  </li>
+
+  <!-- WORKFLOW -->
+  <li class="nav-header">
+    Current Workflow
+  </li>
+  <li>
+    <a ng-show="data.operation.link" ng-href="{{data.operation.link}}">
+      <i class="icon-tasks"></i> {{data.operation.type | capitalize}}
+    </a>
+  </li>
+  <!-- WORKFLOW HISTORY -->
+  <li class="nav-header">
+    Workflow History
+  </li>
+
+  <li ng-repeat="operation in operations_history | filter:{ link: '!canvas' }">
+    <a href="{{operation.link}}">
+      <i class="icon-list"></i>
+      {{operation.type | capitalize}}
+    </a>
+  </li>
+
+</ul>

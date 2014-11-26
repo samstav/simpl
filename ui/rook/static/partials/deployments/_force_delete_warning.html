@@ -1,0 +1,13 @@
+<div tabindex="-1" role="dialog" aria-labelledby="forceDeleteWarningLabel" aria-hidden="true">
+  <div class="modal-header">
+    <h3 id="forceDeleteWarningLabel" class="alert alert-danger">Warning! Data Destructive Task</h3>
+  </div>
+  <div class="modal-body">
+    <p>Deleting the deployment will also delete all resources and data in it.</p>
+    <p>A forced delete may also result in a deployment that is broken and in an indeterminate state.</p>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-primary" href='#' ng-click="wrap_admin_call(data['created-by'], delete_deployment, '1'); close()">Go ahead and Force Delete</button>
+    <button class="btn" ng-click="dismiss()">Cancel</button>
+  </div>
+</div>

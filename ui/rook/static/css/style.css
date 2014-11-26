@@ -1,0 +1,684 @@
+body ::-webkit-scrollbar {
+  height: 16px;
+  overflow: visible;
+  width: 16px;
+}
+body ::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, .1);
+  background-clip: padding-box;
+  border: solid transparent;
+  min-height: 28px;
+  padding: 100px 0 0;
+  box-shadow: inset 1px 1px 0 rgba(0,0,0,.1),inset 0 -1px 0 rgba(0,0,0,.07);
+  border-width: 1px 1px 1px 6px;
+}
+body ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+body ::-webkit-scrollbar-button {
+  height: 0;
+  width: 0;
+}
+::-webkit-scrollbar-track {
+  background-clip: padding-box;
+  border: solid transparent;
+  border-width: 0 0 0 4px;
+}
+body ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding-top: 40px;
+}
+
+@media (max-width: 979px) {
+  body {
+   padding-top: 0px !important;
+   overflow: auto !important;
+  }
+  .navbar-fixed-top {
+    margin-bottom: 0px !important;
+  }
+  .mainContent {
+    height: 100%;
+    position: relative !important;
+    top: auto !important;
+    bottom: auto !important;
+  }
+}
+
+.navbar .navbar-inner {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.navbar .container {
+  width: 100%;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.itemCount {
+  width: 100px;
+  text-align: center;
+}
+
+.mainContent {
+  /*display: -webkit-box;*/
+  -webkit-box-orient: horizontal;
+  overflow: hidden;
+  position: absolute;
+  top: 40px;
+  bottom: 0px;
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 0px;
+  padding-left: 0px;
+  padding-right: 0px;
+}
+
+
+.lcontrols {
+  box-sizing: border-box;
+  padding: 5px;
+  width: 40px;
+  background-color: black;
+  margin: 0;
+  height: 100%;
+  float: left;
+
+  background-color: #2c2c2c;
+  background-image: -moz-linear-gradient(bottom, #333333, #222222);
+  background-image: -ms-linear-gradient(bottom, #333333, #222222);
+  background-image: -webkit-gradient(linear, 100% 100%, 0 0, from(#333333), to(#222222));
+  background-image: -webkit-linear-gradient(bottom, #333333, #222222);
+  background-image: -o-linear-gradient(bottom, #333333, #222222);
+  background-image: linear-gradient(bottom, #333333, #222222);
+  background-repeat: repeat-x;
+}
+
+.lcontrols .btn {
+  width: 30px;
+  height: 30px;
+  margin-top: 5px;
+  padding-left: 8px;
+}
+
+
+.tControls {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  height: 100%;
+}
+
+.lcontrols div.top {
+  min-height: 50px;
+  display: -webkit-box;
+  -webkit-box-align: start;
+  -webkit-box-flex: 1;
+}
+
+.lcontrols div.middle {
+  min-height: 185px;
+  display: -webkit-box;
+  -webkit-box-align: center;
+  -webkit-box-flex: 2;
+}
+
+.lcontrols div.bottom {
+  min-height: 50px;
+  -webkit-box-flex: 1;
+  display: -webkit-box;
+  -webkit-box-align: end;
+}
+.summaryBar {
+  box-sizing: border-box;
+  width: 300px;
+  background: #eee;
+  margin-left: 0px;
+  height: 100%;
+  position: relative;
+}
+
+.summaries {
+  box-sizing: border-box;
+  padding: 10px;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  margin-left: 0px;
+
+}
+#spec_list {
+  position: absolute;
+  top: 250px;
+  bottom: 0px;
+}
+
+.summary {
+  color: #222;
+  box-shadow: 5px 5px 5px rgba(210, 210, 210, 0.6);
+  padding: 6px 19px;
+}
+.summary h6 {
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+.summaryHeader {
+  margin: 0px;
+  padding: 10px;
+  color: #222;
+  word-wrap: break-word;
+}
+
+.summaryHeader .well {
+  margin-bottom: 0px;
+}
+
+.summary.read {
+  opacity: 0.6;
+}
+
+.summary.active {
+  background-color: #D9EDF7;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  opacity: 1.0;
+}
+
+.summary .icon {}
+.summary .pub-name {
+  font-size: 0.9em;
+}
+.summary .pub-date {
+  font-size: 0.9em;
+  text-align: right;
+}
+.summary .title {}
+.summary .description {}
+
+.entries {
+  padding: 10px;
+  box-sizing: border-box;
+  -webkit-box-flex: 1;
+  overflow-y: scroll;
+  padding-left: 10px;
+  -webkit-overflow-scrolling: touch;
+  margin-left: 0px;
+  height: 100%;
+}
+
+.entry {
+  -webkit-transition: all 0.5s ease-in-out;
+  box-shadow: 5px 5px 5px rgba(210, 210, 210, 0.6);
+}
+
+.entry.read {
+}
+
+.entry.active {
+  border: 0px solid #222;
+}
+
+.entry .pub-date {
+  font-size: 0.9em;
+}
+.entry .actions {
+  text-align: right;
+}
+.entry .title {}
+.entry .author {}
+.entry .pub-name {}
+.entry hr {}
+.entry .post-content {}
+
+.entry .post-content img {
+  margin: 5px;
+}
+
+.entry .actions div, .entry .actions label {
+  display: inline;
+}
+
+.entry .actions input[type=checkbox] {
+  -webkit-appearance: none;
+  -webkit-box-shadow: transparent;
+  border: 0;
+  display: inline-block;
+  font-size: 15px;
+  line-height: 1em;
+  margin: 0 0.25em 0 0;
+  padding: 0;
+  width: 1.25em;
+  height: 1.25em;
+  -webkit-border-radius: 0.25em;
+  vertical-align: text-top;
+  background-image: url("../img/glyphicons-halflings.png");
+ }
+
+.entry .actions input[type=checkbox].star {
+  background-position: -144px 0;
+}
+
+.entry .actions input[type=checkbox].star:checked {
+  background-position: -120px 0;
+}
+
+.entry .actions input[type=checkbox].read {
+  background-position: -192px -96px;
+}
+
+.entry .actions input[type=checkbox].read:checked {
+  background-position: -72px -96px
+}
+
+.nothingSelected {
+  text-align: center;
+  margin-top: 3em;
+}
+
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -o-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+
+.drop-shadow {
+   position:relative;
+}
+
+.drop-shadow:before,
+.drop-shadow:after {
+   content:"";
+   position:absolute;
+   z-index:-1;
+    bottom:15px;
+   left:10px;
+   width:50%;
+   height:20%;
+   -webkit-box-shadow:0 15px 10px rgba(0, 0, 0, 0.7);
+   -moz-box-shadow:0 15px 10px rgba(0, 0, 0, 0.7);
+   box-shadow:0 15px 15px rgba(0, 0, 0, 0.7);
+   -webkit-transform:rotate(-2deg);
+   -moz-transform:rotate(-2deg);
+   -o-transform:rotate(-2deg);
+   transform:rotate(-2deg);
+}
+
+.drop-shadow:after{
+   right:10px;
+   left:auto;
+   -webkit-transform:rotate(2deg);
+   -moz-transform:rotate(2deg);
+   -o-transform:rotate(2deg);
+   transform:rotate(2deg);
+}
+
+
+
+.box h3 {
+    font-family:'Open Sans', sans-serif;
+    font-weight:600;
+    font-size:24px;
+    margin-bottom:15px;
+    text-align:left;
+}
+
+
+.box {
+    background:#fff;
+    box-shadow:none;
+    border:1px solid #ddd;
+    -webkit-border-radius:3px;
+    border-radius:3px;
+    padding:60px 0;
+    margin-top:15px;
+    margin-bottom:60px;
+}
+
+.box .row + .row {
+    margin-top:30px;
+}
+
+.box .span6 + .span4 img {
+    float:right;
+}
+
+
+@media (max-width: 767px) {
+    .box {
+        padding:15px;
+    }
+}
+
+.deployment_container {
+  background-position: right top;
+  background-repeat: no-repeat;
+  background-size: auto 100px;
+}
+
+/* code mirror fixes - ZNS */
+.deployment_container .CodeMirror { height: 600px }
+.CodeMirror { height: inherit; }
+.CodeMirror-scroll { height: 80%; }
+.CodeMirror pre {
+    line-height: inherit;
+    color: inherit;
+}
+
+#new_blueprint_container {
+  height: 100%;
+}
+
+#new_blueprint_editor {
+  height: 100%;
+}
+
+#new_blueprint_container .CodeMirror {
+  height: 100%;
+  width: 100%;
+}
+
+.nohover:hover {
+    text-decoration: inherit;
+    color: inherit;
+}
+
+.progress-container {
+  position: relative;
+  background-image: none;
+  background-color: #AAA;
+  margin-bottom: 0px;
+  margin: auto;
+}
+.progress-container .bar {
+  position: absolute;
+}
+.progress-container span {
+  position: absolute;
+  text-align: center;
+  width: 100%;
+  color: #FFF;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.progress-container.deploy-complete {
+  width: 150px;
+}
+
+.progress .bar.bar-inverse {
+  background-color: #333333;
+  background-image: none;
+}
+
+.progress-container.deploy-progress {
+  width: 67px;
+}
+
+/* NavBar Loading Indicator */
+.navbar .loading {
+  width: 16px;
+  height: 16px;
+}
+
+/* NavBar Search */
+.navSearch .search-query {
+  height: 15px;
+}
+
+/* Feedback Menu */
+#feedback-dropdown {
+  padding: 15px 15px 0;
+  color: black;
+}
+
+/* Tenant Impersonation */
+form#impersonate {
+  margin: 0 20px 0; /* top left/right bottom */
+}
+form#impersonate input {
+  width: 90%;
+}
+
+/* Login Form - Modal */
+.modal {
+  width: 670px;
+  margin-left: -350px;
+}
+.modal .nav-tabs li a i {
+  display: none;
+}
+.modal .nav-tabs li.rackspacesso a i {
+  padding-right: 5px;
+}
+.modal .nav-tabs li.rackspacesso a i {
+  display: inline-block;
+  color: red;
+}
+.modal .announcement {
+  text-align: center;
+  position: relative;
+}
+.modal .announcement img {
+  position: absolute;
+  left: 15px;
+  top: -30px;
+}
+
+.blueprint-name {
+  position: relative;
+}
+
+.blueprint_loading {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  top: 0;
+  right: 0;
+}
+
+/* Carousel */
+#applogos { margin-bottom: 0px; }
+#applogos .applogo { margin-top: -45px; }
+.applogo img { opacity: 0.5; }
+.thumbnails .spot-padding { padding-top: 35px; }
+.carousel-indicators { display: none; }
+.carousel .thumbnails {
+  padding-left: 65px;
+  padding-right: 65px;
+}
+
+/* Validation Rules */
+.validation_rules i { margin-right: 5px; }
+
+/* D3 Workflow */
+#workflow_tree {
+  width: 100%;
+  height: 10%;
+  min-height: 250px; /* For Safari */
+}
+
+circle.node {
+  stroke: #fff;
+  stroke-width: 0.3px;
+}
+
+line.link {
+  stroke-width: 0.3px;
+  stroke: #999;
+  stroke-opacity: 0.6;
+}
+
+text.nodetext {
+  font-size: 4px;
+}
+
+/* Tree View */
+.deployment_tree { margin: auto; }
+.deployment_tree .edge {
+  stroke-dasharray: 2, 5;
+  stroke-width: 2px;
+  stroke: #999;
+  stroke-opacity: 0.6;
+}
+
+a:hover {
+  cursor: pointer;
+}
+
+.sub-lead {
+  margin-left: 12px;
+  line-height: 34px;
+}
+
+/* Deployment List */
+.new_tag { margin: 0 20px 0;}
+.tenant_tag {
+  margin-right: 5px;
+}
+.tenant_tag .label.managed,
+.tenant_tag .label.rackconnect,
+.tenant_tag .label.racker,
+.tenant_tag .label.internal {
+  display: none;
+}
+.tenant_tag .icon.managed,
+.tenant_tag .icon.rackconnect,
+.tenant_tag .icon.racker,
+.tenant_tag .icon.internal {
+  background-size: 18px 18px;
+  background-repeat: no-repeat;
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  margin-bottom: -4px;
+}
+.tenant_tag .icon.racker { background-image: url("/img/icons/racker_plan.png"); }
+.tenant_tag .icon.managed { background-image: url("/img/icons/managed_cloud.png"); }
+.tenant_tag .icon.internal { background-image: url("/img/icons/internal_plan.png"); }
+.tenant_tag .icon.rackconnect { background-image: url("/img/icons/rack_connect.png"); }
+
+.deploy-value {
+  padding-top: 5px;
+  line-height: 20px;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.sidebar-left {
+  margin-top: 35px;
+  margin-left: 0;
+  background-color: #F9F9F9;
+  border: 1px solid #dddddd;
+  height: 100%;
+}
+.sidebar-left .group {
+  margin: 10px;
+}
+.sidebar-left .group h5 {
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.sidebar-left .disabled {
+  color: #888;
+  text-decoration: none;
+  cursor: pointer;
+}
+.sidebar-left .filter input { margin: 0; }
+.sidebar-left .filter span {
+  vertical-align: middle;
+  padding-left: 5px;
+  font-size: 13px;
+}
+
+table th.text-center {
+  text-align: center;
+}
+
+th.id { min-width: 160px; }
+
+tr.messages td {
+  text-align: center;
+}
+
+.action,
+.action:hover {
+  text-decoration: none;
+}
+.action-add {
+  color: #080;
+}
+.action-delete,
+.action-delete:hover {
+  color: #b94a48;
+}
+.off-table-left {
+  width: 25px;
+  margin-left: -25px;
+  display: none;
+}
+.off-table-left:hover,
+tr:hover .off-table-left {
+  display: block;
+}
+
+
+/* cm-workflow */
+.cm-workflow svg {
+  width: 100%;
+  height: 10%;
+  min-height: 250px; /* For Safari */
+}
+.cm-workflow .stream.even rect { fill: #EEE; }
+.cm-workflow .stream.odd rect { fill: #FFF; }
+
+.cm-tips {
+  color: #999;
+}
+
+#new_blueprint_container .editor_side_container {
+  height: inherit;
+  padding-right: 12px;
+}
+
+#new_blueprint_editor {
+  position: relative;
+}
+
+#new_blueprint_editor .btn-group {
+  position: absolute;
+  right: 0;
+  z-index: 999;
+  background-color: #262626;
+}
+
+#new_blueprint_editor .toggle_editor {
+  bottom: 0;
+}
+
+.editor_side_container .tabbable {
+  height: 87%;
+  margin-top: 12px;
+}
+
+.editor_side_container .tab-content {
+  height: inherit;
+  border-bottom: solid grey 1px;
+}
+
+.editor_side_container .tab-pane {
+  padding-bottom: 32px;
+}
