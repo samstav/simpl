@@ -1,0 +1,103 @@
+<div id="new_blueprint_container" class="row-fluid" ng-init="load_blueprint()">
+  <div class="span6" id="new_blueprint_editor">
+    <textarea id="blueprint_source"
+              ng-model="deployment_string"
+              ui-codemirror="codemirror_options">
+    </textarea>
+    <div class="toggle_editor btn-group">
+      <button class="btn btn-mini" ng-click="toggle_editor_type()" ng-disabled="codemirror_options.mode == 'text/x-yaml'">YAML</button>
+      <button class="btn btn-mini" ng-click="toggle_editor_type()" ng-disabled="codemirror_options.mode == 'application/json'">JSON</button>
+      <div></div><!-- hack to style the corners -->
+    </div>
+  </div>
+
+  <div class="span6 editor_side_container">
+    <tabset>
+      <tab heading="Documentation">
+        <markdown text="help_display"></markdown>
+      </tab>
+
+      <tab heading="Preview">
+        <div class="entries">
+          <div class="row-fluid">
+            <div class="control-group span12">
+              <legend>Deployment Preview</legend>
+              <div class="text-center">
+                <cm-tree-view data="parsed_deployment_tree" width="320" height="240"></cm-tree-view>
+              </div>
+            </div>
+          </div>
+
+          <div class="row-fluid">
+            <form id='blueprint_options' name='blueprint_options'>
+              <ng-include src="'/partials/blueprints/_options.html'"></ng-include>
+            </form>
+          </div>
+
+          <div class="row-fluid" ng-repeat="(name, documentation) in deployment.blueprint.documentation">
+            <div class="control-group span12">
+              <legend>{{ name | capitalize }}</legend>
+              <markdown text="documentation"></markdown>
+            </div>
+          </div>
+        </div>
+      </tab>
+
+      <tab heading="About">
+        <markdown>
+### Documentation
+
+Don't understand part of a blueprint?  Don't worry, this editor supports context sensitive documentation!  Simply focus your cursor on a portion of the blueprint that you want to know more about for built-in documentation.  We encourage you to open up any of our [existing blueprints](/blueprints) (look for 'edit this blueprint' after selecting one) and explore the file. 
+
+Still have a question?  Are we missing documentation? [Let us know!](mailto:checkmate@lists.rackspace.com)
+
+---
+
+### Deployment Graph
+
+As you edit your blueprint, we're running it through our systems and giving you the latest look at what you're producing.  With each change, you'll be able to see the relationships created between the resources in your blueprint.
+
+---
+
+### Preview Blueprint Options
+
+The items under `blueprint.options` will be rendered on the fly on this tab. Any changes made to the blueprint will be reflected here as well. You can use this as a testing ground for any restrictions on inputs that you may have.
+
+Note: These blueprint options are just a preview.  Any information entered here is not saved or used if you decide to build your edited blueprint.
+
+---
+
+### Building/Simulating Your Blueprint
+
+When building or simulating your freshly edited blueprint, we use the inputs specified within the inputs section of your blueprint (`blueprint.inputs`), NOT the inputs in the Preview Blueprint Options tab.
+
+---
+
+### Editor
+
+#### Content Suggestion
+
+Pressing `CTRL + Space` will bring up a list of supported keys. This list is context sensitive and will be different depending of the current cursor position.  Some sections of the blueprint use entirely user-defined names; in these cases there will be no suggestions available.
+
+#### Code Folding
+
+You can click the number line to fold a specific section of your YAML/JSON.
+
+#### Content Type
+
+This editor currently supports the editing of either YAML or JSON.  You can toggle between the two formats with the buttons at the bottom of the editor.
+
+**Important**: In order to toggle between the two formats, the JSON/YAML in the editor must be valid.
+
+        </markdown>
+      </tab>
+    </tabset>
+
+    <div class="row-fluid form-actions">
+      <button ng-click="submit(false)" class="btn btn-primary" ng-disabled="!auth.identity.loggedIn || is_unsupported_account() || submitting">Build It!</button>
+      <button ng-show="simulator" ng-click="submit('simulate')" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Simulate It</button>
+      <button ng-click="submit('+preview')" class="btn" ng-disabled="!auth.identity.loggedIn || submitting">Preview It</button>
+      <button ng-click="loginPrompt()" class="btn" ng-hide="auth.identity.loggedIn">Log in to execute this workflow</button>
+    </div>
+  </div>
+</div>

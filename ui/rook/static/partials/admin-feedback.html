@@ -1,0 +1,22 @@
+<div class="entries container-fluid">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th class="span2">Username</th>
+        <th class="span2">Tenant</th>
+        <th>Email</th>
+        <th>Received</th>
+        <th>Request</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="item in items | orderBy:'-received'" >
+        <td>{{item.feedback.username}}</td>
+        <td>{{item.feedback.tenantId}}</td>
+        <td>{{item.feedback.email}}</td>
+        <td>{{item.received | formattedDate}}</td>
+        <td>{{item.feedback.request}}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,25 @@
+<div class="entries container-fluid" ng-init="load()">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th class="span3">ID</th>
+        <th class="span7">Name</th>
+        <th class="span2 text-center">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr ng-repeat="workflow in items | orderBy:'id'" >
+        <td><a ng-href="/{{workflow.tenantId}}/workflows/{{workflow.id}}"><i class="icon-tasks"></i> {{workflow.id}}</a></td>
+        <td>{{workflow.name}}</td>
+        <td>
+          <div class="progress progress-container">
+            <div class="bar {{ workflow.status | barClass }}" ng-style="{width: (workflow.progress || '0') + '%'}">
+            </div>
+            <span>{{workflow.status}}</span>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <div data-ng-include data-src="'/partials/shared/pagination.html'"></div>
+</div>

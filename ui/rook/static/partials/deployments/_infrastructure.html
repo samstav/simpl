@@ -1,0 +1,75 @@
+<p class="lead">Infrastructure</p>
+
+<table class="table table-bordered table-condensed">
+  <thead><tr><th>Name</th><th>Type</th><th>IP</th><th>Build Status</th></tr></thead>
+  <tbody ng-repeat="(name, resource) in resource_groups" ng-hide="name  === 'undefined'">
+
+    <tr>
+      <td rowspan=2>
+        <ng-include src="'/partials/deployments/_resource_actions.html'"></ng-include>
+      </td>
+      <td>{{resource[0].type}}{{resource[0].service | prepend: ' - '}}</td>
+      <td>{{resource[0].instance.public_ip}}</td>
+      <td>{{resource[0].status}} <span ng-show="resource[0]['status-message']">({{resource[0]['status-message']}})</span><span ng-show="resource[0]['error-message']">({{resource[0]['error-message']}})</span></td>
+    </tr>
+
+    <tr ng-if="resource[1] !== undefined">
+      <!-- rowspan padding here -->
+      <td>{{resource[1].type}}{{resource[1].service | prepend: ' - '}}</td>
+      <td>{{resource[1].instance.public_ip}}</td>
+      <td>{{resource[1].status}} <span ng-show="resource[1]['status-message']">({{resource[1]['status-message']}})</span><span ng-show="resource[1]['error-message']">({{resource[1]['error-message']}})</span></td>
+    </tr>
+
+  </tbody>
+</table>
+
+<accordion ng-show="data.blueprint.documentation.instructions">
+  <accordion-group heading="Instructions">
+    <markdown text="data.blueprint.documentation.instructions"><markdown>
+  </accordion-group>
+</accordion>
+
+<accordion>
+  <accordion-group heading="Show me the old completion screen">
+    <clippy clippy-element="{{clippy_element}}" style="top:0" bgcolor="#f5f5f5"></clippy>
+    <div ng-hide="!formatted_data.path"><p><strong>Access your application</strong> from <a ng-href="{{formatted_data.path}}" target="_blank">{{formatted_data.path}}</a>.</p>
+    <p>Alternatively, enter the IP address in your hosts file if the domain name is not yet accessible:</p>
+    <p><pre>echo "{{formatted_data.vip}}  {{formatted_data.domain}}" >> /etc/hosts</pre></p>
+    <p>You might need to run this with elevated priviledges:
+      <pre>sudo bash -c 'echo "{{formatted_data.vip}}  {{formatted_data.domain}}" >> /etc/hosts'</pre>
+    </p></div>
+
+    <br>
+    <p><strong>Servers</strong> created were:
+    <table class="table table-bordered table-condensed">
+      <thead><tr><th>Name</th><th>Role</th><th>IP</th><th>Root Password</th></tr></thead>
+      <tbody><tr ng-repeat="resource in formatted_data.resources | filter:{component:'linux_instance'}">
+          <td><a target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{resource.region}}/{{resource.instance.id}}">{{resource['dns-name']}}</a></td>
+          <td>{{resource.service}}</td>
+          <td>{{resource.instance.public_ip}}</td>
+          <td>{{resource.instance.password}}</td>
+      </tr></tbody>
+    </table>
+
+    <p><strong>Databases</strong><br>
+    <table class="table table-condensed" ng-repeat="resource in formatted_data.resources | filter:{type:'database'}">
+      <tr><td>Name:</td><td>
+        <a ng-show="resource.provider=='database'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/database#rax%3Adatabase%2CcloudDatabases%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+        <a ng-show="resource.provider=='chef-local'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+        <a ng-show="resource.provider=='chef-solo'" target="_blank" ng-href="https://mycloud.rackspace.com/a/{{auth.context.username}}/#compute%2CcloudServersOpenStack%2C{{formatted_data.resources[resource.hosted_on].region}}/{{formatted_data.resources[resource.hosted_on].instance.id}}">{{resource['dns-name']}}</a>
+      <tr><td>Role:</td><td>{{resource.service}}</td></tr>
+      <tr><td>Host:</td><td>{{resource.instance.interfaces.mysql.host}}</td></tr>
+      <tr><td>Database:</td><td>{{resource.instance.interfaces.mysql.database_name}}</td></tr>
+      <tr><td>Username:</td><td>{{resource.instance.interfaces.mysql.username || formatted_data.username}}</td></tr>
+      <tr><td>Password:</td><td>{{resource.instance.interfaces.mysql.password || formatted_data.password}}</td></tr>
+    </table>
+
+    <p><strong>Access your application</strong> using these administrative credentials:
+    <pre>username: {{formatted_data.username}}<br>password: {{formatted_data.password}}</pre></p>
+    <p ng-show="formatted_data.private_key">Alternatively, you can use this private key:<clippy content="{{formatted_data.private_key}}" bgcolor="#f5f5f5"></clippy>
+    </p>
+    <p ng-show="formatted_data.private_key"><pre>{{formatted_data.private_key}}</pre></p>
+    <p>The advanced view of the workflow can still be reached <a ng-href="/{{data.tenantId}}/workflows/{{data.id}}">here</a>.</p>
+  </accordion-group>
+</accordion>
+

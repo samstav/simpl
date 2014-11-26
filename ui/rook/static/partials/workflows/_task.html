@@ -1,0 +1,73 @@
+<div id="task" class="row-fluid">
+  <div class="span3">
+    <ul class="nav nav-list" ng-show="current_task_index">
+      <li class="nav-header">Task</li>
+      <li><a ng-href="#{{current_task.task_spec}}" ng-click="save_task()" tooltip-placement='left' tooltip="Save any edits of the JSON. The JSON on the right is editable!"><i class="icon-ok"></i> Save</a></li>
+      <li>
+        <a tooltip-placement='left' tooltip="Clear the task data and reset it" ng-click="open_modal('/partials/workflows/_reset_warning.html', {}, this)">
+          <i class="icon-repeat"></i> Reset
+        </a>
+      </li>
+      <li><a ng-href="#{{current_task.task_spec}}" ng-click="wrap_admin_call(deployment['created-by'], execute_task)" tooltip-placement='left' tooltip="Tries to move the task along or checks the latest status if it is pending."><i class="icon-play"></i> Poke</a></li>
+      <li><a ng-href="#{{current_task.task_spec}}" ng-click="wrap_admin_call(deployment['created-by'], resubmit_task)" tooltip-placement='left' tooltip="Retries the task. It Aborts an existing task if it is running."><i class="icon-retweet"></i> Retry</a></li>
+    </ul>
+  </div>
+
+  <div class="span9">
+    <ul class="nav nav-tabs">
+      <li ng-repeat="task in current_spec_tasks" ng-class="{active: task.id==current_task_index}">
+        <a href="#" ng-click="selectTask(task.id)"> Task {{task.id}}
+        <span tooltip="{{task.description}}" ng-class="state_class(task)">{{state_name(task)}}</span></a>
+      </li>
+    </ul>
+
+    <div ng-show="current_task_index">
+      <alert type="'error'" close="$parent.hide_alert('task_error')" ng-show="$parent.current_task.internal_attributes.task_state.state == 'FAILURE' && $parent.current_task.state != 64 && $parent.display_alert('task_error')">
+        <h4 class="alert-heading">Oh snap! Something didn't work!</h4>
+        <p>
+          This error was reported: {{current_task.internal_attributes.task_state.info}}.
+          See the code <a class="accordion-toggle" ng-click="toggle_task_traceback('failure')" href="#{{current_spec_index}}">traceback</a>.
+        </p>
+        <div collapse="hide_task_traceback.failure" class="collapse">
+          <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
+        </div>
+        <p>
+          <button class="btn btn-primary" ng-click="execute_task()" tooltip="Tries to move the task along or checks the latest status if it is pending.">Poke</button>
+          <button class="btn btn-danger" tooltip="Retries the task. It Aborts an existing task if it is running." ng-click="resubmit_task()">Retry</button>
+        </p>
+      </alert>
+
+      <alert close="$parent.hide_alert('task_retry')" ng-show="$parent.current_task.internal_attributes.task_state.state == 'RETRY' && $parent.current_task.state != 64 && $parent.display_alert('task_retry')">
+        <h4 class="alert-heading">{{current_task.internal_attributes.task_state.info.replace('CheckmateException(u\'', '').replace('\',)', '').replace('CheckmateException("', '').replace('",)', '') || 'Something might be up! But we haven\'t given up yet...'}}</h4>
+        <p>
+          This task is being retried.
+          See the code <a class="accordion-toggle" ng-click="toggle_task_traceback('retry')" href="#{{current_spec_index}}">traceback</a>.
+        </p>
+        <div collapse="hide_task_traceback.retry" class="collapse">
+          <pre>{{current_task.internal_attributes.task_state.traceback}}</pre>
+        </div>
+        <p>If you don't think this task is going to succeed you could <button class="btn btn-danger" tooltip="Clear task data, abort the Celery task, and retrigger it" ng-click="resubmit_task()"> Abort and Retry</button>, but please choose this carefully so we don't end up with duplicate resources!</p>
+      </alert>
+
+      <!-- Next Gen Server -->
+      <alert type="'success'" close="$parent.hide_alert('server_success')" ng-show="$parent.was_server_created() && $parent.display_alert('server_success')">
+        Server <a ng-show="resource(current_task, current_spec).id.indexOf('-')" target="_blank" ng-href="{{urlBuilder.myCloudURL('server', auth.context.username, resource(current_task, current_spec).region || current_task.attributes.region, resource(current_task, current_spec).id)}}">{{resource(current_task, current_spec).id}}</a> <a ng-hide="resource(current_task, current_spec).id.indexOf('-')" target="_blank" href="{{urlBuilder.myCloudURL('legacy_server', auth.context.username, resource(current_task, current_spec).region || current_task.attributes.region, resource(current_task, current_spec).id)}}">{{resource(current_task, current_spec).id}}</a> was created<span ng-switch on="resource(current_task, current_spec).ip || true"><span ng-switch-when="true">.</span><span ng-switch-default> with IP address {{resource(current_task, current_spec).ip}}. Connect to it over <a href="{{urlBuilder.sshTo(resource(current_task, current_spec).ip)}}">ssh</a></span></span>, view it in <a target="_blank" ng-href="{{urlBuilder.cloudControlURL('server', resource(current_task, current_spec).id, resource(current_task, current_spec).region || current_task.attributes.region, data.tenantId)}}"
+        >Cloud Control</a> or in <a target="_blank" ng-href="{{urlBuilder.novaStatsURL(resource(current_task, current_spec).region || current_task.attributes.region, resource(current_task, current_spec).instance.id || resource(current_task, current_spec).id)}}"
+        >NovaStats</a>.
+      </alert>
+
+      <!-- Load Balancer -->
+      <alert type="'success'" close="$parent.hide_alert('lb_success')" ng-show="$parent.was_loadbalancer_created() && $parent.display_alert('lb_success')">
+        Load balancer <a target="_blank" href="{{urlBuilder.myCloudURL('load_balancer', auth.context.username, resource(current_task, current_spec).region || current_task.attributes.region, resource(current_task, current_spec).id)}}">{{resource(current_task, current_spec).id}}</a> was created and assigned the public virtual IP (VIP) <a target="_blank" href="http://{{resource(current_task, current_spec).public_ip}}/">{{resource(current_task, current_spec).public_ip}}</a>. Open it in <a target="_blank" href="{{urlBuilder.cloudControlURL('load_balancer', resource(current_task, current_spec).id, resource(current_task, current_spec).region || current_task.attributes.region, data.tenantId)}}">Cloud Control</a>.
+      </alert>
+
+      <alert type="'success'" close="$parent.hide_alert('database_success')" ng-show="$parent.was_database_created() && $parent.display_alert('database_success')">
+        Database instance <a target="_blank" href="{{urlBuilder.myCloudURL('database', auth.context.username, resource(current_task, current_spec).region || current_task.attributes.region, resource(current_task, current_spec).id)}}">{{resource(current_task, current_spec).id}}</a> was created on host {{resource(current_task, current_spec).interfaces.mysql.host}}. Open it in <a target="_blank" href="{{urlBuilder.cloudControlURL('database', resource(current_task, current_spec).id, resource(current_task, current_spec).region || current_task.attributes.region, data.tenantId)}}">Cloud Control</a>.
+      </alert>
+
+      <ng-include src="'/partials/workflows/_auto_refresh.html'"></ng-include>
+
+      <textarea id="task_source" ui-codemirror="{ onLoad: codemirrorLoaded, theme: 'lesser-dark', mode: {name: 'javascript', json: true}, lineNumbers: true, autoFocus: true, lineWrapping: true, dragDrop: false, matchBrackets: true, onGutterClick: foldFunc }" ng-model="$parent.current_task_json"></textarea>
+    </div>
+  </div>
+</div>

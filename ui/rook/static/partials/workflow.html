@@ -1,0 +1,18 @@
+<ng-include src="'/partials/workflows/_sidebar.html'"></ng-include>
+
+<div class="entries">
+  <div class="nothingSelected" ng-show="!data">
+    <p>Nothing selected.</p>
+  </div>
+
+  <div class="well entry" ng-show="data">
+    <cm-workflow specs="data.wf_spec.task_specs" deployment="deployment" select="selectSpec" status="spec_status" state="state_name"></cm-workflow>
+
+    <h2>{{current_spec.name}}</h2>
+    <h5>{{current_spec.description}} &nbsp;</h5>
+
+    <ng-include src="'/partials/workflows/_spec.html'"></ng-include>
+
+    <ng-include src="'/partials/workflows/_task.html'"></ng-include>
+  </div>
+</div>

@@ -1,0 +1,37 @@
+<div class="dropdown">
+  <button class="dropdown-toggle btn btn-mini">
+    <i class="icon-wrench"></i>
+  </button>
+  <ul class="dropdown-menu">
+
+    <li class="nav-header" cm-stop-click-propagation ng-show="resource[0].service == 'web' || is_scalable_service(resource[0])">
+      Actions
+    </li>
+    <li>
+      <a ng-click="take_offline(data, resource[0])"
+         ng-show="resource[0].status != 'OFFLINE' && (resource[0].service == 'web' || is_scalable_service(resource[0]))">Take Offline</a>
+    </li>
+    <li>
+      <a ng-click="bring_online(data, resource[0])"
+         ng-show="resource[0].status == 'OFFLINE' && (resource[0].service == 'web' || is_scalable_service(resource[0]))">Bring Online</a>
+    </li>
+
+    <li class="nav-header" cm-stop-click-propagation>
+      Links
+    </li>
+    <li>
+      <a target="_blank" ng-href="{{urlBuilder.get_url('cloud_control', resource[1] || resource[0], data.tenantId, auth.context.username)}}">Cloud Control</a>
+    </li>
+    <li>
+      <a target="_blank" ng-href="{{urlBuilder.get_url('my_cloud', resource[1] || resource[0], data.tenantId, auth.context.username)}}">My Cloud</a>
+    </li>
+    <li>
+      <a target="_blank" ng-href="{{urlBuilder.get_url('nova_stats', resource[1] || resource[0], data.tenantId, auth.context.username)}}">Nova Stats</a>
+    </li>
+    <li>
+      <a ng-href="{{urlBuilder.get_url('ssh', resource[1] || resource[0], data.tenantId, auth.context.username)}}">SSH</a>
+    </li>
+
+  </ul>
+  {{resource[0]['dns-name']}}
+</div>

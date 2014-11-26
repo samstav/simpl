@@ -1,0 +1,15 @@
+<p><span ng-show="percentComplete==100">Last</span><span ng-show="percentComplete!=100">Current</span> Operation: {{data.operation.type}} <span ng-show="percentComplete==100">- complete ({{count}} tasks)</span></p>
+<div class="row-fluid" ng-cloak ng-show="percentComplete!=100">
+  <div class="progress" style="height: 5px">
+    <div class="bar" style="width: {{percentComplete}}%;"></div>
+  </div>
+  <div>
+    <a class="label label-info" ng-click="navigate(data.operation.link)">{{count}}</a> tasks total:
+    <a class="label label-success" ng-click="navigate(data.operation.link)">{{taskStates['completed'] + taskStates['ready']}}</a> completed
+    <a class="label label-warning" ng-click="navigate(data.operation.link)">{{taskStates['waiting']}}</a> in progress
+    <a class="label label-important" ng-click="navigate(data.operation.link)">{{taskStates['error']}}</a> errored out
+    <a class="label" ng-click="navigate(data.operation.link)">{{taskStates['future'] + taskStates['likely'] + taskStates['maybe']}}</a> waiting
+    <br/>
+    <br/>
+  </div>
+</div>
