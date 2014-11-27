@@ -25,6 +25,7 @@ import mock
 import unittest
 
 from checkmate import exceptions, utils
+from checkmate.providers.opscode.kitchen import ChefKitchen
 from checkmate.providers.opscode.blueprint_cache import BlueprintCache
 from checkmate.providers.opscode.solo.kitchen_solo import KitchenSolo
 from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
@@ -63,7 +64,7 @@ class TestCreateEnvironmentKeys(TestKitchenSolo):
             'public_key_path': self.public_key_path,
             'private_key_path': self.private_key_path
         }
-        result = self.env.create_environment_keys()
+        result = self.env.create_kitchen_keys()
 
         self.assertDictEqual(result, expected)
         mock_chmod.assert_called_once_with(self.private_key_path, 0o600)
@@ -87,7 +88,7 @@ class TestCreateEnvironmentKeys(TestKitchenSolo):
             'public_key_path': self.public_key_path,
             'private_key_path': self.private_key_path
         }
-        result = self.env.create_environment_keys(private_key="private_key",
+        result = self.env.create_kitchen_keys(private_key="private_key",
                                                   public_key_ssh="public_key")
 
         self.assertDictEqual(result, expected)
@@ -112,7 +113,7 @@ class TestCreateEnvironmentKeys(TestKitchenSolo):
             'public_key_path': self.public_key_path,
             'private_key_path': self.private_key_path
         }
-        result = self.env.create_environment_keys(private_key="private_key",
+        result = self.env.create_kitchen_keys(private_key="private_key",
                                                   public_key_ssh="public_key")
 
         self.assertDictEqual(result, expected)
@@ -131,21 +132,23 @@ class TestCreateEnvironmentKeys(TestKitchenSolo):
         file_handler.read.return_value = "unexpected"
 
         self.assertRaises(exceptions.CheckmateException,
-                          self.env.create_environment_keys,
+                          self.env.create_kitchen_keys,
                           private_key="private_key")
 
 
 class TestCreateKitchen(TestKitchenSolo):
     @mock.patch('os.listdir')
     @mock.patch('os.path.exists')
-    def test_existing_node_files(self, mock_path_exists, mock_list_dir):
+    @mock.patch.object(ChefKitchen, 'create_kitchen')
+    def test_existing_node_files(self, mock_super, mock_path_exists,
+                                 mock_list_dir):
         nodes_path = "%s/nodes" % self.kitchen_path
+        mock_super.return_value = {"kitchen": self.kitchen_path}
         mock_path_exists.side_effect = [True, True]
         mock_list_dir.return_value = ["foo.json"]
         expected = {"kitchen": self.kitchen_path}
         result = self.env.create_kitchen(self.kitchen_name)
         self.assertDictEqual(result, expected)
-        mock_path_exists.assert_any_call(self.kitchen_path)
         mock_path_exists.assert_any_call(nodes_path)
         mock_list_dir.assert_called_once_with(nodes_path)
 
@@ -290,7 +293,7 @@ class TestFetchCookbooks(TestKitchenSolo):
                                                  'librarian-chef',
                                                  ['install'], lock=True)
 
-    @mock.patch.object(KitchenSolo, '_ensure_berkshelf_environment')
+    @mock.patch.object(KitchenSolo, '_ensure_berkshelf_kitchen')
     @mock.patch('checkmate.utils.run_ruby_command')
     @mock.patch('os.path.exists')
     def test_fetch_with_berks_file(self, mock_path_exists, mock_run_command,
@@ -301,12 +304,9 @@ class TestFetchCookbooks(TestKitchenSolo):
 
         mock_path_exists.assert_called_once_with("%s/Berksfile" %
                                                  self.kitchen_path)
-        mock_run_command.assert_called_once_with(self.kitchen_path,
-                                                 'berks',
-                                                 ['install', '--path',
-                                                  "%s/cookbooks" %
-                                                  self.kitchen_path],
-                                                 lock=True)
+        mock_run_command.assert_called_once_with(self.kitchen_path, 'berks',
+                                                 ['install'], lock=True,
+                                                 env=mock.ANY)
         self.assertTrue(mock_ensure_env.called)
 
 

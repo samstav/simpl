@@ -21,7 +21,6 @@ import unittest
 import mock
 import mox
 
-from checkmate import deployments as cmdeps
 from checkmate.deployments import tasks
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
@@ -37,7 +36,7 @@ class TestLegacyCompute(test.ProviderTester):
         test.ProviderTester.setUp(self)
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    @mock.patch.object(cmdeps.resource_postback, 'delay')
+    @mock.patch.object(tasks.resource_postback, 'delay')
     def test_create_server(self, mock_delay, mock_reset):
         provider = compute_legacy.Provider({})
 
@@ -94,7 +93,7 @@ class TestLegacyCompute(test.ProviderTester):
         tasks.reset_failed_resource_task.delay(context['deployment'],
                                                context['resource'])
 
-        cmdeps.resource_postback.delay.return_value = True
+        mock_delay.return_value = True
 
         results = compute_legacy.create_server(
             context,
@@ -129,7 +128,7 @@ class TestLegacyCompute(test.ProviderTester):
         openstack_api_mock.flavors.find.assert_called_with(
             id=flavor.id
         )
-        cmdeps.resource_postback.delay.assert_called_with(
+        mock_delay.assert_called_with(
             context['deployment'],
             expected
         )

@@ -77,7 +77,7 @@ class Manager(object):
                                   kitchen_name=service_name)
         environment.create_env_dir()
 
-        key_data = environment.create_environment_keys(
+        key_data = environment.create_kitchen_keys(
             private_key=private_key, public_key_ssh=public_key_ssh)
 
         kitchen_data = environment.create_kitchen(secret_key=secret_key,

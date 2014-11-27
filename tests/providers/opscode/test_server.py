@@ -197,25 +197,25 @@ class TestChefServerProvider(test.ProviderTester):
     def test_cleanup_environment(self):
         expected_args = [
             {
-                'auth_source': None,
+                'username': 'MOCK_USER',
+                'domain': None,
+                'user_tenants': None,
                 'auth_token': 'MOCK_TOKEN',
+                'catalog': None,
+                'is_admin': False,
+                'resource': None,
+                'tenant': None,
+                'read_only': False,
+                'user_id': None,
+                'show_deleted': False,
+                'roles': [],
+                'region': None,
                 'authenticated': False,
                 'base_url': None,
-                'catalog': None,
-                'deployment_id': 'DEP1',
-                'domain': None,
-                'is_admin': False,
-                'kwargs': {},
-                'read_only': False,
-                'region': None,
-                'resource': None,
-                'roles': [],
-                'show_deleted': False,
                 'simulation': False,
-                'tenant': None,
-                'user_id': None,
-                'user_tenants': None,
-                'username': 'MOCK_USER'
+                'kwargs': {},
+                'auth_source': None,
+                'deployment_id': 'DEP1'
             },
             'DEP1'
         ]
@@ -768,17 +768,22 @@ interfaces/mysql/host
         self.assertEqual(self.deployment.get('status'), 'PLANNED')
         expected_calls = [{
             # Create Chef Environment
-            'call': 'checkmate.providers.opscode.server.tasks.create_kitchen',
-            'args': [context.get_queued_task_dict(
+            'call': 'checkmate.providers.opscode.server.tasks'
+                    '.create_kitchen',
+            'args': [
+                context.get_queued_task_dict(
                     deployment_id=self.deployment['id']),
                 self.deployment['id'], 'kitchen'],
-            'kwargs': {'server_credentials': {
-                'server_user_key': None,
-                'server_username': None,
-                'validator_pem': None,
-                'server_url': None,
-                'validator_username': None},
-                'source_repo': 'http://mock_url'},
+            'kwargs': {
+                'server_credentials': {
+                    'server_user_key': None,
+                    'server_username': None,
+                    'validator_pem': None,
+                    'server_url': None,
+                    'validator_username': None
+                },
+                'source_repo': 'http://mock_url'
+            },
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
                 'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'],
@@ -804,8 +809,7 @@ interfaces/mysql/host
                     'read_only': False,
                     'user_id': None,
                     'show_deleted': False,
-                    'roles': [],
-                    'region': None,
+                    'roles': [], 'region': None,
                     'authenticated': False,
                     'base_url': None,
                     'simulation': False,
@@ -817,10 +821,11 @@ interfaces/mysql/host
                 'DEP-ID-1000'
             ],
             'kwargs': {'desc': 'Checkmate Environment'},
-            'result': {}
-        }, {
-            'call': 'checkmate.providers.opscode.server.tasks'
-                    '.upload_cookbooks',
+            'result': None
+        },
+        {
+            'call': 'checkmate.providers.opscode.server.tasks.'
+                    'upload_cookbooks',
             'args': [
                 {
                     'username': 'MOCK_USER',
@@ -834,8 +839,7 @@ interfaces/mysql/host
                     'read_only': False,
                     'user_id': None,
                     'show_deleted': False,
-                    'roles': [],
-                    'region': None,
+                    'roles': [], 'region': None,
                     'authenticated': False,
                     'base_url': None,
                     'simulation': False,
@@ -844,10 +848,9 @@ interfaces/mysql/host
                     'deployment_id': 'DEP-ID-1000'
                 },
                 'DEP-ID-1000',
-                'DEP-ID-1000'
-            ],
+                'DEP-ID-1000'],
             'kwargs': None,
-            'result': {}
+            'result': None
         }]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
@@ -890,16 +893,15 @@ interfaces/mysql/host
                         'args': [
                             context_dict,
                             self.deployment['id'],
-                            'db01.checkmate.local'
+                            'db01.checkmate.local',
                         ],
-                        'kwargs': {
-                            'environment': 'DEP-ID-1000',
-                            'recipes': ['mysql::server']
-                        },
+                        'kwargs': {'environment': 'DEP-ID-1000',
+                                   'recipes': ['mysql::server']},
                         'result': None,
                         'resource': key,
                     },
                     {
+                        # Prep host - bootstrap.json means no recipes passed in
                         'call': 'checkmate.ssh.execute_2',
                         'args': [
                             {
@@ -928,55 +930,36 @@ interfaces/mysql/host
                             'sudo apt-get update',
                             'root'
                         ],
-                        'kwargs': {
-                            'proxy_credentials': {},
-                            'password': 'shecret',
-                            'proxy_address': None,
-                            'identity_file': None
-                        },
-                        'result': {}
-                        },
-                    {
-                        'call': 'checkmate.providers.opscode.server.tasks.'
-                                'bootstrap',
-                        'args': [
-                            {
-                                'username': 'MOCK_USER',
-                                'domain': None,
-                                'user_tenants': None,
-                                'resource_key': '0',
-                                'auth_token': 'MOCK_TOKEN',
-                                'catalog': None,
-                                'is_admin': False,
-                                'resource': None,
-                                'tenant': None,
-                                'read_only': False,
-                                'user_id': None,
-                                'show_deleted': False,
-                                'roles': [],
-                                'region': None,
-                                'authenticated': False,
-                                'base_url': None,
-                                'simulation': False,
-                                'kwargs': {},
-                                'auth_source': None,
-                                'deployment_id': 'DEP-ID-1000'
-                            },
-                            'DEP-ID-1000',
-                            'db01.checkmate.local',
-                            '4.4.4.4'
-                        ],
-                        'kwargs': {
-                            'environment': 'DEP-ID-1000',
-                            'recipes': ['mysql::server'],
-                            'password': 'shecret',
-                            'bootstrap_version': '10.24.0',
-                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
-                        },
-                        'result': {}
-                        }
+                        'kwargs': {'proxy_credentials': {},
+                                   'password': 'shecret',
+                                   'proxy_address': None,
+                                   'identity_file': None},
+                        'result': None
+                    }
                 ])
-
+            elif resource.get('type') == 'database':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
+                expected_calls.extend([{
+                    # Cook mysql
+                    'call': 'checkmate.providers.opscode.server.tasks.'
+                            'bootstrap',
+                    'args': [
+                        context_dict,
+                        self.deployment['id'],
+                        'db01.checkmate.local',
+                        '4.4.4.4',
+                    ],
+                    'kwargs': {
+                        'environment': 'DEP-ID-1000',
+                        'recipes': ['mysql::server'],
+                        'password': 'shecret',
+                        'bootstrap_version': '10.24.0',
+                        'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                    },
+                    'result': None
+                }])
         workflow = self._get_stubbed_out_workflow(
             context=context, expected_calls=expected_calls)
 
