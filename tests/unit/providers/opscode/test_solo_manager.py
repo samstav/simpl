@@ -19,7 +19,8 @@ import mock
 import unittest
 
 from checkmate import exceptions
-from checkmate.providers.opscode.solo.chef_environment import ChefEnvironment
+from checkmate.providers.opscode.kitchen import ChefKitchen
+from checkmate.providers.opscode.solo.kitchen_solo import KitchenSolo
 from checkmate.providers.opscode.solo.manager import Manager
 
 
@@ -36,10 +37,10 @@ class TestCreateEnvironment(unittest.TestCase):
         self.assertEqual(results, expected)
 
     @mock.patch('shutil.copy')
-    @mock.patch.object(ChefEnvironment, 'fetch_cookbooks')
-    @mock.patch.object(ChefEnvironment, 'create_kitchen')
-    @mock.patch.object(ChefEnvironment, 'create_environment_keys')
-    @mock.patch.object(ChefEnvironment, 'create_env_dir')
+    @mock.patch.object(ChefKitchen, 'fetch_cookbooks')
+    @mock.patch.object(KitchenSolo, 'create_kitchen')
+    @mock.patch.object(ChefKitchen, 'create_kitchen_keys')
+    @mock.patch.object(ChefKitchen, 'create_env_dir')
     @mock.patch('os.path.exists')
     def test_success(self, mock_path_exists, mock_create_env,
                      mock_create_keys, mock_create_kitchen,
@@ -91,9 +92,9 @@ class TestRegisterNode(unittest.TestCase):
                                         simulate=True)
         self.assertDictEqual(results, expected)
 
-    @mock.patch.object(ChefEnvironment, 'write_node_attributes')
-    @mock.patch.object(ChefEnvironment, 'register_node')
-    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch.object(KitchenSolo, 'write_node_attributes')
+    @mock.patch.object(KitchenSolo, 'register_node')
+    @mock.patch.object(ChefKitchen, 'kitchen_path')
     @mock.patch('checkmate.ssh.remote_execute')
     @mock.patch('os.path.exists')
     def test_success(self, mock_path_exists, mock_ssh_execute,
@@ -125,15 +126,15 @@ class TestRegisterNode(unittest.TestCase):
             "1.1.1.1", password="password", bootstrap_version="1.1",
             identity_file="identity_file")
         ssh_calls = [mock.call("1.1.1.1", "mkdir -p %s" % mock_kitchen_path,
-                               "root", password="password",
+                               "root", password="password", gateway=None,
                                identity_file="identity_file"),
                      mock.call("1.1.1.1", "knife -v", "root",
-                               password="password",
+                               password="password", gateway=None,
                                identity_file="identity_file")]
         mock_ssh_execute.assert_has_calls(ssh_calls)
 
-    @mock.patch.object(ChefEnvironment, 'register_node')
-    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch.object(KitchenSolo, 'register_node')
+    @mock.patch.object(ChefKitchen, 'kitchen_path')
     @mock.patch('checkmate.ssh.remote_execute')
     @mock.patch('os.path.exists')
     def test_called_process_error(self, mock_path_exists, mock_ssh_execute,
@@ -158,10 +159,10 @@ class TestRegisterNode(unittest.TestCase):
             identity_file="identity_file")
         mock_ssh_execute.assert_called_once_with(
             "1.1.1.1", "mkdir -p %s" % mock_kitchen_path, "root",
-            password="password", identity_file="identity_file")
+            password="password", gateway=None, identity_file="identity_file")
 
-    @mock.patch.object(ChefEnvironment, 'register_node')
-    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch.object(KitchenSolo, 'register_node')
+    @mock.patch.object(ChefKitchen, 'kitchen_path')
     @mock.patch('checkmate.ssh.remote_execute')
     @mock.patch('os.path.exists')
     def test_chef_install_failure(self, mock_path_exists, mock_ssh_execute,
@@ -184,10 +185,10 @@ class TestRegisterNode(unittest.TestCase):
             "1.1.1.1", password="password", bootstrap_version="1.1",
             identity_file="identity_file")
         ssh_calls = [mock.call("1.1.1.1", "mkdir -p %s" % mock_kitchen_path,
-                               "root", password="password",
+                               "root", password="password", gateway=None,
                                identity_file="identity_file"),
                      mock.call("1.1.1.1", "knife -v", "root",
-                               password="password",
+                               password="password", gateway=None,
                                identity_file="identity_file")]
         mock_ssh_execute.assert_has_calls(ssh_calls)
 
@@ -197,9 +198,9 @@ class TestManageRole(unittest.TestCase):
         self.assertIsNone(Manager.manage_role({'resource_key': '1'}, "web",
                                               "DEP_ID", None, simulate=True))
 
-    @mock.patch.object(ChefEnvironment, 'write_role')
-    @mock.patch.object(ChefEnvironment, 'ruby_role_exists')
-    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch.object(KitchenSolo, 'write_role')
+    @mock.patch.object(KitchenSolo, 'ruby_role_exists')
+    @mock.patch.object(ChefKitchen, 'kitchen_path')
     @mock.patch('os.path.exists')
     def test_success(self, mock_path_exists, mock_kitchen_path,
                      mock_role_exists, mock_write_role):
@@ -227,7 +228,7 @@ class TestManageRole(unittest.TestCase):
             default_attributes="attribs", override_attributes="override",
             env_run_lists="env_run_lists")
 
-    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch.object(ChefKitchen, 'kitchen_path')
     @mock.patch('os.path.exists')
     def test_env_existence(self, mock_path_exists, mock_kitchen_path):
         mock_callback = mock.Mock()
@@ -240,8 +241,8 @@ class TestManageRole(unittest.TestCase):
 
         mock_path_exists.assert_any_call(mock_kitchen_path)
 
-    @mock.patch.object(ChefEnvironment, 'ruby_role_exists')
-    @mock.patch.object(ChefEnvironment, 'kitchen_path')
+    @mock.patch.object(KitchenSolo, 'ruby_role_exists')
+    @mock.patch.object(ChefKitchen, 'kitchen_path')
     @mock.patch('os.path.exists')
     def test_ruby_role_existence(self, mock_path_exists, mock_kitchen_path,
                                  mock_role_exists):
@@ -285,7 +286,7 @@ class TestWriteDataBag(unittest.TestCase):
         self.assertIsNone(results)
 
     @mock.patch('os.path.exists')
-    @mock.patch.object(ChefEnvironment, 'write_data_bag')
+    @mock.patch.object(KitchenSolo, 'write_data_bag')
     def test_success(self, mock_write_bag, mock_path_exists):
         mock_path_exists.return_value = True
         mock_callback = mock.Mock()
@@ -329,8 +330,8 @@ class TestCook(unittest.TestCase):
                                attributes={'foo': 'bar'}, simulate=True)
         self.assertDictEqual(results, expected)
 
-    @mock.patch.object(ChefEnvironment, 'cook')
-    @mock.patch.object(ChefEnvironment, 'write_node_attributes')
+    @mock.patch.object(ChefKitchen, 'cook')
+    @mock.patch.object(KitchenSolo, 'write_node_attributes')
     @mock.patch('os.path.exists')
     def test_success(self, mock_path_exists, mock_write_attribs, mock_cook):
         mock_path_exists.return_value = True
@@ -359,8 +360,8 @@ class TestCook(unittest.TestCase):
             identity_file="identity", port=200, run_list=run_list,
             attributes={"foo": "bar"})
 
-    @mock.patch.object(ChefEnvironment, 'cook')
-    @mock.patch.object(ChefEnvironment, 'write_node_attributes')
+    @mock.patch.object(ChefKitchen, 'cook')
+    @mock.patch.object(KitchenSolo, 'write_node_attributes')
     @mock.patch('os.path.exists')
     def test_exc_handling(self, mock_path_exists, mock_write_attribs,
                           mock_cook):

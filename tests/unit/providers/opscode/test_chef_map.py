@@ -23,8 +23,8 @@ import urlparse
 
 import mox
 
-from checkmate.providers.opscode.solo import blueprint_cache
-from checkmate.providers.opscode.solo import chef_map
+from checkmate.providers.opscode import blueprint_cache
+from checkmate.providers.opscode import chef_map
 from checkmate import test
 from checkmate import utils
 

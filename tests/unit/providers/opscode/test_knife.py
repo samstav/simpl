@@ -17,6 +17,7 @@ import mock
 import unittest
 
 from checkmate import exceptions
+from checkmate.providers.opscode.knife import Knife
 from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
 
 
@@ -62,7 +63,8 @@ class TestKnife(unittest.TestCase):
             ['knife', 'solo', 'init', '.'])
 
     @mock.patch('__builtin__.file')
-    def test_write_solo_config(self, mock_file):
+    @mock.patch.object(Knife, 'ensure_config_path_exists')
+    def test_write_solo_config(self, mock_ensure, mock_file):
         file_handle = mock_file.return_value.__enter__.return_value
         expected_config = """# knife -c knife.rb
     knife[:provisioning_path] = "%s"

@@ -837,17 +837,15 @@ interfaces/mysql/host
         expected = utils.yaml_to_dict('''
                 chef_options:
                 instance:0:
-                    name: app_db
+                    name: ''
                     instance:
                       interfaces:
                         mysql:
-                          database_name: app_db      # from mapfile defaults
                           password: myPassW0rd       # from constraints
                           username: u1               # from blueprint settings
                           host: 4.4.4.4              # from host requirement
                     interfaces:                      # add this for v3.0 compat
                       mysql:
-                        database_name: app_db
                         password: myPassW0rd
                         username: u1
                         host: 4.4.4.4
