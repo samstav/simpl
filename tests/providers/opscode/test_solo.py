@@ -1172,11 +1172,12 @@ interfaces/mysql/database_name
                 context.get_queued_task_dict(
                     deployment_id=self.deployment['id']),
                 self.deployment['id'], 'kitchen'],
-            'kwargs': mox.And(
-                mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
-                mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
-                mox.ContainsKeyValue('public_key_ssh', mox.IgnoreArg())
-            ),
+            'kwargs': {
+                'secret_key': None,
+                'private_key': None,
+                'public_key_ssh': None,
+                'source_repo': 'http://mock_url'
+            },
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
                 'kitchen': '/var/tmp/%s/kitchen',
@@ -1209,15 +1210,16 @@ interfaces/mysql/database_name
                             "4.4.4.4",
                             self.deployment['id'],
                         ],
-                        'kwargs': mox.And(
-                            mox.In('password'),
-                            mox.ContainsKeyValue('bootstrap_version',
-                                                 '10.24.0'),
-                            mox.ContainsKeyValue(
-                                'attributes',
-                                {'connections': 10, 'widgets': 10}
-                            )
-                        ),
+                        'kwargs': {
+                            'attributes': {
+                                'widgets': 10,
+                                'connections': 10
+                            },
+                            'password': 'shecret',
+                            'bootstrap_version': '10.24.0',
+                            'kitchen_name': 'kitchen',
+                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                        },
                         'result': None,
                         'resource': key,
                     },
@@ -1230,22 +1232,17 @@ interfaces/mysql/database_name
                             '4.4.4.4',
                             self.deployment['id'],
                         ],
-                        'kwargs': mox.And(
-                            mox.In('password'),
-                            mox.Not(mox.ContainsKeyValue('recipes', ['foo'])),
-                            mox.ContainsKeyValue(
-                                'identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id']
-                            )
-                        ),
+                        'kwargs': {
+                            'password': 'shecret',
+                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                        },
                         'result': None
                     },
                     {
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
                         'args': [mox.IsA(dict), mox.IsA(dict)],
-                        'kwargs': mox.IgnoreArg(),
+                        'kwargs': None,
                         'result': {
                             'instance:%s' % key: {
                                 'id': '1',
@@ -1306,26 +1303,16 @@ interfaces/mysql/database_name
                             '4.4.4.4',
                             self.deployment['id'],
                         ],
-                        'kwargs': mox.And(
-                            mox.In('password'),
-                            mox.ContainsKeyValue(
-                                'recipes',
-                                ['something', 'something::role']
-                            ),
-                            mox.ContainsKeyValue('roles', ['foo-master']),
-                            mox.ContainsKeyValue(
-                                'attributes',
-                                {
-                                    'master': {'ip': '4.4.4.4'},
-                                    'db': {'name': 'foo-db'},
-                                }
-                            ),
-                            mox.ContainsKeyValue(
-                                'identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id']
-                            ),
-                        ),
+                        'kwargs': {
+                            'attributes': {
+                                'master': {'ip': '4.4.4.4'},
+                                'db': {'name': 'foo-db'}
+                            },
+                            'recipes': ['something', 'something::role'],
+                            'password': 'shecret',
+                            'roles': ['foo-master'],
+                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                        },
                         'result': None
                     }
                 ])
@@ -1343,15 +1330,12 @@ interfaces/mysql/database_name
                             None,
                             self.deployment['id'],
                         ],
-                        'kwargs': mox.And(
-                            mox.In('password'),
-                            mox.ContainsKeyValue('recipes', ['bar']),
-                            mox.ContainsKeyValue(
-                                'identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id']
-                            )
-                        ),
+                        'kwargs': {
+                            'attributes': {'connections': ['4.4.4.4']},
+                            'recipes': ['bar'],
+                            'password': None,
+                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                        },
                         'result': None
                     },
                     {
@@ -1363,15 +1347,12 @@ interfaces/mysql/database_name
                             None,
                             self.deployment['id'],
                         ],
-                        'kwargs': mox.And(
-                            mox.In('password'),
-                            mox.ContainsKeyValue('recipes', ['bar']),
-                            mox.ContainsKeyValue(
-                                'identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id']
-                            )
-                        ),
+                        'kwargs': {
+                            'attributes': None,
+                            'recipes': ['bar'],
+                            'password': None,
+                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                        },
                         'result': None
                     }
                 ])
@@ -1394,8 +1375,7 @@ interfaces/mysql/database_name
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())
-        expected = {'data_bags': {'app_bag': {'mysql': {'db_name': 'foo-db'}}}}
-        self.assertDictEqual(self.outcome, expected)
+        self.assertDictEqual(self.outcome, {})
 
         found = False
         for task in workflow.get_tasks():
