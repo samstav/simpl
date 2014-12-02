@@ -137,113 +137,26 @@ class Provider(base.BaseOpscodeProvider):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
+        """Create and write settings, generate run_list, and call cook."""
         wait_on, service_name, component = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
-        context_arg = context.get_queued_task_dict(
-            deployment_id=deployment['id'], resource_key=key)
 
         # Get component/role or recipe name
         component_id = component['id']
         LOG.debug("Determining component from dict: %s", component_id,
                   extra=component)
 
-        bootstrap_version = deployment.get_setting(
-            'bootstrap-version', provider_key=self.key,
-            service_name=service_name)
-        if not bootstrap_version:
-            omnibus_version = deployment.get_setting(
-                'omnibus-version', provider_key=self.key,
-                service_name=service_name)
-            if omnibus_version:
-                bootstrap_version = omnibus_version
-                LOG.warning("'omnibus-version' is deprecated. Please "
-                            "update the blueprint to use "
-                            "'bootstrap-version'")
-            else:
-                bootstrap_version = deployment.get_setting(
-                    'bootstrap-version', provider_key=self.key,
-                    service_name=service_name, default=OMNIBUS_DEFAULT)
+        kwargs = self.map_file.get_component_run_list(component)
 
-        run_list = self.map_file.get_component_run_list(component)
+        anchor_task = None
 
-        register_node_task = specs.Celery(
-            wfspec,
-            'Register Server:%s (%s)' % (key, resource['service']),
-            'checkmate.providers.opscode.server.tasks.register_node',
-            call_args=[
-                context_arg,
-                deployment['id'],
-                resource.get('dns-name')
-            ],
-            merge_results=True,
-            environment=deployment['id'],
-            defines={'resource': key, 'provider': self.key},
-            description=("Register the node in the Chef Server. "
-                         "Nothing is done the node itself"),
-            properties={'estimated_duration': 20},
-            **run_list
-        )
-        self.prep_task.connect(register_node_task)
-
-        resource = deployment['resources'][key]
-        host_idx = resource.get('hosted_on', key)
-        instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
-
-        proxy_kwargs = self.get_bastion_kwargs()
-        ssh_apt_get_task = specs.Celery(
-            wfspec,
-            'Apt-get Fix:%s (%s)' % (key, resource['service']),
-            'checkmate.ssh.execute_2',
-            call_args=[
-                context_arg,
-                instance_ip,
-                "sudo apt-get update",
-                'root'
-            ],
-            password=operators.PathAttrib(
-                'instance:%s/password' % host_idx
-            ),
-            identity_file=operators.Attrib('private_key_path'),
-            defines={'resource': key, 'provider': self.key},
-            properties={'estimated_duration': 100},
-            **proxy_kwargs
-        )
-        # TODO: stop assuming only one wait_on=create_server_task
-        wait_on[0].connect(ssh_apt_get_task)
-
-        bootstrap_task = anchor_task = specs.Celery(
-            wfspec,
-            'Bootstrap Server:%s (%s)' % (key, resource['service']),
-            'checkmate.providers.opscode.server.tasks.bootstrap',
-            call_args=[
-                context_arg,
-                deployment['id'],
-                resource.get('dns-name'),
-                instance_ip
-            ],
-            password=operators.PathAttrib(
-                'instance:%s/password' % host_idx
-            ),
-            bootstrap_version=bootstrap_version,
-            merge_results=True,
-            identity_file=operators.Attrib('private_key_path'),
-            environment=deployment['id'],
-            defines={'resource': key, 'provider': self.key},
-            properties={'estimated_duration': 90},
-            **run_list
-        )
-
-        # Copied from solo
         if self.map_file.has_mappings(component_id):
-            collect_data_tasks = self.get_prep_tasks(
-                wfspec, deployment, key, component, context,
-                provider='checkmate.providers.opscode.server')
-            bootstrap_task.follow(collect_data_tasks['final'])
+            collect_data_tasks = self.get_prep_tasks(wfspec, deployment, key,
+                                                     component, context)
             anchor_task = collect_data_tasks['root']
 
         # Collect dependencies
         dependencies = [self.prep_task] if self.prep_task else []
-        dependencies.extend([ssh_apt_get_task, register_node_task])
 
         # Wait for relations tasks to complete
         for relation_key in resource.get('relations', {}).keys():
@@ -254,98 +167,208 @@ class Provider(base.BaseOpscodeProvider):
 
         server_id = resource.get('hosted_on', key)
 
-        wfspec.wait_for(
-            anchor_task, dependencies,
-            name="After server %s (%s) is registered and options are ready"
-                 % (server_id, service_name),
-            description="Before applying chef recipes, we need to know that "
-                        "the server has chef on it and that the overrides "
-                        "(ex. database settings) have been applied"
-        )
+        if anchor_task:
+            wfspec.wait_for(
+                anchor_task, dependencies,
+                name="After server %s (%s) is registered and options are ready"
+                     % (server_id, service_name),
+                description="Before applying chef recipes, we need to know that "
+                            "the server has chef on it and that the overrides "
+                            "(ex. database settings) have been applied"
+            )
 
         # if we have a host task marked 'complete', make that wait on configure
-        host_complete = self.get_host_complete_task(wfspec, resource)
-        if host_complete:
-            wfspec.wait_for(
-                host_complete,
-                [bootstrap_task],
-                name='Wait for %s to be configured before completing host %s' %
-                     (service_name, resource.get('hosted_on', key)))
+        #host_complete = self.get_host_complete_task(wfspec, resource)
+        #if host_complete:
+        #    wfspec.wait_for(
+        #        host_complete,
+        #        [configure_task],
+        #        name='Wait for %s to be configured before completing host %s' %
+        #             (service_name, resource.get('hosted_on', key)))
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
-        target = deployment['resources'][relation['target']]
-        interface = relation['interface']
+        """Write out or Transform data. Provide final task for relation sources
+        to hook into.
+        """
+        LOG.debug("Adding connection task for resource '%s' for relation '%s'",
+                  key, relation_key, extra={'data': {'resource': resource,
+                                                     'relation': relation}})
 
-        if interface == 'mysql':
-            #Take output from Create DB task and write it into
-            # the 'override' dict to be available to future tasks
-            context_arg = context.get_queued_task_dict(
-                deployment_id=deployment['id'], resource_key=key)
+        environment = deployment.environment()
+        provider = environment.get_provider(resource['provider'])
+        component = provider.get_component(context, resource['component'])
+        map_with_context = self.map_file.get_map_with_context(
+            deployment=deployment, resource=resource, component=component)
 
-            tasks = wfspec.find_task_specs(relation=relation['target'],
-                                           provider=target['provider'],
+        # Is this relation in one of our maps? If so, let's handle that
+        tasks = []
+        if map_with_context.has_requirement_mapping(resource['component'],
+                                                    relation['requires-key']):
+            LOG.debug("Relation '%s' for resource '%s' has a mapping",
+                      relation_key, key)
+            # Set up a wait for the relation target to be ready
+            tasks = wfspec.find_task_specs(resource=relation['target'],
                                            tag='final')
 
-            compile_override = specs.Transform(
-                wfspec,
-                "Prepare Overrides:%s" % key,
-                transforms=[
-                    "my_task.attributes['overrides']={'wordpress': {'db': "
-                    "{'host': my_task.attributes['hostname'], "
-                    "'database': my_task.attributes['context']['db_name'], "
-                    "'user': my_task.attributes['context']['db_username'], "
-                    "'password': my_task.attributes['context']"
-                    "['db_password']}}}"
-                ],
-                description="Get all the variables we need (like database "
-                            "name and password) and compile them into JSON "
-                            "that we can set on the role or environment",
-                defines=dict(
-                    relation=relation_key, provider=self.key, task_tags=None
-                )
-            )
-            wfspec.wait_for(compile_override, tasks)
+        if tasks:
+            # The collect task will have received a copy of the map and
+            # will pick up the values that it needs when these precursor
+            # tasks signal they are complete.
+            collect_tasks = self.get_prep_tasks(wfspec, deployment, key,
+                                                component, context)
+            wfspec.wait_for(collect_tasks['root'], tasks)
 
-            set_overrides = specs.Celery(
+        if relation.get('relation') == 'host':
+            # Wait on host to be ready
+            wait_on = self.get_host_ready_tasks(resource, wfspec, deployment)
+            if not wait_on:
+                raise exceptions.CheckmateException(
+                    "No host resource found for relation '%s'" % relation_key)
+            attributes = map_with_context.get_attributes(resource['component'],
+                                                         deployment)
+            service_name = resource['service']
+            bootstrap_version = deployment.get_setting(
+                'bootstrap-version', provider_key=self.key,
+                service_name=service_name)
+            if not bootstrap_version:
+                omnibus_version = deployment.get_setting(
+                    'omnibus-version', provider_key=self.key,
+                    service_name=service_name)
+                if omnibus_version:
+                    bootstrap_version = omnibus_version
+                    LOG.warning("'omnibus-version' is deprecated. Please "
+                                "update the blueprint to use "
+                                "'bootstrap-version'")
+                else:
+                    bootstrap_version = deployment.get_setting(
+                        'bootstrap-version', provider_key=self.key,
+                        service_name=service_name, default=OMNIBUS_DEFAULT)
+
+            # Create chef setup tasks
+            register_node_task = specs.Celery(
                 wfspec,
-                "Write Database Settings:%s" % key,
-                'checkmate.providers.opscode.server.tasks.manage_env',
-                call_args=[
-                    context_arg,
+                'Register Server %s (%s)' % (
+                    relation['target'], resource['service']
+                ),
+                'checkmate.providers.opscode.server.tasks.register_node',
+                call_args=[context.get_queued_task_dict(
+                    deployment_id=deployment['id'],
+                    resource_key=key),
+                    operators.PathAttrib(
+                        'instance:%s/ip' % relation['target']),
                     deployment['id']
                 ],
-                desc='Checkmate Environment',
-                override_attributes=operators.Attrib('overrides'),
-                description="Take the JSON prepared earlier and write it into"
-                            "the environment overrides. It will be used by "
-                            "the Chef recipe to connect to the database",
-                defines=dict(
-                    relation=relation_key, resource=key,
-                    provider=self.key, task_tags=None
+                password=operators.PathAttrib(
+                    'instance:%s/password' % relation['target']
                 ),
-                properties={'estimated_duration': 15}
+                kitchen_name='kitchen',
+                attributes=attributes,
+                bootstrap_version=bootstrap_version,
+                identity_file=operators.Attrib('private_key_path'),
+                defines=dict(
+                    resource=key, relation=relation_key, provider=self.key
+                ),
+                description=("Install Chef client on the target machine "
+                             "and register it in the environment"),
+                properties=dict(estimated_duration=120)
             )
 
-            wait_on = [compile_override, self.prep_task]
-            wfspec.wait_for(
-                set_overrides, wait_on,
-                name="Wait on Environment and Settings:%s" % key
+            # Register only when server is up and environment is ready
+            if self.prep_task:
+                wait_on.append(self.prep_task)
+            root = wfspec.wait_for(
+                register_node_task, wait_on,
+                name="After Environment is Ready and Server %s (%s) is Up" %
+                     (relation['target'], service_name),
+                resource=key, relation=relation_key, provider=self.key
             )
+            if 'task_tags' in root.properties:
+                root.properties['task_tags'].append('root')
+            else:
+                root.properties['task_tags'] = ['root']
+            return dict(root=root, final=register_node_task)
 
-            config_final = wfspec.find_task_specs(relation=key,
-                                                  provider=self.key,
-                                                  tag='final')
-            # Assuming input is join
-            if config_final:
-                assert isinstance(config_final.inputs[0], specs.Merge)
-                set_overrides.connect(config_final.inputs[0])
+        # Inform server when a client is ready if it has client mappings
+        # TODO(zns): put this in an add_client_ready_tasks for all providers or
+        # make it available as a separate workflow or set of tasks
 
-        else:
-            LOG.warning(
-                "Provider '%s' does not recognized connection interface '%s'",
-                self.key, interface
-            )
+        resources = deployment['resources']
+        target = resources[relation['target']]
+        if target['provider'] == self.key:
+            if map_with_context.has_client_mapping(target['component'],
+                                                   relation['requires-key']):
+                server = target  # our view is from the source of the relation
+                client = resource  # this is the client that is just finishing
+                environment = deployment.environment()
+                provider = environment.get_provider(server['provider'])
+                server_component = provider.get_component(context,
+                                                          server['component'])
+                recon_tasks = self.get_reconfigure_tasks(wfspec, deployment,
+                                                         client,
+                                                         server,
+                                                         server_component,
+                                                         context)
+                recollect_task = recon_tasks.get('root')
+
+                final_tasks = wfspec.find_task_specs(resource=key,
+                                                     provider=self.key,
+                                                     tag='final')
+                host_complete = self.get_host_complete_task(wfspec, server)
+                final_tasks.extend(wfspec.find_task_specs(
+                    resource=server.get('index'),
+                    provider=self.key, tag='final')
+                )
+                if not final_tasks:
+                    # If server already configured, anchor to root
+                    LOG.warn("Did not find final task for resource %s", key)
+                    final_tasks = [self.prep_task]
+                LOG.debug("Reconfig waiting on %s", final_tasks)
+                if recollect_task:
+                    wfspec.wait_for(recollect_task, final_tasks)
+
+                if host_complete:
+                    LOG.debug("Re-ordering the Mark Server Online task to "
+                              "follow Reconfigure tasks")
+                    wfspec.wait_for(host_complete, [recon_tasks['final']])
+
+    def get_reconfigure_tasks(self, wfspec, deployment, client, server,
+                              server_component, context):
+        """Gets (creates if does not exist) a task to reconfigure a server when
+        a client is ready.
+
+        This generates only one task per workflow which all clients tie in to.
+        If it is desired for each client to trigger a separate call to
+        reconfigure the server, then the client creation should be launched in
+        a separate workflow.
+
+        :param wfspec: the workflow specific
+        :param deployment: the deployment
+        :param client: the client resource dict
+        :param server: the server resource dict
+        :param server_component: the component for the server
+        """
+        result = {}
+        LOG.debug("Inform server %s (%s) that client %s (%s) is ready to "
+                  "connect it", server['index'], server['component'],
+                  client['index'], client['component'])
+        existing = wfspec.find_task_specs(resource=server['index'],
+                                          provider=self.key,
+                                          tag='client-ready')
+        collect_tag = "reconfig"
+        ready_tag = "reconfig-options-ready"
+
+        if existing:
+            reconfigure_task = existing[0]
+            collect = wfspec.find_task_specs(resource=server['index'],
+                                             provider=self.key,
+                                             tag=collect_tag)
+            if collect:
+                root_task = collect[0]
+            else:
+                root_task = reconfigure_task
+            result = {'root': root_task, 'final': reconfigure_task}
+        return result
 
     @staticmethod
     def connect(context):
