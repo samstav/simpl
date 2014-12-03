@@ -141,11 +141,7 @@ class Provider(base.BaseOpscodeProvider):
         """Create and write settings, generate run_list, and call cook."""
         wait_on, service_name, component = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
-        self._add_component_tasks(wfspec, component, deployment, key,
-                                  context, service_name)
 
-    def _add_component_tasks(self, wfspec, component, deployment, key,
-                             context, service_name):
         # Get component/role or recipe name
         component_id = component['id']
         LOG.debug("Determining component from dict: %s", component_id,
