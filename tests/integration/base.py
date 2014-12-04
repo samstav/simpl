@@ -720,79 +720,6 @@ class DBDriverTests(object):
             self.driver.get_deployments(tenant_id='T3', with_deleted=False)
         )
 
-    def test_convert_invalid_deployment_status(self):
-        self.driver.save_deployment(
-            '1',
-            tenant_id='T3',
-            body={'id': '1', 'status': 'LAUNCHED'}
-        )
-        self.driver.save_deployment(
-            '2',
-            tenant_id='T3',
-            body={'id': '2', 'status': 'ERROR'}
-        )
-        self.driver.save_deployment(
-            '3',
-            tenant_id='T3',
-            body={'id': '3', 'status': 'DELETING'}
-        )
-        self.driver.save_deployment(
-            '4',
-            tenant_id='T3',
-            body={'id': '4', 'status': 'BUILD'}
-        )
-        self.driver.save_deployment(
-            '5',
-            tenant_id='T3',
-            body={'id': '5', 'status': 'ACTIVE'}
-        )
-        self.driver.save_deployment(
-            '6',
-            tenant_id='T3',
-            body={'id': '6', 'status': 'CONFIGURE'}
-        )
-
-        results = self.driver.get_deployments(tenant_id='T3')
-        self.assertEquals(results['results']['1']['status'], 'UP')
-        self.assertEquals(results['results']['2']['status'], 'FAILED')
-        self.assertEquals(results['results']['3']['status'], 'UP')
-        self.assertEquals(results['results']['4']['status'], 'UP')
-        self.assertEquals(results['results']['5']['status'], 'UP')
-        self.assertEquals(results['results']['6']['status'], 'UP')
-
-    def test_trim_get_deployments(self):
-        self.driver.save_deployment(
-            '1',
-            tenant_id='T3',
-            body={
-                'id': '1',
-                'status': 'LAUNCHED',
-                'blueprint': {
-                    'documentation': {},
-                    'options': {},
-                    'services': {},
-                    'resources': {},
-                },
-                'environment': {
-                    'providers': {},
-                },
-                'inputs': {},
-                'plan': {},
-                'display-outputs': {},
-                'resources': {},
-            }
-        )
-        results = self.driver.get_deployments(tenant_id='T3', with_count=True)
-        self.assertEqual(results['collection-count'], 1)
-        expected = {
-            u'id': u'1',
-            u'tenantId': u'T3',
-            u'status': 'UP',
-            u'blueprint': {},
-            u'environment': {},
-        }
-        self.assertDictEqual(expected, results['results']['1'])
-
     def test_partial_save_deployment_all_secrets(self):
         """Partial where all the keys are secret."""
         self.driver.save_deployment(
@@ -968,34 +895,6 @@ class DBDriverTests(object):
     #
     # Workflows
     #
-    def test_trim_get_workflows(self):
-        self.driver.save_workflow(
-            '1',
-            tenant_id='T3',
-            body={
-                'id': '1',
-                'name': {},
-                'progress': {},
-                'status': 'running',
-                'wf_spec': {
-                    'specs': [],
-                },
-                'task_tree': {},
-                'tenantId': "T3",
-            }
-        )
-        results = self.driver.get_workflows(tenant_id='T3')
-        self.assertEqual(results['collection-count'], 1)
-        expected = {
-            u'id': u'1',
-            u'name': {},
-            u'progress': {},
-            u'status': u'running',
-            u'wf_spec': {},
-            u'tenantId': u"T3",
-        }
-        self.assertDictEqual(expected, results['results']['1'])
-
     def test_workflows(self):
         _id = uuid.uuid4().hex[0:8]
         entity = {

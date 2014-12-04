@@ -171,61 +171,6 @@ class DbBase(object):  # pylint: disable=R0921
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
         raise NotImplementedError()
 
-    #
-    # Data conversion helper
-    # TODO(zns): remove this when we're done
-    #
-    legacy_statuses = {
-        "BUILD": 'UP',
-        "CONFIGURE": 'UP',
-        "ACTIVE": 'UP',
-        'ERROR': 'FAILED',
-        'DELETING': 'UP',
-        'LAUNCHED': 'UP',
-    }
-
-    def convert_data(self, klass, data):
-        """Perform transformations on objects post reading them from the DB.
-
-        :param klass:
-        :param data:
-        :return:
-        """
-        if klass == 'deployments':
-            if 'status' in data:
-                if data['status'] in self.legacy_statuses:
-                    data['status'] = self.legacy_statuses[data['status']]
-            if 'resources' in data and isinstance(data['resources'], dict):
-                self.convert_data('resources', data['resources'])  # legacy
-            if 'display-outputs' in data and data['display-outputs'] is None:
-                data['display-outputs'] = {}
-            if 'error-message' in data:
-                data.pop('error-message')
-        elif klass == 'resources':
-            for _, resource in data.items():
-                if 'statusmsg' in resource:
-                    resource['status-message'] = resource.pop('statusmsg')
-                if 'instance' in resource and isinstance(resource['instance'],
-                                                         dict):
-                    instance = resource['instance']
-                    if 'statusmsg' in instance:
-                        instance['status-message'] = instance.pop('statusmsg')
-                    if 'status_msg' in instance:
-                        instance['status-message'] = instance.pop('status_msg')
-                    if ('errmessage' in instance and
-                            'error-message' not in instance):
-                        instance['error-message'] = instance.pop('errmessage')
-                    elif ('errmessage' in resource and
-                            'error-message' not in instance):
-                        instance['error-message'] = resource.pop('errmessage')
-
-                    remove_keys = ['errmessage', 'trace', 'error-traceback']
-                    for key in remove_keys:
-                        if key in instance:
-                            del instance[key]
-                        if key in resource:
-                            del resource[key]
-
     def lock(self, key, timeout):
         """Attempt to lock with the provided key."""
         return db_lock.DbLock(self, key, timeout)
