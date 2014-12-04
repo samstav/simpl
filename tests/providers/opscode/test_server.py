@@ -436,16 +436,14 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                             '.register_node',
                     'args': [
                         context_dict,
-                        '4.4.4.1',
                         self.deployment['id'],
+                        '4.4.4.1',
                     ],
                     'kwargs': mox.And(
                         mox.ContainsKeyValue('attributes', mox.IgnoreArg()),
-                        mox.ContainsKeyValue('password', mox.IgnoreArg()),
-                        mox.ContainsKeyValue('bootstrap_version',
-                                             mox.IgnoreArg()),
-                        mox.ContainsKeyValue('kitchen_name', mox.IgnoreArg()),
-                        mox.ContainsKeyValue('identity_file', mox.IgnoreArg()),
+                        mox.ContainsKeyValue('environment',
+                                             self.deployment['id']),
+                        mox.ContainsKeyValue('recipes', ['mysql::server']),
                     ),
                     'result': None,
                     'resource': key,
@@ -784,8 +782,8 @@ interfaces/mysql/host
                         '.register_node',
                         'args': [
                             context_dict,
-                            '4.4.4.4',
                             self.deployment['id'],
+                            '4.4.4.4',
                         ],
                         'kwargs': {
                             'attributes': {
@@ -793,10 +791,8 @@ interfaces/mysql/host
                                 'password': 'myPassW0rd',
                                 'db_name': 'app_db'
                             },
-                            'password': 'shecret',
-                            'bootstrap_version': '10.24.0',
-                            'kitchen_name': 'kitchen',
-                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                            'environment': self.deployment['id'],
+                            'recipes': ['mysql::server'],
                         },
                         'result': None,
                     }
@@ -1212,13 +1208,15 @@ interfaces/mysql/database_name
                         '.register_node',
                         'args': [
                             context_dict,
-                            "4.4.4.4",
                             self.deployment['id'],
+                            "4.4.4.4",
                         ],
                         'kwargs': mox.And(
-                            mox.In('password'),
-                            mox.ContainsKeyValue('bootstrap_version',
-                                                 '10.24.0'),
+                            mox.ContainsKeyValue('recipes',
+                                ['something', 'something::role']),
+                            mox.ContainsKeyValue('roles', ['foo-master']),
+                            mox.ContainsKeyValue('environment',
+                                                 self.deployment['id']),
                             mox.ContainsKeyValue(
                                 'attributes',
                                 {'connections': 10, 'widgets': 10}

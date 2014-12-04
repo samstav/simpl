@@ -245,35 +245,31 @@ class Provider(base.BaseOpscodeProvider):
                         'bootstrap-version', provider_key=self.key,
                         service_name=service_name, default=OMNIBUS_DEFAULT)
 
+            kwargs = map_with_context.get_component_run_list(component)
+
             # Create chef setup tasks
             register_node_task = specs.Celery(
                 wfspec,
                 'Register Server %s (%s)' % (
-                    relation['target'], resource['service']
-                ),
+                    relation['target'], resource['service']),
                 'checkmate.providers.opscode.server.tasks.register_node',
-                call_args=[context.get_queued_task_dict(
-                    deployment_id=deployment['id'],
-                    resource_key=key),
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment_id=deployment['id'],
+                        resource_key=key),
+                    deployment['id'],
                     operators.PathAttrib(
-                        'instance:%s/ip' % relation['target']),
-                    deployment['id']
+                        'instance:%s/ip' % relation['target'])  # name
                 ],
-                password=operators.PathAttrib(
-                    'instance:%s/password' % relation['target']
-                ),
-                kitchen_name='kitchen',
+                environment=deployment['id'],
                 attributes=attributes,
-                bootstrap_version=bootstrap_version,
-                identity_file=operators.Attrib('private_key_path'),
                 defines=dict(
                     resource=key, relation=relation_key, provider=self.key
                 ),
-                description=("Install Chef client on the target machine "
-                             "and register it in the environment"),
-                properties=dict(estimated_duration=120)
+                description=("Register the node on the Chef server"),
+                properties=dict(estimated_duration=120),
+                **kwargs
             )
-
             # Register only when server is up and environment is ready
             if self.prep_task:
                 wait_on.append(self.prep_task)
