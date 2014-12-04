@@ -184,6 +184,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
              description: the protocol being proxied
              required: true
       new-relic:
+      rackspace-cloud-monitoring:
       mongodb:
       postgres:
       varnish:
@@ -198,6 +199,7 @@ INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
 RESOURCE_TYPES = [
     'compute',
     'database',
+    'object-store',
     'wordpress',
     'php5',
     'load-balancer',
@@ -209,6 +211,7 @@ RESOURCE_TYPES = [
     'cache',
     'monitoring',
     'storage',
+    'dns',
     'widget',
     'gadget',  # last two for testing
 ]
