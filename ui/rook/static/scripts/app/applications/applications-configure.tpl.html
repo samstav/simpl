@@ -1,0 +1,96 @@
+<div class="rs-container">
+  <div class="rs-app-launch-container rs-panel">
+    <div class="rs-app-launch-sidebar stick-left" ng-class="{'visible': catalog.data}">
+      <header class="rs-app-launch-header">
+        <div class="rs-app-launch-input rs-app-launch-search-bar">
+          <input type="text" ng-model="search" placeholder="Search Application Catalog..">
+        </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
+      </header> <!-- /.rs-app-launch-header -->
+
+      <div class="rs-app-launch-list-container">
+        <section class="rs-app-launch-list-section"
+                 ng-repeat="(type,types) in catalog.data">
+          <h4>{{type}}</h4>
+          <div class="rs-app-launch-list">
+            <div class="rs-app-launch-list-item"
+                 ng-repeat="(app,config) in types"
+                 x-lvl-draggable="tre"
+                 ng-show="config.id.indexOf(search) > -1 || !search"
+                 ng-mousedown="select(config)"
+                 ng-click="viewDetails()">
+                <div class="rs-app-list-item-icon">
+                  <img ng-attr-src="{{config['meta-data']['display-hints']['icon-20x20']}}"
+                  width="20"
+                  height="20">
+                </div> <!-- /.rs-app-list-item-icon -->
+                <div class="rs-app-list-item-title">
+                  {{app}}
+                </div> <!-- /.rs-app-list-item-title -->
+            </div> <!-- /.rs-app-launch-list-item -->
+          </div> <!-- /.rs-app-launch-list-item -->
+        </section> <!-- /.rs-app-launch-list-section -->
+
+      </div> <!-- /.rs-app-launch-list-container -->
+    </div> <!-- /.rs-app-launch-sidebar -->
+
+    <div class="rs-app-launch-sidebar stick-left dark" ng-class="{'visible': selection.isVisible}">
+      <header class="rs-app-launch-header">
+        <div class="rs-app-launch-title">
+          {{ selection.data.service }}\{{ selection.data.component }}
+        </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
+        <div class="rs-app-launch-control">
+          <i class="fa fa-close fa-inverse" ng-click="selection.isVisible = false"></i>
+        </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
+      </header> <!-- /.rs-app-launch-header -->
+      <section class="rs-app-launch-list-section">
+        <form name="frmOptions">
+          <ng-include src="'/scripts/app/applications/options.tpl.html'"></ng-include>
+        </form>
+      </section> <!-- /.rs-app-launch-list-section -->
+    </div> <!-- /.rs-app-launch-sidebar -->
+
+    <div class="rs-app-launch-topology"
+         x-lvl-drop-target="true"
+         x-on-drop="add()">
+
+      <!-- Topology -->
+      <blueprint-topology></blueprint-topology>
+
+      <!-- Code Mirror -->
+      <div class="codemirror-toggle-button"
+           ng-class="{'adjusted': codemirror.isVisible}"
+           ng-show="deployment.blueprint.services"
+           ng-click="codemirror.isVisible = !codemirror.isVisible">
+        <span class="fa-stack fa-lg">
+          <i class="fa fa-ban fa-stack-2x text-danger" ng-show="codemirror.isVisible"></i>
+          <i class="fa fa-code fa-stack-1x" ng-class="{'fa-inverse': codemirror.isVisible}"></i>
+        </span>
+      </div>
+      <deployment-editor ng-show="deployment.blueprint.services"
+                         class="rs-app-launch-sidebar stick-right"
+                         ng-class="{'visible': codemirror.isVisible}">
+      </deployment-editor>
+
+      <div class="rs-table-overlay rs-app-launch-empty-canvas" ng-hide="deployment.blueprint.services">
+        <div class="rs-table-overlay-content">
+          <div class="rs-table-overlay-title">You don't have any applications yet.</div>
+          <div class="rs-table-overlay-subtitle">Add one now.</div>
+          <div class="rs-table-overlay-message">Drag an application here. We'll draw an application topology, just for you.</div>
+        </div>
+      </div>
+
+      <div class="rs-app-launch-controls" ng-class="{'adjusted': codemirror.isVisible}">
+        <div class="rs-btn-group rs-pull-right">
+          <button class="rs-btn rs-btn-primary" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit()">Launch</button>
+          <button class="rs-btn" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit('simulate')">Simulate</button>
+          <button class="rs-btn rs-btn-link">Reset</button>
+        </div>
+        <div class="rs-btn-group">
+          <button class="rs-btn rs-btn-secondary" ng-disabled="true">Import</button>
+          <button class="rs-btn rs-btn-secondary" ng-disabled="true">Export</button>
+        </div>
+      </div> <!-- /.rs-app-launch-controls -->
+    </div>
+
+  </div> <!-- /.rs-app-launch-container -->
+</div> <!-- /.rs-container -->

@@ -3,7 +3,22 @@ var is_chrome_extension = navigator.userAgent.toLowerCase().indexOf('chrome') > 
 var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
-var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ngRoute', 'ui.utils', 'ui.bootstrap', 'ui.codemirror', 'ui.date']);
+var checkmate = angular.module('checkmate', [
+    'checkmate.filters', 
+    'checkmate.services', 
+    'checkmate.directives', 
+    'ngResource', 
+    'ngSanitize', 
+    'ngCookies', 
+    'ngLocale', 
+    'ngRoute', 
+    'ui.utils', 
+    'ui.bootstrap', 
+    'ui.codemirror', 
+    'ui.date',
+    'checkmate.applications'
+]);
+
 
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', 'BlueprintDocsProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider, BlueprintDocsProvider) {
@@ -13,130 +28,138 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   // Static Paths
   $routeProvider.when('/', {
     templateUrl: '/partials/home.html',
-    controller: StaticController
+    controller: 'StaticController'
   })
   .when('/index.html', {
     templateUrl: '/partials/home.html',
-    controller: StaticController
+    controller: 'StaticController'
   }).
   when('/readme', {
     templateUrl: '/partials/readme.html',
-    controller: StaticController
+    controller: 'StaticController'
   });
 
   // New UI - static pages
   $routeProvider.when('/deployments/new/wordpress', {
     templateUrl: '/partials/managed-cloud-wordpress.html',
-    controller: DeploymentManagedCloudController
+    controller: 'DeploymentManagedCloudController'
   })
   .when('/deployments/default', {  // for legacy compat for a while
     templateUrl: '/partials/managed-cloud-wordpress.html',
-    controller: DeploymentManagedCloudController
+    controller: 'DeploymentManagedCloudController'
   })
   .when('/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
-    controller: DeploymentNewRemoteController
+    controller: 'DeploymentNewRemoteController'
   })
   .when('/blueprints/new', {
     templateUrl: '/partials/blueprints/new.html',
-    controller: BlueprintNewController
+    controller: 'BlueprintNewController'
   })
   .when('/:tenantId/blueprints/new', {
     templateUrl: '/partials/blueprints/new.html',
-    controller: BlueprintNewController
+    controller: 'BlueprintNewController'
+  })
+  .when('/blueprints/design', {
+    templateUrl: '/partials/blueprints/design.html',
+    controller: 'ConfigureCtrl'
+  })
+  .when('/:tenantId/blueprints/design', {
+    templateUrl: '/partials/blueprints/design.html',
+    controller: 'ConfigureCtrl'
   })
   .when('/:tenantId/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
-    controller: DeploymentNewRemoteController,
+    controller: 'DeploymentNewRemoteController',
     reloadOnSearch: false
   })
   .when('/deployments/wordpress-stacks', {
     templateUrl: '/partials/wordpress-stacks.html',
-    controller: StaticController
+    controller: 'StaticController'
   });
 
   // Admin pages
   $routeProvider.when('/admin/status/celery', {
     templateUrl: '/partials/raw.html',
-    controller: RawController
+    controller: 'RawController'
   })
   .when('/admin/status/libraries', {
     templateUrl: '/partials/raw.html',
-    controller: RawController
+    controller: 'RawController'
   })
   .when('/admin/feedback', {
     templateUrl: '/partials/admin-feedback.html',
-    controller: FeedbackListController
+    controller: 'FeedbackListController'
   })
   .when('/admin/deployments', {
     templateUrl: '/partials/deployments/index.html',
-    controller: DeploymentListController
+    controller: 'DeploymentListController'
   });
 
   // Auto Login
   $routeProvider.when('/autologin', {
     templateUrl: '/partials/autologin.html',
-    controller: AutoLoginController
+    controller: 'AutoLoginController'
   });
 
   // New UI - dynamic, tenant pages
   $routeProvider.when('/:tenantId/workflows/:id/status', {
     templateUrl: '/partials/workflow_status.html',
-    controller: WorkflowController
+    controller: 'WorkflowController'
   })
   .when('/:tenantId/workflows/:id', {
     templateUrl: '/partials/workflow.html',
-    controller: WorkflowController,
+    controller: 'WorkflowController',
     reloadOnSearch: false
   })
   .when('/:tenantId/workflows-new/:id', {
     templateUrl: '/partials/workflow-new.html',
-    controller: WorkflowController,
+    controller: 'WorkflowController',
     reloadOnSearch: false
   })
   .when('/:tenantId/workflows', {
     templateUrl: '/partials/workflows.html',
-    controller: WorkflowListController
+    controller: 'WorkflowListController'
   })
   .when('/blueprints', {
     templateUrl: '/partials/blueprints/blueprints-remote.html',
-    controller: BlueprintRemoteListController
+    controller: 'BlueprintRemoteListController'
   })
   .when('/:tenantId/blueprints', {
     templateUrl: '/partials/blueprints/blueprints-remote.html',
-    controller: BlueprintRemoteListController
+    controller: 'BlueprintRemoteListController'
   })
   .when('/:tenantId/deployments', {
     templateUrl: '/partials/deployments/index.html',
-    controller: DeploymentListController
+    controller: 'DeploymentListController'
   })
   .when('/:tenantId/deployments/custom', {
-    controller: ResourcesController,
+    controller: 'ResourcesController',
     templateUrl: '/partials/resources/index.html'
   })
   .when('/:tenantId/deployments/:id', {
-    controller: DeploymentController,
+    controller: 'DeploymentController',
     templateUrl: '/partials/deployments/deployment.html'
   })
   .when('/:tenantId/providers', {
-    controller: ProviderListController,
+    controller: 'ProviderListController',
     templateUrl: '/partials/providers.html'
   })
   .when('/:tenantId/environments', {
-    controller: EnvironmentListController,
+    controller: 'EnvironmentListController',
     templateUrl: '/partials/environments.html'
   })
   .when('/404', {
-    controller: StaticController,
+    controller: 'StaticController',
     templateUrl: '/partials/404.html'
   })
   .otherwise({
-    controller: StaticController,
+    controller: 'StaticController',
     templateUrl: '/partials/404.html'
   });
 
 
-  $locationProvider.html5Mode(true);
+  $locationProvider.html5Mode({enabled: true, requireBase: false});  //requireBase: true breaks SVG icons
   // Hack to get access to them later
   checkmate.config.header_defaults = $httpProvider.defaults;
   $httpProvider.defaults.headers.common['Accept'] = "application/json";
@@ -808,6 +831,7 @@ function NavBarController($scope, $location, $http) {
   };
 }
 
+
 function ActivityFeedController($scope, $http, items) {
   $scope.loading = false;
   $scope.parse_event = function(event, key) {
@@ -1203,7 +1227,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
     window.setTimeout(function() {
         var curScrollPos = $('#spec_list').scrollTop();
             var item = $('.summary.active').offset();
-            if (item !== null) {
+            if (item !== null && typeof item !== 'undefined') {
                   var itemTop = item.top - 250;
                   $('.summaries').animate({'scrollTop': curScrollPos + itemTop}, 200);
             }
@@ -3609,6 +3633,21 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   $scope.$watch('deployment_string', $scope.refresh_parse_deployment);
 }
 
+
+checkmate.controller('DeploymentController', DeploymentController);
+checkmate.controller('DeploymentListController', DeploymentListController);
+checkmate.controller('BlueprintRemoteListController', BlueprintRemoteListController);
+checkmate.controller('BlueprintNewController', BlueprintNewController);
+checkmate.controller('DeploymentNewRemoteController', DeploymentNewRemoteController);
+checkmate.controller('StaticController', StaticController);
+checkmate.controller('RawController', RawController);
+checkmate.controller('NavBarController', NavBarController);
+checkmate.controller('AppController', AppController);
+checkmate.controller('ActivityFeedController', ActivityFeedController);
+checkmate.controller('TestController', TestController);
+checkmate.controller('WorkflowListController', WorkflowListController);
+checkmate.controller('WorkflowController', WorkflowController);
+
 /*
  * Other stuff
  */
@@ -3622,6 +3661,37 @@ document.addEventListener('DOMContentLoaded', function(e) {
   //On mobile devices, hide the address bar
   window.scrollTo(0, 0);
 }, false);
+
+
+//Instead of deprecated jQuery.browser
+jQuery.uaMatch = function( ua ) {
+  ua = ua.toLowerCase();
+  var match = /(chrome)[ \/]([\w.]+)/.exec( ua ) ||
+    /(webkit)[ \/]([\w.]+)/.exec( ua ) ||
+    /(opera)(?:.*version|)[ \/]([\w.]+)/.exec( ua ) ||
+    /(msie) ([\w.]+)/.exec( ua ) ||
+    ua.indexOf('compatible') < 0 && /(mozilla)(?:.*? rv:([\w.]+)|)/.exec( ua ) ||
+    [];
+  return {
+    browser: match[ 1 ] || '',
+    version: match[ 2 ] || '0'
+  };
+};
+if ( !jQuery.browser ) {
+  var matched = jQuery.uaMatch( navigator.userAgent );
+  var browser = {};
+  if ( matched.browser ) {
+    browser[ matched.browser ] = true;
+    browser.version = matched.version;
+  }
+  // Chrome is Webkit, but Webkit is also Safari.
+  if ( browser.chrome ) {
+    browser.webkit = true;
+  } else if ( browser.webkit ) {
+    browser.safari = true;
+  }
+  jQuery.browser = browser;
+}
 
 $(window).load(function () {
   //Init Google Code Prettifier
