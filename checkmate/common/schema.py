@@ -183,6 +183,14 @@ INTERFACE_SCHEMA = yaml_to_dict("""
              type: string
              description: the protocol being proxied
              required: true
+      new-relic:
+      mongodb:
+      postgres:
+      varnish:
+      memcache:
+      redis:
+      gluster:
+      php:
     """)
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
@@ -197,6 +205,10 @@ RESOURCE_TYPES = [
     'host',
     'application',
     'mail-relay',
+    'web',
+    'cache',
+    'monitoring',
+    'storage',
     'widget',
     'gadget',  # last two for testing
 ]
