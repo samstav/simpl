@@ -62,7 +62,7 @@ class ChefMap(object):
         :param raw: provide the raw content of the map file
         :param parsed: provide parsed content of the map file
 
-        :return: solo.ChefMap
+        :return: opscode.ChefMap
 
         """
         self.url = url
