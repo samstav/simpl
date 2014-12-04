@@ -653,7 +653,11 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
       gravity: 'e',
       html: true,
       title: function() {
-        return this.__data__.name;
+        if (this.__data__) {
+            return this.__data__.name;
+        } else {
+            return '';
+        }
       }
     });
   }
