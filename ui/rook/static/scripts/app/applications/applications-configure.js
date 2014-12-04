@@ -1,0 +1,113 @@
+angular.module('checkmate.applications-configure', [
+  'lvl.directives.dragdrop',
+  'checkmate.Blueprint',
+  'checkmate.Catalog',
+  'checkmate.DeploymentData',
+  'checkmate.Drag'
+]);
+
+angular.module('checkmate.applications-configure')
+  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource) {
+
+    $scope.deployment = DeploymentData.get();
+
+    // This selects the object being sent to the Blueprint.
+    $scope.select = function(app) {
+      Drag.current.set(app);
+    };
+
+    // This triggers when something is dropped on the drop target.
+    $scope.add = function() {
+      var source = Drag.current.get();
+      var target = Drag.target.get();
+
+      Blueprint.add(source, target);
+      Drag.reset();
+    };
+
+    // This could toggle an extra sidebar to reveal details about a service.
+    $scope.selection = {
+      data: {},
+      isVisible: false,
+      save: function(component) {
+        Blueprint.update($scope.deployment.blueprint);
+      },
+      close: function() {
+        this.isVisible = false;
+      },
+      parseOptions: function() {
+        var workflow = {};
+        var bp = $.extend({}, $scope.deployment.blueprint, $scope.catalog.components[$scope.selection.data.component]);
+        //console.log(bp);
+        //DeploymentNewController($scope, $location, $resource, options, workflow, bp, $scope.deployment.environment);
+      }
+    };
+
+    // This is the catalog model for the sidebar.
+    $scope.catalog = {
+      isVisible: false,
+      data: Catalog.get(),
+      components: Catalog.getComponents()
+    };
+
+    // This is the codemirror model for the sidebar.
+    $scope.codemirror = {
+    };
+
+    $scope.$on('deployment:update', function(event, data) {
+      if(data.blueprint && _.size(data.blueprint.services) === 1) {
+        $timeout(function() {
+          $scope.codemirror.isVisible = true;
+        }, 50);
+      }
+
+      $scope.deployment = data;
+    });
+
+    $scope.submit = function(action){
+      if ($scope.submitting === true)
+        return;
+      $scope.submitting = true;
+
+      var url = '/:tenantId/deployments';
+      if (action)
+        url += '/' + action;
+
+      var Dep = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
+      var deployment = new Dep($scope.deployment);
+
+      deployment.$save(
+        function success(returned, getHeaders){
+          if (action == '+preview') {
+            workflow.preview = returned;
+            $location.path('/' + $scope.auth.context.tenantId + '/workflows/+preview');
+          } else {
+            var deploymentId = getHeaders('location').split('/')[3];
+            console.log("Posted deployment", deploymentId);
+            $location.path(getHeaders('location'));
+          }
+        },
+        function error(error) {
+          $scope.show_error(error);
+          $scope.submitting = false;
+        }
+      );
+    }
+
+    $scope.$on('topology:select', function(event, selection) {
+      $scope.selection.data = selection;
+      if (selection) {
+        $scope.selection.parseOptions();
+        $scope.selection.isVisible = true;
+      } else {
+        $scope.selection.isVisible = false;
+        $scope.$apply(); // No idea why, but this is needed to hide the properties drawer
+      }
+    });
+
+    $scope.$on('topology:deselect', function(event, selection) {
+      $scope.selection.data = selection;
+      $scope.selection.isVisible = false;
+    });
+
+  });

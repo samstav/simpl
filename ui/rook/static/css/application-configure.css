@@ -1,0 +1,310 @@
+/* Application Container */
+.rs-app-launch-container {
+  margin: 0;
+  position: fixed;
+  top: 75px;
+  left: 40px;
+  right: 40px;
+  bottom: 50px;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.rs-app-launch-sidebar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 800;
+  transition: all 0.5s ease;
+}
+.rs-app-launch-sidebar.stick-left {
+  left: -290px;
+  width: 290px;
+  background-color: rgba(255,255,255,1);
+}
+.rs-app-launch-sidebar.stick-left.visible {
+  left: 0;
+}
+.rs-app-launch-sidebar.stick-left.dark {
+  background-color: rgba(40,40,40,1);
+  color: #fff;
+}
+.rs-app-launch-sidebar.stick-right {
+  right: -340px;
+  width: 340px;
+  background-color: rgba(0,0,0,.8);
+}
+.rs-app-launch-sidebar.stick-right.visible {
+  right: 0;
+}
+
+/* Catalog Sidebar Header */
+.rs-app-launch-header {
+  padding: 20px;
+  position: relative;
+}
+.rs-app-launch-header .rs-app-launch-title {
+  font-size: 19px;
+  font-weight: 200;
+}
+.rs-app-launch-search-bar {}
+.rs-app-launch-search-bar input[type=text] {
+  width: 100%;
+  font-size: 13px;
+  height: 30px;
+  margin: 0;
+  border-radius: 0;
+  -webkit-box-shadow: none;
+  -moz-box-shadow: none;
+  box-shadow: none;
+  border-color: rgba(100,100,100,.2);
+}
+.rs-app-launch-search-bar input[type=text]:focus {}
+.rs-app-launch-search-bar::after {
+  font-family: "FontAwesome";
+  content: "\f002";
+  color: #ccc;
+  display: inline-block;
+  position: absolute;
+  top: 50%;
+  margin-top: -10px;
+  right: 30px;
+}
+
+/* Catalog List */
+.rs-app-launch-list-container {
+  border-top: 1px solid #eee;
+  position: absolute;
+  top: 70px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: scroll;
+}
+.rs-app-launch-list-section {}
+.rs-app-launch-list-section h4 {
+  border-bottom: 1px solid #eee;
+  padding: 0 20px;
+  margin: 0;
+  line-height: 25px;
+  color: #c0c0c0;
+}
+.rs-app-launch-list-item {
+  color: #666;
+  padding: 5px 20px;
+  display: block;
+  text-align: left;
+  position: relative;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+}
+.rs-app-launch-list-item:hover {
+  background-color: rgba(220,220,220,.2);
+}
+.rs-app-list-item-icon,
+.rs-app-list-item-title {
+  display: inline-block;
+}
+.rs-app-list-item-title {
+  font-size: 13px;
+  line-height: 20px;
+  color: #666;
+  vertical-align: middle;
+}
+.rs-app-list-item-icon {
+  font-size: 16px;
+  margin-right: 10px;
+  color: #e9e9e9;
+  vertical-align: middle;
+}
+.rs-app-list-item-icon img {
+  vertical-align: top;
+}
+.rs-app-list-item-icon i {
+  border: 2px solid #eee;
+  padding: 5px;
+  border-radius: 4px;
+}
+
+/* Drag Canvas */
+.rs-app-launch-empty-canvas {
+  text-align: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 600px;
+  margin-top: -90px;
+  margin-left: -300px;
+}
+
+.rs-app-launch-empty-title {
+  font-size: 22px;
+  color: #999;
+  margin-bottom: 8px;
+}
+.rs-app-launch-empty-subtitle {
+  font-size: 14px;
+  color: #999;
+}
+.rs-app-launch-empty-canvas .rs-table-overlay-content::before {
+  font-family: "FontAwesome";
+  content: "\f047";
+  font-size: 80px;
+  color: #ccc;
+  top: -60px;
+  position: relative;
+  border-radius: 10px;
+  padding: 20px;
+  border: 5px solid #ccc;
+  opacity: .8;
+}
+
+.rs-app-launch-topology {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 290px;
+  bottom: 0;
+  background-color: rgba(255,255,255,1);
+  overflow: hidden;
+}
+
+/* Controls */
+.rs-app-launch-controls {
+  position: absolute;
+  bottom: 0px;
+  right: 0;
+  left: 0;
+  height: 25px;
+  padding: 15px;
+  transition: all 0.5s ease;
+  z-index: 900;
+}
+.rs-app-launch-controls.adjusted {
+  right: 320px;
+}
+.codemirror-toggle-button {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  z-index: 900;
+  cursor: pointer;
+}
+.codemirror-toggle-button i {
+  transition: all 0.5s ease;
+}
+.text-danger {
+  color: #a94442;
+}
+
+/* Drag & Drop */
+.lvl-target {
+  background-color: #ddd;
+  opacity: .5;
+}
+
+[draggable] {
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Topology Styles - blueprint-topology.css */
+.blueprint-topology {
+  position: relative;
+  z-index: 700;
+}
+.overlay {
+  fill: none;
+  pointer-events: all;
+}
+
+.service-title tspan {
+  font-size: 10px;
+  fill: #999;
+  font-weight: bold;
+}
+
+.component-title tspan {
+  font-size: 19px;
+  fill: #666;
+  font-weight: 100;
+  letter-spacing: .04em;
+}
+
+.service-container,
+.component-container {
+  fill: #fff;
+  stroke: #ccc;
+  stroke-width: 1;
+}
+
+g.selected > .service-container,
+g.selected > .component-container {
+  stroke-width: 4px;
+  stroke: #aaa;
+  stroke-dasharray: 8;
+}
+
+g.relation-linker:hover {
+  cursor: pointer;
+}
+g.relation-linker:hover circle.relation-link-container {
+  stroke: #ccc;
+  stroke-width: 1;
+}
+g.relation-linker text {
+  font-family: FontAwesome;
+  fill: #999;
+}
+g.relation-linker:hover text {
+  fill: #2980b9;
+}
+g.relation-linker:hover circle.relation-link-container {
+  stroke: #2980b9;
+}
+
+g.relation-linker.dragging circle {
+  stroke: #1abc9c;
+}
+
+g.relation-linker.target circle {
+  stroke: #1abc9c;
+}
+
+g.relation-linker.target.unsuitable circle {
+  stroke: #c0392b;
+}
+
+
+path.linker {
+    fill: none;
+    stroke: #95a5a6;
+    stroke-width: 2px;
+    cursor: default;
+}
+
+/* Code Mirror Overrides - blueprint-codemirror.css */
+.CodeMirror {
+  border: 1px solid #eee;
+  height: 100%;
+}
+.CodeMirror-scroll {
+  overflow-y: hidden;
+  overflow-x: auto;
+}
+
+checkmate-codemirror .cm-s-lesser-dark.CodeMirror,
+checkmate-codemirror .cm-s-lesser-dark .CodeMirror-gutters {
+  background: transparent;
+}
+.cm-s-lesser-dark .CodeMirror-gutters {
+  border-right: 1px solid #555;
+}
+
+span.CodeMirror-foldmarker {
+  color: rgb(188, 188, 194);
+  text-shadow: none;
+}
+

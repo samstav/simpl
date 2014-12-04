@@ -3,7 +3,22 @@ var is_chrome_extension = navigator.userAgent.toLowerCase().indexOf('chrome') > 
 var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : '';
 
 //Load AngularJS
-var checkmate = angular.module('checkmate', ['checkmate.filters', 'checkmate.services', 'checkmate.directives', 'ngResource', 'ngSanitize', 'ngCookies', 'ngLocale', 'ngRoute', 'ui.utils', 'ui.bootstrap', 'ui.codemirror', 'ui.date']);
+var checkmate = angular.module('checkmate', [
+    'checkmate.filters', 
+    'checkmate.services', 
+    'checkmate.directives', 
+    'ngResource', 
+    'ngSanitize', 
+    'ngCookies', 
+    'ngLocale', 
+    'ngRoute', 
+    'ui.utils', 
+    'ui.bootstrap', 
+    'ui.codemirror', 
+    'ui.date',
+    'checkmate.applications'
+]);
+
 
 //Load Angular Routes
 checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', 'BlueprintDocsProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider, BlueprintDocsProvider) {
@@ -44,6 +59,14 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   .when('/:tenantId/blueprints/new', {
     templateUrl: '/partials/blueprints/new.html',
     controller: 'BlueprintNewController'
+  })
+  .when('/blueprints/design', {
+    templateUrl: '/partials/blueprints/design.html',
+    controller: 'ConfigureCtrl'
+  })
+  .when('/:tenantId/blueprints/design', {
+    templateUrl: '/partials/blueprints/design.html',
+    controller: 'ConfigureCtrl'
   })
   .when('/:tenantId/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',

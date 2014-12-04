@@ -20,6 +20,7 @@
   <link href="/libs/google-code-prettify-rev187/prettify.css" rel="stylesheet">
   <link href="/libs/tipsy/tipsy.css" rel="stylesheet">
   <link href="/css/style.css" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="/libs/canon/dist/canon.css">
 
   <!-- More ideas for your <head> here: h5bp.com/d/head-Tips -->
 
@@ -57,6 +58,8 @@
 
   <link href="/libs/jquery-ui-1.10.3.custom/css/ui-lightness/jquery-ui-1.10.3.custom.css" rel="stylesheet">
 
+  <link rel="stylesheet" type="text/css" href="/css/application-configure.css">
+
   <link rel="stylesheet" href="/libs/font-awesome-4.2.0/css/font-awesome.min.css">
   <!--[if IE 7]>
     <link rel="stylesheet" href="path/to/font-awesome/css/font-awesome-ie7.min.css">
@@ -67,6 +70,7 @@
       display: none;
     }
   </style>
+
 
 </head>
 <body ng-controller="AppController" class="ng-cloak">
@@ -279,12 +283,33 @@
   <script src="/libs/ui-date/date.js" type="text/javascript"></script>
 
 
+
+  <!-- New Topology Angular Implementation-->
+  <script src="/scripts/common/directives/codemirror.js"></script>
+  <!-- Drag and Drop -->
+  <script src="/scripts/common/directives/lvl-uuid.js"></script>
+  <script src="/scripts/common/directives/lvl-drag-drop.js"></script>
+
+  <!-- App -->
+  <script src="/scripts/common/services/blueprint.js"></script>
+  <script src="/scripts/common/services/blueprint-topology.js"></script>
+  <script src="/scripts/common/services/deployment.js"></script>
+  <script src="/scripts/common/services/deployment-editor.js"></script>
+  <script src="/scripts/common/services/catalog.js"></script>
+  <script src="/scripts/common/services/drag.js"></script>
+  <script src="/scripts/app/applications/applications-configure.js"></script>
+  <script src="/scripts/app/applications/applications.js"></script>
+  <script src="/scripts/app/app.js"></script>
+
   <!-- Our Angular Implementation-->
   <script src="/js/app.js" type="text/javascript"></script>
   <script src="/js/filters.js" type="text/javascript"></script>
   <script src="/js/services.js" type="text/javascript"></script>
   <script src="/js/directives.js" type="text/javascript"></script>
   <!--<script src="js/plugins.js" type="text/javascript"></script>-->
+
+
+
 
   <!-- Asynchronous Google Analytics snippet. -->
   <!--<script type="text/javascript">
