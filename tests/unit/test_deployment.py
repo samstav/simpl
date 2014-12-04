@@ -378,80 +378,9 @@ class TestDeployments(unittest.TestCase):
                           cmdep.Deployment,
                           {'status': 'NOT VALID'})
 
-    def test_convert_legacy_status(self):
-        legacy_statuses = {
-            "BUILD": 'UP',
-            "CONFIGURE": 'UP',
-            "ACTIVE": 'UP',
-            'ERROR': 'FAILED',
-            'DELETING': 'UP',
-        }
-
-        deployment = cmdep.Deployment({
-            'id': 'test',
-            'name': 'test',
-            'inputs': {},
-            'status': "PLANNED",
-        })
-        self.assertEqual(deployment['status'], 'PLANNED')
-        for legacy, new in legacy_statuses.iteritems():
-            deployment.fsm.current = 'PLANNED'
-            deployment['status'] = legacy
-            self.assertEqual(deployment['status'], new)
-
-    def test_edit_invalid_status_to_valid(self):
-        deployment = cmdep.Deployment({
-            'id': 'test',
-            'name': 'test',
-            'inputs': {},
-            'status': "CONFIGURE",  # legacy status
-        })
-        deployment['status'] = 'DELETED'  # valid, new status
-        self.assertEqual(deployment['status'], 'DELETED')
-
-    def test_legacy_to_new_maps_are_valid(self):
-        """Test the assumption thatlegacy_statuses maps to valid statuses."""
-        for new_status in cmdep.Deployment.legacy_statuses.values():
-            self.assertIn(new_status, cmdep.Deployment.FSM_TRANSITIONS)
-
     def test_id_validation(self):
         self.assertRaises(cmexc.CheckmateValidationException, cmdep.Deployment,
                           {'id': 1000})
-
-    def test_schema_backwards_compatible(self):
-        """Test the schema validates a an old deployment."""
-        deployment = {
-            'id': 'test',
-            'name': 'test',
-            # Following fields ommitted on pupose
-            #'live': False,
-            #'operation': {},
-            #'operations-history': [],
-            #'created-by': 'me',
-            #'plan': {},
-            #'inputs': {},
-            #'includes': {},
-            #'resources': {},
-            'workflow': "abcdef",
-            'status': "LAUNCHED",  # old status
-            'blueprint': {
-                'name': 'test bp',
-                'options': {
-                    'url': {
-                        'regex': 'something',
-                        'type': 'int',
-                    },
-                }
-            },
-            'environment': {
-                'name': 'environment',
-                'providers': {},
-            },
-        }
-        valid = cmdep.Deployment(deployment)
-        deployment['status'] = 'UP'  # should be converted
-        deployment['created'] = valid['created']  # gets added
-        self.assertDictEqual(valid, deployment)
 
 
 class TestGenerateServices(unittest.TestCase):

@@ -290,15 +290,6 @@ class Deployment(morpheus.MorpheusDict):
         'MIGRATED': {}
     }
 
-    legacy_statuses = {  # TODO(any): remove these when old data is clean
-        "BUILD": 'UP',
-        "CONFIGURE": 'UP',
-        "ACTIVE": 'UP',
-        'ERROR': 'FAILED',
-        'DELETING': 'UP',
-        'LAUNCHED': 'UP',
-    }
-
     def __init__(self, *args, **kwargs):
         super(Deployment, self).__init__(*args, **kwargs)
         self._settings = None
@@ -310,8 +301,6 @@ class Deployment(morpheus.MorpheusDict):
 
         if 'status' not in self:
             self['status'] = 'NEW'
-        elif self['status'] in self.legacy_statuses:
-            self['status'] = self.legacy_statuses[self['status']]
         else:
             try:
                 self.fsm.change_to(self['status'])
@@ -323,8 +312,6 @@ class Deployment(morpheus.MorpheusDict):
 
     def __setitem__(self, key, value):
         if key == 'status':
-            if value in self.legacy_statuses:
-                value = self.legacy_statuses[value]
             if value != self.fsm.current:
                 try:
                     LOG.info("Tenant: %s - Deployment %s going from %s to %s",

@@ -341,10 +341,7 @@ class Driver(common.DbBase):
         resources = self._get_resources(deployment.get("resources", None),
                                         with_ids=False,
                                         with_secrets=with_secrets)
-        flat = cmutils.flatten(resources)
-        if flat:
-            self.convert_data('resources', flat)
-        return flat
+        return cmutils.flatten(resources)
 
     def get_deployment(self, api_id, with_secrets=None):
         deployment = self._get_object(self._deployment_collection_name, api_id,
@@ -610,7 +607,6 @@ class Driver(common.DbBase):
             if results:
                 if with_secrets is True:
                     self.merge_secrets(klass, api_id, results)
-                self.convert_data(klass, results)
 
         return results
 
@@ -685,7 +681,6 @@ class Driver(common.DbBase):
                     )
                 if with_secrets is True:
                     entry = self.merge_secrets(klass, entry['id'], entry)
-                self.convert_data(klass, entry)
                 response['results'][entry['id']] = entry
 
             if with_count:
