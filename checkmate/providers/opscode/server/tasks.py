@@ -20,7 +20,7 @@ from celery import task as ctask
 import chef
 
 from checkmate.common import statsd
-from checkmate import deployments
+from checkmate.deployments import tasks
 from checkmate.providers.opscode.server.manager import Manager
 from checkmate.providers.opscode.server import Provider
 from checkmate.providers import ProviderTask
@@ -278,7 +278,7 @@ def create_kitchen(context, name, service_name, path=None,
             arg = exc.args[0]
         else:
             arg = "No arguments supplied in exception"
-        deployments.update_all_provider_resources.delay(
+        tasks.update_all_provider_resources.delay(
             Provider.name,
             context['deployment_id'],
             'ERROR',
@@ -307,7 +307,7 @@ def upload_cookbooks(context, deployment, environment):
             arg = exc.args[0]
         else:
             arg = "No arguments supplied in exception"
-        deployments.update_all_provider_resources.delay(
+        tasks.update_all_provider_resources.delay(
             Provider.name,
             context['deployment_id'],
             'ERROR',
