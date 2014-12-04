@@ -90,11 +90,10 @@ elif CELERY_RESULT_BACKEND == "mongodb":
         CONFIG['password'] = '*******'
     LOG.debug("CELERY_MONGODB_BACKEND_SETTINGS: %s", CONFIG)
 
-CELERY_RESULT_DBURI = os.environ.get('CHECKMATE_RESULT_DBURI',
-                                     DEFAULT_BACKEND_URI)
+CELERY_ACCEPT_CONTENT = ['json', 'pickle']
 
 # Report out that this file was used for configuration
 LOG.info("celery config loaded from %s", __file__)
-LOG.info("celery persisting data in %s", CELERY_RESULT_DBURI)
+LOG.info("celery persisting data in %s", CELERY_RESULT_BACKEND)
 LOG.info("celery broker is %s", BROKER_URL.replace(
          os.environ.get('CHECKMATE_BROKER_PASSWORD', '*****'), '*****'))

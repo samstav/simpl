@@ -27,8 +27,7 @@ def main_func():
             params = ['newrelic-admin', 'run-python']
             if 'NEW_RELIC_CONFIG_FILE' not in os.environ:
                 os.environ['NEW_RELIC_CONFIG_FILE'] = 'newrelic.ini'
-        else:
-            params = [sys.executable]
+        params.extend(['celery', 'worker'])
 
         task_modules = [
             'checkmate.orchestrator',
@@ -45,7 +44,6 @@ def main_func():
         ]
 
         params.extend([
-            '-m', 'celery.bin.celeryd',
             '--config=checkmate.celeryconfig',
             '-I', ','.join(task_modules),
             '--events',

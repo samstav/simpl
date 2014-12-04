@@ -53,8 +53,8 @@ class TestDependencies(unittest.TestCase):
     def test_celery_version(self):
         import celery
         version = [int(part) for part in celery.__version__.split(".")]
-        self.assertGreaterEqual(version, [3, 0, 23], "Checkmate expects "
-                                "celery version 3.0.23 or later. Found %s" %
+        self.assertGreaterEqual(version, [3, 1, 17], "Checkmate expects "
+                                "celery version 3.1.17 or later. Found %s" %
                                 '.'.join([str(d) for d in version]))
 
     def test_yaml_version(self):
@@ -92,8 +92,8 @@ class TestDependencies(unittest.TestCase):
     def test_eventlet_version(self):
         import eventlet
         version = [int(d) for d in eventlet.__version__.split('.')]
-        self.assertEqual(version, [0, 14, 0],
-                         "Checkmate expects eventlet version 0.14.0. Found %s"
+        self.assertEqual(version, [0, 15, 2],
+                         "Checkmate expects eventlet version 0.15.2. Found %s"
                          % '.'.join([str(d) for d in version]))
 
     def test_pymongo_version(self):

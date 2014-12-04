@@ -82,11 +82,11 @@ def check_celery_config():
     """Make sure a backend is configured."""
     try:
         backend = celery.current_app.backend.__class__.__name__
-        if backend not in ['DatabaseBackend', 'MongoBackend']:
+        if backend not in ['DatabaseBackend', 'MongoBackend', 'RedisBackend']:
             LOG.warning("Celery backend does not seem to be configured for a "
                         "database: %s", backend)
-        if not celery.current_app.conf.get("CELERY_RESULT_DBURI"):
-            LOG.warning("ATTENTION!! CELERY_RESULT_DBURI not set.  Was the "
+        if not celery.current_app.conf.get("CELERY_RESULT_BACKEND"):
+            LOG.warning("ATTENTION!! CELERY_RESULT_BACKEND not set.  Was the "
                         "checkmate environment loaded?")
     except StandardError:
         pass

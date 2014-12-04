@@ -51,15 +51,15 @@
 -e git://github.com/samstav/satori.git@bug/1389034#egg=satori
 
 #### Checkmate packages
-amqp==1.0.13
+amqp==1.4.6
 anyjson==0.3.3
-billiard==2.7.3.32
+billiard==3.3.0.19
 bottle==0.11.6
-celery==3.0.23
-eventlet==0.14.0
+celery==3.1.17
+eventlet==0.15.2
 impacket==0.9.12
 Jinja2==2.7.1
-kombu==2.5.14
+kombu==3.0.24
 morpheus==0.0.4
 pam==0.1.4
 paramiko==1.15.1
@@ -74,8 +74,8 @@ python-statsd==1.6.0
 PyChef==0.2.1
 PyGithub==1.14.0
 PyYAML==3.10
-redis==2.7.6
-requests==1.2.3
+redis==2.10.3
+requests==2.4.3
 simplefsm==0.1.3
 six==1.5.2
 SQLAlchemy==0.8.1
