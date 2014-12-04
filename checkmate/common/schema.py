@@ -183,14 +183,34 @@ INTERFACE_SCHEMA = yaml_to_dict("""
              type: string
              description: the protocol being proxied
              required: true
+      new-relic:
+      mongodb:
+      postgres:
+      varnish:
+      memcache:
+      redis:
+      gluster:
+      php:
     """)
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
 
 RESOURCE_TYPES = [
-    'compute', 'database', 'wordpress', 'php5', 'load-balancer',
-    'endpoint', 'host', 'application', 'mail-relay',
-    'widget', 'gadget',  # last two for testing
+    'compute',
+    'database',
+    'wordpress',
+    'php5',
+    'load-balancer',
+    'endpoint',
+    'host',
+    'application',
+    'mail-relay',
+    'web',
+    'cache',
+    'monitoring',
+    'storage',
+    'widget',
+    'gadget',  # last two for testing
 ]
 
 BLUEPRINT_SCHEMA = [
