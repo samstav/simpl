@@ -79,7 +79,7 @@ angular.module('checkmate.applications-configure')
         }
         delete value.components;
         if (angular.isString(component)) {
-          component = {name: component};
+          component = {id: component};
         }
         value.component = component;
         delete value.annotations;
