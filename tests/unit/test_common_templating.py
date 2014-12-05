@@ -79,9 +79,9 @@ class TestTemplating(unittest.TestCase):
 
     def test_parsing_functions_hash(self):
         template = "value: {{ hash('password', salt='ahem1234') }}"
-        expected = ("value: $6$rounds=60000$ahem1234$6SJb7IPwxFdrqAKZIK4Q3yAxk"
-                    "HcVCGXgwE2Onzrxwgzsb3LANHxMdrGlS05MYjT/ncgo6xIH1Pm1dqStJW"
-                    "qoY/")
+        expected = ("value: $6$rounds=100000$ahem1234$WDinkd.aajNmGHPGJpdEnQwh"
+                    "ipq3nDNSejs15KMCu/fYJ.0b.9ZC9oLicedLAU.rlBlNJcwGe/rOzh5.S"
+                    "rJSv1")
         self.assertEqual(templating.parse(template), expected)
 
     def test_parsing_functions_parse_url(self):

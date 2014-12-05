@@ -23,9 +23,9 @@ from checkmate import keys
 class TestEnvironments(unittest.TestCase):
     def test_hashSHA512(self):
         hashed_value = keys.hash_SHA512('test', salt="abcdefgh")
-        self.assertEqual(hashed_value, '$6$rounds=60000$abcdefgh$deeGhChT2CWz3'
-                                       'emQf1CisUjqgaxE5tJdyzF1HH3aBHy3KuwJeLj'
-                                       'LRIPJtPWr4Nu2sVZ3cvdM/ZRDRT.mtBIxr0')
+        self.assertEqual(hashed_value, '$6$rounds=100000$abcdefgh$Nc/EUrz68.Ae'
+                                       'CLHF6f6gQe7e/0a7/k1sf98jrxAajtx20KwiAh'
+                                       'thVIFhJ.EQZN5RDxOCAEVmbE3Vb.pRYUmqv1')
 
     def test_hashMD5(self):
         hashed_value = keys.hash_MD5('test', salt="abcdefgh")
