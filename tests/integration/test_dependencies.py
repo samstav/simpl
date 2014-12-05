@@ -78,15 +78,15 @@ class TestDependencies(unittest.TestCase):
     def test_jinja_version(self):
         import jinja2
         version = [int(part) for part in jinja2.__version__.split(".")]
-        self.assertEqual(version, [2, 7, 1],
-                         "Checkmate expects Jinja2 version 2.7.1. Found %s" %
+        self.assertEqual(version, [2, 7, 3],
+                         "Checkmate expects Jinja2 version 2.7.3. Found %s" %
                          '.'.join([str(d) for d in version]))
 
     def test_bottle_version(self):
         import bottle
         version = [int(d) for d in bottle.__version__.split('.')]
-        self.assertEqual(version, [0, 11, 6],
-                         "Checkmate expects bottle version 0.11.6. Found %s" %
+        self.assertEqual(version, [0, 11, 7],
+                         "Checkmate expects bottle version 0.11.7. Found %s" %
                          '.'.join([str(d) for d in version]))
 
     def test_eventlet_version(self):
@@ -99,8 +99,8 @@ class TestDependencies(unittest.TestCase):
     def test_pymongo_version(self):
         import pymongo
         version = [int(d) for d in pymongo.version.split('.')]
-        self.assertEqual(version, [2, 6, 2],
-                         "Checkmate expects pymongo version 2.6.2. Found %s"
+        self.assertEqual(version, [2, 7, 2],
+                         "Checkmate expects pymongo version 2.7.2. Found %s"
                          % '.'.join([str(d) for d in version]))
 
 if __name__ == '__main__':
