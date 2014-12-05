@@ -313,15 +313,19 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         expected = []
+        context_dict = context.get_queued_task_dict(
+            deployment_id=self.deployment['id'])
 
         # Create Chef Environment
         expected.append({
             # Use chef-server tasks for now
             # Use only one kitchen. Call it "kitchen" like we used to
             'call': 'checkmate.providers.opscode.server.tasks.create_kitchen',
-            'args': [context.get_queued_task_dict(
-                    deployment_id=self.deployment['id']),
-                self.deployment['id'], 'kitchen'],
+            'args': [
+                context_dict,
+                self.deployment['id'],
+                'kitchen'
+            ],
             'kwargs': {'server_credentials': {
                 'server_user_key': None,
                 'server_username': None,
@@ -342,27 +346,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             'call': 'checkmate.providers.opscode.server.tasks.'
                     'manage_environment',
             'args': [
-                {
-                    'username': 'MOCK_USER',
-                    'domain': None,
-                    'user_tenants': None,
-                    'auth_token': 'MOCK_TOKEN',
-                    'catalog': None,
-                    'is_admin': False,
-                    'resource': None,
-                    'tenant': None,
-                    'read_only': False,
-                    'user_id': None,
-                    'show_deleted': False,
-                    'roles': [],
-                    'region': None,
-                    'authenticated': False,
-                    'base_url': None,
-                    'simulation': False,
-                    'kwargs': {},
-                    'auth_source': None,
-                    'deployment_id': 'DEP-ID-1000'
-                },
+                context_dict,
                 'DEP-ID-1000',
                 'DEP-ID-1000'
             ],
@@ -373,27 +357,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             'call': 'checkmate.providers.opscode.server.tasks'
                     '.upload_cookbooks',
             'args': [
-                {
-                    'username': 'MOCK_USER',
-                    'domain': None,
-                    'user_tenants': None,
-                    'auth_token': 'MOCK_TOKEN',
-                    'catalog': None,
-                    'is_admin': False,
-                    'resource': None,
-                    'tenant': None,
-                    'read_only': False,
-                    'user_id': None,
-                    'show_deleted': False,
-                    'roles': [],
-                    'region': None,
-                    'authenticated': False,
-                    'base_url': None,
-                    'simulation': False,
-                    'kwargs': {},
-                    'auth_source': None,
-                    'deployment_id': 'DEP-ID-1000'
-                },
+                context_dict,
                 'DEP-ID-1000',
                 'DEP-ID-1000'
             ],
@@ -431,6 +395,24 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                         }
                     },
                     'post_back_result': True,
+                })
+                expected.append({
+                    'call': 'checkmate.providers.opscode.server.tasks.'
+                            'bootstrap',
+                    'args': [
+                        context_dict,
+                        'DEP-ID-1000',
+                        '4.4.4.1',
+                        '4.4.4.1'
+                    ],
+                    'kwargs': {
+                        'environment': 'DEP-ID-1000',
+                        'recipes': ['mysql::server'],
+                        'password': None,
+                        'bootstrap_version': '11.16.4-1',
+                        'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                    },
+                    'result': None
                 })
                 expected.append({
                     'call': 'checkmate.providers.opscode.server.tasks'
@@ -1001,6 +983,8 @@ interfaces/mysql/database_name
             'After Environment is Ready and Server 1 (frontend) is Up',
             'Collect Chef Data for 0',
             'Collect Chef Data for 2',
+            'Configure bar: 2 (backend)',
+            'Configure foo: 0 (frontend)',
             'Create Chef Server Environment',
             'Create Resource 1',
             'Create Workspace',
@@ -1248,6 +1232,25 @@ interfaces/mysql/database_name
                         'resource': key,
                     },
                     {
+                        'call': 'checkmate.providers.opscode.server.tasks.'
+                                'bootstrap',
+                        'args': [
+                            context_dict,
+                            'DEP-ID-1000',
+                            '4.4.4.4',
+                            '4.4.4.4'
+                        ],
+                        'kwargs': {
+                            'bootstrap_version': '11.16.4-1',
+                            'roles': ['foo-master'],
+                            'recipes': ['something', 'something::role'],
+                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem',
+                            'environment': 'DEP-ID-1000',
+                            'password': 'shecret'
+                        },
+                        'result': None
+                    },
+                    {
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
                         'args': [mox.IsA(dict), mox.IsA(dict)],
@@ -1279,7 +1282,7 @@ interfaces/mysql/database_name
                     {
                         # Write foo databag item
                         'call':
-                        'checkmate.providers.opscode.solo.tasks'
+                        'checkmate.providers.opscode.server.tasks'
                         '.write_databag',
                         'args': [
                             context_dict, 'DEP-ID-1000', 'app_bag', 'mysql',
@@ -1293,13 +1296,37 @@ interfaces/mysql/database_name
                     {
                         # Write foo-master role
                         'call':
-                        'checkmate.providers.opscode.solo.tasks.'
+                        'checkmate.providers.opscode.server.tasks.'
                         'manage_role',
                         'args': [context_dict, 'foo-master', 'DEP-ID-1000'],
                         'kwargs': {
                             'run_list': ['recipe[apt]', 'recipe[foo::server]'],
                             'override_attributes': {'how-many': 2},
                             'kitchen_name': 'kitchen',
+                        },
+                        'result': None
+                    }
+                ])
+            elif resource.get('type') == 'database':
+                context_dict = context.get_queued_task_dict(
+                    deployment_id=self.deployment['id'],
+                    resource_key=key)
+                expected_calls.extend([
+                    {
+                        'call': 'checkmate.providers.opscode.server.tasks.'
+                                'bootstrap',
+                        'args': [
+                            context_dict,
+                            'DEP-ID-1000',
+                            None,
+                            None
+                        ],
+                        'kwargs': {
+                            'environment': 'DEP-ID-1000',
+                            'recipes': ['bar'],
+                            'password': None,
+                            'bootstrap_version': '11.16.4-1',
+                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
                         },
                         'result': None
                     }
