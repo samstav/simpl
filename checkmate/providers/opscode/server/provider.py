@@ -166,7 +166,8 @@ class Provider(base.BaseOpscodeProvider):
         kwargs = self.map_file.get_component_run_list(component)
         resource = deployment['resources'][key]
         host_idx = resource.get('hosted_on', key)
-        instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
+        instance_ip = operators.PathAttrib("resources/%s/instance/ip" %
+                                           host_idx)
         anchor_task = configure_task = specs.Celery(
             wfspec,
             'Configure %s: %s (%s)' % (component_id, key, service_name),
@@ -180,9 +181,8 @@ class Provider(base.BaseOpscodeProvider):
                 instance_ip,  # name
             ],
             environment=deployment['id'],
-            password=operators.PathAttrib(
-                'instance:%s/password' % resource.get('hosted_on', key)
-            ),
+            password=operators.PathAttrib('resources/%s/instance/password' %
+                                          resource.get('hosted_on', key)),
             bootstrap_version=bootstrap_version,
             merge_results=True,
             identity_file=operators.Attrib('private_key_path'),
@@ -287,8 +287,8 @@ class Provider(base.BaseOpscodeProvider):
                         deployment_id=deployment['id'],
                         resource_key=key),
                     deployment['id'],
-                    operators.PathAttrib(
-                        'instance:%s/ip' % relation['target'])  # name
+                    operators.PathAttrib('resources/%s/instance/ip' %
+                                         relation['target'])  # name
                 ],
                 environment=deployment['id'],
                 attributes=attributes,

@@ -241,9 +241,10 @@ class Provider(RackspaceComputeProviderBase):
             call_args=[context.get_queued_task_dict(
                 deployment=deployment['id'],
                 resource=key),
-                operators.PathAttrib('instance:%s/id' % key)
+                operators.PathAttrib('resources/%s/instance/id' % key)
             ],
-            password=operators.PathAttrib('instance:%s/password' % key),
+            password=operators.PathAttrib(
+                'resources/%s/instance/password' % key),
             private_key=deployment.settings().get('keys', {}).get(
                 'deployment', {}).get('private_key'),
             merge_results=True,
@@ -265,10 +266,12 @@ class Provider(RackspaceComputeProviderBase):
                 'Mark Server %s (%s) Complete' % (key, resource['service']),
                 'checkmate.ssh.execute',
                 call_args=[
-                    operators.PathAttrib("instance:%s/public_ip" % key),
+                    operators.PathAttrib(
+                        "resources/%s/instance/public_ip" % key),
                     "touch /tmp/checkmate-complete", "root"
                 ],
-                password=operators.PathAttrib('instance:%s/password' % key),
+                password=operators.PathAttrib(
+                    'resources/%s/instance/password' % key),
                 private_key=deployment.settings().get('keys', {}).get(
                     'deployment', {}).get('private_key'),
                 properties={'estimated_duration': 10},
@@ -539,7 +542,7 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     ip_address = str(server.addresses[ip_address_type][0])
     private_ip_address = str(server.addresses['private'][0])
 
-    instance_key = 'instance:%s' % context['resource']
+    instance_key = 'resources/%s'instance/ % context['resource']
     results = {instance_key: dict(id=server.id, ip=ip_address,
                password=server.adminPass, private_ip=private_ip_address,
                status="BUILD")}
@@ -578,7 +581,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
     if server.status == 'ERROR':
         msg = "Server %s build failed" % server_id
         results = {'status': "ERROR", 'error-message': msg}
-        instance_key = 'instance:%s' % context['resource']
+        instance_key = 'resources/%s'instance/ % context['resource']
         results = {instance_key: results}
         resource_postback.delay(context['deployment'], results)
         delete_server(context, server_id, api_object)
@@ -637,7 +640,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
         if up:
             LOG.info("Server %s is up", server_id)
             results['status'] = "ACTIVE"
-            instance_key = 'instance:%s' % context['resource']
+            instance_key = 'resources/%s'instance/ % context['resource']
             results = {instance_key: results}
             # Send data back to deployment
             resource_postback.delay(context['deployment'],

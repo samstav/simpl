@@ -267,12 +267,12 @@ class Provider(cmbase.ProviderBase):
                     ),
                     db_name,
                     operators.PathAttrib(
-                        'instance:%s/region' %
+                        'resources/%s/instance/region' %
                         resource['hosted_on']
                     ),
                 ],
                 instance_id=operators.PathAttrib(
-                    'instance:%s/id' % resource['hosted_on']
+                    'resources/%s/instance/id' % resource['hosted_on']
                 ),
                 merge_results=True,
                 defines=dict(
@@ -291,11 +291,13 @@ class Provider(cmbase.ProviderBase):
                         deployment_id=deployment['id'],
                         resource_key=key
                     ),
-                    operators.PathAttrib('instance:%s/host_instance' % key),
+                    operators.PathAttrib(
+                        'resources/%s/instance/host_instance' % key),
                     [db_name],
                     username,
                     password,
-                    operators.PathAttrib('instance:%s/host_region' % key),
+                    operators.PathAttrib(
+                        'resources/%s/instance/host_region' % key),
                 ],
                 merge_results=True,
                 defines=dict(
@@ -357,7 +359,7 @@ class Provider(cmbase.ProviderBase):
                 ),
                 properties={'estimated_duration': 80,
                             'auto_retry_count': 3},
-                instance=operators.PathAttrib('instance:%s' % key),
+                instance=operators.PathAttrib('resources/%s/instance' % key),
             )
             wait_task.follow(create_instance_task)
             return dict(root=root, final=wait_task)

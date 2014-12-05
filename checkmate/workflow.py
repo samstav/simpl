@@ -467,7 +467,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
 
 
 def format(resources):
-    """Return a dictionary of resources in the {"instance:[resource_key]":
+    """Return a dictionary of resources in the {"<resource_key>":
     [resource_instance]} format.
 
     @param resources: A dict of resources, in {[resource_key]:[resource]}
@@ -476,7 +476,7 @@ def format(resources):
     """
     formatted_resources = {}
     for resource_key, resource_value in resources.iteritems():
-        formatted_resources.update({("instance:%s" % resource_key):
+        formatted_resources.update({str(resource_key):
                                     resource_value.get("instance", {})})
     return formatted_resources
 

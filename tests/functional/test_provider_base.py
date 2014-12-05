@@ -279,16 +279,18 @@ class TestProviderBaseWorkflow(cmtest.StubbedWorkflowBase):
                      ],
             'kwargs': None,
             'result': {
-                'instance:0': {
-                    'name': 'db1.checkmate.local',
-                    'interfaces': {
-                        'mysql': {
-                            'username': 'mysql_user',
-                            'host': 'db.local',
-                            'database_name': 'dbX',
-                            'port': 8888,
-                            'password': 'secret',
-                        },
+                'resources': {
+                    '0': {
+                        'name': 'db1.checkmate.local',
+                        'interfaces': {
+                            'mysql': {
+                                'username': 'mysql_user',
+                                'host': 'db.local',
+                                'database_name': 'dbX',
+                                'port': 8888,
+                                'password': 'secret',
+                            },
+                        }
                     }
                 }
             },

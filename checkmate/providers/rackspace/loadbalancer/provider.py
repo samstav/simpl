@@ -287,7 +287,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
         if vip_tasks:
             parent_lb_resource_id = vip_tasks[0].get_property('resource')
-            parent_lb = operators.PathAttrib("instance:%s/id" %
+            parent_lb = operators.PathAttrib("resources/%s/instance/id" %
                                              parent_lb_resource_id)
             create_lb_task_tags.remove('vip')
 
@@ -338,7 +338,7 @@ class Provider(rsbase.RackspaceProviderBase):
                     resource_key=key,
                     region=resource['region']
                 ),
-                operators.PathAttrib('instance:%s/id' % key),
+                operators.PathAttrib('resources/%s/instance/id' % key),
             ],
             properties={'estimated_druation': 150,
                         'auto_retry_count': 3},
@@ -363,7 +363,8 @@ class Provider(rsbase.RackspaceProviderBase):
                         deployment=deployment['id'], resource=key),
                     provider.parse_domain(name),
                     '.'.join(name.split('.')[1:]), "A",
-                    operators.PathAttrib('instance:%s/public_ip' % key)
+                    operators.PathAttrib(
+                        'resources/%s/instance/public_ip' % key)
                 ],
                 rec_ttl=300,
                 makedomain=True,
@@ -395,7 +396,7 @@ class Provider(rsbase.RackspaceProviderBase):
                         deployment_id=deployment['id'],
                         resource_key=key,
                         region=resource['region']),
-                    operators.PathAttrib('instance:%s/id' % key),
+                    operators.PathAttrib('resources/%s/instance/id' % key),
                 ])
             build_wait_task.connect(enable_caching_task)
 
@@ -409,7 +410,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 context.get_queued_task_dict(deployment_id=deployment['id'],
                                              resource_key=key,
                                              region=resource['region']),
-                operators.PathAttrib('instance:%s/id' % key),
+                operators.PathAttrib('resources/%s/instance/id' % key),
                 proto.upper(),
             ],
             defines=dict(resource=key, provider=self.key, task_tags=['final'])
@@ -566,8 +567,9 @@ class Provider(rsbase.RackspaceProviderBase):
                                              resource_key=source_key,
                                              region=source_resource[
                                                  'region']),
-                operators.PathAttrib('instance:%s/id' % source_key),
-                operators.PathAttrib('instance:%s/private_ip' % target_key),
+                operators.PathAttrib('resources/%s/instance/id' % source_key),
+                operators.PathAttrib(
+                    'resources/%s/instance/private_ip' % target_key),
             ],
             defines=dict(provider=self.key, resource=target_key,
                          task_tags=['delete_connection']),
@@ -624,8 +626,9 @@ class Provider(rsbase.RackspaceProviderBase):
                 context.get_queued_task_dict(deployment_id=deployment['id'],
                                              resource_key=key,
                                              region=resource['region']),
-                operators.PathAttrib('instance:%s/id' % key),
-                operators.PathAttrib('instance:%s/private_ip' % target),
+                operators.PathAttrib('resources/%s/instance/id' % key),
+                operators.PathAttrib(
+                    'resources/%s/instance/private_ip' % target),
             ],
             defines=dict(relation=relation_key, provider=self.key,
                          task_tags=['final']),

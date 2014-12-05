@@ -697,13 +697,7 @@ class ProviderTask(celery.Task):
             else:
                 raise exc
         if data:
-            resources = self.callback(context, data)
-            results = {
-                'instance:%s' % context["resource_key"]: data
-            }
-            if resources:
-                results.update(resources)
-            return results
+            return self.callback(context, data)
 
     def callback(self, context, data, resource_key=None):
         """Call postback with instance.id to ensure posted to resource."""

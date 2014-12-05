@@ -75,12 +75,16 @@ class TestLegacyCompute(test.ProviderTester):
         openstack_api_mock.servers.create.return_value = server
 
         expected = {
-            'instance:1': {
-                'status': 'BUILD',
-                'id': server.id,
-                'ip': server.ip,
-                'password': server.adminPass,
-                'private_ip': server.private_ip
+            'resources': {
+                '1': {
+                    'status': 'BUILD',
+                    'instance': {
+                        'id': server.id,
+                        'ip': server.ip,
+                        'password': server.adminPass,
+                        'private_ip': server.private_ip
+                    }
+                }
             }
         }
 

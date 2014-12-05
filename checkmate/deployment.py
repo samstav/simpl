@@ -373,7 +373,7 @@ class Deployment(morpheus.MorpheusDict):
                 result = provider.get_resource_status(context, self.get('id'),
                                                       resource, key)
                 if result:
-                    resources.update({key: result['instance:%s' % key]})
+                    resources.update({key: result[str(key)]})
         # If instance is 'DELETED' or 'ERROR', so is anything hosted on it
         for key, resource in self.get('resources', {}).items():
             if (key.isdigit() and 'hosted_on' in resource and
@@ -1300,9 +1300,9 @@ class Deployment(morpheus.MorpheusDict):
                 target = self
             # Find targets and merge in values appropriately
             for key, value in contents.iteritems():
-                if key.startswith('instance:'):
+                if str(key).isdigit():
                     # Find the resource
-                    resource_id = key.split(':')[1]
+                    resource_id = str(key)
                     resource = self['resources'][resource_id]
                     if not resource:
                         raise IndexError("Resource %s not found" % resource_id)
@@ -1341,6 +1341,7 @@ class Deployment(morpheus.MorpheusDict):
                     # I don't think this is being used. [ZNS 2013-04-22]
                     # New partial resource_postback logic would skip this
                     # and not have it get saved
+                    assert False
                     LOG.error("Connection was recieved in a resource_postback "
                               "and the logic for that code path is slated for "
                               "deprecation (or a refresh) '%s'=%s", key, value)
@@ -1376,6 +1377,44 @@ class Deployment(morpheus.MorpheusDict):
                         value = schema.translate(value)
                     raise NotImplementedError("Global post-back values not "
                                               "yet supported: %s" % key)
+
+    def on_connection_postback(self, contents, target=None):
+        """Merge in contents when a postback with new connection data is
+        received.
+
+        Translates values to canonical names. Iterates to one level of depth to
+        handle postbacks that write to instance key
+
+        :param contents: dict -- the new connection data to write
+        :param target: dict -- optional for writing to other than this
+                       deployment
+        """
+        if contents:
+            if not isinstance(contents, dict):
+                raise exceptions.CheckmateException(
+                    "Postback value was not a dictionary")
+
+            if target is None:
+                target = self
+            # Find targets and merge in values appropriately
+            for connection_id, value in contents.iteritems():
+                # Find the connection
+                connection = self['connections'][connection_id]
+                if not connection:
+                    raise IndexError("Connection %s not found" %
+                                     connection_id)
+                # Check the value
+                if not isinstance(value, dict):
+                    raise exceptions.CheckmateException(
+                        "Postback value for connection '%s' was not a "
+                        "dictionary" % connection_id)
+                # Canonicalize it
+                value = schema.translate_dict(value)
+                # Merge it in
+                LOG.debug("Merging postback data for connection %s: %s",
+                          connection_id, value,
+                          extra=dict(data=connection))
+                utils.merge_dictionary(connection, value)
 
     def get_new_and_planned_resources(self):
         """Return resources with statuses of NEW and PLANNED."""

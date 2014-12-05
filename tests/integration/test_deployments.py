@@ -1651,13 +1651,15 @@ class TestPostbackHelpers(unittest.TestCase):
         self._mox.ReplayAll()
         ret = deployment_tasks.update_all_provider_resources(
             'foo', '1234', 'NEW', message='I test u', driver=mock_db)
-        self.assertIn('instance:1', ret)
-        self.assertIn('instance:9', ret)
-        self.assertEquals('NEW', ret.get('instance:1', {}).get('status'))
-        self.assertEquals('NEW', ret.get('instance:9', {}).get('status'))
-        self.assertEquals('I test u', ret.get('instance:1',
+        self.assertIn('resources', ret)
+        res = ret['resources']
+        self.assertIn('1', res)
+        self.assertIn('9', res)
+        self.assertEquals('NEW', res.get('1', {}).get('status'))
+        self.assertEquals('NEW', res.get('9', {}).get('status'))
+        self.assertEquals('I test u', res.get('1',
                                               {}).get('status-message'))
-        self.assertEquals('I test u', ret.get('instance:9',
+        self.assertEquals('I test u', res.get('9',
                                               {}).get('status-message'))
 
 
@@ -1817,7 +1819,7 @@ class TestCeleryTasks(unittest.TestCase):
         mock_get_driver.return_value = mock_db
         self.mox.ReplayAll()
         contents = {
-            'instance:0': {
+            '0': {
                 'field_name': 1
             }
         }

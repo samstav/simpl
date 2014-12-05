@@ -421,7 +421,7 @@ class Provider(RackspaceComputeProviderBase):
         kwargs = dict(
             call_args=[
                 queued_task_dict,
-                swops.PathAttrib('instance:%s/id' % key),
+                swops.PathAttrib('resources/%s/instance/id' % key),
             ],
             properties={'estimated_duration': 150,
                         'auto_retry_count': 3},
@@ -448,10 +448,10 @@ class Provider(RackspaceComputeProviderBase):
             '.tasks.verify_ssh_connection',
             call_args=[
                 queued_task_dict,
-                swops.PathAttrib('instance:%s/id' % key),
-                swops.PathAttrib('instance:%s/ip' % key)
+                swops.PathAttrib('resources/%s/instance/id' % key),
+                swops.PathAttrib('resources/%s/instance/ip' % key)
             ],
-            password=swops.PathAttrib('instance:%s/password' % key),
+            password=swops.PathAttrib('resources/%s/instance/password' % key),
             private_key=deployment.settings().get('keys', {}).get(
                 'deployment', {}).get('private_key'),
             properties={'estimated_duration': 10,
@@ -475,11 +475,11 @@ class Provider(RackspaceComputeProviderBase):
                 'checkmate.ssh.execute_2',
                 call_args=[
                     queued_task_dict,
-                    swops.PathAttrib("instance:%s/ip" % key),
+                    swops.PathAttrib("resources/%s/instance/ip" % key),
                     "touch /tmp/checkmate-complete",
                     "root",
                 ],
-                password=swops.PathAttrib('instance:%s/password' % key),
+                password=swops.PathAttrib('resources/%s/instance/password' % key),
                 private_key=deployment.settings().get('keys', {}).get(
                     'deployment', {}).get('private_key'),
                 properties={'estimated_duration': 10},
@@ -518,7 +518,7 @@ class Provider(RackspaceComputeProviderBase):
             context, deployment_id, resource, key,
             sync_callable=sync_resource_task, api=api
         )
-        i_key = 'instance:%s' % key
+        i_key = 'resources/%s/instance' % key
         if result[i_key].get('status') in ['ACTIVE', 'DELETED']:
             result[i_key]['instance'] = {'status-message': ''}
         return result

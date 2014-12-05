@@ -23,6 +23,7 @@ import unittest
 
 from checkmate import middleware
 from checkmate.providers.core.script import tasks
+from checkmate.deployments import tasks as dep_tasks
 
 LOG = logging.getLogger(__name__)
 
@@ -32,14 +33,22 @@ class TestScriptTasks(unittest.TestCase):
     def test_create_resource_simulation(self):
         api = mock.Mock()
         tasks.create_resource.provider = mock.Mock(return_value=api)
-        tasks.create_resource.callback = mock.Mock(return_value={})
+        tasks.create_resource.provider.translate_status.return_value = 'ACTIVE'
+        dep_tasks.postback = mock.Mock(return_value={})
         context = {
             'simulation': True,
             'region': 'NOOP',
             'resource_key': '0',
         }
         context = middleware.RequestContext(**context)
-        expected_result = {'instance:0': {'A': 1, 'status': 'ACTIVE'}}
+        expected_result = {
+            'resources': {
+                '0': {
+                    'desired': {'A': 1},
+                    'instance': {'A': 1, 'status': 'ACTIVE'},
+                }
+            }
+        }
         results = tasks.create_resource(
             context, 'D1', {'desired': {'A': 1}}, 'localhost', 'root')
         self.assertEqual(expected_result, results)

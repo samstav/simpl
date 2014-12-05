@@ -115,7 +115,7 @@ class TestChefSoloProvider(test.ProviderTester):
         expected = [{
             'source': 'requirements://database:mysql/ip',
             'targets': ['attributes://ip'],
-            'path': 'instance:2/interfaces/mysql',
+            'path': 'resources/2/interfaces/mysql',
             'resource': '0',
         }]
         self.assertListEqual(result, expected)
@@ -129,13 +129,13 @@ class TestChefSoloProvider(test.ProviderTester):
                 'source': 'clients://database:mysql/ip',
                 'targets': ['attributes://clients'],
                 'resource': '2',
-                'path': 'instance:1',
+                'path': 'resources/1',
             },
             {
                 'source': 'clients://database:mysql/ip',
                 'targets': ['attributes://clients'],
                 'resource': '2',
-                'path': 'instance:0',
+                'path': 'resources/0',
             },
         ]
         self.assertListEqual(result, expected)
@@ -371,23 +371,27 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'args': [mox.IsA(dict), resource],
                     'kwargs': None,
                     'result': {
-                        'instance:%s' % key: {
-                            'status': 'ACTIVE',
-                            'ip': '4.4.4.1',
-                            'private_ip': '10.1.2.1',
-                            'addresses': {
-                                'public': [
-                                    {'version': 4, 'addr': '4.4.4.1'},
-                                    {
-                                        'version': 6,
-                                        'addr': '2001:babe::ff04:36c1'
-                                    }
-                                ],
-                                'private': [{
-                                    'version': 4,
-                                    'addr': '10.1.2.1'
-                                }]
-                            },
+                        'resources': {
+                            str(key): {
+                                'status': 'ACTIVE',
+                                'instance': {
+                                    'ip': '4.4.4.1',
+                                    'private_ip': '10.1.2.1',
+                                    'addresses': {
+                                        'public': [
+                                            {'version': 4, 'addr': '4.4.4.1'},
+                                            {
+                                                'version': 6,
+                                                'addr': '2001:babe::ff04:36c1'
+                                            }
+                                        ],
+                                        'private': [{
+                                            'version': 4,
+                                            'addr': '10.1.2.1'
+                                        }]
+                                    },
+                                }
+                            }
                         }
                     },
                     'post_back_result': True,
@@ -636,13 +640,14 @@ interfaces/mysql/database_name
                   - outputs://instance:{{resource.index}}/instance/\
 interfaces/mysql/host
                 output:
-                  instance:{{resource.index}}:
-                    name: {{ setting('database_name') }}
-                    instance:
-                      interfaces:
-                        mysql:
-                          password: {{ setting('password') }}
-                          username: {{ setting('username') }}
+                  resources:
+                    '{{resource.index}}':
+                        name: {{ setting('database_name') }}
+                        instance:
+                          interfaces:
+                            mysql:
+                              password: {{ setting('password') }}
+                              username: {{ setting('username') }}
             '''
 
     def test_workflow_task_creation(self):
