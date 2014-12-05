@@ -170,7 +170,7 @@ class BaseOpscodeProvider(ProviderBase):
             bag_name = next(databags.iterkeys())
             items = databags[bag_name]['items']
             if len(items) > 1:
-                raise NotImplementedError("Chef-solo provider does not "
+                raise NotImplementedError("Chef provider does not "
                                           "currently support more than one "
                                           "databag item per component. '%s' "
                                           "has multiple items: %s" %
@@ -210,7 +210,7 @@ class BaseOpscodeProvider(ProviderBase):
             )
 
         elif len(databags) > 1:
-            raise NotImplementedError("Chef-solo provider does not currently "
+            raise NotImplementedError("Chef provider does not currently "
                                       "support more than one databag per "
                                       "component. Databags requested: %s" %
                                       databags.keys())
@@ -278,7 +278,7 @@ class BaseOpscodeProvider(ProviderBase):
                 },
             )
         elif len(roles) > 1:
-            raise NotImplementedError("Chef-solo provider does not currently "
+            raise NotImplementedError("Chef provider does not currently "
                                       "support more than one role per "
                                       "component")
 

@@ -21,6 +21,7 @@ import chef
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
+from checkmate import exceptions
 from checkmate.providers.opscode import base
 from checkmate.providers import ProviderBase
 from checkmate.providers.opscode.chef_map import ChefMap
@@ -28,7 +29,7 @@ from checkmate.providers.opscode.chef_map import ChefMap
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
-                                 "10.24.0")
+                                 "11.16.4-1")
 
 
 class Provider(base.BaseOpscodeProvider):
@@ -146,13 +147,57 @@ class Provider(base.BaseOpscodeProvider):
         LOG.debug("Determining component from dict: %s", component_id,
                   extra=component)
 
-        kwargs = self.map_file.get_component_run_list(component)
+        bootstrap_version = deployment.get_setting(
+            'bootstrap-version', provider_key=self.key,
+            service_name=service_name)
+        if not bootstrap_version:
+            omnibus_version = deployment.get_setting(
+                'omnibus-version', provider_key=self.key,
+                service_name=service_name)
+            if omnibus_version:
+                bootstrap_version = omnibus_version
+                LOG.warning("'omnibus-version' is deprecated. Please "
+                            "update the blueprint to use "
+                            "'bootstrap-version'")
+            else:
+                bootstrap_version = deployment.get_setting(
+                    'bootstrap-version', provider_key=self.key,
+                    service_name=service_name, default=OMNIBUS_DEFAULT)
 
-        anchor_task = None
+        kwargs = self.map_file.get_component_run_list(component)
+        resource = deployment['resources'][key]
+        host_idx = resource.get('hosted_on', key)
+        instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
+        anchor_task = configure_task = specs.Celery(
+            wfspec,
+            'Configure %s: %s (%s)' % (component_id, key, service_name),
+            'checkmate.providers.opscode.server.tasks.bootstrap',
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment_id=deployment['id'],
+                    resource_key=key),
+                deployment['id'],
+                instance_ip,
+                instance_ip,  # name
+            ],
+            environment=deployment['id'],
+            password=operators.PathAttrib(
+                'instance:%s/password' % resource.get('hosted_on', key)
+            ),
+            bootstrap_version=bootstrap_version,
+            merge_results=True,
+            identity_file=operators.Attrib('private_key_path'),
+            description="Bootstrap server as a Chef client",
+            defines=dict(resource=key, provider=self.key, task_tags=['final']),
+            properties={'estimated_duration': 100},
+            **kwargs
+        )
 
         if self.map_file.has_mappings(component_id):
-            collect_data_tasks = self.get_prep_tasks(wfspec, deployment, key,
-                                                     component, context)
+            collect_data_tasks = self.get_prep_tasks(
+                wfspec, deployment, key, component, context,
+                provider='checkmate.providers.opscode.server')
+            configure_task.follow(collect_data_tasks['final'])
             anchor_task = collect_data_tasks['root']
 
         # Collect dependencies
@@ -172,19 +217,20 @@ class Provider(base.BaseOpscodeProvider):
                 anchor_task, dependencies,
                 name="After server %s (%s) is registered and options are ready"
                      % (server_id, service_name),
-                description="Before applying chef recipes, we need to know that "
-                            "the server has chef on it and that the overrides "
-                            "(ex. database settings) have been applied"
+                description="Before applying chef recipes, we need to know "
+                            "that the server has chef on it and that the "
+                            "overrides (ex. database settings) have been "
+                            "applied"
             )
 
         # if we have a host task marked 'complete', make that wait on configure
-        #host_complete = self.get_host_complete_task(wfspec, resource)
-        #if host_complete:
-        #    wfspec.wait_for(
-        #        host_complete,
-        #        [configure_task],
-        #        name='Wait for %s to be configured before completing host %s' %
-        #             (service_name, resource.get('hosted_on', key)))
+        host_complete = self.get_host_complete_task(wfspec, resource)
+        if host_complete:
+            wfspec.wait_for(
+                host_complete,
+                [configure_task],
+                name='Wait for %s to be configured before completing host %s' %
+                     (service_name, resource.get('hosted_on', key)))
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
@@ -215,8 +261,9 @@ class Provider(base.BaseOpscodeProvider):
             # The collect task will have received a copy of the map and
             # will pick up the values that it needs when these precursor
             # tasks signal they are complete.
-            collect_tasks = self.get_prep_tasks(wfspec, deployment, key,
-                                                component, context)
+            collect_tasks = self.get_prep_tasks(
+                wfspec, deployment, key, component, context,
+                provider='checkmate.providers.opscode.server')
             wfspec.wait_for(collect_tasks['root'], tasks)
 
         if relation.get('relation') == 'host':
@@ -228,23 +275,6 @@ class Provider(base.BaseOpscodeProvider):
             attributes = map_with_context.get_attributes(resource['component'],
                                                          deployment)
             service_name = resource['service']
-            bootstrap_version = deployment.get_setting(
-                'bootstrap-version', provider_key=self.key,
-                service_name=service_name)
-            if not bootstrap_version:
-                omnibus_version = deployment.get_setting(
-                    'omnibus-version', provider_key=self.key,
-                    service_name=service_name)
-                if omnibus_version:
-                    bootstrap_version = omnibus_version
-                    LOG.warning("'omnibus-version' is deprecated. Please "
-                                "update the blueprint to use "
-                                "'bootstrap-version'")
-                else:
-                    bootstrap_version = deployment.get_setting(
-                        'bootstrap-version', provider_key=self.key,
-                        service_name=service_name, default=OMNIBUS_DEFAULT)
-
             kwargs = map_with_context.get_component_run_list(component)
 
             # Create chef setup tasks

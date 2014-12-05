@@ -219,13 +219,16 @@ class Manager(object):
         elif data['id'] != item_name:
             raise exceptions.CheckmateValidationException(
                 "Data bag item id mismatch")
-        path = os.path.join('databags', bag_name, '%s.json' % item_name)
-        kitchen.write_kitchen_file(path, json.dumps(data))
+        bags_dir_rel_path = os.path.join(kitchen_name, 'data_bags')
+        kitchen.ensure_path_exists(bags_dir_rel_path)
+        bag_rel_path = os.path.join('data_bags', bag_name, '%s.json' % item_name)
+        bag_full_path = os.path.join(kitchen._kitchen_path, bag_rel_path)
+        kitchen.write_kitchen_file(bag_full_path, json.dumps(data))
         try:
             knife.run_command(['knife', 'data', 'bag', 'from', 'file',
-                               bag_name, path, '--disable-editing'])
+                               bag_name, bag_full_path, '--disable-editing'])
         finally:
-            os.unlink(path)
+            os.unlink(bag_full_path)
         LOG.info("Updated data bag %s item %s", bag_name, item_name)
         return data
 

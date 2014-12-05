@@ -99,7 +99,16 @@
             <ul id="nav-elements" class="nav" ng-cloak ng-show="auth.context.tenantId">
               <li id="nav-deployments"><a ng-href="/{{auth.context.tenantId}}/deployments">Deployments</a></li>
               <li id="nav-workflows"><a ng-href="/{{auth.context.tenantId}}/workflows">Workflows</a></li>
-              <li id="nav-blueprints"><a ng-href="/{{auth.context.tenantId}}/blueprints">Blueprints</a></li>
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle">Blueprints<b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li id="nav-designer"><a href="/{{auth.context.tenantId}}/blueprints/design">New (Designer)</a></li>
+                  <li id="nav-new"><a href="/{{auth.context.tenantId}}/blueprints/new">New (Text Editor)</a></li>
+                  <li class="divider"></li>
+                  <li id="nav-blueprints-github"><a href="/{{auth.context.tenantId}}/blueprints">Github</a></li>
+                  <li id="nav-blueprints-tenant"><a href="/{{auth.context.tenantId}}/blueprints">Tenant</a></li>
+                </ul>
+              </li>
               <!--<li class="dropdown">
                 <a href="#" class="dropdown-toggle">Other<b class="caret"></b></a>
                 <ul class="dropdown-menu">
@@ -138,6 +147,14 @@
                   <li class="nav-header">Status</li>
                   <li id="nav-status-celery"><a href="/admin/status/celery">Celery</a></li>
                   <li id="nav-status-libraries"><a href="/admin/status/libraries">Libraries</a></li>
+                </ul>
+              </li>
+              <li class="dropdown" ng-show="in_admin_context()" >
+                <a href="#" class="dropdown-toggle">Blueprints<b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li id="nav-designer"><a href="/blueprints/design">New (Designer)</a></li>
+                  <li class="divider"></li>
+                  <li id="nav-blueprints-github"><a href="/blueprints">Github</a></li>
                 </ul>
               </li>
               <li class="dropdown">

@@ -64,6 +64,29 @@ angular.module('checkmate.applications-configure')
       $scope.deployment = data;
     });
 
+    // Removes annotations, forces 'components' array to single 'component'
+    $scope.prepDeployment = function(newFormatDeployment) {
+      var deployment = angular.copy(newFormatDeployment);
+      var blueprint = deployment.blueprint;
+      var services = blueprint.services;
+      _.each(services, function(value, key) {
+        var components = value.components;
+        var component;
+        if (angular.isArray(components)) {
+          component = components[0];
+        } else {
+          component = components;
+        }
+        delete value.components;
+        if (angular.isString(component)) {
+          component = {id: component};
+        }
+        value.component = component;
+        delete value.annotations;
+      });
+      return deployment;
+    };
+
     $scope.submit = function(action){
       if ($scope.submitting === true)
         return;
@@ -74,7 +97,7 @@ angular.module('checkmate.applications-configure')
         url += '/' + action;
 
       var Dep = $resource((checkmate_server_base || '') + url, {tenantId: $scope.auth.context.tenantId});
-      var deployment = new Dep($scope.deployment);
+      var deployment = new Dep($scope.prepDeployment($scope.deployment));
 
       deployment.$save(
         function success(returned, getHeaders){
@@ -87,12 +110,12 @@ angular.module('checkmate.applications-configure')
             $location.path(getHeaders('location'));
           }
         },
-        function error(error) {
-          $scope.show_error(error);
+        function error(err) {
+          $scope.show_error(err);
           $scope.submitting = false;
         }
       );
-    }
+    };
 
     $scope.$on('topology:select', function(event, selection) {
       $scope.selection.data = selection;

@@ -544,7 +544,10 @@ angular.module('checkmate.Blueprint')
             _.extend(blueprint.services[d._id], _service);
           });
 
-          Blueprint.set(blueprint);
+          // Only overwrite services
+          var original = Blueprint.get();
+          original.services = blueprint.services;
+          Blueprint.set(original);
         }
       }
     };

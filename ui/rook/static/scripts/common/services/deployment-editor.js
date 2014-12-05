@@ -18,22 +18,26 @@ angular.module('checkmate.DeploymentData')
             $scope.codemirror.editorAltered = true;
           },
           foldFunction: CodeMirror.newFoldFunction(CodeMirror.fold.indent),
-          foldAllExceptBlueprint: function(editor) {
+          foldDefault: function(editor) {
             var inBlueprint = false;
             editor.eachLine(function(line) {
               if (line.text.substring(0, 1) !== ' ') {
                 if (line.text.substring(0, 10) == 'blueprint:') {
                   inBlueprint = true;
-                } else {
+               } else {
                   inBlueprint = false;
                   $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
                 }
+              } else if (inBlueprint && line.text.substring(0, 10) === '  options:') {
+                $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
+              } else if (inBlueprint && line.text.substring(0, 12) === '  meta-data:') {
+                $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
               }
             });
           },
           setEditorDefaultState: function(editor) {
             if (!$scope.codemirror.editorAltered) {
-              $scope.codemirror.foldAllExceptBlueprint(editor);
+              $scope.codemirror.foldDefault(editor);
             }
           }
         };

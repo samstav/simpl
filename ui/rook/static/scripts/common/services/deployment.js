@@ -6,7 +6,7 @@ var defaultDeployment = {
         "vendor": "opscode",
         "constraints": [
           {
-            "source": "https://github.com/gondoi/phpstack#applications"
+            "source": "https://github.com/AutomationSupport/catalog"
           }
         ]
       },

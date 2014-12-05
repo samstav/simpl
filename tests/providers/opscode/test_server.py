@@ -302,7 +302,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             'Register Server 1 (db)',
             'Root',
             'Start',
-            'Upload Cookbooks'
+            'Upload Cookbooks',
+            'Configure mysql: 0 (db)',
         ]
         task_list.sort()
         expected.sort()
@@ -533,7 +534,9 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
             'Create Workspace',
             'Root',
             'Start',
-            'Upload Cookbooks'
+            'Upload Cookbooks',
+            'Configure bar: 1 (backend)',
+            'Configure foo: 0 (frontend)',
         ]
         task_list.sort()
         expected.sort()
@@ -663,6 +666,7 @@ interfaces/mysql/host
             'Root',
             'Start',
             'Upload Cookbooks',
+            'Configure mysql: 0 (db)',
         ]
         task_list.sort()
         expected.sort()
@@ -786,15 +790,33 @@ interfaces/mysql/host
                             '4.4.4.4',
                         ],
                         'kwargs': {
-                            'attributes': {
-                                'username': 'u1',
-                                'password': 'myPassW0rd',
-                                'db_name': 'app_db'
-                            },
+                            'attributes': attributes,
                             'environment': self.deployment['id'],
                             'recipes': ['mysql::server'],
                         },
                         'result': None,
+                    },
+                    {
+                        'call': 'checkmate.providers.opscode.server.tasks'
+                                '.bootstrap',
+                        'args': [
+                            context_dict,
+                            self.deployment['id'],
+                            '4.4.4.4',
+                            '4.4.4.4',
+                        ],
+                        'kwargs': mox.And(
+                            mox.ContainsKeyValue('bootstrap_version',
+                                                 '11.16.4-1'),
+                            mox.ContainsKeyValue('environment',
+                                                 self.deployment['id']),
+                            mox.ContainsKeyValue('recipes', ['mysql::server']),
+                            mox.ContainsKeyValue(
+                                'identity_file',
+                                '/var/tmp/DEP-ID-1000/private.pem'),
+                        ),
+                        'result': None,
+                        'resource': key,
                     }
                 ])
 

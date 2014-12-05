@@ -199,6 +199,15 @@ class ChefKitchen(object):
         else:
             LOG.debug("Kitchen directory exists: %s", self._kitchen_path)
 
+    def ensure_path_exists(self, relative_path):
+        """Check for or Create a new path."""
+        path = os.path.join(self._env_path, relative_path)
+        if not os.path.exists(path):
+            os.makedirs(path, 0o770)
+            LOG.debug("Created directory: %s", path)
+        else:
+            LOG.debug("Directory exists: %s", path)
+
     def create_kitchen(self, secret_key=None, source_repo=None):
         """Create a new knife kitchen in path.
 
