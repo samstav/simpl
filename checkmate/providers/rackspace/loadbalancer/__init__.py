@@ -26,6 +26,7 @@ import pyrax
 from checkmate.common import statsd
 from checkmate import exceptions
 from checkmate.providers.rackspace.loadbalancer.provider import Provider
+from checkmate.providers.rackspace.loadbalancer import tasks
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
