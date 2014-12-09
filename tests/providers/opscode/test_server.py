@@ -303,6 +303,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             'Root',
             'Start',
             'Upload Cookbooks',
+            'After server 1 (db) is registered and options are ready',
             'Configure mysql: 0 (db)',
         ]
         task_list.sort()
@@ -1079,7 +1080,8 @@ interfaces/mysql/database_name
             'resource': '0',
             'provider': 'chef-server',
             'relation': 'host',
-            'estimated_duration': 120
+            'estimated_duration': 120,
+            'task_tags': ['final'],
         }
         self.assertDictEqual(register.properties, expected)
         self.assertDictEqual(register.kwargs['attributes'], {'connections': 10,
