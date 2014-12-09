@@ -294,7 +294,8 @@ class Provider(base.BaseOpscodeProvider):
                 environment=deployment['id'],
                 attributes=attributes,
                 defines=dict(
-                    resource=key, relation=relation_key, provider=self.key
+                    resource=key, relation=relation_key, provider=self.key,
+                    task_tags=['final']
                 ),
                 description=("Register the node on the Chef server"),
                 properties=dict(estimated_duration=120),

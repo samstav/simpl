@@ -295,14 +295,15 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 
         task_list = workflow.spec.task_specs.keys()
         expected = [
-            'After Environment is Ready and Server 1 (db) is Up',
-            'Create Chef Server Environment',
-            'Create Resource 1',
-            'Create Workspace',
-            'Register Server 1 (db)',
             'Root',
             'Start',
+            'Create Resource 1',
+            'Register Server 1 (db)',
+            'Create Workspace',
+            'Create Chef Server Environment',
             'Upload Cookbooks',
+            'After Environment is Ready and Server 1 (db) is Up',
+            'After server 1 (db) is registered and options are ready',
             'Configure mysql: 0 (db)',
         ]
         task_list.sort()
@@ -715,8 +716,7 @@ interfaces/mysql/host
             ],
             'kwargs': {'desc': 'Checkmate Environment'},
             'result': None
-        },
-        {
+        }, {
             'call': 'checkmate.providers.opscode.server.tasks.'
                     'upload_cookbooks',
             'args': [
@@ -1079,7 +1079,8 @@ interfaces/mysql/database_name
             'resource': '0',
             'provider': 'chef-server',
             'relation': 'host',
-            'estimated_duration': 120
+            'estimated_duration': 120,
+            'task_tags': ['final'],
         }
         self.assertDictEqual(register.properties, expected)
         self.assertDictEqual(register.kwargs['attributes'], {'connections': 10,
@@ -1218,8 +1219,8 @@ interfaces/mysql/database_name
                             "4.4.4.4",
                         ],
                         'kwargs': mox.And(
-                            mox.ContainsKeyValue('recipes',
-                                ['something', 'something::role']),
+                            mox.ContainsKeyValue(
+                                'recipes', ['something', 'something::role']),
                             mox.ContainsKeyValue('roles', ['foo-master']),
                             mox.ContainsKeyValue('environment',
                                                  self.deployment['id']),

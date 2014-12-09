@@ -15,11 +15,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Provider for OpenStack Compute API
+"""Provider for OpenStack Compute API.
 
 - Supports Rackspace Open Cloud Compute Extensions and Auth
 """
-
 
 import eventlet
 import os
@@ -32,14 +31,12 @@ import redis
 from SpiffWorkflow import operators as swops
 from SpiffWorkflow import specs
 
-from checkmate import middleware as cmmid
-from checkmate import providers as cmprov
-
-
 from checkmate.common import caching
 from checkmate.common import config
 from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
+from checkmate import middleware as cmmid
+from checkmate import providers as cmprov
 from checkmate.providers.rackspace import base
 from checkmate import utils
 
@@ -51,6 +48,8 @@ IMAGE_MAP = {
     'quantal': 'Ubuntu 12.10',
     'ringtail': 'Ubuntu 13.04',
     'saucy': 'Ubuntu 13.10',
+    'trusty': 'Ubuntu 14.04',
+    'utopic': 'Ubuntu 14.10',
     'squeeze': 'Debian 6',
     'wheezy': 'Debian 7',
     'beefy miracle': 'Fedora 17',
@@ -60,8 +59,8 @@ IMAGE_MAP = {
 }
 KNOWN_OSES = {
     'ubuntu': ['10.04', '10.12', '11.04', '11.10', '12.04', '12.10', '13.04',
-               '13.10'],
-    'centos': ['6.4'],
+               '13.10', '14.04', '14.10'],
+    'centos': ['5.11', '6.4', '6.5', '7'],
     'cirros': ['0.3'],
     'debian': ['6', '7'],
     'fedora': ['17', '18', '19'],
@@ -245,7 +244,8 @@ class Provider(RackspaceComputeProviderBase):
         if not utils.is_uuid(image):
             # Assume it is an OS name and find it
             for key, value in image_types.iteritems():
-                if image == value['name'] or image == value['os']:
+                if (image == value['name'] or
+                        image.lower() == value['os'].lower()):
                     LOG.debug("Mapping image from '%s' to '%s'", image, key)
                     image = key
                     break
