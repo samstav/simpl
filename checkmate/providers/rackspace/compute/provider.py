@@ -15,11 +15,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Provider for OpenStack Compute API
+"""Provider for OpenStack Compute API.
 
 - Supports Rackspace Open Cloud Compute Extensions and Auth
 """
-
 
 import eventlet
 import os
@@ -32,14 +31,12 @@ import redis
 from SpiffWorkflow import operators as swops
 from SpiffWorkflow import specs
 
-from checkmate import middleware as cmmid
-from checkmate import providers as cmprov
-
-
 from checkmate.common import caching
 from checkmate.common import config
 from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
+from checkmate import middleware as cmmid
+from checkmate import providers as cmprov
 from checkmate.providers.rackspace import base
 from checkmate import utils
 

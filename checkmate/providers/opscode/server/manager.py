@@ -221,7 +221,8 @@ class Manager(object):
                 "Data bag item id mismatch")
         bags_dir_rel_path = os.path.join(kitchen_name, 'data_bags')
         kitchen.ensure_path_exists(bags_dir_rel_path)
-        bag_rel_path = os.path.join('data_bags', bag_name, '%s.json' % item_name)
+        bag_rel_path = os.path.join('data_bags', bag_name,
+                                    '%s.json' % item_name)
         bag_full_path = os.path.join(kitchen._kitchen_path, bag_rel_path)
         kitchen.write_kitchen_file(bag_full_path, json.dumps(data))
         try:

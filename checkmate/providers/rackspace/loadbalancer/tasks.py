@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Rackspace Cloud Loadbalancer provider tasks.
-"""
+"""Rackspace Cloud Loadbalancer provider tasks."""
+
 from celery import task
 
 from checkmate.common import statsd
