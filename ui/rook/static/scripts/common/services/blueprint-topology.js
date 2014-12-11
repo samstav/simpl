@@ -1,6 +1,5 @@
-angular.module('checkmate.Blueprint').factory
 angular.module('checkmate.Blueprint')
-  .directive('blueprintTopology', function($window, Drag, Blueprint, $timeout, Catalog) {
+  .directive('blueprintTopology', function($window, Drag, Blueprint, $timeout, Catalog, Sizes) {
     return {
       restrict: 'E',
       replace: true,
@@ -38,53 +37,7 @@ angular.module('checkmate.Blueprint')
         var mouse;
         var service;
         var component;
-
-        var sizes = {
-          component: {
-            width: function() {
-              return 120;
-            },
-            height: function() {
-              return 120;
-            },
-            margin: {
-              top: 10,
-              right: 10,
-              bottom: 10,
-              left: 10
-            }
-          },
-          service: {
-            height: function(components) {
-              var rows = Math.ceil(components / sizes.service.rows);
-              var height = (sizes.component.height() * rows);
-              height = height + sizes.service.margin.top + sizes.service.margin.bottom;
-
-              return height;
-            },
-            width: function(components) {
-              var columns = components;
-
-              if(components > sizes.service.columns) {
-                columns = Math.ceil(components / sizes.service.columns);
-              }
-
-              var width = (sizes.component.width() * columns);
-              width = width + sizes.service.margin.left + sizes.service.margin.right;
-
-              return width;
-            },
-            columns: 4,
-            rows: 4,
-            margin: {
-              top: 10,
-              right: 10,
-              bottom: 40,
-              left: 10
-            },
-            radius: 10
-          }
-        };
+        var sizes = Sizes;
 
         var dragConnectorLine = null;
         var state = {
@@ -114,17 +67,6 @@ angular.module('checkmate.Blueprint')
 
         var svg = d3.select(element[0]);
 
-        function toggleSelect(el, data) {
-          if (el.classed('selected')) {
-            el.classed('selected', false);
-            scope.deselect(data);
-          } else {
-            svg.selectAll('.selected').classed('selected', false);
-            el.classed('selected', true);
-            scope.select(data);
-          }
-        }
-
         var zoomer = svg.append('g')
             .attr("transform", "translate(0,0)")
             .call(zoom)
@@ -145,6 +87,10 @@ angular.module('checkmate.Blueprint')
             .attr('class', 'container');
 
         container.append('g').attr('class', 'relations');
+
+        var relation;
+        var line;
+        var indicator;
 
         d3.selection.prototype.position = function() {
           var el = this.node();
@@ -319,14 +265,14 @@ angular.module('checkmate.Blueprint')
             });
 
           // Appends relation lines.
-          var relation = container.select('g.relations')
+          relation = container.select('g.relations')
             .selectAll('g.relation')
               .data(blueprint.links)
               .enter()
                 .append('g')
                 .attr('class', 'relation');
 
-          relation.append("line")
+          line = relation.append("line")
             .attr('class', function(d) {
               var classes = ['link'];
 
@@ -334,23 +280,20 @@ angular.module('checkmate.Blueprint')
               classes.push('target-'+d.target);
 
               return classes.join(' ');
-            })
-            .attr("x1", function(d) {
-              var ele = d3.select('#'+d.source+'-service');
-              return getCoords(ele).x;
-            })
-            .attr("y1", function(d) {
-              var ele = d3.select('#'+d.source+'-service');
-              return getCoords(ele).y;
-            })
-            .attr("x2", function(d) {
-              var ele = d3.select('#'+d.target+'-service');
-              return getCoords(ele).x;
-            })
-            .attr("y2", function(d) {
-              var ele = d3.select('#'+d.target+'-service');
-              return getCoords(ele).y;
             });
+
+          connectRelationLines();
+
+          indicator = relation.append("g")
+            .attr('class', function(d) {
+              return 'relation-indicator';
+            });
+
+          indicator.append('circle')
+            .attr('class', 'relation-indicator-circle')
+            .attr('r', sizes.indicator.radius);
+
+          positionIndicatorNodes();
 
           // This appends components to service container.
           component = service.selectAll('g.component')
@@ -433,7 +376,6 @@ angular.module('checkmate.Blueprint')
 
               return label;
             });
-
 
           // This draws the linker thingy
           var linker = component.append('g')
@@ -524,6 +466,17 @@ angular.module('checkmate.Blueprint')
           });
         }
 
+        function toggleSelect(el, data) {
+          if (el.classed('selected')) {
+            el.classed('selected', false);
+            scope.deselect(data);
+          } else {
+            svg.selectAll('.selected').classed('selected', false);
+            el.classed('selected', true);
+            scope.select(data);
+          }
+        }
+
         function getCoords(element) {
           if(!element) {
             return false;
@@ -600,18 +553,39 @@ angular.module('checkmate.Blueprint')
 
           d3.select(this).attr("transform", "translate(" + d.x + "," + d.y + ")");
 
-          var ele = d3.select('#'+d._id+'-service');
-          var coords = getCoords(ele);
+          connectRelationLines();
+          positionIndicatorNodes();
+        }
 
-          // Select lines ending at this element.
-          d3.selectAll('.target-'+d._id)
-            .attr("x2", coords.x)
-            .attr("y2", coords.y)
+        function positionIndicatorNodes() {
+          indicator.attr("transform", function(d) {
+            var source = d3.select('#'+d.source+'-service');
+            var target = d3.select('#'+d.target+'-service');
 
-          // Select lines starting at this element.
-          d3.selectAll('.source-'+d._id)
-            .attr("x1", coords.x)
-            .attr("y1", coords.y);
+            var x = (getCoords(source).x + getCoords(target).x) / 2;
+            var y = (getCoords(source).y + getCoords(target).y) / 2;
+
+            return 'translate('+x+','+y+')';
+          });
+        }
+
+        function connectRelationLines() {
+          line.attr("x1", function(d) {
+            var ele = d3.select('#'+d.source+'-service');
+            return getCoords(ele).x;
+          })
+          .attr("y1", function(d) {
+            var ele = d3.select('#'+d.source+'-service');
+            return getCoords(ele).y;
+          })
+          .attr("x2", function(d) {
+            var ele = d3.select('#'+d.target+'-service');
+            return getCoords(ele).x;
+          })
+          .attr("y2", function(d) {
+            var ele = d3.select('#'+d.target+'-service');
+            return getCoords(ele).y;
+          });
         }
 
         function dragended(d) {
