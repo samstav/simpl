@@ -1,3 +1,4 @@
+angular.module('checkmate.Blueprint').factory
 angular.module('checkmate.Blueprint')
   .directive('blueprintTopology', function($window, Drag, Blueprint, $timeout, Catalog) {
     return {
