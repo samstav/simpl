@@ -132,7 +132,6 @@ angular.module('checkmate.Blueprint')
               if(d3.event.defaultPrevented) {
                 return;
               }
-              console.log("CANVAS");
               toggleSelect(d3.select(this), null);
             });
 
@@ -147,26 +146,26 @@ angular.module('checkmate.Blueprint')
         container.append('g').attr('class', 'relations');
 
         d3.selection.prototype.position = function() {
-            var el = this.node();
-            var elPos = el.getBoundingClientRect();
-            var vpPos = getVpPos(el);
+          var el = this.node();
+          var elPos = el.getBoundingClientRect();
+          var vpPos = getVpPos(el);
 
-            function getVpPos(el) {
-                if(el.parentElement.tagName === 'svg') {
-                    return el.parentElement.getBoundingClientRect();
-                }
-                return getVpPos(el.parentElement);
+          function getVpPos(el) {
+            if(el.parentElement.tagName === 'svg') {
+              return el.parentElement.getBoundingClientRect();
             }
 
-            return {
-                top: elPos.top - vpPos.top,
-                left: elPos.left - vpPos.left,
-                width: elPos.width,
-                bottom: elPos.bottom - vpPos.top,
-                height: elPos.height,
-                right: elPos.right - vpPos.left
-            };
+            return getVpPos(el.parentElement);
+          }
 
+          return {
+            top: elPos.top - vpPos.top,
+            left: elPos.left - vpPos.left,
+            width: elPos.width,
+            bottom: elPos.bottom - vpPos.top,
+            height: elPos.height,
+            right: elPos.right - vpPos.left
+          };
         };
 
         // This listens for mouse events on the entire svg element.
@@ -267,7 +266,6 @@ angular.module('checkmate.Blueprint')
                 if(d3.event.defaultPrevented) {
                   return;
                 }
-                console.log('SERVICE', d._id);
 
                 var data = {
                   service: d._id,
@@ -365,7 +363,6 @@ angular.module('checkmate.Blueprint')
                   if(d3.event.defaultPrevented) {
                     return;
                   }
-                  console.log('COMPONENT', d);
 
                   var data = {
                     service: d3.select(this.parentNode).datum()._id,
@@ -445,7 +442,6 @@ angular.module('checkmate.Blueprint')
               if(d3.event.defaultPrevented) {
                 return;
               }
-              console.log('LINKER', d);
 
               var data = {
                 service: d3.select(this.parentNode).datum()._id,
@@ -482,17 +478,13 @@ angular.module('checkmate.Blueprint')
 
           // This defines linker drag events.
           linker.on("dragenter", function(d) {
-            console.log("enter");
             d3.select(this).classed('target', true);
             Drag.target.set({componentId: d, serviceId: d3.select(this.parentNode.parentNode).datum()._id});
           }).on("dragover", function(d) {
-            console.log("OVER");
           }).on("dragleave", function(d) {
             Drag.target.set(null);
             d3.select(this).classed('target unsuitable', false);
-            console.log("LEAVE");
           }).on("drop", function() {
-            console.log("DROP");
             d3.select(this).classed('target unsuitable', false);
           });
 
@@ -500,14 +492,18 @@ angular.module('checkmate.Blueprint')
           linker.on("mouseover", function(d) {
             if (state.linking) {
               var source = Drag.source.get();
-              var target = {componentId: d, serviceId: d3.select(this.parentNode.parentNode).datum()._id};
+              var target = {
+                componentId: d,
+                serviceId: d3.select(this.parentNode.parentNode).datum()._id,
+                protocol: d
+              };
+
               if (source.serviceId === target.serviceId && source.componentId === target.componentId) {
-                console.log("SELF");
                 return;
-              } else {
-                console.log("OTHER", source, target);
               }
+
               d3.select(this).classed('target', true);
+
               if (Blueprint.canConnect(source, target)) {
                 Drag.target.set(target);
                 d3.select(this).classed('unsuitable', false);
@@ -516,13 +512,11 @@ angular.module('checkmate.Blueprint')
               }
             }
           }).on("mouseout", function(d) {
-            console.log("OUT", d);
             if (state.linking) {
               d3.select(this).classed('target unsuitable', false);
               Drag.target.set(null);
             }
           }).on("mouseup", function(d) {
-            console.log("UP", d);
             if (state.linking) {
               d3.select(this).classed('target unsuitable', false);
             }
@@ -570,9 +564,12 @@ angular.module('checkmate.Blueprint')
           dragConnectorLine.remove();
           d3.event.sourceEvent.stopPropagation();
           d3.select(this).classed("dragging", false);
+          var source = Drag.source.get();
           var target = Drag.target.get();
-          if (target) {
-            console.log("DROP", target);
+          if (source && target) {
+            if (Blueprint.canConnect(source, target)) {
+              Blueprint.connect(source.serviceId, target.serviceId, target.protocol);
+            }
           }
           Drag.reset();
         }
@@ -610,7 +607,7 @@ angular.module('checkmate.Blueprint')
             .attr("x2", coords.x)
             .attr("y2", coords.y)
 
-          // Select lines starting at this element
+          // Select lines starting at this element.
           d3.selectAll('.source-'+d._id)
             .attr("x1", coords.x)
             .attr("y1", coords.y);
