@@ -41,10 +41,10 @@ angular.module('checkmate.Blueprint')
         var sizes = {
           component: {
             width: function() {
-              return 160;
+              return 120;
             },
             height: function() {
-              return 160;
+              return 120;
             },
             margin: {
               top: 10,
@@ -124,7 +124,7 @@ angular.module('checkmate.Blueprint')
           }
         }
 
-        var zoomer = svg.append("g")
+        var zoomer = svg.append('g')
             .attr("transform", "translate(0,0)")
             .call(zoom)
             .attr('class', 'zoomer')
@@ -140,9 +140,11 @@ angular.module('checkmate.Blueprint')
             .style("fill", "none")
             .style("pointer-events", "all");
 
-        var container = zoomer.append("g")
+        var container = zoomer.append('g')
             .call(zoom)
             .attr('class', 'container');
+
+        container.append('g').attr('class', 'relations');
 
         d3.selection.prototype.position = function() {
             var el = this.node();
@@ -178,13 +180,52 @@ angular.module('checkmate.Blueprint')
         scope.$on('window:resize', resize);
         scope.$watch('blueprint', function(newVal, oldVal) {
           if(newVal && newVal !== oldVal) {
-            var blueprint = [];
+            var blueprint = {
+              nodes: [],
+              links: []
+            };
+            var _links = {};
             var services = angular.copy(newVal.services);
 
-            for(var key in services) {
-              var _entry = services[key];
-              _entry._id = key;
-              blueprint.push(_entry);
+            for(var service in services) {
+              var _entry = services[service];
+              _entry._id = service;
+
+              // Map out multiple connections from a service to another service.
+              if(_entry.relations) {
+                for (i = _entry.relations.length - 1; i >= 0; i--) {
+                  for(var component in _entry.relations[i]) {
+                    var protocol = _entry.relations[i][component];
+
+                    if(!_links[service]) {
+                      _links[service] = {};
+                    }
+
+                    if(!_links[service][component]) {
+                      _links[service][component] = [];
+                    }
+
+                    _links[service][component].push({
+                      'protocol': protocol
+                    });
+                  }
+                }
+              }
+
+              blueprint.nodes.push(_entry);
+            }
+
+            // Push connection map to blueprint.links
+            for(var source in _links) {
+              for(var target in _links[source]) {
+                var _link = {
+                  'source': source,
+                  'target': target,
+                  'connections': _links[source][target]
+                };
+
+                blueprint.links.push(_link);
+              }
             }
 
             draw(blueprint);
@@ -203,7 +244,7 @@ angular.module('checkmate.Blueprint')
 
           // Append service container
           service = container.selectAll('g.service')
-              .data(blueprint)
+              .data(blueprint.nodes)
             .enter()
             .append('g')
               .attr('class', function(d) {
@@ -247,15 +288,15 @@ angular.module('checkmate.Blueprint')
 
           // This append the service rectangle container.
           service.append('rect')
-          .attr('class', 'service-container')
-          .attr("width", function(d) {
-            return sizes.service.width(d.components.length);
-          })
-          .attr("height", function(d) {
-            return sizes.service.height(d.components.length);
-          })
-          .attr('rx', sizes.service.radius)
-          .attr('ry', sizes.service.radius);
+            .attr('class', 'service-container')
+            .attr("width", function(d) {
+              return sizes.service.width(d.components.length);
+            })
+            .attr("height", function(d) {
+              return sizes.service.height(d.components.length);
+            })
+            .attr('rx', sizes.service.radius)
+            .attr('ry', sizes.service.radius);
 
           // This appends the title of service.
           var title = service.append('text')
@@ -278,13 +319,47 @@ angular.module('checkmate.Blueprint')
               return d._id.toUpperCase();
             });
 
+          // Appends relation lines.
+          var relation = container.select('g.relations')
+            .selectAll('g.relation')
+              .data(blueprint.links)
+              .enter()
+                .append('g')
+                .attr('class', 'relation');
+
+          relation.append("line")
+            .attr('class', function(d) {
+              var classes = ['link'];
+
+              classes.push('source-'+d.source);
+              classes.push('target-'+d.target);
+
+              return classes.join(' ');
+            })
+            .attr("x1", function(d) {
+              var ele = d3.select('#'+d.source+'-service');
+              return getCoords(ele).x;
+            })
+            .attr("y1", function(d) {
+              var ele = d3.select('#'+d.source+'-service');
+              return getCoords(ele).y;
+            })
+            .attr("x2", function(d) {
+              var ele = d3.select('#'+d.target+'-service');
+              return getCoords(ele).x;
+            })
+            .attr("y2", function(d) {
+              var ele = d3.select('#'+d.target+'-service');
+              return getCoords(ele).y;
+            });
+
           // This appends components to service container.
           component = service.selectAll('g.component')
               .data(function(d) {
                 return d.components;
               })
             .enter()
-              .append("g")
+              .append('g')
                 .attr('class', 'component')
                 .on('click', function(d) {
                   if(d3.event.defaultPrevented) {
@@ -452,7 +527,24 @@ angular.module('checkmate.Blueprint')
               d3.select(this).classed('target unsuitable', false);
             }
           });
+        }
 
+        function getCoords(element) {
+          if(!element) {
+            return false;
+          }
+
+          var position = {
+            x: element.datum().x,
+            y: element.datum().y
+          };
+
+          var size = element.node().getBBox();
+
+          return {
+            x: position.x + (size.width / 2),
+            y: position.y + (size.height / 2)
+          }
         }
 
         function linkstarted(d) {
@@ -507,7 +599,21 @@ angular.module('checkmate.Blueprint')
         function dragged(d) {
           d.x = d3.event.x;
           d.y = d3.event.y;
+
           d3.select(this).attr("transform", "translate(" + d.x + "," + d.y + ")");
+
+          var ele = d3.select('#'+d._id+'-service');
+          var coords = getCoords(ele);
+
+          // Select lines ending at this element.
+          d3.selectAll('.target-'+d._id)
+            .attr("x2", coords.x)
+            .attr("y2", coords.y)
+
+          // Select lines starting at this element
+          d3.selectAll('.source-'+d._id)
+            .attr("x1", coords.x)
+            .attr("y1", coords.y);
         }
 
         function dragended(d) {

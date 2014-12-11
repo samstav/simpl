@@ -30,8 +30,8 @@
   color: #fff;
 }
 .rs-app-launch-sidebar.stick-right {
-  right: -340px;
-  width: 340px;
+  right: -400px;
+  width: 400px;
   background-color: rgba(0,0,0,.8);
 }
 .rs-app-launch-sidebar.stick-right.visible {
@@ -181,7 +181,7 @@
   z-index: 900;
 }
 .rs-app-launch-controls.adjusted {
-  right: 320px;
+  right: 400px;
 }
 .codemirror-toggle-button {
   position: absolute;
@@ -307,4 +307,3 @@ span.CodeMirror-foldmarker {
   color: rgb(188, 188, 194);
   text-shadow: none;
 }
-
