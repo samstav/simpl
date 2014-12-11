@@ -1,5 +1,5 @@
 angular.module('checkmate.Blueprint')
-  .directive('blueprintTopology', function($window, Drag, Blueprint, $timeout, Catalog) {
+  .directive('blueprintTopology', function($window, Drag, Blueprint, $timeout, Catalog, Sizes) {
     return {
       restrict: 'E',
       replace: true,
@@ -37,53 +37,7 @@ angular.module('checkmate.Blueprint')
         var mouse;
         var service;
         var component;
-
-        var sizes = {
-          component: {
-            width: function() {
-              return 160;
-            },
-            height: function() {
-              return 160;
-            },
-            margin: {
-              top: 10,
-              right: 10,
-              bottom: 10,
-              left: 10
-            }
-          },
-          service: {
-            height: function(components) {
-              var rows = Math.ceil(components / sizes.service.rows);
-              var height = (sizes.component.height() * rows);
-              height = height + sizes.service.margin.top + sizes.service.margin.bottom;
-
-              return height;
-            },
-            width: function(components) {
-              var columns = components;
-
-              if(components > sizes.service.columns) {
-                columns = Math.ceil(components / sizes.service.columns);
-              }
-
-              var width = (sizes.component.width() * columns);
-              width = width + sizes.service.margin.left + sizes.service.margin.right;
-
-              return width;
-            },
-            columns: 4,
-            rows: 4,
-            margin: {
-              top: 10,
-              right: 10,
-              bottom: 40,
-              left: 10
-            },
-            radius: 10
-          }
-        };
+        var sizes = Sizes;
 
         var dragConnectorLine = null;
         var state = {
@@ -113,18 +67,7 @@ angular.module('checkmate.Blueprint')
 
         var svg = d3.select(element[0]);
 
-        function toggleSelect(el, data) {
-          if (el.classed('selected')) {
-            el.classed('selected', false);
-            scope.deselect(data);
-          } else {
-            svg.selectAll('.selected').classed('selected', false);
-            el.classed('selected', true);
-            scope.select(data);
-          }
-        }
-
-        var zoomer = svg.append("g")
+        var zoomer = svg.append('g')
             .attr("transform", "translate(0,0)")
             .call(zoom)
             .attr('class', 'zoomer')
@@ -132,7 +75,6 @@ angular.module('checkmate.Blueprint')
               if(d3.event.defaultPrevented) {
                 return;
               }
-              console.log("CANVAS");
               toggleSelect(d3.select(this), null);
             });
 
@@ -140,31 +82,37 @@ angular.module('checkmate.Blueprint')
             .style("fill", "none")
             .style("pointer-events", "all");
 
-        var container = zoomer.append("g")
+        var container = zoomer.append('g')
             .call(zoom)
             .attr('class', 'container');
 
-        d3.selection.prototype.position = function() {
-            var el = this.node();
-            var elPos = el.getBoundingClientRect();
-            var vpPos = getVpPos(el);
+        container.append('g').attr('class', 'relations');
 
-            function getVpPos(el) {
-                if(el.parentElement.tagName === 'svg') {
-                    return el.parentElement.getBoundingClientRect();
-                }
-                return getVpPos(el.parentElement);
+        var relation;
+        var line;
+        var indicator;
+
+        d3.selection.prototype.position = function() {
+          var el = this.node();
+          var elPos = el.getBoundingClientRect();
+          var vpPos = getVpPos(el);
+
+          function getVpPos(el) {
+            if(el.parentElement.tagName === 'svg') {
+              return el.parentElement.getBoundingClientRect();
             }
 
-            return {
-                top: elPos.top - vpPos.top,
-                left: elPos.left - vpPos.left,
-                width: elPos.width,
-                bottom: elPos.bottom - vpPos.top,
-                height: elPos.height,
-                right: elPos.right - vpPos.left
-            };
+            return getVpPos(el.parentElement);
+          }
 
+          return {
+            top: elPos.top - vpPos.top,
+            left: elPos.left - vpPos.left,
+            width: elPos.width,
+            bottom: elPos.bottom - vpPos.top,
+            height: elPos.height,
+            right: elPos.right - vpPos.left
+          };
         };
 
         // This listens for mouse events on the entire svg element.
@@ -178,13 +126,52 @@ angular.module('checkmate.Blueprint')
         scope.$on('window:resize', resize);
         scope.$watch('blueprint', function(newVal, oldVal) {
           if(newVal && newVal !== oldVal) {
-            var blueprint = [];
+            var blueprint = {
+              nodes: [],
+              links: []
+            };
+            var _links = {};
             var services = angular.copy(newVal.services);
 
-            for(var key in services) {
-              var _entry = services[key];
-              _entry._id = key;
-              blueprint.push(_entry);
+            for(var service in services) {
+              var _entry = services[service];
+              _entry._id = service;
+
+              // Map out multiple connections from a service to another service.
+              if(_entry.relations) {
+                for (i = _entry.relations.length - 1; i >= 0; i--) {
+                  for(var component in _entry.relations[i]) {
+                    var protocol = _entry.relations[i][component];
+
+                    if(!_links[service]) {
+                      _links[service] = {};
+                    }
+
+                    if(!_links[service][component]) {
+                      _links[service][component] = [];
+                    }
+
+                    _links[service][component].push({
+                      'protocol': protocol
+                    });
+                  }
+                }
+              }
+
+              blueprint.nodes.push(_entry);
+            }
+
+            // Push connection map to blueprint.links
+            for(var source in _links) {
+              for(var target in _links[source]) {
+                var _link = {
+                  'source': source,
+                  'target': target,
+                  'connections': _links[source][target]
+                };
+
+                blueprint.links.push(_link);
+              }
             }
 
             draw(blueprint);
@@ -203,7 +190,7 @@ angular.module('checkmate.Blueprint')
 
           // Append service container
           service = container.selectAll('g.service')
-              .data(blueprint)
+              .data(blueprint.nodes)
             .enter()
             .append('g')
               .attr('class', function(d) {
@@ -226,7 +213,6 @@ angular.module('checkmate.Blueprint')
                 if(d3.event.defaultPrevented) {
                   return;
                 }
-                console.log('SERVICE', d._id);
 
                 var data = {
                   service: d._id,
@@ -247,15 +233,15 @@ angular.module('checkmate.Blueprint')
 
           // This append the service rectangle container.
           service.append('rect')
-          .attr('class', 'service-container')
-          .attr("width", function(d) {
-            return sizes.service.width(d.components.length);
-          })
-          .attr("height", function(d) {
-            return sizes.service.height(d.components.length);
-          })
-          .attr('rx', sizes.service.radius)
-          .attr('ry', sizes.service.radius);
+            .attr('class', 'service-container')
+            .attr("width", function(d) {
+              return sizes.service.width(d.components.length);
+            })
+            .attr("height", function(d) {
+              return sizes.service.height(d.components.length);
+            })
+            .attr('rx', sizes.service.radius)
+            .attr('ry', sizes.service.radius);
 
           // This appends the title of service.
           var title = service.append('text')
@@ -278,19 +264,49 @@ angular.module('checkmate.Blueprint')
               return d._id.toUpperCase();
             });
 
+          // Appends relation lines.
+          relation = container.select('g.relations')
+            .selectAll('g.relation')
+              .data(blueprint.links)
+              .enter()
+                .append('g')
+                .attr('class', 'relation');
+
+          line = relation.append("line")
+            .attr('class', function(d) {
+              var classes = ['link'];
+
+              classes.push('source-'+d.source);
+              classes.push('target-'+d.target);
+
+              return classes.join(' ');
+            });
+
+          connectRelationLines();
+
+          indicator = relation.append("g")
+            .attr('class', function(d) {
+              return 'relation-indicator';
+            });
+
+          indicator.append('circle')
+            .attr('class', 'relation-indicator-circle')
+            .attr('r', sizes.indicator.radius);
+
+          positionIndicatorNodes();
+
           // This appends components to service container.
           component = service.selectAll('g.component')
               .data(function(d) {
                 return d.components;
               })
             .enter()
-              .append("g")
+              .append('g')
                 .attr('class', 'component')
                 .on('click', function(d) {
                   if(d3.event.defaultPrevented) {
                     return;
                   }
-                  console.log('COMPONENT', d);
 
                   var data = {
                     service: d3.select(this.parentNode).datum()._id,
@@ -361,7 +377,6 @@ angular.module('checkmate.Blueprint')
               return label;
             });
 
-
           // This draws the linker thingy
           var linker = component.append('g')
             .style("pointer-events", "all")
@@ -370,7 +385,6 @@ angular.module('checkmate.Blueprint')
               if(d3.event.defaultPrevented) {
                 return;
               }
-              console.log('LINKER', d);
 
               var data = {
                 service: d3.select(this.parentNode).datum()._id,
@@ -407,17 +421,13 @@ angular.module('checkmate.Blueprint')
 
           // This defines linker drag events.
           linker.on("dragenter", function(d) {
-            console.log("enter");
             d3.select(this).classed('target', true);
             Drag.target.set({componentId: d, serviceId: d3.select(this.parentNode.parentNode).datum()._id});
           }).on("dragover", function(d) {
-            console.log("OVER");
           }).on("dragleave", function(d) {
             Drag.target.set(null);
             d3.select(this).classed('target unsuitable', false);
-            console.log("LEAVE");
           }).on("drop", function() {
-            console.log("DROP");
             d3.select(this).classed('target unsuitable', false);
           });
 
@@ -425,14 +435,18 @@ angular.module('checkmate.Blueprint')
           linker.on("mouseover", function(d) {
             if (state.linking) {
               var source = Drag.source.get();
-              var target = {componentId: d, serviceId: d3.select(this.parentNode.parentNode).datum()._id};
+              var target = {
+                componentId: d,
+                serviceId: d3.select(this.parentNode.parentNode).datum()._id,
+                protocol: d
+              };
+
               if (source.serviceId === target.serviceId && source.componentId === target.componentId) {
-                console.log("SELF");
                 return;
-              } else {
-                console.log("OTHER", source, target);
               }
+
               d3.select(this).classed('target', true);
+
               if (Blueprint.canConnect(source, target)) {
                 Drag.target.set(target);
                 d3.select(this).classed('unsuitable', false);
@@ -441,18 +455,44 @@ angular.module('checkmate.Blueprint')
               }
             }
           }).on("mouseout", function(d) {
-            console.log("OUT", d);
             if (state.linking) {
               d3.select(this).classed('target unsuitable', false);
               Drag.target.set(null);
             }
           }).on("mouseup", function(d) {
-            console.log("UP", d);
             if (state.linking) {
               d3.select(this).classed('target unsuitable', false);
             }
           });
+        }
 
+        function toggleSelect(el, data) {
+          if (el.classed('selected')) {
+            el.classed('selected', false);
+            scope.deselect(data);
+          } else {
+            svg.selectAll('.selected').classed('selected', false);
+            el.classed('selected', true);
+            scope.select(data);
+          }
+        }
+
+        function getCoords(element) {
+          if(!element) {
+            return false;
+          }
+
+          var position = {
+            x: element.datum().x,
+            y: element.datum().y
+          };
+
+          var size = element.node().getBBox();
+
+          return {
+            x: position.x + (size.width / 2),
+            y: position.y + (size.height / 2)
+          }
         }
 
         function linkstarted(d) {
@@ -478,9 +518,12 @@ angular.module('checkmate.Blueprint')
           dragConnectorLine.remove();
           d3.event.sourceEvent.stopPropagation();
           d3.select(this).classed("dragging", false);
+          var source = Drag.source.get();
           var target = Drag.target.get();
-          if (target) {
-            console.log("DROP", target);
+          if (source && target) {
+            if (Blueprint.canConnect(source, target)) {
+              Blueprint.connect(source.serviceId, target.serviceId, target.protocol);
+            }
           }
           Drag.reset();
         }
@@ -507,7 +550,42 @@ angular.module('checkmate.Blueprint')
         function dragged(d) {
           d.x = d3.event.x;
           d.y = d3.event.y;
+
           d3.select(this).attr("transform", "translate(" + d.x + "," + d.y + ")");
+
+          connectRelationLines();
+          positionIndicatorNodes();
+        }
+
+        function positionIndicatorNodes() {
+          indicator.attr("transform", function(d) {
+            var source = d3.select('#'+d.source+'-service');
+            var target = d3.select('#'+d.target+'-service');
+
+            var x = (getCoords(source).x + getCoords(target).x) / 2;
+            var y = (getCoords(source).y + getCoords(target).y) / 2;
+
+            return 'translate('+x+','+y+')';
+          });
+        }
+
+        function connectRelationLines() {
+          line.attr("x1", function(d) {
+            var ele = d3.select('#'+d.source+'-service');
+            return getCoords(ele).x;
+          })
+          .attr("y1", function(d) {
+            var ele = d3.select('#'+d.source+'-service');
+            return getCoords(ele).y;
+          })
+          .attr("x2", function(d) {
+            var ele = d3.select('#'+d.target+'-service');
+            return getCoords(ele).x;
+          })
+          .attr("y2", function(d) {
+            var ele = d3.select('#'+d.target+'-service');
+            return getCoords(ele).y;
+          });
         }
 
         function dragended(d) {

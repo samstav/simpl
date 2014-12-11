@@ -1,0 +1,83 @@
+/* Topology Styles */
+.blueprint-topology {
+  position: relative;
+  z-index: 700;
+}
+.overlay {
+  fill: none;
+  pointer-events: all;
+}
+
+.service-title tspan {
+  font-size: 10px;
+  fill: #999;
+  font-weight: bold;
+}
+
+.component-title tspan {
+  font-size: 19px;
+  fill: #666;
+  font-weight: 100;
+  letter-spacing: .04em;
+}
+
+.service-container,
+.component-container {
+  fill: #fff;
+  stroke: #ccc;
+  stroke-width: 1;
+}
+
+g.selected > .service-container,
+g.selected > .component-container {
+  stroke-width: 4px;
+  stroke: #aaa;
+  stroke-dasharray: 8;
+}
+
+g.relation-linker:hover {
+  cursor: pointer;
+}
+g.relation-linker:hover circle.relation-link-container {
+  stroke: #ccc;
+  stroke-width: 1;
+}
+g.relation-linker text {
+  font-family: FontAwesome;
+  fill: #999;
+}
+g.relation-linker:hover text {
+  fill: #2980b9;
+}
+g.relation-linker:hover circle.relation-link-container {
+  stroke: #2980b9;
+}
+
+g.relation-linker.dragging circle {
+  stroke: #1abc9c;
+}
+
+g.relation-linker.target circle {
+  stroke: #1abc9c;
+}
+
+g.relation-linker.target.unsuitable circle {
+  stroke: #c0392b;
+}
+
+path.linker {
+  fill: none;
+  stroke: #95a5a6;
+  stroke-width: 2px;
+  cursor: default;
+}
+
+/* Relation Indicator */
+g.relation-indicator .relation-indicator-circle {
+  fill: #bdc3c7;
+}
+
+g.relation-indicator:hover .relation-indicator-circle {
+  fill: #3498db;
+  cursor: pointer;
+}

@@ -247,15 +247,19 @@ angular.module('checkmate.Blueprint')
       },
       connect: function(fromServiceId, toServiceId, protocol, optionalTag) {
         var fromService = this.data.services[fromServiceId];
+
         if (!angular.isArray(fromService.relations)) {
           fromService.relations = [];
         }
+
         var relation = {};
+
         if (typeof optionalTag === 'string' && optionalTag.length > 0) {
           relation[toServiceId] = protocol + '#' + optionalTag;
         } else {
           relation[toServiceId] = protocol;
         }
+
         if (typeof _.findWhere(fromService.relations, relation) === 'undefined') {
           fromService.relations.push(relation);
           this.broadcast();
