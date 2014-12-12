@@ -2,18 +2,34 @@
 .blueprint-topology {
   position: relative;
   z-index: 700;
+  --webkit-cursor: move;
+  --moz-cursor: move;
+  cursor: move;
 }
 .overlay {
   fill: none;
   pointer-events: all;
 }
 
+/* Services */
+.service {
+  cursor:hand;
+  cursor:grab;
+  cursor:-moz-grab;
+  cursor:-webkit-grab;
+}
+.service.dragging {
+  cursor:grabbing;
+  cursor:-moz-grabbing;
+  cursor:-webkit-grabbing;
+}
 .service-title tspan {
   font-size: 10px;
   fill: #999;
   font-weight: bold;
 }
 
+/* Components */
 .component-title tspan {
   font-size: 19px;
   fill: #666;
@@ -35,6 +51,7 @@ g.selected > .component-container {
   stroke-dasharray: 8;
 }
 
+/* Relations */
 g.relation-linker:hover {
   cursor: pointer;
 }
@@ -72,7 +89,7 @@ path.linker {
   cursor: default;
 }
 
-/* Relation Indicator */
+/* Relations - Indicator */
 g.relation-indicator .relation-indicator-circle {
   fill: #bdc3c7;
 }
@@ -80,4 +97,25 @@ g.relation-indicator .relation-indicator-circle {
 g.relation-indicator:hover .relation-indicator-circle {
   fill: #3498db;
   cursor: pointer;
+}
+g.relation-indicator .connection {
+  display: none;
+}
+g.relation-indicator.active .connection {
+  display: block;
+}
+
+/* Connections */
+.connections-arrow {
+  fill: #ccc;
+  display: none;
+}
+.connections-container {
+  fill: #fff;
+  stroke: #ccc;
+  display: none;
+}
+g.relation-indicator.active .connections-container,
+g.relation-indicator.active .connections-arrow {
+  display: block;
 }
