@@ -16,7 +16,7 @@
 import unittest
 
 
-from checkmate.providers.rackspace import database
+from checkmate.providers.rackspace.database import tasks
 from checkmate.providers.rackspace.database import provider
 from checkmate import test
 
@@ -35,7 +35,7 @@ class TestGetResourceStatus(TestDatabaseProvider):
         self.resource = {}
         self.key = 'foo'
         self.api = None
-        self.mock_sync_resource_task = test.mock_object(self, database,
+        self.mock_sync_resource_task = test.mock_object(self, tasks,
                                                         'sync_resource_task')
         self.mock_connect = test.mock_object(self, provider.Provider,
                                              'connect')
@@ -66,7 +66,6 @@ class TestGetResourceStatus(TestDatabaseProvider):
                                              api=self.api)
         self.mock_sync_resource_task.assert_called_once_with(self.context,
                                                              self.resource,
-                                                             self.key,
                                                              api=self.api)
 
 if __name__ == '__main__':

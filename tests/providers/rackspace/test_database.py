@@ -42,7 +42,7 @@ class TestDatabase(test.ProviderTester):
         self.deployment = self.mox.CreateMockAnything()
 
     def test_create_instance(self):
-        #Mock instance
+        # Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
         instance.name = 'fake_instance'
@@ -51,16 +51,16 @@ class TestDatabase(test.ProviderTester):
         instance.volume = self.mox.CreateMockAnything()
         instance.volume.size = 1
 
-        #Stub out postback call
+        # Stub out postback call
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
-        #Stub out postback call
-        self.mox.StubOutWithMock(database._create_instance, 'callback')
+        # Stub out postback call
+        self.mox.StubOutWithMock(database.tasks.create_instance, 'callback')
 
-        #Stub out wait_on_build
-        self.mox.StubOutWithMock(database.wait_on_build, 'delay')
+        # Stub out wait_on_build
+        self.mox.StubOutWithMock(database.tasks.wait_on_build, 'delay')
 
-        #Create clouddb mock
+        # Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.create(
             instance.name,
@@ -96,55 +96,61 @@ class TestDatabase(test.ProviderTester):
             }
         }
         context = middleware.RequestContext(deployment_id='DEP_ID',
-                                            resource_key='1')
+                                            resource_key='1',
+                                            region='NORTH')
 
-        database._create_instance.callback(context,
-                                           {'id': instance.id}).AndReturn({})
-        database._create_instance.callback(
+        database.tasks.create_instance.callback(
+            context, {'id': instance.id}).AndReturn({})
+        database.tasks.create_instance.callback(
             context, expected['instance:1']).AndReturn({})
 
         self.mox.ReplayAll()
-        results = database.create_instance(context, instance.name, 1, 1,
-                                           [{'name': 'db1'}], 'NORTH',
-                                           api=clouddb_api_mock)
+        results = database.tasks.create_instance(context, instance.name, 1, 1,
+                                                 [{'name': 'db1'}], 'NORTH',
+                                                 api=clouddb_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
     def test_create_database_fail_building(self):
-        context = middleware.RequestContext(**{'deployment_id': 'DEP',
-                                            'resource_key': '1'})
+        context = middleware.RequestContext(**{
+            'deployment_id': 'DEP',
+            'resource_key': '1'
+        })
 
-        #Mock instance
+        # Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
         instance.name = 'fake_instance'
         instance.status = 'BUILD'
         instance.hostname = 'fake.cloud.local'
 
-        #Stub out postback call
-        self.mox.StubOutWithMock(database._create_database, 'callback')
+        # Stub out postback call
+        self.mox.StubOutWithMock(database.tasks.create_database, 'callback')
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
-        database._create_database.callback(context, {'status': 'BUILD'})
-        #Create clouddb mock
+        database.tasks.create_database.callback(context, {'status': 'BUILD'})
+        # Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get(instance.id).AndReturn(instance)
         self.mox.ReplayAll()
-        #Should throw exception when instance.status="BUILD"
+        # Should throw exception when instance.status="BUILD"
         self.assertRaises(exceptions.CheckmateException,
-                          database.create_database,
-                          context, 'db1', 'NORTH', instance_id=instance.id,
+                          database.tasks.create_database,
+                          context, 'db1', instance_id=instance.id,
                           api=clouddb_api_mock)
 
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
 
     def test_create_database(self):
-        context = middleware.RequestContext(**{'deployment_id': 'DEP',
-                                            'resource_key': '1'})
+        context = middleware.RequestContext(**{
+            'deployment_id': 'DEP',
+            'resource_key': '1',
+            'region': 'NORTH'
+        })
 
-        #Mock instance
+        # Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
         instance.flavor = self.mox.CreateMockAnything()
@@ -153,11 +159,11 @@ class TestDatabase(test.ProviderTester):
         instance.status = 'ACTIVE'
         instance.hostname = 'fake.cloud.local'
 
-        #Stub out postback call
-        self.mox.StubOutWithMock(database._create_database, 'callback')
+        # Stub out postback call
+        self.mox.StubOutWithMock(database.tasks.create_database, 'callback')
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
-        #Create clouddb mock
+        # Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get(instance.id).AndReturn(instance)
         instance.create_database('db1', None, None).AndReturn(None)
@@ -178,14 +184,14 @@ class TestDatabase(test.ProviderTester):
                 'flavor': '1'
             }
         }
-        database._create_database.callback(
+        database.tasks.create_database.callback(
             context, {'status': instance.status}).AndReturn({})
-        database._create_database.callback(context, expected['instance:1'])\
+        database.tasks.create_database.callback(context, expected['instance:1'])\
             .AndReturn({})
         self.mox.ReplayAll()
-        results = database.create_database(context, 'db1', 'NORTH',
-                                           instance_id=instance.id,
-                                           api=clouddb_api_mock)
+        results = database.tasks.create_database(context, 'db1',
+                                                 instance_id=instance.id,
+                                                 api=clouddb_api_mock)
 
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
@@ -208,7 +214,7 @@ class TestDatabase(test.ProviderTester):
         }
         provider = database.Provider({'catalog': catalog})
 
-        #Mock Base Provider, context and deployment
+        # Mock Base Provider, context and deployment
         context = self.mox.CreateMockAnything()
         context.kwargs = {}
 
@@ -251,7 +257,7 @@ class TestDatabase(test.ProviderTester):
         }
         provider = database.Provider({'catalog': catalog})
 
-        #Mock Base Provider, context and deployment
+        # Mock Base Provider, context and deployment
         self.deployment.get_setting(
             'domain',
             default='checkmate.local',
@@ -306,49 +312,59 @@ class TestDatabase(test.ProviderTester):
         """Helper method to verify limits."""
         context = middleware.RequestContext()
         resources = [
-            {'component': 'mysql_database',
-             'dns-name': 'backend01.wordpress.cldsrvr.com',
-             'hosted_on': '6',
-             'index': '5',
-             'instance': {},
-             'provider': 'database',
-             'relations': {'host': {'interface': 'mysql',
-                                    'name': 'compute',
-                                    'relation': 'host',
-                                    'requires-key': 'compute',
-                                    'state': 'planned',
-                                    'target': '6'},
-                           'master-backend-1': {'interface': 'mysql',
-                                                'name': 'master-backend',
-                                                'relation': 'reference',
-                                                'relation-key': 'backend',
-                                                'source': '1',
-                                                'state': 'planned'},
-                           'web-backend-3': {'interface': 'mysql',
-                                             'name': 'web-backend',
-                                             'relation': 'reference',
-                                             'relation-key': 'backend',
-                                             'source': '3',
-                                             'state': 'planned'}},
-             'service': 'backend',
-             'status': 'PLANNED',
-             'type': 'database',
-             'desired-state': {},
-             },
-            {'component': 'mysql_instance',
-             'disk': 1,
-             'dns-name': 'backend01.wordpress.cldsrvr.com',
-             'flavor': '1',
-             'hosts': ['5'],
-             'index': '6',
-             'instance': {},
-             'provider': 'database',
-             'region': 'ORD',
-             'service': 'backend',
-             'status': 'NEW',
-             'type': 'compute',
-             'desired-state': {},
-             }
+            {
+                'component': 'mysql_database',
+                'dns-name': 'backend01.wordpress.cldsrvr.com',
+                'hosted_on': '6',
+                'index': '5',
+                'instance': {},
+                'provider': 'database',
+                'relations': {
+                    'host': {
+                        'interface': 'mysql',
+                        'name': 'compute',
+                        'relation': 'host',
+                        'requires-key': 'compute',
+                        'state': 'planned',
+                        'target': '6'
+                    },
+                    'master-backend-1': {
+                        'interface': 'mysql',
+                        'name': 'master-backend',
+                        'relation': 'reference',
+                        'relation-key': 'backend',
+                        'source': '1',
+                        'state': 'planned'
+                    },
+                    'web-backend-3': {
+                        'interface': 'mysql',
+                        'name': 'web-backend',
+                        'relation': 'reference',
+                        'relation-key': 'backend',
+                        'source': '3',
+                        'state': 'planned'
+                    }
+                },
+                'service': 'backend',
+                'status': 'PLANNED',
+                'type': 'database',
+                'desired-state': {},
+            },
+            {
+                'component': 'mysql_instance',
+                'disk': 1,
+                'dns-name': 'backend01.wordpress.cldsrvr.com',
+                'flavor': '1',
+                'hosts': ['5'],
+                'index': '6',
+                'instance': {},
+                'provider': 'database',
+                'region': 'ORD',
+                'service': 'backend',
+                'status': 'NEW',
+                'type': 'compute',
+                'desired-state': {},
+            }
         ]
         instance1 = self.mox.CreateMockAnything()
         instance1.volume = self.mox.CreateMockAnything()

@@ -88,10 +88,12 @@ class Provider(providers.ProviderBase):
             # Get flavor
             # Find same or next largest size and get flavor ID
             flavor = None
-            memory = self.parse_memory_setting(deployment.get_setting('memory',
-                                               resource_type=resource_type,
-                                               service_name=service,
-                                               provider_key=self.key) or 512)
+            memory = self.parse_memory_setting(
+                deployment.get_setting('memory',
+                                       resource_type=resource_type,
+                                       service_name=service,
+                                       provider_key=self.key) or 512
+            )
 
             # Find the available memory size that satisfies this
             matches = [e['memory'] for e in catalog['lists']['sizes'].values()
@@ -249,8 +251,7 @@ class Provider(providers.ProviderBase):
             create_database_task = specs.Celery(
                 wfspec,
                 'Create Database',
-                'checkmate.providers.rackspace.'
-                'database.create_database',
+                'checkmate.providers.rackspace.database.tasks.create_database',
                 call_args=[
                     context.get_queued_task_dict(
                         deployment_id=deployment['id'],
@@ -276,7 +277,7 @@ class Provider(providers.ProviderBase):
             create_db_user = specs.Celery(
                 wfspec,
                 "Add DB User: %s" % username,
-                'checkmate.providers.rackspace.database.add_user',
+                'checkmate.providers.rackspace.database.tasks.add_user',
                 call_args=[
                     context.get_queued_task_dict(
                         deployment_id=deployment['id'],
@@ -309,8 +310,7 @@ class Provider(providers.ProviderBase):
             create_instance_task = specs.Celery(
                 wfspec,
                 'Create Database Server',
-                'checkmate.providers.rackspace.'
-                'database.create_instance',
+                'checkmate.providers.rackspace.database.tasks.create_instance',
                 call_args=[
                     context.get_queued_task_dict(
                         deployment_id=deployment['id'],
@@ -360,12 +360,13 @@ class Provider(providers.ProviderBase):
 
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
-        from checkmate.providers.rackspace.database import sync_resource_task
+        from checkmate.providers.rackspace.database.tasks import (
+            sync_resource_task)
         if (api is None and 'instance' in resource and
                 'region' in resource['instance']):
             region = resource['instance']['region']
             api = Provider.connect(context, region=region)
-        return sync_resource_task(context, resource, key, api=api)
+        return sync_resource_task(context, resource, api=api)
 
     @staticmethod
     def delete_one_resource(context):
@@ -412,12 +413,14 @@ class Provider(providers.ProviderBase):
         """Delete Computer Resource Tasks."""
         delete_instance = specs.Celery(
             wf_spec, 'Delete Computer Resource Tasks (%s)' % key,
-            'checkmate.providers.rackspace.database.delete_instance_task',
+            'checkmate.providers.rackspace.database.tasks.'
+            'delete_instance_task',
             call_args=[context], properties={'estimated_duration': 5})
 
         wait_on_delete = specs.Celery(
             wf_spec, 'Wait on delete Database (%s)' % key,
-            'checkmate.providers.rackspace.database.wait_on_del_instance',
+            'checkmate.providers.rackspace.database.tasks.'
+            'wait_on_del_instance',
             call_args=[context], properties={'estimated_duration': 10})
 
         delete_instance.connect(wait_on_delete)
@@ -430,8 +433,8 @@ class Provider(providers.ProviderBase):
         :param context:
         :return:
         """
-        from checkmate.providers.rackspace.database import \
-            delete_instance_task, wait_on_del_instance
+        from checkmate.providers.rackspace.database.tasks import (
+            delete_instance_task, wait_on_del_instance)
         return canvas.chain(
             delete_instance_task.si(context),
             wait_on_del_instance.si(context)
@@ -443,8 +446,8 @@ class Provider(providers.ProviderBase):
         :param context:
         :return:
         """
-        from checkmate.providers.rackspace.database import \
-            delete_database
+        from checkmate.providers.rackspace.database.tasks import (
+            delete_database)
         return canvas.chain(
             delete_database.si(context),
         )
@@ -454,7 +457,7 @@ class Provider(providers.ProviderBase):
         """Return delete tasks for the specified database instance."""
         delete_db = specs.Celery(
             wf_spec, 'Delete DB Resource tasks (%s)' % key,
-            'checkmate.providers.rackspace.database.delete_database',
+            'checkmate.providers.rackspace.database.tasks.delete_database',
             call_args=[context], properties={'estimated_duration': 15})
 
         return {'root': delete_db, 'final': delete_db}
@@ -482,8 +485,13 @@ class Provider(providers.ProviderBase):
                 'id': 'mysql_database',
                 'is': 'database',
                 'provides': [{'database': 'mysql'}],
-                'requires': [{'compute': dict(relation='host',
-                             interface='mysql', type='compute')}],
+                'requires': [{
+                    'compute': {
+                        'relation': 'host',
+                        'interface': 'mysql',
+                        'type': 'compute'
+                    }
+                }],
                 'options': {
                     'database/name': {
                         'type': 'string',
