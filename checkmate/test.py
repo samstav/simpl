@@ -82,14 +82,14 @@ CATALOG = [
     {
         "endpoints": [
             {
-                "publicURL": "https://ord.loadbalancers.api.rackspacecloud.com"
-                "/v1.0/T1000",
+                "publicURL":
+                "https://ord.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
                 "region": "ORD",
                 "tenantId": "T1000"
             },
             {
-                "publicURL": "https://dfw.loadbalancers.api.rackspacecloud.com"
-                "/v1.0/T1000",
+                "publicURL":
+                "https://dfw.loadbalancers.api.rackspacecloud.com/v1.0/T1000",
                 "region": "DFW",
                 "tenantId": "T1000"
             }
@@ -98,16 +98,14 @@ CATALOG = [
         "type": "rax:load-balancer"
     },
     {
-        "endpoints": [
-            {
-                "internalURL": "https://snet-storage101.ord1.clouddrive.com"
-                "/v1/Mosso_T-2000",
-                "publicURL":
-                "https://storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
-                "region": "ORD",
-                "tenantId": "Mossos_T-2000"
-            }
-        ],
+        "endpoints": [{
+            "internalURL":
+            "https://snet-storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
+            "publicURL":
+            "https://storage101.ord1.clouddrive.com/v1/Mosso_T-2000",
+            "region": "ORD",
+            "tenantId": "Mossos_T-2000"
+        }],
         "name": "cloudFiles",
         "type": "object-store"
     },
@@ -304,7 +302,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                                 "calls which is needed to run "
                                                 "a simulated workflow")
 
-        #Mock out celery calls
+        # Mock out celery calls
         self.mock_tasks = {}
         self.mox.StubOutWithMock(default_app, 'send_task')
         self.mox.StubOutWithMock(default_app, 'AsyncResult')
@@ -329,7 +327,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             # To Mock data retrieval - but this has been commented out
             # since SpiffWorkflow only calls this when rehydrating a workflow
             #
-            #default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
+            # default_app.AsyncResult.__call__(async_mock.task_id).AndReturn(
             #        async_mock)
 
         return workflow
@@ -353,8 +351,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 return False
             for key in context:
                 if key not in [
-                    'wordpress', 'user', 'lsyncd', 'mysql', 'apache'
-                ]:
+                        'wordpress', 'user', 'lsyncd', 'mysql', 'apache']:
                     return False
             return True
 
@@ -363,44 +360,55 @@ class StubbedWorkflowBase(unittest.TestCase):
             'call': 'checkmate.providers.opscode.solo.tasks'
                     '.create_environment',
             'args': [IgnoreArg(), self.deployment['id'], IgnoreArg()],
-            'kwargs': And(ContainsKeyValue('private_key', IgnoreArg()),
-                    ContainsKeyValue('secret_key', IgnoreArg()),
-                    ContainsKeyValue('public_key_ssh', IgnoreArg())),
+            'kwargs': And(
+                ContainsKeyValue('private_key', IgnoreArg()),
+                ContainsKeyValue('secret_key', IgnoreArg()),
+                ContainsKeyValue('public_key_ssh', IgnoreArg())
+            ),
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
                 'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'],
-                'private_key_path': '/var/tmp/%s/private.pem' %
-                    self.deployment['id'],
-                'public_key_path': '/var/tmp/%s/checkmate.pub' %
-                    self.deployment['id'],
+                'private_key_path': '/var/tmp/%s/private.pem' % (
+                    self.deployment['id']),
+                'public_key_path': '/var/tmp/%s/checkmate.pub' % (
+                    self.deployment['id']),
                 'public_key': ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']}
         }]
 
-        if str(os.environ.get(
-            'CHECKMATE_CHEF_USE_DATA_BAGS',
-            True)
-        ).lower() in ['true', '1', 'yes']:
+        use_data_bags = os.environ.get('CHECKMATE_CHEF_USE_DATA_BAGS', 'true')
+        if str(use_data_bags).lower() in ['true', '1', 'yes']:
             expected_calls.append({
                 'call': 'checkmate.providers.opscode.solo.tasks'
                         '.write_databag',
-                'args': [IgnoreArg(), self.deployment['id'],
-                        self.deployment['id'],
-                        self.deployment.settings().get('app_id'),
-                        Func(is_good_data_bag)],
-                'kwargs': And(ContainsKeyValue('secret_file',
-                        'certificates/chef.pem'), ContainsKeyValue('merge',
-                        True)),
+                'args': [
+                    IgnoreArg(),
+                    self.deployment['id'],
+                    self.deployment['id'],
+                    self.deployment.settings().get('app_id'),
+                    Func(is_good_data_bag)
+                ],
+                'kwargs': And(
+                    ContainsKeyValue('secret_file', 'certificates/chef.pem'),
+                    ContainsKeyValue('merge', True)
+                ),
                 'result': None
             })
         else:
             expected_calls.append({
                 'call': 'checkmate.providers.opscode.solo.tasks.manage_role',
                 'args': [IgnoreArg(), 'wordpress-web', self.deployment['id']],
-                'kwargs': {'override_attributes': {'wordpress': {'db': {
-                        'host': 'verylong.rackspaceclouddb.com',
-                        'password': IsA(basestring),
-                        'user': os.environ['USER'],
-                        'database': 'db1'}}}},
+                'kwargs': {
+                    'override_attributes': {
+                        'wordpress': {
+                            'db': {
+                                'host': 'verylong.rackspaceclouddb.com',
+                                'password': IsA(basestring),
+                                'user': os.environ['USER'],
+                                'database': 'db1'
+                            }
+                        }
+                    }
+                },
                 'result': None
             })
         # Add repetive calls (per resource)
@@ -488,18 +496,19 @@ class StubbedWorkflowBase(unittest.TestCase):
                         # Create Server
                         'call': 'checkmate.providers.rackspace.compute_legacy.'
                                 'create_server',
-                        'args': [Func(is_good_context),
-                                StrContains(name)],
-                        'kwargs': And(ContainsKeyValue('image', image),
-                                ContainsKeyValue('flavor', flavor),
-                                ContainsKeyValue('ip_address_type', 'public')),
+                        'args': [Func(is_good_context), StrContains(name)],
+                        'kwargs': And(
+                            ContainsKeyValue('image', image),
+                            ContainsKeyValue('flavor', flavor),
+                            ContainsKeyValue('ip_address_type', 'public')
+                        ),
                         'result': {
-                                'instance:%s' % key: {
-                                    'id': fake_id,
-                                    'ip': "4.4.4.%s" % fake_ip,
-                                    'private_ip': "10.1.1.%s" % fake_ip,
-                                    'password': "shecret",
-                                }
+                            'instance:%s' % key: {
+                                'id': fake_id,
+                                'ip': "4.4.4.%s" % fake_ip,
+                                'private_ip': "10.1.1.%s" % fake_ip,
+                                'password': "shecret",
+                            }
                         },
                         'post_back_result': True,
                         'resource': key,
@@ -574,13 +583,14 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 '.cook_v2',
                         'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
                                  self.deployment['id']],
-                        'kwargs': And(In('password'), ContainsKeyValue(
-                            'roles',
-                            ["wordpress-%s" % role]),
+                        'kwargs': And(
+                            In('password'),
+                            ContainsKeyValue('roles', ["wordpress-%s" % role]),
                             ContainsKeyValue(
                                 'identity_file',
-                                '/var/tmp/%s/private.pem' %
-                                self.deployment['id'])),
+                                '/var/tmp/%s/private.pem' % (
+                                    self.deployment['id']))
+                        ),
                         'result': None,
                         'resource': key,
                     })
@@ -588,14 +598,17 @@ class StubbedWorkflowBase(unittest.TestCase):
                     expected_calls.append({
                         'call': 'checkmate.providers.opscode.'
                                 'solo.tasks.write_databag',
-                        'args': [IgnoreArg(), self.deployment['id'],
-                                self.deployment['id'],
-                                'webapp_wordpress_%s' %
-                                self.deployment.get_setting('prefix'),
-                                And(IsA(dict), In('lsyncd'))],
+                        'args': [
+                            IgnoreArg(),
+                            self.deployment['id'],
+                            self.deployment['id'],
+                            'webapp_wordpress_%s' % (
+                                self.deployment.get_setting('prefix')),
+                            And(IsA(dict), In('lsyncd'))
+                        ],
                         'kwargs': And(
-                            ContainsKeyValue('secret_file',
-                                'certificates/chef.pem'),
+                            ContainsKeyValue(
+                                'secret_file', 'certificates/chef.pem'),
                             ContainsKeyValue('merge', True)),
                         'result': None,
                         'resource': key,
@@ -665,7 +678,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             elif resource.get('type') == 'compute' and 'disk' in resource:
                 expected_calls.extend([{
                     # Create Instance
-                    'call': 'checkmate.providers.rackspace.database.'
+                    'call': 'checkmate.providers.rackspace.database.tasks.'
                             'create_instance',
                     'args': [
                         Func(is_good_context),
@@ -683,13 +696,13 @@ class StubbedWorkflowBase(unittest.TestCase):
                     ],
                     'kwargs': IgnoreArg(),
                     'result': {
-                        #'id': 'db-inst-1',
+                        # 'id': 'db-inst-1',
                         'instance:%s' % key: {
                             'id': 'db-inst-1',
                             'name': 'dbname.domain.local',
                             'status': 'BUILD',
                             'region': self.deployment.get_setting(
-                                    'region', default='testonia'),
+                                'region', default='testonia'),
                             'interfaces': {
                                 'mysql': {
                                     'host': 'verylong.rackspaceclouddb.com',
@@ -701,15 +714,15 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'post_back_result': True,
                     'resource': key,
                 }, {  # wait_on_build
-                    'call': 'checkmate.providers.rackspace.database.'
-                            'tasks.wait_on_build',
+                    'call': 'checkmate.providers.rackspace.database.tasks.'
+                            'wait_on_build',
                     'args': [
                         Func(is_good_context),
                         IgnoreArg(),
                     ],
                     'kwargs': IgnoreArg(),
                     'result': {
-                        #'id': 'db-inst-1',
+                        # 'id': 'db-inst-1',
                         'instance:%s' % key: {
                             'id': 'db-inst-1',
                             'status': 'ACTIVE'
@@ -727,7 +740,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 )
                 expected_calls.append({
                     # Create Database
-                    'call': 'checkmate.providers.rackspace.database.'
+                    'call': 'checkmate.providers.rackspace.database.tasks.'
                             'create_database',
                     'args': IgnoreArg(),
                     'kwargs': IgnoreArg(),
@@ -751,7 +764,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 expected_calls.append({
                     # Create Database User
                     'call':
-                    'checkmate.providers.rackspace.database.add_user',
+                    'checkmate.providers.rackspace.database.tasks.add_user',
                     'args': [
                         Func(is_good_context),
                         'db-inst-1',
@@ -786,11 +799,13 @@ class StubbedWorkflowBase(unittest.TestCase):
                         IgnoreArg(),
                         self.deployment['id'],
                         self.deployment['id'],
-                        'webapp_wordpress_%s' %
-                            self.deployment.get_setting('prefix'),
-                            IsA(dict)],
-                    'kwargs': And(ContainsKeyValue('secret_file',
-                        'certificates/chef.pem'),
+                        'webapp_wordpress_%s' % (
+                            self.deployment.get_setting('prefix')),
+                        IsA(dict)
+                    ],
+                    'kwargs': And(
+                        ContainsKeyValue(
+                            'secret_file', 'certificates/chef.pem'),
                         ContainsKeyValue('merge', True)),
                     'result': None,
                     'resource': key,
@@ -803,13 +818,13 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'args': [
                         Func(is_good_context), IsA(basestring),
                         'PUBLIC',
-                        'HTTP', 80,
-                        self.deployment.get_setting(
-                            'region',
-                            default='testonia')],
-                        'kwargs': ContainsKeyValue(
-                            'tag', {'RAX-CHECKMATE': IgnoreArg()}
-                        ),
+                        'HTTP',
+                        80,
+                        self.deployment.get_setting('region',
+                                                    default='testonia')
+                    ],
+                    'kwargs': ContainsKeyValue('tag',
+                                               {'RAX-CHECKMATE': IgnoreArg()}),
                     'result': {
                         'instance:%s' % key: {
                             'id': 20001, 'vip': "200.1.1.1",

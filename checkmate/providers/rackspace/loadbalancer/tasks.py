@@ -15,12 +15,19 @@
 
 """Rackspace Cloud Loadbalancer provider tasks."""
 
+import logging
+
 from celery import task
+import pyrax
 
 from checkmate.common import statsd
+from checkmate import exceptions
 from checkmate.providers import base
 from checkmate.providers.rackspace.loadbalancer.manager import Manager
 from checkmate.providers.rackspace.loadbalancer import provider
+from checkmate import utils
+
+LOG = logging.getLogger(__name__)
 
 
 @task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
@@ -39,7 +46,7 @@ def create_loadbalancer(context, name, vip_type, protocol, region=None,
                         tags=None, parent_lb=None):
     """Task to create a loadbalancer."""
     return Manager.create_loadbalancer(
-        context, name, vip_type,  protocol, create_loadbalancer.api,
+        context, name, vip_type, protocol, create_loadbalancer.api,
         create_loadbalancer.partial, port=port, algorithm=algorithm,
         tags=tags, parent_lb=parent_lb, simulate=context.simulation)
 
@@ -118,3 +125,41 @@ def update_node_status(context, relation, lb_id, ip_address, node_status,
                                       update_node_status.partial,
                                       update_node_status.api,
                                       context.simulation)
+
+
+@task
+@statsd.collect
+def sync_resource_task(context, resource, resource_key, api=None):
+    """Sync provider resource status with deployment."""
+    utils.match_celery_logging(LOG)
+    key = "instance:%s" % resource_key
+    if context.get('simulation') is True:
+        return {
+            key: {
+                'status': resource.get('status', 'DELETED')
+            }
+        }
+
+    if api is None:
+        api = provider.Provider.connect(context, resource.get("region"))
+
+    instance_id = resource.get("instance", {}).get('id')
+
+    try:
+        if not instance_id:
+            error_message = "No instance id supplied for resource %s" % key
+            raise exceptions.CheckmateException(error_message)
+        clb = api.get(instance_id)
+
+        status = {'status': clb.status}
+    except pyrax.exceptions.ClientException as exc:
+        if exc.code not in ['404', '422']:
+            return
+        status = {'status': 'DELETED'}
+    except exceptions.CheckmateException:
+        status = {'status': 'DELETED'}
+
+    if status.get('status'):
+        LOG.info("Marking load balancer instance %s as %s", instance_id,
+                 status['status'])
+    return {key: status}
