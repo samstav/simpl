@@ -122,7 +122,7 @@ def create_environment(context, name, service_name, path=None,
             arg = exc.args[0]
         else:
             arg = "No arguments supplied in exception"
-        deployments.update_all_provider_resources.delay(
+        deployments.tasks.update_all_provider_resources.delay(
             Provider.name,
             context['deployment_id'],
             'ERROR',
