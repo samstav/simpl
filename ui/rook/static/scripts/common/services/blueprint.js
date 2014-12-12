@@ -217,7 +217,7 @@ angular.module('checkmate.Blueprint')
       sort: function(component, target) {
         var serviceName = 'default';
 
-        if (component.is) {
+        if (component && component.is) {
           serviceName = component.is;
         }
 
@@ -231,19 +231,35 @@ angular.module('checkmate.Blueprint')
         this.broadcast();
       },
       canConnect: function(from, target, protocol, optionalTag) {
-        var fromServiceId = from.serviceId,
-            fromComponentId = from.componentId;
-        var targetServiceId = target.serviceId,
-            targetComponentId = target.componentId;
-        if (!(fromServiceId in this.data.services)) {
-          return false;
+        var isValid = false;
+        var catalog = {
+          source: Catalog.getComponent(from.componentId) || [],
+          target: Catalog.getComponent(target.componentId) || []
+        };
+        var map = {
+          provides: {},
+          requires: {}
+        };
+
+        for (var i = 0; i < catalog.source.requires.length; i++) {
+          _.extend(map.requires, catalog.source.requires[i]);
         }
-        if (!(targetServiceId in this.data.services)) {
-          return false;
+
+        for (var j = 0; j < catalog.target.provides.length; j++) {
+          _.extend(map.provides, catalog.target.provides[j]);
+
+          _.each(catalog.target.provides[j], function(val, key) {
+            if(map.requires[key] && map.requires[key] == val) {
+              isValid = true;
+            }
+          });
         }
-        var fromService = this.data.services[fromServiceId];
-        var targetService = this.data.services[targetServiceId];
-        return true;
+
+        if(!protocol && isValid) {
+          return isValid;
+        }
+
+        return isValid;
       },
       connect: function(fromServiceId, toServiceId, protocol, optionalTag) {
         var fromService = this.data.services[fromServiceId];

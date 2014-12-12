@@ -287,11 +287,62 @@ angular.module('checkmate.Blueprint')
           indicator = relation.append("g")
             .attr('class', function(d) {
               return 'relation-indicator';
+            })
+            .attr('id', function(d) {
+              return 'indicator-'+d.source + '-' + d.target;
+            })
+            .on('click', function(d) {
+              d3.event.stopPropagation();
+
+              var element = d3.select(this);
+              var isActive = element.classed('active');
+
+              element.classed('active', !isActive);
             });
 
           indicator.append('circle')
             .attr('class', 'relation-indicator-circle')
             .attr('r', sizes.indicator.radius);
+
+          indicator.append('path')
+            .attr('d', d3.svg.symbol().type('triangle-down'))
+            .attr('class', 'connections-arrow')
+            .attr('transform', function(d, i) {
+              var x = 0;
+              var y = -12;
+              return 'translate('+x+','+y+')';
+            });
+
+          indicator.append('rect')
+            .attr('width', 130)
+            .attr('height', function(d, i) {
+              return 25;
+            })
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('transform', function(d, i) {
+              var x = -65; // half the width
+              var y = (25 * (i+1) + 14) * -1;
+              return 'translate('+x+','+y+')';
+            })
+            .attr('class', 'connections-container');
+
+          var connections = indicator.selectAll('g.connection')
+            .data(function(d, i) {
+              return d.connections;
+            })
+            .enter()
+              .append('g')
+              .attr('class', 'connection')
+              .attr('transform', function(d, i) {
+                return 'translate(0,'+((i-1)*22)+')';
+              });
+
+          connections.append("text")
+            .attr('text-anchor', 'middle')
+            .text(function(d) {
+              return d.protocol;
+            });
 
           positionIndicatorNodes();
 
