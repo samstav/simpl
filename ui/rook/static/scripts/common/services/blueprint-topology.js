@@ -286,7 +286,14 @@ angular.module('checkmate.Blueprint')
 
           indicator = relation.append("g")
             .attr('class', function(d) {
-              return 'relation-indicator';
+              var classes = ['relation-indicator'];
+              var status = state['indicator-'+d.source + '-' + d.target];
+
+              if(status && status.active) {
+                classes.push('active');
+              }
+
+              return classes.join(' ');
             })
             .attr('id', function(d) {
               return 'indicator-'+d.source + '-' + d.target;
@@ -294,10 +301,17 @@ angular.module('checkmate.Blueprint')
             .on('click', function(d) {
               d3.event.stopPropagation();
 
-              var element = d3.select(this);
-              var isActive = element.classed('active');
+              if(!state['indicator-'+d.source + '-' + d.target]) {
+                state['indicator-'+d.source + '-' + d.target] = {
+                  active: false
+                };
+              }
 
-              element.classed('active', !isActive);
+              var status = state['indicator-'+d.source + '-' + d.target];
+              var element = d3.select(this);
+
+              element.classed('active', !status.active);
+              status.active = !status.active;
             });
 
           indicator.append('circle')
