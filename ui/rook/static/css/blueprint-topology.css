@@ -52,9 +52,9 @@ text.fa {
 
 g.selected > .service-container,
 g.selected > .component-container {
-  stroke-width: 4px;
+  stroke-width: 2px;
   stroke: #aaa;
-  stroke-dasharray: 8;
+  stroke-dasharray: 4;
 }
 .component-remover {
   fill: #bdc3c7;

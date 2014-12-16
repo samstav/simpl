@@ -9,7 +9,7 @@
   overflow: hidden;
 }
 .rs-app-launch-container * {
-  transition: all 0.5s ease;
+  transition: fill 0.5s ease, stroke 0.5s ease, opacity 0.5s ease, width 0.5s ease, height 0.5s ease, transform 0.5s ease, top 0.5s ease, right 0.5s ease, bottom 0.5s ease, left 0.5s ease;
 }
 
 /* Sidebar */
@@ -194,7 +194,6 @@
   cursor: pointer;
 }
 
-
 /* Drag & Drop */
 .lvl-target {
   background-color: #ddd;
@@ -222,11 +221,22 @@
 .editor-open .rs-app-launch-controls {
   right: 30%;
 }
+.editor-full-screen .rs-app-launch-controls {
+  opacity: 0;
+}
+
+.codemirror-toggle-button .fa-stack {
+  opacity: .4;
+}
+.codemirror-toggle-button:hover .fa-stack {
+  opacity: 1;
+}
+
 .codemirror-full-screen-button i {
   opacity: 0;
 }
 .editor-open .codemirror-full-screen-button i {
-  opacity: .6;
+  opacity: .4;
 }
 .editor-open .codemirror-full-screen-button:hover i {
   opacity: 1;
