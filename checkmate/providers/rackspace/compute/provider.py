@@ -245,7 +245,8 @@ class Provider(RackspaceComputeProviderBase):
             # Assume it is an OS name and find it
             for key, value in image_types.iteritems():
                 if (image == value['name'] or
-                        image.lower() == value['os'].lower()):
+                        (image.lower() == value['os'].lower() and
+                        not value['name'].startswith('OnMetal'))):
                     LOG.debug("Mapping image from '%s' to '%s'", image, key)
                     image = key
                     break
