@@ -38,7 +38,10 @@ ENV_MAP = {
     'CHECKMATE_SIMULATOR_CONNECTION_STRING': 'simulator_connection_string',
     'CHECKMATE_CACHE_CONNECTION_STRING': 'cache_connection_string',
     'CHECKMATE_BLUEPRINT_CACHE_EXPIRE': 'blueprint_cache_expiration',
+
     'CHECKMATE_GITHUB_TOKEN': 'github_token',
+    'CHECKMATE_GITHUB_CLIENT_ID': 'github_client_id',
+    'CHECKMATE_GITHUB_CLIENT_SECRET': 'github_client_secret',
 
     'CHECKMATE_BASTION_ADDRESS': 'bastion_address',
     'CHECKMATE_BASTION_PKEY_FILE': 'bastion_key_filename',
@@ -87,6 +90,8 @@ class Config(object):
     webhook = False
     github_api = None
     github_token = None
+    github_client_id = None
+    github_client_secret = None
     organization = None
     ref = 'stable'
     cache_dir = None
@@ -319,6 +324,14 @@ def parse_arguments(args=None):
     # Netwroking
     """TODO(zns): expose these once migrated to new config. Right now, exposing
     these fails.
+
+    parser.add_argument("--github-client-id",
+                        help="Github Client ID for Github Auth"
+                        )
+    parser.add_argument("--github-client-secret",
+                        help="Github Client Secret for Github Auth"
+                        )
+
     parser.add_argument("--bastion-address",
                         help="Bastion address for SSH/NetBIOS commands",
                         default=None)

@@ -10,9 +10,11 @@ import json
 import logging
 import os
 import sys
+import time
 from urlparse import urlparse
 
 import bottle
+import requests
 
 from checkmate.common import config
 from checkmate.middleware import TokenAuthMiddleware, RequestContext
@@ -41,6 +43,7 @@ __version_string__ = None
 
 ROOK_STATIC = bottle.Bottle()
 ROOK_API = bottle.Bottle()
+GITHUB_TOKEN_EXPIRE_SECONDS = 60 * 60 * 24 * 365  # One year
 
 
 def init_db():
@@ -74,9 +77,10 @@ class BrowserMiddleware(object):
         - unauthenticated to resource route: render root UI so client can auth
     """
 
-    def __init__(self, nextapp, proxy_endpoints=None,
+    def __init__(self, nextapp, config, proxy_endpoints=None,
                  with_simulator=False, with_admin=False):
         LOG.info("Loading Rook API")
+        self.config = config
         self.nextapp = nextapp
         HANDLERS['application/vnd.github.v3.raw'] = write_raw
         self.proxy_endpoints = None
@@ -142,6 +146,9 @@ class BrowserMiddleware(object):
             """Add our headers to response"""
             if self.with_simulator:
                 headers.append(("X-Simulator-Enabled", "True"))
+            if self.config.github_client_id:
+                headers.append(("X-Github-Client-ID",
+                                self.config.github_client_id))
             # Call upstream start_response
             start_response(status, headers, exc_info)
         return callback
@@ -346,9 +353,13 @@ def githubproxy(path=None):
     if bottle.request.query.per_page:
         query = "?per_page=" + bottle.request.query.per_page
 
+    auth = bottle.request.get_header('Authorization')
+    if not auth:
+        # TODO (zns): we need to disable this at some point
+        auth = 'token %s' % CONFIG.github_token
     headers = {
         'Accept': bottle.request.get_header('Accept', ['application/json']),
-        'Authorization': 'token %s' % CONFIG.github_token,
+        'Authorization': auth,
         'Content-Type': bottle.request.get_header('Content-Type',
                                                   'application/json'),
     }
@@ -393,6 +404,32 @@ def githubproxy(path=None):
         content = body
 
     return write_body(content, bottle.request, bottle.response)
+
+
+@ROOK_API.get('/webhooks/github_auth')
+def github_callback():
+    """Receive OAuth Callback from Github.
+
+    This supports authenticating with Github.
+    """
+    session_code = bottle.request.query.get('code')
+    body = {
+        'client_id': CONFIG.github_client_id,
+        'client_secret': CONFIG.github_client_secret,
+        'code': session_code,
+    }
+    headers = {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+    }
+    response = requests.post('https://github.com/login/oauth/access_token',
+                             data=json.dumps(body), headers=headers)
+    if response.ok:
+        data = response.json()
+        expires = time.time() + GITHUB_TOKEN_EXPIRE_SECONDS
+        bottle.response.set_cookie('github_access_token', data['access_token'],
+                                   expires=expires, path="/")
+    bottle.redirect('/')
 
 
 @ROOK_API.route('/feedback', method=['POST', 'OPTIONS'])

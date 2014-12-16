@@ -14,11 +14,22 @@
     <!-- LOGGED IN -->
     <li class="dropdown pull-right" ng-show="auth.is_logged_in()" title="Token expires {{auth.context.token.expires | formattedDate}}">
       <a class="dropdown-toggle" id="user_button">
-            <i class="icon-user icon-white"></i> {{auth.context.username}}
+            <img ng-show="github.user.avatar_url" ng-src="{{ github.user.avatar_url }}" style="height: 20px; margin-right: 5px;" title="GitHub Login: {{ github.user.login }}">
+            <i ng-hide="github.user.avatar_url" class="icon-user icon-white"></i> {{auth.context.username}}
             <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
             <i class="caret"></i>
       </a>
       <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
+
+        <!-- GitHub -->
+        <li class="nav-header">GITHUB ACCESS</li>
+        <li ng-show="clientId && github.accessToken"><a href="#"><i class="fa fa-github"></i> {{ github.user.login }} (public)</a></li>
+        <li ng-show="clientId && !github.accessToken"><a ng-href="https://github.com/login/oauth/authorize?scope=user:email,repo&client_id={{ clientId }}"><i class="fa fa-github"></i> Auth to GitHub.com</a></li>
+        <li ng-show="github.accessToken"><a href="#" ng-click="githubLogout()">Remove GitHub Token</a></li>
+
+        <li ng-hide="clientId">GitHub not Enabled on Server</li>
+        <li class="divider"></li>
+
         <!-- User Tenants -->
         <li ng-show="auth.get_tenants().length > 0" class="nav-header">Tenants</li>
         <li role="presentation" ng-repeat="tenant in auth.get_tenants()">
