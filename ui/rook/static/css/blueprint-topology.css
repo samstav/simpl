@@ -10,6 +10,9 @@
   fill: none;
   pointer-events: all;
 }
+text.fa {
+  font-family: FontAwesome;
+}
 
 /* Services */
 .service {
@@ -31,7 +34,7 @@
 
 /* Components */
 .component-title tspan {
-  font-size: 19px;
+  font-size: 16px;
   fill: #666;
   font-weight: 100;
   letter-spacing: .04em;
@@ -43,12 +46,22 @@
   stroke: #ccc;
   stroke-width: 1;
 }
+.deactivated {
+  opacity: .3;
+}
 
 g.selected > .service-container,
 g.selected > .component-container {
   stroke-width: 4px;
   stroke: #aaa;
   stroke-dasharray: 8;
+}
+.component-remover {
+  fill: #bdc3c7;
+}
+.component-remover:hover {
+  cursor: pointer;
+  fill: #c0392b;
 }
 
 /* Relations */
@@ -60,7 +73,6 @@ g.relation-linker:hover circle.relation-link-container {
   stroke-width: 1;
 }
 g.relation-linker text {
-  font-family: FontAwesome;
   fill: #999;
 }
 g.relation-linker:hover text {
@@ -74,10 +86,16 @@ g.relation-linker.dragging circle {
   stroke: #1abc9c;
 }
 
+g.relation-linker.target text {
+  fill: #1abc9c;
+}
 g.relation-linker.target circle {
   stroke: #1abc9c;
 }
 
+g.relation-linker.target.unsuitable text {
+  fill: #c0392b;
+}
 g.relation-linker.target.unsuitable circle {
   stroke: #c0392b;
 }
@@ -103,6 +121,10 @@ g.relation-indicator .connection {
 }
 g.relation-indicator.active .connection {
   display: block;
+}
+g.relation-indicator .connection text {
+  font-size: 11px;
+  fill: #7f8c8d;
 }
 
 /* Connections */
