@@ -65,6 +65,10 @@ g.selected > .component-container {
 }
 
 /* Relations */
+.relation-link {
+  stroke: #ccc;
+  stroke-width: 1px;
+}
 g.relation-linker:hover {
   cursor: pointer;
 }

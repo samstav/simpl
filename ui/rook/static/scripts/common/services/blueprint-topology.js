@@ -278,12 +278,15 @@ angular.module('checkmate.Blueprint')
 
           line = relation.append("line")
             .attr('class', function(d) {
-              var classes = ['link'];
+              var classes = ['relation-link'];
 
               classes.push('source-'+d.source);
               classes.push('target-'+d.target);
 
               return classes.join(' ');
+            })
+            .on('mousedown', function() {
+              d3.event.stopPropagation();
             });
 
           connectRelationLines();
@@ -320,6 +323,9 @@ angular.module('checkmate.Blueprint')
 
               element.classed('active', !status.active);
               status.active = !status.active;
+            })
+            .on('mousedown', function() {
+              d3.event.stopPropagation();
             });
 
           indicator.append('circle')
