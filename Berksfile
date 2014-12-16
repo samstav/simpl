@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 #^syntax detection
 
-site :opscode
+source "https://supermarket.chef.io"
 
 cookbook 'sysstat'
 cookbook 'chef-client'
