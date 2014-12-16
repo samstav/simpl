@@ -214,6 +214,37 @@ angular.module('checkmate.Blueprint')
         // Add item to blueprint data.
         this.sort(component, target);
       },
+      remove: function(selection) {
+        // Remove component to blueprint data.
+        this.get().services[selection.service].components.splice(selection.index, 1);
+
+        // If the service has no components, remove the service.
+        if(this.get().services[selection.service].components.length < 1) {
+          delete this.get().services[selection.service];
+        }
+
+        // Find all connections to the removed component and remove them.
+        _.each(this.get().services, function(service, id, services) {
+          _.each(service.relations, function(relation, index, relations) {
+
+            _.each(relation, function(component, service) {
+              if(component == selection.component && service == selection.service) {
+                delete relation[service];
+              }
+            });
+
+            if(_.isEmpty(relation)) {
+              relations.splice(index, 1);
+            }
+
+            if(!relations.length) {
+              delete service.relations;
+            }
+          });
+        });
+
+        this.broadcast();
+      },
       sort: function(component, target) {
         var serviceName = 'default';
 
@@ -225,7 +256,8 @@ angular.module('checkmate.Blueprint')
           this.data.services = {};
         }
 
-        // disabling this for now: this.addComponent(component, serviceName);
+        // disabling this for now
+        //this.addComponent(component, serviceName);
         this.addComponentSingletons(component, serviceName);
 
         this.broadcast();
@@ -241,18 +273,22 @@ angular.module('checkmate.Blueprint')
           requires: {}
         };
 
-        for (var i = 0; i < catalog.source.requires.length; i++) {
-          _.extend(map.requires, catalog.source.requires[i]);
+        if(catalog.source.requires) {
+          for (var i = 0; i < catalog.source.requires.length; i++) {
+            _.extend(map.requires, catalog.source.requires[i]);
+          }
         }
 
-        for (var j = 0; j < catalog.target.provides.length; j++) {
-          _.extend(map.provides, catalog.target.provides[j]);
+        if(catalog.target.provides) {
+          for (var j = 0; j < catalog.target.provides.length; j++) {
+            _.extend(map.provides, catalog.target.provides[j]);
 
-          _.each(catalog.target.provides[j], function(val, key) {
-            if(map.requires[key] && map.requires[key] == val) {
-              isValid = true;
-            }
-          });
+            _.each(catalog.target.provides[j], function(val, key) {
+              if(map.requires[key] && map.requires[key] == val) {
+                isValid = true;
+              }
+            });
+          }
         }
 
         if(!protocol && isValid) {

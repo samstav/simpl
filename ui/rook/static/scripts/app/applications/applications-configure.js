@@ -13,12 +13,12 @@ angular.module('checkmate.applications-configure')
 
     // This selects the object being sent to the Blueprint.
     $scope.select = function(app) {
-      Drag.current.set(app);
+      Drag.source.set(app);
     };
 
     // This triggers when something is dropped on the drop target.
     $scope.add = function() {
-      var source = Drag.current.get();
+      var source = Drag.source.get();
       var target = Drag.target.get();
 
       Blueprint.add(source, target);

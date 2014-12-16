@@ -4,18 +4,9 @@ angular.module('checkmate.Drag')
     return {
       reset: function() {
         this.target.data = null;
-        this.current.data = null;
+        this.source.data = null;
       },
       target: {
-        data: null,
-        get: function() {
-          return this.data;
-        },
-        set: function(data) {
-          this.data = data;
-        }
-      },
-      current: {
         data: null,
         get: function() {
           return this.data;

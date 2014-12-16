@@ -46,7 +46,9 @@ angular.module('checkmate.Blueprint')
         radius: 10
       },
       indicator: {
-        radius: 6
+        radius: 6,
+        width: 240,
+        spacing: 23
       }
     };
 

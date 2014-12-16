@@ -20,6 +20,10 @@ angular.module('checkmate.Blueprint')
           $scope.$emit('topology:deselect', selection);
         };
 
+        $scope.remove = function(selection) {
+          Blueprint.remove(selection);
+        };
+
         $scope.$on('blueprint:update', function(event, data) {
           $timeout(function() {
             $scope.blueprint = angular.copy(data);
@@ -274,30 +278,54 @@ angular.module('checkmate.Blueprint')
 
           line = relation.append("line")
             .attr('class', function(d) {
-              var classes = ['link'];
+              var classes = ['relation-link'];
 
               classes.push('source-'+d.source);
               classes.push('target-'+d.target);
 
               return classes.join(' ');
+            })
+            .on('mousedown', function() {
+              d3.event.stopPropagation();
             });
 
           connectRelationLines();
 
           indicator = relation.append("g")
             .attr('class', function(d) {
-              return 'relation-indicator';
+              var classes = ['relation-indicator'];
+              var status = state['indicator-'+d.source + '-' + d.target];
+              var target = d3.select('#'+d.target+'-service');
+
+              if(status && status.active && target[0][0]) {
+                classes.push('active');
+              }
+
+              return classes.join(' ');
             })
             .attr('id', function(d) {
               return 'indicator-'+d.source + '-' + d.target;
             })
             .on('click', function(d) {
+              if(d3.event.defaultPrevented) {
+                return;
+              }
               d3.event.stopPropagation();
 
-              var element = d3.select(this);
-              var isActive = element.classed('active');
+              if(!state['indicator-'+d.source + '-' + d.target]) {
+                state['indicator-'+d.source + '-' + d.target] = {
+                  active: false
+                };
+              }
 
-              element.classed('active', !isActive);
+              var status = state['indicator-'+d.source + '-' + d.target];
+              var element = d3.select(this);
+
+              element.classed('active', !status.active);
+              status.active = !status.active;
+            })
+            .on('mousedown', function() {
+              d3.event.stopPropagation();
             });
 
           indicator.append('circle')
@@ -314,15 +342,15 @@ angular.module('checkmate.Blueprint')
             });
 
           indicator.append('rect')
-            .attr('width', 130)
+            .attr('width', sizes.indicator.width)
             .attr('height', function(d, i) {
               return 25;
             })
             .attr('x', 0)
             .attr('y', 0)
             .attr('transform', function(d, i) {
-              var x = -65; // half the width
-              var y = (25 * (i+1) + 14) * -1;
+              var x = -1 * (sizes.indicator.width / 2);
+              var y = (sizes.indicator.spacing + ((sizes.indicator.radius + 2) * 2)) * -1;
               return 'translate('+x+','+y+')';
             })
             .attr('class', 'connections-container');
@@ -335,13 +363,14 @@ angular.module('checkmate.Blueprint')
               .append('g')
               .attr('class', 'connection')
               .attr('transform', function(d, i) {
-                return 'translate(0,'+((i-1)*22)+')';
+                return 'translate(0,'+((i-1)*sizes.indicator.spacing)+')'; // ext sizes
               });
 
           connections.append("text")
             .attr('text-anchor', 'middle')
             .text(function(d) {
-              return d.protocol;
+              var parent = d3.select(this.parentNode.parentNode).datum();
+              return parent.source +':'+d.protocol+' - '+parent.target +':'+d.protocol;
             });
 
           positionIndicatorNodes();
@@ -380,13 +409,37 @@ angular.module('checkmate.Blueprint')
             })
             .attr('class', 'component-container');
 
+          component.append('text')
+            .html('&#xf057')
+            .attr('x', function(d, index) {
+              return sizes.service.margin.left + (sizes.component.width() * (index + 1)) - 16;
+            })
+            .attr('y', function(d, index) {
+              return 25;
+            })
+            .attr('class', 'fa fa-times component-remover')
+            .on('click', function(d, index) {
+              if(d3.event.defaultPrevented) {
+                return;
+              }
+              d3.event.stopPropagation();
+
+              var data = {
+                service: d3.select(this.parentNode.parentNode).datum()._id,
+                component: d,
+                index: index
+              };
+
+              removeComponent(data);
+            });
+
           component.append('image')
             .attr('fill', 'black')
-            .attr('width', sizes.component.width() - 50)
-            .attr('height', sizes.component.height() - 50)
+            .attr('width', sizes.component.width() - 64)
+            .attr('height', sizes.component.height() - 64)
             .attr('transform', function(d, index) {
-              var x = sizes.service.margin.left + (sizes.component.width() * (index)) + 25;
-              var y = sizes.service.margin.top + 37;
+              var x = sizes.service.margin.left + (sizes.component.width() * (index)) + 32;
+              var y = sizes.service.margin.top + 40;
 
               return 'translate('+x+','+y+')';
             })
@@ -416,7 +469,7 @@ angular.module('checkmate.Blueprint')
               return x;
             })
             .attr('y', function(d) {
-              return sizes.service.margin.top + 25;
+              return sizes.service.margin.top + 28;
             })
             .text(function(d) {
               var label = d;
@@ -468,7 +521,7 @@ angular.module('checkmate.Blueprint')
             .attr('y', function(d, index) {
               return sizes.component.height() - 2;
             })
-            .attr('class', 'fa-link relation-linker-icon');
+            .attr('class', 'fa fa-link relation-linker-icon');
 
           // This defines linker drag events.
           linker.on("dragenter", function(d) {
@@ -528,17 +581,25 @@ angular.module('checkmate.Blueprint')
           }
         }
 
+        function removeComponent(data) {
+          scope.remove(data);
+        }
+
         function getCoords(element) {
-          if(!element) {
-            return false;
+          var position = {
+            x: 0,
+            y: 0
+          };
+          var size;
+
+          if(!element[0][0]) {
+            return position;
           }
 
-          var position = {
-            x: element.datum().x,
-            y: element.datum().y
-          };
+          size = element.node().getBBox();
 
-          var size = element.node().getBBox();
+          position.x = element.datum().x;
+          position.y = element.datum().y;
 
           return {
             x: position.x + (size.width / 2),
@@ -558,9 +619,22 @@ angular.module('checkmate.Blueprint')
         }
 
         function linkdragged(d) {
+          var source = Drag.source.get();
+          var target = null;
           var elem = d3.select(this);
           var box = elem.position();  // TODO: account for zoom
           var mouse = d3.mouse(zoomer[0][0]);
+
+          component.classed('deactivated', function(d) {
+            target = {componentId: d, serviceId: d3.select(this.parentNode).datum()._id};
+
+            if (source && target) {
+              if (!Blueprint.canConnect(source, target)) {
+                return true;
+              }
+            }
+          });
+
           dragConnectorLine.attr('d', 'M' + (box.left + box.width/2) + ',' + (box.top + box.height/2) + 'L' + mouse[0] + ',' + mouse[1]);
         }
 
@@ -569,6 +643,7 @@ angular.module('checkmate.Blueprint')
           dragConnectorLine.remove();
           d3.event.sourceEvent.stopPropagation();
           d3.select(this).classed("dragging", false);
+          component.classed('deactivated', false);
           var source = Drag.source.get();
           var target = Drag.target.get();
           if (source && target) {
@@ -612,9 +687,15 @@ angular.module('checkmate.Blueprint')
           indicator.attr("transform", function(d) {
             var source = d3.select('#'+d.source+'-service');
             var target = d3.select('#'+d.target+'-service');
+            var x = 0;
+            var y = 0;
 
-            var x = (getCoords(source).x + getCoords(target).x) / 2;
-            var y = (getCoords(source).y + getCoords(target).y) / 2;
+            if(!target[0][0]) {
+              target = source;
+            }
+
+            x = (getCoords(source).x + getCoords(target).x) / 2;
+            y = (getCoords(source).y + getCoords(target).y) / 2;
 
             return 'translate('+x+','+y+')';
           });
@@ -622,21 +703,27 @@ angular.module('checkmate.Blueprint')
 
         function connectRelationLines() {
           line.attr("x1", function(d) {
-            var ele = d3.select('#'+d.source+'-service');
-            return getCoords(ele).x;
-          })
-          .attr("y1", function(d) {
-            var ele = d3.select('#'+d.source+'-service');
-            return getCoords(ele).y;
-          })
-          .attr("x2", function(d) {
-            var ele = d3.select('#'+d.target+'-service');
-            return getCoords(ele).x;
-          })
-          .attr("y2", function(d) {
-            var ele = d3.select('#'+d.target+'-service');
-            return getCoords(ele).y;
-          });
+              var ele = d3.select('#'+d.source+'-service');
+              return getCoords(ele).x;
+            })
+            .attr("y1", function(d) {
+              var ele = d3.select('#'+d.source+'-service');
+              return getCoords(ele).y;
+            })
+            .attr("x2", function(d) {
+              var ele = d3.select('#'+d.target+'-service');
+              if(!ele[0][0]) {
+                return d3.select(this).attr('x1');
+              }
+              return getCoords(ele).x;
+            })
+            .attr("y2", function(d) {
+              var ele = d3.select('#'+d.target+'-service');
+              if(!ele[0][0]) {
+                return d3.select(this).attr('y1');
+              }
+              return getCoords(ele).y;
+            });
         }
 
         function dragended(d) {
