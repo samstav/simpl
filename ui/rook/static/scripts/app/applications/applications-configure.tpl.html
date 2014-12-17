@@ -1,9 +1,21 @@
 <div class="rs-container">
-  <div class="rs-app-launch-container rs-panel">
-    <div class="rs-app-launch-sidebar stick-left" ng-class="{'visible': catalog.data}">
+  <div class="rs-app-launch-container rs-panel"
+        ng-class="{
+          'editor-open': codemirror.isVisible,
+          'editor-full-screen': codemirror.isFullScreen,
+          'catalog-open': catalog.isVisible,
+          'selection-open': selection.isVisible
+        }">
+
+    <div class="catalog-toggle-button"
+      ng-click="catalog.isVisible = !catalog.isVisible">
+      <i class="fa fa-bars"></i>
+    </div>
+
+    <div class="rs-app-launch-sidebar stick-left app-catalog">
       <header class="rs-app-launch-header">
         <div class="rs-app-launch-input rs-app-launch-search-bar">
-          <input type="text" ng-model="search" placeholder="Search Application Catalog..">
+          <input type="text" ng-model="search" placeholder="Search Applications...">
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
       </header> <!-- /.rs-app-launch-header -->
 
@@ -33,8 +45,11 @@
       </div> <!-- /.rs-app-launch-list-container -->
     </div> <!-- /.rs-app-launch-sidebar -->
 
-    <div class="rs-app-launch-sidebar stick-left dark" ng-class="{'visible': selection.isVisible}">
+    <div class="rs-app-launch-sidebar stick-left dark app-selection">
       <header class="rs-app-launch-header">
+        <div class="rs-app-launch-subtitle">
+          Options
+        </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
         <div class="rs-app-launch-title">
           {{ selection.data.service }}\{{ selection.data.component }}
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
@@ -58,7 +73,6 @@
 
       <!-- Code Mirror -->
       <div class="codemirror-toggle-button"
-           ng-class="{'adjusted': codemirror.isVisible}"
            ng-show="deployment.blueprint.services"
            ng-click="codemirror.isVisible = !codemirror.isVisible">
         <span class="fa-stack fa-lg">
@@ -66,6 +80,18 @@
           <i class="fa fa-code fa-stack-1x" ng-class="{'fa-inverse': codemirror.isVisible}"></i>
         </span>
       </div>
+
+      <div class="codemirror-full-screen-button"
+        ng-show="codemirror.isVisible"
+        ng-click="codemirror.isFullScreen = !codemirror.isFullScreen">
+        <span class="fa-stack fa-lg">
+          <i class="fa fa-inverse fa-stack-1x" ng-class="{
+            'fa-compress': codemirror.isFullScreen,
+            'fa-expand': !codemirror.isFullScreen
+          }"></i>
+        </span>
+      </div>
+
       <deployment-editor ng-show="deployment.blueprint.services"
                          class="rs-app-launch-sidebar stick-right"
                          ng-class="{'visible': codemirror.isVisible}">
@@ -79,11 +105,11 @@
         </div>
       </div>
 
-      <div class="rs-app-launch-controls" ng-class="{'adjusted': codemirror.isVisible}">
+      <div class="rs-app-launch-controls">
         <div class="rs-btn-group rs-pull-right">
           <button class="rs-btn rs-btn-primary" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit()">Launch</button>
           <button class="rs-btn" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit('simulate')">Simulate</button>
-          <button class="rs-btn rs-btn-link">Reset</button>
+          <button class="rs-btn" ng-disabled="!deployment.blueprint.services" ng-click="reset()">Reset</button>
         </div>
         <div class="rs-btn-group">
           <button class="rs-btn rs-btn-secondary" ng-disabled="true">Import</button>

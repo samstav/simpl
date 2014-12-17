@@ -132,7 +132,8 @@ angular.module('checkmate.Blueprint')
           if(newVal && newVal !== oldVal) {
             var blueprint = {
               nodes: [],
-              links: []
+              links: [],
+              'meta-data': angular.copy(newVal['meta-data'])
             };
             var _links = {};
             var services = angular.copy(newVal.services);
@@ -206,10 +207,11 @@ angular.module('checkmate.Blueprint')
                 return d._id + '-service';
               })
               .attr("transform", function(d) {
-                var annotations = d.annotations || {};
                 var safeMouse = mouse || [100, 100];
-                d.x = annotations['gui-x'] || safeMouse[0];
-                d.y = annotations['gui-y'] || safeMouse[1];
+                var meta = blueprint['meta-data'];
+
+                d.x = ((meta.annotations || {})[d._id] || {})['gui-x'] || safeMouse[0];
+                d.y = ((meta.annotations || {})[d._id] || {})['gui-y'] || safeMouse[1];
 
                 return "translate(" + d.x + "," + d.y + ")";
               })
@@ -735,34 +737,44 @@ angular.module('checkmate.Blueprint')
 
         function save() {
           var services = d3.selectAll("g.service");
-          //var relations = d3.selectAll("g.relation");
           var blueprint = {
-            services: {}
+            services: {},
+            'meta-data': {
+              annotations: {}
+            }
           };
 
           // This loops over the svg's services and converts it to an object.
           services.each(function(d) {
             var _service = angular.copy(d);
+            var annotations;
 
             // This removes svg-related properties.
             delete _service._id;
             delete _service.x;
             delete _service.y;
 
-            // This adds annotations property.
-            _service.annotations = {
-              'gui-x': Number((d.x || 100).toFixed(3)),
-              'gui-y': Number((d.y || 100).toFixed(3))
-            };
+            // This handles the meta-data annotations.
+            if(!blueprint['meta-data'].annotations[d._id]) {
+              blueprint['meta-data'].annotations[d._id] = {};
+            }
+
+            annotations = blueprint['meta-data'].annotations[d._id];
+
+            annotations['gui-x'] = Number((d.x || 100).toFixed(3));
+            annotations['gui-y'] = Number((d.y || 100).toFixed(3));
 
             // This extends any current
             blueprint.services[d._id] = blueprint.services[d._id] || {};
             _.extend(blueprint.services[d._id], _service);
           });
 
-          // Only overwrite services
+          // Only overwrite services and meta-data
           var original = Blueprint.get();
+
           original.services = blueprint.services;
+          _.extend(original['meta-data'], blueprint['meta-data']);
+
           Blueprint.set(original);
         }
       }

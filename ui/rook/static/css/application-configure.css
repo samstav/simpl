@@ -2,11 +2,14 @@
 .rs-app-launch-container {
   margin: 0;
   position: fixed;
-  top: 75px;
+  top: 70px;
   left: 40px;
   right: 40px;
-  bottom: 50px;
+  bottom: 35px;
   overflow: hidden;
+}
+.rs-app-launch-container * {
+  transition: fill 0.5s ease, stroke 0.5s ease, opacity 0.5s ease, width 0.5s ease, height 0.5s ease, transform 0.5s ease, top 0.5s ease, right 0.5s ease, bottom 0.5s ease, left 0.5s ease;
 }
 
 /* Sidebar */
@@ -14,52 +17,62 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  z-index: 800;
-  transition: all 0.5s ease;
+  z-index: 400;
 }
 .rs-app-launch-sidebar.stick-left {
-  left: -290px;
-  width: 290px;
-  background-color: rgba(255,255,255,1);
+  left: -260px;
+  width: 260px;
+  background-color: rgba(253,253,253,.9);
 }
 .rs-app-launch-sidebar.stick-left.visible {
   left: 0;
 }
 .rs-app-launch-sidebar.stick-left.dark {
+  z-index: 450;
   background-color: rgba(40,40,40,1);
   color: #fff;
 }
 .rs-app-launch-sidebar.stick-right {
-  right: -400px;
-  width: 400px;
-  background-color: rgba(0,0,0,.8);
-}
-.rs-app-launch-sidebar.stick-right.visible {
-  right: 0;
+  background-color: rgba(0,0,0,.85);
 }
 
 /* Catalog Sidebar Header */
 .rs-app-launch-header {
-  padding: 20px;
+  padding: 15px;
   position: relative;
+}
+.rs-app-launch-header .rs-app-launch-subtitle {
+  font-size: 11px;
+  font-weight: 200;
+  text-transform: uppercase;
+  color: #999;
 }
 .rs-app-launch-header .rs-app-launch-title {
   font-size: 19px;
   font-weight: 200;
 }
-.rs-app-launch-search-bar {}
+.rs-app-launch-search-bar {
+  margin-left: 33px;
+  margin-right: 5px;
+}
 .rs-app-launch-search-bar input[type=text] {
   width: 100%;
-  font-size: 13px;
+  font-size: 15px;
   height: 30px;
   margin: 0;
   border-radius: 0;
   -webkit-box-shadow: none;
   -moz-box-shadow: none;
   box-shadow: none;
-  border-color: rgba(100,100,100,.2);
+  border-color: rgba(100,100,100,.1);
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  background-color: transparent;
 }
-.rs-app-launch-search-bar input[type=text]:focus {}
+.rs-app-launch-search-bar input[type=text]:focus {
+  background-color: transparent;
+}
 .rs-app-launch-search-bar::after {
   font-family: "FontAwesome";
   content: "\f002";
@@ -68,14 +81,13 @@
   position: absolute;
   top: 50%;
   margin-top: -10px;
-  right: 30px;
+  right: 20px;
 }
 
 /* Catalog List */
 .rs-app-launch-list-container {
-  border-top: 1px solid #eee;
   position: absolute;
-  top: 70px;
+  top: 59px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -83,7 +95,6 @@
 }
 .rs-app-launch-list-section {}
 .rs-app-launch-list-section h4 {
-  border-bottom: 1px solid #eee;
   padding: 0 20px;
   margin: 0;
   line-height: 25px;
@@ -91,12 +102,13 @@
 }
 .rs-app-launch-list-item {
   color: #666;
-  padding: 5px 20px;
+  padding: 5px 15px;
+  margin: 0px 15px;
   display: block;
   text-align: left;
   position: relative;
   cursor: pointer;
-  border-bottom: 1px solid #eee;
+  border-radius: 5px;
 }
 .rs-app-launch-list-item:hover {
   background-color: rgba(220,220,220,.2);
@@ -163,25 +175,21 @@
   position: absolute;
   top: 0;
   right: 0;
-  left: 290px;
-  bottom: 0;
+  left: 0;
+  bottom: 55px;
   background-color: rgba(255,255,255,1);
-  overflow: hidden;
 }
 
 /* Controls */
 .rs-app-launch-controls {
   position: absolute;
-  bottom: 0px;
+  bottom: -55px;
   right: 0;
   left: 0;
   height: 25px;
   padding: 15px;
-  transition: all 0.5s ease;
   z-index: 900;
-}
-.rs-app-launch-controls.adjusted {
-  right: 400px;
+  background-color: #f5f5f5;
 }
 .codemirror-toggle-button {
   position: absolute;
@@ -190,11 +198,15 @@
   z-index: 900;
   cursor: pointer;
 }
-.codemirror-toggle-button i {
-  transition: all 0.5s ease;
-}
 .text-danger {
   color: #a94442;
+}
+.codemirror-full-screen-button {
+  position: absolute;
+  bottom: 10px;
+  right: 15px;
+  z-index: 900;
+  cursor: pointer;
 }
 
 /* Drag & Drop */
@@ -208,4 +220,87 @@
   -khtml-user-select: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Left Sidebar Controls */
+.rs-app-launch-sidebar.stick-left .fa-close {
+  position: absolute;
+  top: 20px;
+  right: 25px;
+  cursor: pointer;
+}
+
+/* Interactions & Animations */
+.catalog-toggle-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 401;
+  cursor: pointer;
+}
+.catalog-toggle-button .fa-bars {
+  opacity: .4;
+}
+.catalog-toggle-button:hover .fa-bars {
+  opacity: 1;
+}
+
+/* Catalog */
+.rs-app-launch-sidebar.stick-left.app-catalog {
+  bottom: 55px;
+  width: 260px;
+}
+.editor-full-screen .rs-app-launch-sidebar.stick-left.app-catalog,
+.rs-app-launch-sidebar.stick-left.app-catalog {
+  left: -260px;
+}
+.catalog-open .rs-app-launch-sidebar.stick-left.app-catalog {
+  left: 0;
+}
+
+/* App Selection */
+.rs-app-launch-sidebar.stick-left.app-selection {
+  width: 400px;
+}
+.rs-app-launch-sidebar.stick-left.app-selection,
+.editor-full-screen .rs-app-launch-sidebar.stick-left.app-selection {
+  left: -400px;
+}
+.selection-open .rs-app-launch-sidebar.stick-left.app-selection {
+  left: 0;
+}
+
+/* Right sidebar */
+.rs-app-launch-sidebar.stick-right {
+  right: -30%;
+  width: 30%;
+}
+.editor-open .rs-app-launch-sidebar.stick-right {
+  right: 0%;
+}
+.editor-full-screen .rs-app-launch-sidebar.stick-right {
+  width: 100%;
+}
+/*.editor-open .rs-app-launch-controls {
+  right: 30%;
+}
+.editor-full-screen .rs-app-launch-controls {
+  opacity: 0;
+}*/
+
+.codemirror-toggle-button .fa-stack {
+  opacity: .4;
+}
+.codemirror-toggle-button:hover .fa-stack {
+  opacity: 1;
+}
+
+.codemirror-full-screen-button i {
+  opacity: 0;
+}
+.editor-open .codemirror-full-screen-button i {
+  opacity: .4;
+}
+.editor-open .codemirror-full-screen-button:hover i {
+  opacity: 1;
 }

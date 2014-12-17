@@ -199,6 +199,7 @@ var defaultBlueprint = {
 angular.module('checkmate.Blueprint', [
   'checkmate.Catalog'
 ]);
+
 angular.module('checkmate.Blueprint')
   .factory('Blueprint', function($rootScope, Catalog) {
     return {
@@ -208,6 +209,10 @@ angular.module('checkmate.Blueprint')
       },
       set: function(blueprint) {
         this.data = angular.copy(blueprint);
+        this.broadcast();
+      },
+      reset: function() {
+        delete this.get().services;
         this.broadcast();
       },
       add: function(component, target) {
@@ -242,6 +247,10 @@ angular.module('checkmate.Blueprint')
             }
           });
         });
+
+        if(_.isEmpty(this.get().services)) {
+          delete this.get().services;
+        }
 
         this.broadcast();
       },
@@ -349,7 +358,6 @@ angular.module('checkmate.Blueprint')
       },
       addService: function(serviceName, firstComponent) {
         this.data.services[serviceName] = {
-          annotations: {},
           components: [firstComponent.id]
         };
       },

@@ -45,7 +45,7 @@ angular.module('checkmate.applications-configure')
 
     // This is the catalog model for the sidebar.
     $scope.catalog = {
-      isVisible: false,
+      isVisible: true,
       data: Catalog.get(),
       components: Catalog.getComponents()
     };
@@ -115,6 +115,10 @@ angular.module('checkmate.applications-configure')
           $scope.submitting = false;
         }
       );
+    };
+
+    $scope.reset = function() {
+      Blueprint.reset();
     };
 
     $scope.$on('topology:select', function(event, selection) {
