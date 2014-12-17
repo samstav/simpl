@@ -445,6 +445,23 @@ class TestCatalog(unittest.TestCase):
         context.region = None
         expected = {
             'compute': {
+                'redis_instance': {
+                    'is': 'compute',
+                    'id': 'redis_instance',
+                    'provides': [{'compute': 'redis'}],
+                    'options': {
+                        'disk': {
+                            'type': 'integer',
+                            'unit': 'Gb',
+                            'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                        },
+                        'memory': {
+                            'type': 'integer',
+                            'unit': 'Mb',
+                            'choice': [512, 1024, 2048, 4096]
+                        }
+                    }
+                },
                 'mysql_instance': {
                     'is': 'compute',
                     'id': 'mysql_instance',
@@ -476,6 +493,32 @@ class TestCatalog(unittest.TestCase):
                 }
             },
             'database': {
+                'redis_database': {
+                    'is': 'database',
+                    'requires': [{
+                        'compute': {
+                            'interface': 'redis',
+                            'type': 'compute',
+                            'relation': 'host'
+                        }
+                    }],
+                    'id': 'redis_database',
+                    'provides': [{'database': 'redis'}],
+                    'options': {
+                        'database/password': {
+                            'required': 'false',
+                            'type': 'string'
+                        },
+                        'database/name': {
+                            'default': 'db1',
+                            'type': 'string'
+                        },
+                        'database/username': {
+                            'required': 'true',
+                            'type': 'string'
+                        }
+                    }
+                },
                 'mysql_database': {
                     'is': 'database',
                     'requires': [{
