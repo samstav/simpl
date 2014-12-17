@@ -45,7 +45,7 @@ angular.module('checkmate.applications-configure')
 
     // This is the catalog model for the sidebar.
     $scope.catalog = {
-      isVisible: false,
+      isVisible: true,
       data: Catalog.get(),
       components: Catalog.getComponents()
     };

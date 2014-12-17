@@ -1,7 +1,6 @@
 /* Topology Styles */
 .blueprint-topology {
   position: relative;
-  z-index: 700;
   --webkit-cursor: move;
   --moz-cursor: move;
   cursor: move;

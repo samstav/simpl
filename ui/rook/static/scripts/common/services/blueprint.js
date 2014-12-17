@@ -199,6 +199,7 @@ var defaultBlueprint = {
 angular.module('checkmate.Blueprint', [
   'checkmate.Catalog'
 ]);
+
 angular.module('checkmate.Blueprint')
   .factory('Blueprint', function($rootScope, Catalog) {
     return {
@@ -349,7 +350,6 @@ angular.module('checkmate.Blueprint')
       },
       addService: function(serviceName, firstComponent) {
         this.data.services[serviceName] = {
-          annotations: {},
           components: [firstComponent.id]
         };
       },

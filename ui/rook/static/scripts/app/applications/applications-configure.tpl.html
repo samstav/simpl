@@ -4,10 +4,17 @@
           'editor-open': codemirror.isVisible,
           'editor-full-screen': codemirror.isFullScreen
         }">
-    <div class="rs-app-launch-sidebar stick-left" ng-class="{'visible': catalog.data}">
+
+    <div class="catalog-toggle-button"
+      ng-click="catalog.isVisible = !catalog.isVisible">
+      <i class="fa fa-bars"></i>
+    </div>
+
+    <div class="rs-app-launch-sidebar stick-left"
+         ng-class="{'visible': catalog.isVisible}">
       <header class="rs-app-launch-header">
         <div class="rs-app-launch-input rs-app-launch-search-bar">
-          <input type="text" ng-model="search" placeholder="Search Application Catalog..">
+          <input type="text" ng-model="search" placeholder="Search Applications...">
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
       </header> <!-- /.rs-app-launch-header -->
 
@@ -39,6 +46,9 @@
 
     <div class="rs-app-launch-sidebar stick-left dark" ng-class="{'visible': selection.isVisible}">
       <header class="rs-app-launch-header">
+        <div class="rs-app-launch-subtitle">
+          Options
+        </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
         <div class="rs-app-launch-title">
           {{ selection.data.service }}\{{ selection.data.component }}
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->

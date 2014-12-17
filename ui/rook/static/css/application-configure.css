@@ -17,46 +17,62 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  z-index: 800;
+  z-index: 400;
 }
 .rs-app-launch-sidebar.stick-left {
-  left: -290px;
-  width: 290px;
-  background-color: rgba(255,255,255,1);
+  left: -260px;
+  width: 260px;
+  background-color: rgba(253,253,253,.9);
 }
 .rs-app-launch-sidebar.stick-left.visible {
   left: 0;
 }
 .rs-app-launch-sidebar.stick-left.dark {
+  z-index: 450;
   background-color: rgba(40,40,40,1);
   color: #fff;
 }
 .rs-app-launch-sidebar.stick-right {
-  background-color: rgba(0,0,0,.8);
+  background-color: rgba(0,0,0,.85);
 }
 
 /* Catalog Sidebar Header */
 .rs-app-launch-header {
-  padding: 20px;
+  padding: 15px;
   position: relative;
+}
+.rs-app-launch-header .rs-app-launch-subtitle {
+  font-size: 11px;
+  font-weight: 200;
+  text-transform: uppercase;
+  color: #999;
 }
 .rs-app-launch-header .rs-app-launch-title {
   font-size: 19px;
   font-weight: 200;
 }
-.rs-app-launch-search-bar {}
+.rs-app-launch-search-bar {
+  margin-left: 33px;
+  margin-right: 5px;
+}
 .rs-app-launch-search-bar input[type=text] {
   width: 100%;
-  font-size: 13px;
+  font-size: 15px;
   height: 30px;
   margin: 0;
   border-radius: 0;
   -webkit-box-shadow: none;
   -moz-box-shadow: none;
   box-shadow: none;
-  border-color: rgba(100,100,100,.2);
+  border-color: rgba(100,100,100,.1);
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  background-color: transparent;
 }
-.rs-app-launch-search-bar input[type=text]:focus {}
+.rs-app-launch-search-bar input[type=text]:focus {
+  background-color: transparent;
+}
 .rs-app-launch-search-bar::after {
   font-family: "FontAwesome";
   content: "\f002";
@@ -65,14 +81,13 @@
   position: absolute;
   top: 50%;
   margin-top: -10px;
-  right: 30px;
+  right: 20px;
 }
 
 /* Catalog List */
 .rs-app-launch-list-container {
-  border-top: 1px solid #eee;
   position: absolute;
-  top: 70px;
+  top: 59px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -80,7 +95,6 @@
 }
 .rs-app-launch-list-section {}
 .rs-app-launch-list-section h4 {
-  border-bottom: 1px solid #eee;
   padding: 0 20px;
   margin: 0;
   line-height: 25px;
@@ -88,12 +102,13 @@
 }
 .rs-app-launch-list-item {
   color: #666;
-  padding: 5px 20px;
+  padding: 5px 15px;
+  margin: 0px 15px;
   display: block;
   text-align: left;
   position: relative;
   cursor: pointer;
-  border-bottom: 1px solid #eee;
+  border-radius: 5px;
 }
 .rs-app-launch-list-item:hover {
   background-color: rgba(220,220,220,.2);
@@ -160,8 +175,9 @@
   position: absolute;
   top: 0;
   right: 0;
-  left: 290px;
+  left: 0;
   bottom: 0;
+  z-index: 450;
   background-color: rgba(255,255,255,1);
   overflow: hidden;
 }
@@ -171,7 +187,7 @@
   position: absolute;
   bottom: 0px;
   right: 0;
-  left: 0;
+  left: 265px;
   height: 25px;
   padding: 15px;
   z-index: 900;
@@ -207,7 +223,29 @@
   user-select: none;
 }
 
+/* Left Sidebar Controls */
+.rs-app-launch-sidebar.stick-left .fa-close {
+  position: absolute;
+  top: 20px;
+  right: 25px;
+  cursor: pointer;
+}
+
 /* Interactions & Animations */
+.catalog-toggle-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 401;
+  cursor: pointer;
+}
+.catalog-toggle-button .fa-bars {
+  opacity: .4;
+}
+.catalog-toggle-button:hover .fa-bars {
+  opacity: 1;
+}
+
 .rs-app-launch-sidebar.stick-right {
   right: -30%;
   width: 30%;
