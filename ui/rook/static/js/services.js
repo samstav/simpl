@@ -857,7 +857,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
  * - contextChanged (always called: log on/off, impersonating/un-impersonating)
  *
 **/
-services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($http, $resource, $rootScope, $q) {
+services.factory('auth', ['$http', '$resource', '$rootScope', '$q', '$cookieStore', function($http, $resource, $rootScope, $q, $cookieStore) {
   var auth = {};
 
   // Stores the user's identity and necessary credential info
@@ -1116,6 +1116,7 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', function($ht
     localStorage.removeItem('auth');
     delete checkmate.config.header_defaults.headers.common['X-Auth-Token'];
     delete checkmate.config.header_defaults.headers.common['X-Auth-Source'];
+    $cookieStore.remove('github_access_token');
     if (broadcast)
       $rootScope.$broadcast('logOut');
   }

@@ -348,6 +348,7 @@ def main():
             from rook import middleware as rook_middleware
             next_app = rook_middleware.BrowserMiddleware(
                 next_app,
+                CONFIG,
                 proxy_endpoints=endpoints,
                 with_simulator=CONFIG.with_simulator,
                 with_admin=CONFIG.with_admin

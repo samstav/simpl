@@ -354,7 +354,7 @@ function LoginModalController($scope, $modalInstance, auth, $route) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth, $route, $q, $modal) {
+function AppController($scope, $http, $location, $resource, auth, $route, $q, $modal, $cookies, $cookieStore) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
@@ -499,6 +499,37 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
 
   $scope.auth = auth;
 
+  $scope.github = {
+    url: 'https://github.com',
+    type: 'public', // vs. 'enterprise'
+    apiUrl: 'https://api.github.com', // enterprise appends .../api/v3 path
+    accessToken: $cookies.github_access_token
+  };
+  if ($scope.github.accessToken) {
+    var request = {
+      method: 'GET',
+      url: (checkmate_server_base || '') + '/githubproxy/user',
+      headers: {
+        'X-Target-Url': 'https://api.github.com',
+        'accept': 'application/json',
+        'Authorization': 'token ' + $scope.github.accessToken
+      }
+    };
+    $http(request).
+      success(function(data, status, headers, config) {
+        $scope.github.user = data;
+      }).
+      error(function(data, status, headers, config) {
+        console.log(data);
+        $scope.github.user = {};
+      });
+  }
+  $scope.githubLogout = function() {
+    $scope.github = {};
+    $cookieStore.remove('github_access_token');
+    $scope.notify("Logged out of GitHub");
+  };
+
   // Bind to logon modal
   $scope.bound_creds = {
     username: '',
@@ -632,6 +663,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
     $scope.api_version = data.version;
     //Check if simulator enabled
     $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
+    $scope.$root.clientId = getResponseHeaders("X-Github-Client-ID");
     //Check for which auth endpoints are enabled
     var headers;
     if ($.browser.mozilla) {
