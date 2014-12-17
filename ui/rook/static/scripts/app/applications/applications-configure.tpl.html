@@ -2,7 +2,9 @@
   <div class="rs-app-launch-container rs-panel"
         ng-class="{
           'editor-open': codemirror.isVisible,
-          'editor-full-screen': codemirror.isFullScreen
+          'editor-full-screen': codemirror.isFullScreen,
+          'catalog-open': catalog.isVisible,
+          'selection-open': selection.isVisible
         }">
 
     <div class="catalog-toggle-button"
@@ -10,8 +12,7 @@
       <i class="fa fa-bars"></i>
     </div>
 
-    <div class="rs-app-launch-sidebar stick-left"
-         ng-class="{'visible': catalog.isVisible}">
+    <div class="rs-app-launch-sidebar stick-left app-catalog">
       <header class="rs-app-launch-header">
         <div class="rs-app-launch-input rs-app-launch-search-bar">
           <input type="text" ng-model="search" placeholder="Search Applications...">
@@ -44,7 +45,7 @@
       </div> <!-- /.rs-app-launch-list-container -->
     </div> <!-- /.rs-app-launch-sidebar -->
 
-    <div class="rs-app-launch-sidebar stick-left dark" ng-class="{'visible': selection.isVisible}">
+    <div class="rs-app-launch-sidebar stick-left dark app-selection">
       <header class="rs-app-launch-header">
         <div class="rs-app-launch-subtitle">
           Options
@@ -108,7 +109,7 @@
         <div class="rs-btn-group rs-pull-right">
           <button class="rs-btn rs-btn-primary" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit()">Launch</button>
           <button class="rs-btn" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit('simulate')">Simulate</button>
-          <button class="rs-btn">Reset</button>
+          <button class="rs-btn" ng-disabled="!deployment.blueprint.services" ng-click="reset()">Reset</button>
         </div>
         <div class="rs-btn-group">
           <button class="rs-btn rs-btn-secondary" ng-disabled="true">Import</button>

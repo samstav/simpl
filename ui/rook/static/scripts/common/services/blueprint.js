@@ -211,6 +211,10 @@ angular.module('checkmate.Blueprint')
         this.data = angular.copy(blueprint);
         this.broadcast();
       },
+      reset: function() {
+        delete this.get().services;
+        this.broadcast();
+      },
       add: function(component, target) {
         // Add item to blueprint data.
         this.sort(component, target);
@@ -243,6 +247,10 @@ angular.module('checkmate.Blueprint')
             }
           });
         });
+
+        if(_.isEmpty(this.get().services)) {
+          delete this.get().services;
+        }
 
         this.broadcast();
       },

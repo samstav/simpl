@@ -2,10 +2,10 @@
 .rs-app-launch-container {
   margin: 0;
   position: fixed;
-  top: 75px;
+  top: 70px;
   left: 40px;
   right: 40px;
-  bottom: 50px;
+  bottom: 35px;
   overflow: hidden;
 }
 .rs-app-launch-container * {
@@ -176,21 +176,20 @@
   top: 0;
   right: 0;
   left: 0;
-  bottom: 0;
-  z-index: 450;
+  bottom: 55px;
   background-color: rgba(255,255,255,1);
-  overflow: hidden;
 }
 
 /* Controls */
 .rs-app-launch-controls {
   position: absolute;
-  bottom: 0px;
+  bottom: -55px;
   right: 0;
-  left: 265px;
+  left: 0;
   height: 25px;
   padding: 15px;
   z-index: 900;
+  background-color: #f5f5f5;
 }
 .codemirror-toggle-button {
   position: absolute;
@@ -246,6 +245,32 @@
   opacity: 1;
 }
 
+/* Catalog */
+.rs-app-launch-sidebar.stick-left.app-catalog {
+  bottom: 55px;
+  width: 260px;
+}
+.editor-full-screen .rs-app-launch-sidebar.stick-left.app-catalog,
+.rs-app-launch-sidebar.stick-left.app-catalog {
+  left: -260px;
+}
+.catalog-open .rs-app-launch-sidebar.stick-left.app-catalog {
+  left: 0;
+}
+
+/* App Selection */
+.rs-app-launch-sidebar.stick-left.app-selection {
+  width: 400px;
+}
+.rs-app-launch-sidebar.stick-left.app-selection,
+.editor-full-screen .rs-app-launch-sidebar.stick-left.app-selection {
+  left: -400px;
+}
+.selection-open .rs-app-launch-sidebar.stick-left.app-selection {
+  left: 0;
+}
+
+/* Right sidebar */
 .rs-app-launch-sidebar.stick-right {
   right: -30%;
   width: 30%;
@@ -256,12 +281,12 @@
 .editor-full-screen .rs-app-launch-sidebar.stick-right {
   width: 100%;
 }
-.editor-open .rs-app-launch-controls {
+/*.editor-open .rs-app-launch-controls {
   right: 30%;
 }
 .editor-full-screen .rs-app-launch-controls {
   opacity: 0;
-}
+}*/
 
 .codemirror-toggle-button .fa-stack {
   opacity: .4;

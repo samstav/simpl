@@ -117,6 +117,10 @@ angular.module('checkmate.applications-configure')
       );
     };
 
+    $scope.reset = function() {
+      Blueprint.reset();
+    };
+
     $scope.$on('topology:select', function(event, selection) {
       $scope.selection.data = selection;
       if (selection) {
