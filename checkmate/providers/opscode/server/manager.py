@@ -142,8 +142,9 @@ class Manager(object):
             data['description'] = desc
 
         LOG.debug("Writing environment '%s'", name)
-        with tempfile.NamedTemporaryFile() as handle:
+        with tempfile.NamedTemporaryFile(suffix='.js') as handle:
             json.dump(data, handle)
+            handle.flush()
             if preexisting:
                 command = 'edit'
             else:
@@ -182,8 +183,9 @@ class Manager(object):
             data['description'] = desc
 
         LOG.debug("Writing role '%s'", name)
-        with tempfile.NamedTemporaryFile() as handle:
+        with tempfile.NamedTemporaryFile(suffix='.js') as handle:
             json.dump(data, handle)
+            handle.flush()
             if preexisting:
                 command = 'edit'
             else:
