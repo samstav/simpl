@@ -189,6 +189,13 @@ class Manager(object):
         return data
 
     @staticmethod
+    def delete_environment(name, deployment_id):
+        """Delete environment."""
+        kitchen = ChefKitchen(deployment_id)
+        knife = kitchen._knife
+        knife.run_command(['knife', 'environment', 'delete', name, '-y'])
+
+    @staticmethod
     def update_role(name, deployment_id, desc=None, run_list=None,
                     default_attributes=None, override_attributes=None,
                     run_lists=None):

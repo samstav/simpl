@@ -340,8 +340,11 @@ def delete_environment(context, deployment, name, api=None):
         return True
 
     try:
-        e = chef.Environment(name, api=api)
-        e.delete()
+        if api:
+            e = chef.Environment(name, api=api)
+            e.delete()
+        else:
+            Manager.delete_environment(name, deployment)
         LOG.info("Chef Environment %s deleted.", name)
         return True
     except chef.ChefError, exc:
