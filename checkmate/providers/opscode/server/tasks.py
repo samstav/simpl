@@ -124,9 +124,8 @@ def write_databag(context, deployment, bagname, itemname, contents,
         LOG.info("Would create databag: %s", bagname)
         return
 
-    use_api = False
     try:
-        if use_api:
+        if api:
             bag = chef.DataBag(bagname, api=api)
             bag.save()
             item = chef.DataBagItem(bag, itemname)
@@ -165,9 +164,8 @@ def manage_role(context, deployment, name, desc=None, run_list=None,
         LOG.info("Would create role: %s", name)
         return
 
-    use_api = False
     try:
-        if use_api:
+        if api:
             r = chef.Role(name, api=api)
             if desc is not None:
                 r.description = desc
@@ -221,9 +219,8 @@ def manage_environment(context, deployment, name, desc=None, versions=None,
         LOG.info("Would modify environment: %s", name)
         return True
 
-    use_api = False
     try:
-        if use_api:
+        if api:
             e = chef.Environment(name, api=api)
             if desc is not None:
                 e.description = desc
