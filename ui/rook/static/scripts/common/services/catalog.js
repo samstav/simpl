@@ -338,6 +338,67 @@ var catalogData = {
                     "tattoo": "/images/mysql-tattoo.png"
                 }
             }
+        },
+        "rsCloudDb": {
+            "is": "database",
+            "id": "rsCloudDb",
+            "provides": [
+                {
+                    "database": "mysql"
+                }
+            ],
+            "requires": [
+                {
+                    "compute": "mysql"
+                }
+            ],
+            "options": {
+                "server_root_password": {
+                    "default": "=generate_password(min_length=12, required_chars=[\"0123456789\", \"abcdefghijklmnopqrstuvwxyz\", \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"])",
+                    "required": true,
+                    "type": "password",
+                    "display-hints": {
+                      "group": "application",
+                      "order": 1
+                    },
+                    "constraints": [
+                      {
+                        "regex": "^((.){8,255})?$",
+                        "message": "must be between 8 and 255 characters long if provided"
+                      }
+                    ]
+                },
+                "username": {
+                    "default": "root",
+                    "required": true,
+                    "type": "string",
+                    "display-hints": {
+                      "group": "application",
+                      "order": 2
+                    }
+                },
+                "password": {
+                    "default": "=generate_password(min_length=12, required_chars=[\"0123456789\", \"abcdefghijklmnopqrstuvwxyz\", \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"])",
+                    "required": true,
+                    "type": "password",
+                    "display-hints": {
+                      "group": "application",
+                      "order": 3
+                    },
+                    "constraints": [
+                      {
+                        "regex": "^((.){8,255})?$",
+                        "message": "must be between 8 and 255 characters long if provided"
+                      }
+                    ]
+                }
+            },
+            "meta-data": {
+                "display-hints": {
+                    "icon-20x20": "/images/icon-databases.svg",
+                    "tattoo": "/images/icon-databases.svg"
+                }
+            }
         }
     },
     "cache": {
