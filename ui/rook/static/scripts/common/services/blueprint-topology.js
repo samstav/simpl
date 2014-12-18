@@ -226,7 +226,7 @@ angular.module('checkmate.Blueprint')
                   relation: null
                 };
 
-                toggleSelect(d3.select(this), data);
+                //toggleSelect(d3.select(this), data);
                 d3.event.stopPropagation();
               });
 

@@ -351,7 +351,12 @@ angular.module('checkmate.Blueprint')
         }
       },
       componentInService: function(component, serviceName) {
-        return this.data.services && serviceName in this.data.services && this.data.services[serviceName].components.indexOf(component.id) > -1;
+        var components = ((this.data.services || {})[serviceName] || {}).components || [];
+        var exists = _.find(components, function(_component) {
+          return _component.id == (component || {}).id;
+        });
+
+        return exists ? true : false;
       },
       addComponentToService: function(component, serviceName) {
         this.data.services[serviceName].components.push({id: component.id});

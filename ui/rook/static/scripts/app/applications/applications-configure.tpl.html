@@ -4,7 +4,7 @@
           'editor-open': codemirror.isVisible,
           'editor-full-screen': codemirror.isFullScreen,
           'catalog-open': catalog.isVisible,
-          'selection-open': selection.isVisible && deployment.blueprint.services[selection.data.service].components.indexOf(selection.data.component) > -1
+          'selection-open': selection.isVisible && selection.hasSelection()
         }">
 
     <div class="catalog-toggle-button"
@@ -51,7 +51,7 @@
           Options
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
         <div class="rs-app-launch-title">
-          {{ selection.data.service }}\{{ selection.data.component }}
+          {{ selection.data.service }}\{{ selection.data.component.id }}
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
         <div class="rs-app-launch-control">
           <i class="fa fa-close fa-inverse" ng-click="selection.isVisible = false"></i>
@@ -60,7 +60,7 @@
       <section class="rs-app-launch-list-section">
         <component-options service="selection.data.service"
                            component="selection.data.component"
-                           options="catalog.component(selection.data.component).options">
+                           options="catalog.component(selection.data.component.id).options">
         </component-options>
       </section> <!-- /.rs-app-launch-list-section -->
     </div> <!-- /.rs-app-launch-sidebar -->
