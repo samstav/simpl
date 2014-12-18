@@ -33,6 +33,7 @@ from checkmate.providers import base
 from checkmate.providers.rackspace import base as rsbase
 from checkmate.providers.rackspace import dns
 from checkmate.providers.rackspace.dns import provider
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -111,9 +112,9 @@ class Provider(rsbase.RackspaceProviderBase):
             raise exceptions.CheckmateException(
                 error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
         number_of_resources = 1
-        interface = \
-            deployment.get('blueprint')['services'][service]['component'][
-                'interface']
+        interface = utils.read_path(
+            deployment.get('blueprint', {}),
+            'services/%s/component/interface' % service) or 'http'
         protocol = deployment.get_setting("protocol",
                                           resource_type=resource_type,
                                           service_name=service,

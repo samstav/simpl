@@ -561,16 +561,16 @@ var catalogData = {
         }
     },
     "load-balancer": {
-        "rax:clb": {
+        "rsCloudLB": {
             "is": "load-balancer",
-            "id": "rax:clb",
+            "id": "rsCloudLB",
             "provides": [
                 {"load-balancer": "vip"},
                 {"load-balancer": "http"},
                 {"load-balancer": "https"}
             ],
             "requires": [
-                {"application": {"interface": "http"}}
+                {"application": "http"}
             ],
             "options": {
                 "algorithm": {
