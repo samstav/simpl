@@ -1,11 +1,3 @@
-<div class="row-fluid" ng-show="options_to_display.length > 0" ng-repeat="opt in options_to_display">
-  <div class="control-group span10" ng-show="option_groups[opt]">
-    <h4>{{option_headers[opt] | capitalizeAll}}</h4>
-    <span ng-show="!option_groups[opt]">No options available</span>
-    <cm-option ng-repeat="option in option_groups[opt] | orderBy:'order'" />
-  </div>
-</div>
-
 <!-- Templates -->
 <script id="option-string" type="text/ng-template">
   <div class="control-group" ng-class="{error: (option.invalid || subForm.$invalid) &amp;&amp; subForm.$dirty}" ng-form="subForm">

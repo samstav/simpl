@@ -4,7 +4,7 @@
           'editor-open': codemirror.isVisible,
           'editor-full-screen': codemirror.isFullScreen,
           'catalog-open': catalog.isVisible,
-          'selection-open': selection.isVisible
+          'selection-open': selection.isVisible && deployment.blueprint.services[selection.data.service].components.indexOf(selection.data.component) > -1
         }">
 
     <div class="catalog-toggle-button"
@@ -58,9 +58,10 @@
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
       </header> <!-- /.rs-app-launch-header -->
       <section class="rs-app-launch-list-section">
-        <form name="frmOptions">
-          <ng-include src="'/scripts/app/applications/options.tpl.html'"></ng-include>
-        </form>
+        <component-options service="selection.data.service"
+                           component="selection.data.component"
+                           options="catalog.component(selection.data.component).options">
+        </component-options>
       </section> <!-- /.rs-app-launch-list-section -->
     </div> <!-- /.rs-app-launch-sidebar -->
 

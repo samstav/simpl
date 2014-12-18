@@ -3,7 +3,8 @@ angular.module('checkmate.applications-configure', [
   'checkmate.Blueprint',
   'checkmate.Catalog',
   'checkmate.DeploymentData',
-  'checkmate.Drag'
+  'checkmate.Drag',
+  'checkmate.ComponentOptions'
 ]);
 
 angular.module('checkmate.applications-configure')
@@ -47,7 +48,10 @@ angular.module('checkmate.applications-configure')
     $scope.catalog = {
       isVisible: true,
       data: Catalog.get(),
-      components: Catalog.getComponents()
+      components: Catalog.getComponents(),
+      component: function(component) {
+        return Catalog.getComponent(component);
+      }
     };
 
     // This is the codemirror model for the sidebar.
