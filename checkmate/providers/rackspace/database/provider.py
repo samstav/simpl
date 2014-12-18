@@ -107,6 +107,15 @@ class Provider(providers.ProviderBase):
                     LOG.debug("Mapping flavor from '%s' to '%s'", memory, key)
                     flavor = key
                     break
+
+            # TODO(Paul): for redis support, flavor will need to be in the
+            #             range 101 - 108 (but is currently in the range 1 - 8.
+            #             Whether or not it's redis can be found in
+            #             definition['connections']['compute']['interface'].
+            #             the value of 'interface' will be 'redis'.
+            #
+            #             If it's redis, we'll need to add 100 to `flavor`.
+
             if not flavor:
                 raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" %
                                          (memory, self.key))
