@@ -83,7 +83,7 @@
         <label class="control-label" ng-class="{required: option.required}" for="{{option.id}}">{{option.label}}</label>
         <div class="controls">
           <div class="input-append span12">
-            <input class="input-xlarge span9" ng-model="url" id="{{option.id}}" type="url" ng-change="UpdateParts(this, option.id);UpdateURLOption(this, option.id)" placeholder="{{option.sample | prepend:'ex. '}}" validate-option="option">
+            <input class="input-xlarge span8" ng-model="url" id="{{option.id}}" type="url" ng-change="UpdateParts(this, option.id);UpdateURLOption(this, option.id)" placeholder="{{option.sample | prepend:'ex. '}}" validate-option="option">
             <button class="btn" ng-class="{'active': builder}" ng-click="builder = !builder">Address Details</button>
             <i class="icon-question-sign" popover-html-unsafe="{{ option.constraints | cm_validation_rules }}" tooltip-animation="false" ng-show="option.constraints"></i>
           </div>

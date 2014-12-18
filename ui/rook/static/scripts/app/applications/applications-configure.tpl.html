@@ -58,7 +58,7 @@
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
       </header> <!-- /.rs-app-launch-header -->
       <section class="rs-app-launch-list-section">
-        <component-options service="selection.data.service"
+        <component-options service-id="selection.data.service"
                            component="selection.data.component"
                            options="catalog.component(selection.data.component.id).options">
         </component-options>
@@ -74,7 +74,6 @@
 
       <!-- Code Mirror -->
       <div class="codemirror-toggle-button"
-           ng-show="deployment.blueprint.services"
            ng-click="codemirror.isVisible = !codemirror.isVisible">
         <span class="fa-stack fa-lg">
           <i class="fa fa-ban fa-stack-2x text-danger" ng-show="codemirror.isVisible"></i>
@@ -93,8 +92,7 @@
         </span>
       </div>
 
-      <deployment-editor ng-show="deployment.blueprint.services"
-                         class="rs-app-launch-sidebar stick-right"
+      <deployment-editor class="rs-app-launch-sidebar stick-right"
                          ng-class="{'visible': codemirror.isVisible}">
       </deployment-editor>
 

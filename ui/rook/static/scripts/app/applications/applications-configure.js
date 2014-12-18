@@ -30,9 +30,6 @@ angular.module('checkmate.applications-configure')
     $scope.selection = {
       data: {},
       isVisible: false,
-      save: function(component) {
-        Blueprint.update($scope.deployment.blueprint);
-      },
       hasSelection: function() {
         return Blueprint.componentInService($scope.selection.data.component, $scope.selection.data.service);
       },
