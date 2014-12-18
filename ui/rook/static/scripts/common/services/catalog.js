@@ -543,6 +543,32 @@ var catalogData = {
                 }
             }
         },
+        "magento": {
+            "is": "application",
+            "id": "magento",
+            "provides": [
+                {
+                    "application": "http"
+                }
+            ],
+            "requires": [
+                {
+                    "host": "linux"
+                },
+                {
+                    "database": "mysql"
+                },
+                {
+                    "cache": "redis"
+                }
+            ],
+            "meta-data": {
+                "display-hints": {
+                    "icon-20x20": "/images/magento-icon-20x20.png",
+                    "tattoo": "/images/magento-tattoo.png"
+                }
+            }
+        },
         "asp.net": {
             "is": "application",
             "id": "asp.net",
