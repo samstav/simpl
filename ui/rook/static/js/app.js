@@ -4,17 +4,17 @@ var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : ''
 
 //Load AngularJS
 var checkmate = angular.module('checkmate', [
-    'checkmate.filters', 
-    'checkmate.services', 
-    'checkmate.directives', 
-    'ngResource', 
-    'ngSanitize', 
-    'ngCookies', 
-    'ngLocale', 
-    'ngRoute', 
-    'ui.utils', 
-    'ui.bootstrap', 
-    'ui.codemirror', 
+    'checkmate.filters',
+    'checkmate.services',
+    'checkmate.directives',
+    'ngResource',
+    'ngSanitize',
+    'ngCookies',
+    'ngLocale',
+    'ngRoute',
+    'ui.utils',
+    'ui.bootstrap',
+    'ui.codemirror',
     'ui.date',
     'checkmate.applications'
 ]);
@@ -162,7 +162,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   $locationProvider.html5Mode({enabled: true, requireBase: false});  //requireBase: true breaks SVG icons
   // Hack to get access to them later
   checkmate.config.header_defaults = $httpProvider.defaults;
-  $httpProvider.defaults.headers.common['Accept'] = "application/json";
+  $httpProvider.defaults.headers.common.Accept = "application/json";
   $httpProvider.defaults.headers.post['Content-Type'] = "application/json;charset=utf-8";
 
   // Allow ssh, irc URLs
@@ -190,35 +190,39 @@ function StaticController($scope, $location) {
   $scope.carousel_interval = -1; // Stopped
   $scope.spot_write_url = "https://one.rackspace.com/display/Checkmate/Checkmate+Blueprints+Introduction";
   $scope.item_base_url = "/deployments/new?blueprint=https:%2F%2Fgithub.rackspace.com%2FBlueprints%2F";
+  $scope.devops_base_url = "/deployments/new?blueprint=https:%2F%2Fgithub.com%2FAutomationSupport%2F";
   $scope.items1 = [
-    {spot: "ready", show_name: true,  name: "Wordpress", description: null,                   url: "/deployments/new/wordpress", image: "wordpress.png"},
+    {spot: "coming", show_name: true,  name: "Magento",  description: "Digital Magento",  url: $scope.devops_base_url + "magentostack", image: "magento1-6.png"},
+    {spot: "ready", show_name: true,  name: "Wordpress", description: null,                   url: $scope.devops_base_url + "wordpress", image: "wordpress.png"},
     {spot: "ready", show_name: true,  name: "Drupal",    description: "Managed Cloud Drupal", url: $scope.item_base_url + "drupal%23" + $scope.blueprint_ref, image: "druplicon.small_.png"},
     {spot: "ready", show_name: false, name: "PHP",       description: null,                   url: $scope.item_base_url + "php_app-blueprint%23" + $scope.blueprint_ref, image: "php.png"},
-    {spot: "ready", show_name: true,  name: "Cassandra", description: null,                   url: $scope.item_base_url + "cassandra%23" + $scope.blueprint_ref, image: "cassandra.png"},
   ];
   $scope.items2 = [
+    {spot: "ready", show_name: true,  name: "Cassandra", description: null,                   url: $scope.item_base_url + "cassandra%23" + $scope.blueprint_ref, image: "cassandra.png"},
     {spot: "ready", show_name: true,  name: "MongoDB", description: null,       url: $scope.item_base_url + "mongodb-replicaset%23" + $scope.blueprint_ref, image: "mongodb.png"},
-    {spot: "ready", show_name: true,  name: "Awwbomb", description: "Aww Bomb", url: $scope.item_base_url + "awwbomb%23" + $scope.blueprint_ref, image: "awwbomb.png"},
     {spot: "ready", show_name: true,  name: "MySQL",   description: null,       url: $scope.item_base_url + "mysql-server%23" + $scope.blueprint_ref, image: "mysql.png"},
-    {spot: "ready", show_name: false, name: "ZeroBin", description: null,       url: $scope.item_base_url + "zerobin%23" + $scope.blueprint_ref, image: "ZeroBin.png"},
+    {spot: "ready", show_name: true,  name: "Awwbomb", description: "Aww Bomb", url: $scope.item_base_url + "awwbomb%23" + $scope.blueprint_ref, image: "awwbomb.png"},
   ];
   $scope.items3 = [
-    {spot: "ready", show_name: false, name: "Etherpad", description: "Etherpad Lite", url: $scope.item_base_url + "etherpad-lite%23" + $scope.blueprint_ref, image: "etherpad_lite.png"},
+    {spot: "write", show_name: false, name: "Django",   description: null,                     url: null, image: "django_small.png"},
     {spot: "ready", show_name: false, name: "Rails",    description: "Rails 4",       url: $scope.item_base_url + "rails4_app-blueprint%23" + $scope.blueprint_ref, image: "rails.png"},
-    {spot: "write", show_name: true,  name: "DevStack", description: null,            url: null, image: "openstack.png"},
     {spot: "write", show_name: false, name: "NodeJS",   description: "node.js",       url: null, image: "nodejs.png"},
+    {spot: "write", show_name: true,  name: "Tomcat",   description: null,                     url: null, image: "tomcat_small.gif"},
   ];
   $scope.items4 = [
-    {spot: "write", show_name: false, name: "Django",   description: null,                     url: null, image: "django_small.png"},
-    {spot: "write", show_name: true,  name: "Tomcat",   description: null,                     url: null, image: "tomcat_small.gif"},
-    {spot: "write", show_name: true,  name: "Magento",  description: "Managed Cloud Magento",  url: null, image: "magento1-6.png"},
+    {spot: "ready", show_name: false, name: "ZeroBin", description: null,       url: $scope.item_base_url + "zerobin%23" + $scope.blueprint_ref, image: "ZeroBin.png"},
+    {spot: "ready", show_name: false, name: "Etherpad", description: "Etherpad Lite", url: $scope.item_base_url + "etherpad-lite%23" + $scope.blueprint_ref, image: "etherpad_lite.png"},
+    {spot: "write", show_name: true,  name: "DevStack", description: null,            url: null, image: "openstack.png"},
     {spot: "write", show_name: true,  name: "SugarCRM", description: "Managed Cloud SugarCRM", url: null, image: "sugarcrm-box-only.jpg"},
   ];
   $scope.items5 = [
+    {spot: "write", show_name: true,  name: "Magento",  description: "Managed Cloud Magento",  url: null, image: "magento1-6.png"},
     {spot: "write", show_name: true,  name: "Joomla", description: null, url: null, image: "joomla_small.png"},
-    {spot: "write", show_name: true,  name: "Python", description: null, url: null, image: "python.png"},
     {spot: "write", show_name: false, name: "Apache", description: null, url: null, image: "apache.png"},
     {spot: "write", show_name: true,  name: "Hadoop", description: null, url: null, image: "hadoop.jpeg"},
+  ];
+  $scope.items6 = [
+    {spot: "write", show_name: true,  name: "Python", description: null, url: null, image: "python.png"},
   ];
 
   $scope.slides = [
@@ -227,6 +231,7 @@ function StaticController($scope, $location) {
     $scope.items3,
     $scope.items4,
     $scope.items5,
+    $scope.items6,
   ];
 
   $scope.display_name = function(item) {
@@ -354,7 +359,7 @@ function LoginModalController($scope, $modalInstance, auth, $route) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth, $route, $q, $modal, $cookies, $cookieStore) {
+function AppController($scope, $http, $location, $resource, auth, $route, $q, $modal, $cookies, $cookieStore, github) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
@@ -499,34 +504,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
 
   $scope.auth = auth;
 
-  $scope.github = {
-    url: 'https://github.com',
-    type: 'public', // vs. 'enterprise'
-    apiUrl: 'https://api.github.com', // enterprise appends .../api/v3 path
-    accessToken: $cookies.github_access_token
-  };
-  if ($scope.github.accessToken) {
-    var request = {
-      method: 'GET',
-      url: (checkmate_server_base || '') + '/githubproxy/user',
-      headers: {
-        'X-Target-Url': 'https://api.github.com',
-        'accept': 'application/json',
-        'Authorization': 'token ' + $scope.github.accessToken
-      }
-    };
-    $http(request).
-      success(function(data, status, headers, config) {
-        $scope.github.user = data;
-      }).
-      error(function(data, status, headers, config) {
-        console.log(data);
-        $scope.github.user = {};
-      });
-  }
+  $scope.github = github;
+
   $scope.githubLogout = function() {
-    $scope.github = {};
-    $cookieStore.remove('github_access_token');
+    $scope.github.logout();
     $scope.notify("Logged out of GitHub");
   };
 
@@ -864,7 +845,7 @@ function NavBarController($scope, $location, $http) {
 }
 
 
-function ActivityFeedController($scope, $http, items) {
+function ActivityFeedController($scope, $http, items, github) {
   $scope.loading = false;
   $scope.parse_event = function(event, key) {
     var parsed = {
@@ -917,25 +898,27 @@ function ActivityFeedController($scope, $http, items) {
       break;
     case 'WatchEvent':
       parsed.verb = 'starred';
+      break;
     default:
     }
     return parsed;
   };
 
   $scope.load = function() {
-    $scope.loading = true;
-    var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events';
-    $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        var received_items = items.receive(data, $scope.parse_event);
-        $scope.count = received_items.count;
-        $scope.items = received_items.all;
-        $scope.loading = false;
-      }).
-      error(function(data, status, headers, config) {
-        var response = {data: data, status: status};
-        $scope.loading = false;
-      });
+    if (github.config.url === 'https://github.rackspace.com') {
+      $scope.loading = true;
+      var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events';
+      $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
+        success(function(data, status, headers, config) {
+          var received_items = items.receive(data, $scope.parse_event);
+          $scope.count = received_items.count;
+          $scope.items = received_items.all;
+          $scope.loading = false;
+        }).
+        error(function(data, status, headers, config) {
+          $scope.loading = false;
+        });
+    }
   };
   $scope.load();
 }
@@ -3679,6 +3662,7 @@ checkmate.controller('ActivityFeedController', ActivityFeedController);
 checkmate.controller('TestController', TestController);
 checkmate.controller('WorkflowListController', WorkflowListController);
 checkmate.controller('WorkflowController', WorkflowController);
+checkmate.controller('SecretsController', SecretsController);
 
 /*
  * Other stuff

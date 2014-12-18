@@ -347,8 +347,9 @@
       </carousel>
     </div>
 
-    <div class="row pricing" ng-controller="ActivityFeedController" style="padding-top: 0px;">
+    <div ng-show="github.config.url === 'https://github.rackspace.com'" class="row pricing" ng-controller="ActivityFeedController" style="padding-top: 0px;">
       <div class="span8 offset2" ng-show="!items &amp;&amp; !loading">
+
         <div class="alert">Access to internal Rackspace GitHub server does not seem to be available from this Checkmate server. The list of blueprints available may be limited and some blueprint pages may not function.</div>
         <ul>
           <li>Check out the latest activity on <a href="https://github.rackspace.com/checkmate" target="_blank">github</a></li>
@@ -373,12 +374,4 @@
       </div>
     </div>
   </div>
-  </article>
-  <footer class="footer">
-    <div class="row-fluid">
-      <div class="span12">
-
-      </div>
-    </div>
-  </footer>
 </section>

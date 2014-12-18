@@ -299,7 +299,6 @@ services.factory('workflow', [function() {
 services.factory('items', [ 'filterFilter', function($resource, filter) {
   var items = {
     receive: function(list, transform) {
-      console.log("Receiving");
 
       var all_items = [],
           data = {};
@@ -312,7 +311,6 @@ services.factory('items', [ 'filterFilter', function($resource, filter) {
       angular.forEach(list, function(value, key) {
         all_items.push(transform(value, key));
       });
-      console.log('Done receiving ' + all_items.length + ' entries');
       return { count: all_items.length,
                all:   all_items,
                data:  data };
@@ -537,11 +535,23 @@ services.value('options', {
 });
 
 /* Github APIs for blueprint parsing*/
-services.factory('github', ['$http', '$q', function($http, $q) {
+services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function($http, $q, $cookies, $cookieStore) {
   var set_remote_owner_type = function(remote, type) {
     remote[type] = remote.owner;
     return remote;
-  }
+  };
+
+
+  var scope = {};
+
+  scope.config = {
+    url: 'https://github.com',
+    isEnterprise: false,
+    apiUrl: 'https://api.github.com',
+    accessToken: $cookies.github_access_token
+  };
+
+  scope.currentUser = {};
 
   var get_config = function(url, content_type) {
     var config = {
@@ -551,15 +561,45 @@ services.factory('github', ['$http', '$q', function($http, $q) {
       }
     };
 
-    return config;
-  }
+    if (scope.config.accessToken) {
+      config.headers.Authorization = 'token ' + scope.config.accessToken;
+    }
 
-  var scope = {};
+    return config;
+  };
+
+  scope.set_user = function() {
+    if (scope.config.accessToken) {
+      var request = {
+        method: 'GET',
+        url: (checkmate_server_base || '') + '/githubproxy/user',
+        headers: {
+          'X-Target-Url': scope.config.apiUrl,
+          'accept': 'application/json',
+          'Authorization': 'token ' + scope.config.accessToken
+        }
+      };
+      $http(request).
+        success(function(data, status, headers, config) {
+          scope.currentUser = data;
+        }).
+        error(function(data, status, headers, config) {
+          console.log(data);
+          scope.currentUser = {};
+        });
+    }
+  };
+
+  scope.logout = function() {
+    scope.config = {};
+    scope.currentUser = {};
+    $cookieStore.remove('github_access_token');
+  };
 
   scope.get_proxy_url = function(repo_url) {
       var uri = URI(repo_url);
       return '/githubproxy' + uri.path();
-  }
+  };
 
   // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
   scope.get_api_details = function(uri) {
@@ -574,14 +614,24 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     if(/github\.com$/i.test(domain)) {
       // The repo is on the Github website
       api.server += 'api.github.com' + port;
+      api.isEnterprise = false;
     } else {
       // The repo is on Github Enterprise
       api.server += uri.host();
       api.url += 'api/v3/';
+      api.isEnterprise = true;
     }
 
     return api;
-  }
+  };
+
+  scope.set_github_url = function(uri) {
+    var api = scope.get_api_details(uri);
+    scope.config.url = url.protocol() + '://' + url.host();
+    scope.config.apiUrl = url.protocol() + '://' + api.server + '/' + api.url;
+    scope.config.isEnterprise = api.isEnterprise;
+    scope.set_user();
+  };
 
   scope.parse_url = function(url_string) {
     var remote = {};
@@ -605,7 +655,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     remote.user = null;
 
     return remote;
-  }
+  };
 
   //Parse URL and returns a promise back with the github components (org, user, repo)
   scope.parse_org_url = function(url) {
@@ -622,7 +672,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
           return set_remote_owner_type(remote, 'user');
         }
       );
-  }
+  };
 
   //Load all repos for owner
   scope.get_repos = function(remote) {
@@ -632,7 +682,6 @@ services.factory('github', ['$http', '$q', function($http, $q) {
       path += 'orgs/' + remote.org + '/repos';
     } else
       path += 'users/' + remote.user + '/repos';
-    console.log("Loading: " + path);
     var config = get_config(remote.api.server);
     config.params = { per_page: GITHUB_MAX_PER_PAGE };
     return $http.get(path, config).then(
@@ -643,12 +692,11 @@ services.factory('github', ['$http', '$q', function($http, $q) {
         return $q.reject(response);
       }
     );
-  }
+  };
 
   //Load one repo
   scope.get_repo = function(remote, repo_name, callback, error_callback) {
     var path = remote.api.url + 'repos/' + remote.owner + '/' + repo_name;
-    console.log("Loading: " + path);
     $http.get(path, get_config(remote.api.server)).
       success(function(data, status, headers, config) {
         callback(data);
@@ -657,7 +705,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
         var response = {data: data, status: status};
         error_callback(response);
       });
-  }
+  };
 
   //Get all branches (and tags) for a repo
   scope.get_branches = function(remote, callback, error_callback) {
@@ -689,7 +737,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
       var response = {data: data, status: status};
       error_callback(response);
     });
-  }
+  };
 
   // Get a single branch or tag and return it as an object (with type, name, and commit)
   scope.get_branch_from_name = function(remote, branch_name) {
@@ -732,21 +780,21 @@ services.factory('github', ['$http', '$q', function($http, $q) {
           return $q.reject(response);
         }
       );
-  }
+  };
 
   var _get_branch_name = function(remote) {
     return ((remote.branch && remote.branch.name) || remote.branch_name || 'master');
-  }
+  };
 
   var _parse_blueprint = function(yaml_string, remote, username) {
     var checkmate_yaml;
     var branch_name = _get_branch_name(remote);
     var sanitized_yaml = yaml_string
-                           .replace('%repo_url%', (remote.repo.ssh_url || remote.url))
+                           .replace('%repo_url%', remote.url)
                            .replace('%username%', username || '%username%');
     checkmate_yaml = jsyaml.safeLoad(sanitized_yaml);
     return checkmate_yaml;
-  }
+  };
 
   scope.get_blueprint = function(remote, username) {
     return scope.get_contents(remote, null, 'checkmate.yaml').then(
@@ -764,7 +812,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
       // Error
       $q.reject
     );
-  }
+  };
 
   scope.get_contents = function(remote, url, content_item){
     var path;
@@ -785,7 +833,7 @@ services.factory('github', ['$http', '$q', function($http, $q) {
         return response;
       }
     );
-  }
+  };
 
   scope.get_refs = function(repos, type) {
     var tags = [];
@@ -819,11 +867,13 @@ services.factory('github', ['$http', '$q', function($http, $q) {
 
       return tags;
     });
-  }
+  };
 
   scope.get_tags = function(repos) {
     return scope.get_refs(repos, 'tags');
-  }
+  };
+
+  scope.set_user();
 
   return scope;
 }]);

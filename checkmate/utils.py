@@ -1224,6 +1224,6 @@ def run_ruby_command(path, command, params, env=None, lock=True):
     else:
         if path:
             os.chdir(path)
-        result = subprc.check_output(params)
+        result = subprc.check_output(params, cwd=path, env=env)
     LOG.debug(result)
     return result

@@ -14,8 +14,8 @@
     <!-- LOGGED IN -->
     <li class="dropdown pull-right" ng-show="auth.is_logged_in()" title="Token expires {{auth.context.token.expires | formattedDate}}">
       <a class="dropdown-toggle" id="user_button">
-            <img ng-show="github.user.avatar_url" ng-src="{{ github.user.avatar_url }}" style="height: 20px; margin-right: 5px;" title="GitHub Login: {{ github.user.login }}">
-            <i ng-hide="github.user.avatar_url" class="icon-user icon-white"></i> {{auth.context.username}}
+            <img ng-show="github.currentUser.avatar_url" ng-src="{{ github.currentUser.avatar_url }}" style="height: 20px; margin-right: 5px;" title="GitHub Login: {{ github.currentUser.login }}">
+            <i ng-hide="github.currentUser.avatar_url" class="icon-user icon-white"></i> {{auth.context.username}}
             <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
             <i class="caret"></i>
       </a>
@@ -23,9 +23,9 @@
 
         <!-- GitHub -->
         <li class="nav-header">GITHUB ACCESS</li>
-        <li ng-show="clientId && github.accessToken"><a href="#"><i class="fa fa-github"></i> {{ github.user.login }} (public)</a></li>
-        <li ng-show="clientId && !github.accessToken"><a ng-href="https://github.com/login/oauth/authorize?scope=user:email,repo&client_id={{ clientId }}"><i class="fa fa-github"></i> Auth to GitHub.com</a></li>
-        <li ng-show="github.accessToken"><a href="#" ng-click="githubLogout()">Remove GitHub Token</a></li>
+        <li ng-show="clientId && github.config.accessToken"><a href="#"><i class="fa fa-github"></i> {{ github.currentUser.login }} (public)</a></li>
+        <li ng-show="clientId && !github.config.accessToken"><a ng-href="https://github.com/login/oauth/authorize?scope=user:email,repo&client_id={{ clientId }}"><i class="fa fa-github"></i> Auth to GitHub.com</a></li>
+        <li ng-show="github.config.accessToken"><a href="#" ng-click="githubLogout()">Remove GitHub Token</a></li>
 
         <li ng-hide="clientId">GitHub not Enabled on Server</li>
         <li class="divider"></li>
@@ -52,7 +52,9 @@
         <li><a ng-show="is_impersonating()" ng-click="exit_impersonation()">Exit Impersonation</a></li>
         <li ng-show="is_impersonating()" class="divider"></li>
 
+        <!-- Log out -->
         <li><a ng-click="auth.logOut()">Log Out</a></li>
+
       </ul>
     </li>
   </ul>
