@@ -28,8 +28,7 @@ from checkmate.providers.opscode.chef_map import ChefMap
 
 
 LOG = logging.getLogger(__name__)
-OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
-                                 "11.16.4-1")
+OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT', "11.16.4-1")
 
 
 class Provider(base.BaseOpscodeProvider):
@@ -127,6 +126,7 @@ class Provider(base.BaseOpscodeProvider):
         defines = {'provider': self.key, 'resource': 'workspace'}
         call_args = [
             context.get_queued_task_dict(deployment_id=deployment['id']),
+            deployment['id'],
             deployment['id'],
         ]
         properties = {'estimated_duration': 1, 'task_tags': ['cleanup']}
@@ -399,7 +399,7 @@ class Provider(base.BaseOpscodeProvider):
 
     @staticmethod
     def connect(context):
-        api = chef.autoconfigure(
-            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
-        )
-        return api
+        # TODO (zns): support config from kitchen file?
+        #api = chef.from_config_file(... path to knife.rb...)
+        #return api
+        return

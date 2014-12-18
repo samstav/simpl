@@ -67,7 +67,9 @@ get_resource_by_id = MANAGERS['deployments'].get_resource_by_id
 
 
 class Provider(rsbase.RackspaceProviderBase):
-    '''Rackspace load balancer provider'''
+
+    """Rackspace load balancer provider."""
+
     name = 'load-balancer'
     method = 'cloud_loadbalancers'
     vendor = 'rackspace'
@@ -643,9 +645,9 @@ class Provider(rsbase.RackspaceProviderBase):
                          task_tags=['root']))
 
     def get_catalog(self, context, type_filter=None, **kwargs):
-        '''Return stored/override catalog if it exists, else connect, build,
+        """Return stored/override catalog if it exists, else connect, build,
         and return one.
-        '''
+        """
 
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
@@ -793,7 +795,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
     @staticmethod
     def find_url(catalog, region):
-        '''Find endpoint URL for region.'''
+        """Find endpoint URL for region."""
         for service in catalog:
             if service['type'] == 'rax:load-balancer':
                 endpoints = service['endpoints']
@@ -803,7 +805,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
     @staticmethod
     def find_a_region(catalog):
-        '''Any region.'''
+        """Any region."""
         for service in catalog:
             if service['type'] == 'rax:load-balancer':
                 endpoints = service['endpoints']
@@ -812,7 +814,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
     @staticmethod
     def connect(context, region=None):
-        '''Use context info to connect to API and return api object.'''
+        """Use context info to connect to API and return api object."""
         return getattr(rsbase.RackspaceProviderBase._connect(context, region),
                        Provider.method)
 
@@ -823,7 +825,7 @@ class Provider(rsbase.RackspaceProviderBase):
                backing_store=REDIS, backing_store_key='rax.lb.algorithms',
                ignore_args=[0])
 def _get_algorithms(context, auth_token, api_endpoint):
-    '''Ask CLB for Algorithms.'''
+    """Ask CLB for Algorithms."""
     # the auth_token and api_endpoint must be supplied but are not used
     try:
         api = Provider.connect(context)
@@ -843,7 +845,7 @@ def _get_algorithms(context, auth_token, api_endpoint):
                backing_store=REDIS, backing_store_key='rax.lb.protocols',
                ignore_args=[0])
 def _get_protocols(context, auth_token, api_endpoint):
-    '''Ask CLB for Protocols.'''
+    """Ask CLB for Protocols."""
     # the auth_token and api_endpoint must be supplied but are not used
     try:
         api = Provider.connect(context)

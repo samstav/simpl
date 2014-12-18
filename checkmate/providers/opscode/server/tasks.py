@@ -51,9 +51,8 @@ def register_node(context, deployment, name, recipes=None, roles=None,
                  run_list)
         return
 
-    use_api = False
     try:
-        if use_api:
+        if api:
             n = chef.Node(name, api=api)
             if run_list is not None:
                 n.run_list = run_list
@@ -62,10 +61,14 @@ def register_node(context, deployment, name, recipes=None, roles=None,
             if environment is not None:
                 n.chef_environment = environment
             n.save()
-            LOG.debug('Registered %s with Chef Server. Setting runlist to %s',
-                      name, run_list)
         else:
-            return True
+            Manager.register_node(context, deployment, name,
+                                  run_list=run_list,
+                                  normal_attributes=attributes,
+                                  environment=environment)
+        LOG.debug('Registered %s with Chef Server. Setting runlist to %s',
+                  name, run_list)
+        return True
     except chef.ChefError, exc:
         LOG.debug('Node registration failed. Chef Error: %s. Retrying.', exc)
         register_node.retry(exc=exc)
@@ -74,7 +77,8 @@ def register_node(context, deployment, name, recipes=None, roles=None,
         register_node.retry(exc=exc)
 
 
-@ctask.task(base=ProviderTask, provider=Provider)
+@ctask.task(base=ProviderTask, provider=Provider, max_retries=5,
+            default_retry_delay=60)
 @statsd.collect
 def bootstrap(context, deployment, name, ip, username='root', password=None,
               port=22, identity_file=None, roles=None, recipes=None,
@@ -121,9 +125,8 @@ def write_databag(context, deployment, bagname, itemname, contents,
         LOG.info("Would create databag: %s", bagname)
         return
 
-    use_api = False
     try:
-        if use_api:
+        if api:
             bag = chef.DataBag(bagname, api=api)
             bag.save()
             item = chef.DataBagItem(bag, itemname)
@@ -162,9 +165,8 @@ def manage_role(context, deployment, name, desc=None, run_list=None,
         LOG.info("Would create role: %s", name)
         return
 
-    use_api = False
     try:
-        if use_api:
+        if api:
             r = chef.Role(name, api=api)
             if desc is not None:
                 r.description = desc
@@ -218,9 +220,8 @@ def manage_environment(context, deployment, name, desc=None, versions=None,
         LOG.info("Would modify environment: %s", name)
         return True
 
-    use_api = False
     try:
-        if use_api:
+        if api:
             e = chef.Environment(name, api=api)
             if desc is not None:
                 e.description = desc
@@ -337,8 +338,11 @@ def delete_environment(context, deployment, name, api=None):
         return True
 
     try:
-        e = chef.Environment(name, api=api)
-        e.delete()
+        if api:
+            e = chef.Environment(name, api=api)
+            e.delete()
+        else:
+            Manager.delete_environment(name, deployment)
         LOG.info("Chef Environment %s deleted.", name)
         return True
     except chef.ChefError, exc:
