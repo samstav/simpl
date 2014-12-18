@@ -84,7 +84,7 @@ angular.module('checkmate.ComponentOptions')
                 constraint[id] = input;
               }
 
-              if(constraint.setting = id) {
+              if(constraint.setting == id) {
                 constraint.value = input;
               }
             });
