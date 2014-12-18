@@ -481,49 +481,98 @@ class Provider(providers.ProviderBase):
             region = Provider.find_a_region(context.catalog)
         api_endpoint = Provider.find_url(context.catalog, region)
         if type_filter is None or type_filter == 'database':
-            results['database'] = dict(mysql_database={
-                'id': 'mysql_database',
-                'is': 'database',
-                'provides': [{'database': 'mysql'}],
-                'requires': [{
-                    'compute': {
-                        'relation': 'host',
-                        'interface': 'mysql',
-                        'type': 'compute'
+            results['database'] = {
+                'mysql_database': {
+                    'id': 'mysql_database',
+                    'is': 'database',
+                    'provides': [{'database': 'mysql'}],
+                    'requires': [{
+                        'compute': {
+                            'relation': 'host',
+                            'interface': 'mysql',
+                            'type': 'compute'
+                        }
+                    }],
+                    'options': {
+                        'database/name': {
+                            'type': 'string',
+                            'default': 'db1'
+                        },
+                        'database/username': {
+                            'type': 'string',
+                            'required': "true"
+                        },
+                        'database/password': {
+                            'type': 'string',
+                            'required': "false"
+                        }
                     }
-                }],
-                'options': {
-                    'database/name': {
-                        'type': 'string',
-                        'default': 'db1'
-                    },
-                    'database/username': {
-                        'type': 'string',
-                        'required': "true"
-                    },
-                    'database/password': {
-                        'type': 'string',
-                        'required': "false"
+                },
+                'redis_database': {
+                    'id': 'redis_database',
+                    'is': 'database',
+                    'provides': [{'database': 'redis'}],
+                    'requires': [{
+                        'compute': {
+                            'relation': 'host',
+                            'interface': 'redis',
+                            'type': 'compute'
+                        }
+                    }],
+                    'options': {
+                        'database/name': {
+                            'type': 'string',
+                            'default': 'db1'
+                        },
+                        'database/username': {
+                            'type': 'string',
+                            'required': "true"
+                        },
+                        'database/password': {
+                            'type': 'string',
+                            'required': "false"
+                        }
                     }
-                }})
-        if type_filter is None or type_filter == 'compute':
-            results['compute'] = dict(mysql_instance={
-                'id': 'mysql_instance',
-                'is': 'compute',
-                'provides': [{'compute': 'mysql'}],
-                'options': {
-                    'disk': {
-                        'type': 'integer',
-                        'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                        'unit': 'Gb',
-                    },
-                    'memory': {
-                        'type': 'integer',
-                        'choice': [512, 1024, 2048, 4096],
-                        'unit': 'Mb',
-                    },
                 }
-            })
+            }
+
+        if type_filter is None or type_filter == 'compute':
+            results['compute'] = {
+                'mysql_instance': {
+                    'id': 'mysql_instance',
+                    'is': 'compute',
+                    'provides': [{'compute': 'mysql'}],
+                    'options': {
+                        'disk': {
+                            'type': 'integer',
+                            'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                            'unit': 'Gb',
+                        },
+                        'memory': {
+                            'type': 'integer',
+                            'choice': [512, 1024, 2048, 4096],
+                            'unit': 'Mb',
+                        },
+                    }
+                },
+                'redis_instance': {
+                    'id': 'redis_instance',
+                    'is': 'compute',
+                    'provides': [{'compute': 'redis'}],
+                    'options': {
+                        'disk': {
+                            'type': 'integer',
+                            'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                            'unit': 'Gb',
+                        },
+                        'memory': {
+                            'type': 'integer',
+                            'choice': [512, 1024, 2048, 4096],
+                            'unit': 'Mb',
+                        }
+                    }
+                }
+            }
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
