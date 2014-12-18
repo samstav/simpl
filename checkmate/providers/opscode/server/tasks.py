@@ -51,9 +51,8 @@ def register_node(context, deployment, name, recipes=None, roles=None,
                  run_list)
         return
 
-    use_api = False
     try:
-        if use_api:
+        if api:
             n = chef.Node(name, api=api)
             if run_list is not None:
                 n.run_list = run_list
@@ -62,10 +61,14 @@ def register_node(context, deployment, name, recipes=None, roles=None,
             if environment is not None:
                 n.chef_environment = environment
             n.save()
-            LOG.debug('Registered %s with Chef Server. Setting runlist to %s',
-                      name, run_list)
         else:
-            return True
+            Manager.register_node(context, deployment, name,
+                                  run_list=run_list,
+                                  normal_attributes=attributes,
+                                  environment=environment)
+        LOG.debug('Registered %s with Chef Server. Setting runlist to %s',
+                  name, run_list)
+        return True
     except chef.ChefError, exc:
         LOG.debug('Node registration failed. Chef Error: %s. Retrying.', exc)
         register_node.retry(exc=exc)

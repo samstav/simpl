@@ -115,6 +115,39 @@ class Manager(object):
         return results
 
     @staticmethod
+    def register_node(context, deployment_id, name, desc=None, run_list=None,
+                      default_attributes=None, normal_attributes=None,
+                      override_attributes=None, environment=None):
+        """Create Node on CHhef Server."""
+        kitchen = ChefKitchen(deployment_id)
+        knife = kitchen._knife
+        data = {
+            'chef_type': 'node',
+            'json_class': 'Chef::Node',
+            'name': name,
+        }
+        if environment:
+            data['chef_environment'] = environment
+        if desc:
+            data['description'] = desc
+        if run_list is not None:
+            data['run_list'] = run_list.split(', ')
+        if default_attributes is not None:
+            data['default'] = default_attributes
+        if normal_attributes is not None:
+            data['normal'] = normal_attributes
+        if override_attributes is not None:
+            data['override'] = override_attributes
+
+        LOG.debug("Writing node '%s'", name)
+        with tempfile.NamedTemporaryFile(suffix='.js') as handle:
+            json.dump(data, handle)
+            handle.flush()
+            knife.run_command(['knife', 'node', 'from', 'file',
+                               handle.name, '--disable-editing'])
+        return data
+
+    @staticmethod
     def update_environment(name, deployment_id, desc=None, run_list=None,
                            default_attributes=None, override_attributes=None,
                            env_run_lists=None):

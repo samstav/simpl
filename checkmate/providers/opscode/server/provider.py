@@ -399,7 +399,7 @@ class Provider(base.BaseOpscodeProvider):
 
     @staticmethod
     def connect(context):
-        api = chef.autoconfigure(
-            base_path=os.environ.get('CHECKMATE_CHEF_PATH')
-        )
-        return api
+        # TODO (zns): support config from kitchen file?
+        #api = chef.from_config_file(... path to knife.rb...)
+        #return api
+        return
