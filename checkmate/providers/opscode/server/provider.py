@@ -128,6 +128,7 @@ class Provider(base.BaseOpscodeProvider):
         call_args = [
             context.get_queued_task_dict(deployment_id=deployment['id']),
             deployment['id'],
+            deployment['id'],
         ]
         properties = {'estimated_duration': 1, 'task_tags': ['cleanup']}
         cleanup_task = specs.Celery(wfspec, 'Delete Chef Environment', call,
