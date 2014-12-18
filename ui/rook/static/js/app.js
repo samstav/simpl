@@ -916,7 +916,6 @@ function ActivityFeedController($scope, $http, items, github) {
           $scope.loading = false;
         }).
         error(function(data, status, headers, config) {
-          var response = {data: data, status: status};
           $scope.loading = false;
         });
     }
