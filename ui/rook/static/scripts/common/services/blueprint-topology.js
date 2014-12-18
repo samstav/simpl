@@ -528,7 +528,7 @@ angular.module('checkmate.Blueprint')
           // This defines linker drag events.
           linker.on("dragenter", function(d) {
             d3.select(this).classed('target', true);
-            Drag.target.set({componentId: d, serviceId: d3.select(this.parentNode.parentNode).datum()._id});
+            Drag.target.set({componentId: d.id, serviceId: d3.select(this.parentNode.parentNode).datum()._id});
           }).on("dragover", function(d) {
           }).on("dragleave", function(d) {
             Drag.target.set(null);
@@ -631,7 +631,7 @@ angular.module('checkmate.Blueprint')
           var mouse = d3.mouse(zoomer[0][0]);
 
           component.classed('deactivated', function(d) {
-            target = {componentId: d, serviceId: d3.select(this.parentNode).datum()._id};
+            target = {componentId: d.id, serviceId: d3.select(this.parentNode).datum()._id};
 
             if (source && target) {
               if (!Blueprint.canConnect(source, target)) {
