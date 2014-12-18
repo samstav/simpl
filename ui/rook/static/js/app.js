@@ -3663,6 +3663,7 @@ checkmate.controller('ActivityFeedController', ActivityFeedController);
 checkmate.controller('TestController', TestController);
 checkmate.controller('WorkflowListController', WorkflowListController);
 checkmate.controller('WorkflowController', WorkflowController);
+checkmate.controller('SecretsController', SecretsController);
 
 /*
  * Other stuff
