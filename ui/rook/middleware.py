@@ -146,6 +146,8 @@ class BrowserMiddleware(object):
             """Add our headers to response"""
             if self.with_simulator:
                 headers.append(("X-Simulator-Enabled", "True"))
+            if self.config.github_api:
+                headers.append(("X-Github-API", self.config.github_api))
             if self.config.github_client_id:
                 headers.append(("X-Github-Client-ID",
                                 self.config.github_client_id))

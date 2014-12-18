@@ -40,6 +40,7 @@ ENV_MAP = {
     'CHECKMATE_BLUEPRINT_CACHE_EXPIRE': 'blueprint_cache_expiration',
 
     'CHECKMATE_GITHUB_TOKEN': 'github_token',
+    'CHECKMATE_GITHUB_ENDPOINT': 'github_api',
     'CHECKMATE_GITHUB_CLIENT_ID': 'github_client_id',
     'CHECKMATE_GITHUB_CLIENT_SECRET': 'github_client_secret',
 
