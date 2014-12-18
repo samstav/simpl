@@ -354,12 +354,14 @@ angular.module('checkmate.Blueprint')
         return this.data.services && serviceName in this.data.services && this.data.services[serviceName].components.indexOf(component.id) > -1;
       },
       addComponentToService: function(component, serviceName) {
-        this.data.services[serviceName].components.push(component.id);
+        this.data.services[serviceName].components.push({id: component.id});
       },
       addService: function(serviceName, firstComponent) {
-        this.data.services[serviceName] = {
-          components: [firstComponent.id]
-        };
+        this.data.services[serviceName] = {components: []};
+
+        if(firstComponent) {
+          this.addComponentToService(firstComponent, serviceName);
+        }
       },
       broadcast: function() {
         $rootScope.$broadcast('blueprint:update', this.data);

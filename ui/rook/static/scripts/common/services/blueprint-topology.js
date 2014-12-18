@@ -428,7 +428,7 @@ angular.module('checkmate.Blueprint')
 
               var data = {
                 service: d3.select(this.parentNode.parentNode).datum()._id,
-                component: d,
+                component: d.id,
                 index: index
               };
 
@@ -446,7 +446,7 @@ angular.module('checkmate.Blueprint')
               return 'translate('+x+','+y+')';
             })
             .attr('xlink:href', function(d) {
-              return scope.getTattoo(d);
+              return scope.getTattoo(d.id);
             })
             .attr('class', 'component-icon');
 
@@ -456,7 +456,7 @@ angular.module('checkmate.Blueprint')
 
           label.append('title')
             .text(function(d) {
-              return d;
+              return d.id;
             });
 
           label.append('tspan')
@@ -474,7 +474,7 @@ angular.module('checkmate.Blueprint')
               return sizes.service.margin.top + 28;
             })
             .text(function(d) {
-              var label = d;
+              var label = d.id;
 
               if(d.length > 12) {
                 label = label.slice(0,9) + '...';
@@ -542,9 +542,9 @@ angular.module('checkmate.Blueprint')
             if (state.linking) {
               var source = Drag.source.get();
               var target = {
-                componentId: d,
+                componentId: d.id,
                 serviceId: d3.select(this.parentNode.parentNode).datum()._id,
-                protocol: d
+                protocol: d.id
               };
 
               if (source.serviceId === target.serviceId && source.componentId === target.componentId) {
@@ -615,7 +615,10 @@ angular.module('checkmate.Blueprint')
               .style("pointer-events", "none")
               .attr('class', 'linker dragline')
               .attr('d', 'M0,0L0,0');
-          Drag.source.set({componentId: d, serviceId: d3.select(this.parentNode.parentNode).datum()._id});
+          Drag.source.set({
+            componentId: d.id,
+            serviceId: d3.select(this.parentNode.parentNode).datum()._id
+          });
           d3.event.sourceEvent.stopPropagation();
           d3.select(this).classed("dragging dragged", true);
         }
