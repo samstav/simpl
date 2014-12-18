@@ -77,7 +77,8 @@ def register_node(context, deployment, name, recipes=None, roles=None,
         register_node.retry(exc=exc)
 
 
-@ctask.task(base=ProviderTask, provider=Provider)
+@ctask.task(base=ProviderTask, provider=Provider, max_retries=5,
+            default_retry_delay=60)
 @statsd.collect
 def bootstrap(context, deployment, name, ip, username='root', password=None,
               port=22, identity_file=None, roles=None, recipes=None,
