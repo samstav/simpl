@@ -657,7 +657,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
     remote.user = null;
 
     return remote;
-  }
+  };
 
   //Parse URL and returns a promise back with the github components (org, user, repo)
   scope.parse_org_url = function(url) {
@@ -674,7 +674,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
           return set_remote_owner_type(remote, 'user');
         }
       );
-  }
+  };
 
   //Load all repos for owner
   scope.get_repos = function(remote) {
@@ -695,7 +695,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
         return $q.reject(response);
       }
     );
-  }
+  };
 
   //Load one repo
   scope.get_repo = function(remote, repo_name, callback, error_callback) {
@@ -709,7 +709,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
         var response = {data: data, status: status};
         error_callback(response);
       });
-  }
+  };
 
   //Get all branches (and tags) for a repo
   scope.get_branches = function(remote, callback, error_callback) {
@@ -741,7 +741,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
       var response = {data: data, status: status};
       error_callback(response);
     });
-  }
+  };
 
   // Get a single branch or tag and return it as an object (with type, name, and commit)
   scope.get_branch_from_name = function(remote, branch_name) {
@@ -784,11 +784,11 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
           return $q.reject(response);
         }
       );
-  }
+  };
 
   var _get_branch_name = function(remote) {
     return ((remote.branch && remote.branch.name) || remote.branch_name || 'master');
-  }
+  };
 
   var _parse_blueprint = function(yaml_string, remote, username) {
     var checkmate_yaml;
@@ -798,7 +798,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
                            .replace('%username%', username || '%username%');
     checkmate_yaml = jsyaml.safeLoad(sanitized_yaml);
     return checkmate_yaml;
-  }
+  };
 
   scope.get_blueprint = function(remote, username) {
     return scope.get_contents(remote, null, 'checkmate.yaml').then(
@@ -816,7 +816,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
       // Error
       $q.reject
     );
-  }
+  };
 
   scope.get_contents = function(remote, url, content_item){
     var path;
@@ -837,7 +837,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
         return response;
       }
     );
-  }
+  };
 
   scope.get_refs = function(repos, type) {
     var tags = [];
@@ -871,11 +871,11 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
 
       return tags;
     });
-  }
+  };
 
   scope.get_tags = function(repos) {
     return scope.get_refs(repos, 'tags');
-  }
+  };
 
   scope.set_user();
 

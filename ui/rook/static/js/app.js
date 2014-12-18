@@ -4,17 +4,17 @@ var checkmate_server_base = is_chrome_extension ? 'http://localhost\\:8080' : ''
 
 //Load AngularJS
 var checkmate = angular.module('checkmate', [
-    'checkmate.filters', 
-    'checkmate.services', 
-    'checkmate.directives', 
-    'ngResource', 
-    'ngSanitize', 
-    'ngCookies', 
-    'ngLocale', 
-    'ngRoute', 
-    'ui.utils', 
-    'ui.bootstrap', 
-    'ui.codemirror', 
+    'checkmate.filters',
+    'checkmate.services',
+    'checkmate.directives',
+    'ngResource',
+    'ngSanitize',
+    'ngCookies',
+    'ngLocale',
+    'ngRoute',
+    'ui.utils',
+    'ui.bootstrap',
+    'ui.codemirror',
     'ui.date',
     'checkmate.applications'
 ]);
@@ -162,7 +162,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   $locationProvider.html5Mode({enabled: true, requireBase: false});  //requireBase: true breaks SVG icons
   // Hack to get access to them later
   checkmate.config.header_defaults = $httpProvider.defaults;
-  $httpProvider.defaults.headers.common['Accept'] = "application/json";
+  $httpProvider.defaults.headers.common.Accept = "application/json";
   $httpProvider.defaults.headers.post['Content-Type'] = "application/json;charset=utf-8";
 
   // Allow ssh, irc URLs
