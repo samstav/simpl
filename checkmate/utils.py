@@ -1180,7 +1180,7 @@ def format_check(data):
 def run_ruby_command(path, command, params, env=None, lock=True):
     """Run a knife-like command (ex. librarian-chef).
 
-    Since knife-ike command errors are returned to stderr, we need to
+    Since knife-like command errors are returned to stderr, we need to
     capture stderr and check for errors.
 
     That needs to be run in a kitchen, so we move curdir and need to make
@@ -1215,7 +1215,7 @@ def run_ruby_command(path, command, params, env=None, lock=True):
             #retry and pass ex
             # CalledProcessError cannot be serialized using Pickle,
             # so raising it would fail in celery; we wrap the exception in
-            # something  Pickle-able.
+            # something Pickle-able.
             msg = exc.output
             raise cmexc.CheckmateCalledProcessError(exc.returncode, exc.cmd,
                                                     output=msg)
