@@ -537,11 +537,23 @@ services.value('options', {
 });
 
 /* Github APIs for blueprint parsing*/
-services.factory('github', ['$http', '$q', function($http, $q) {
+services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function($http, $q, $cookies, $cookieStore) {
   var set_remote_owner_type = function(remote, type) {
     remote[type] = remote.owner;
     return remote;
-  }
+  };
+
+
+  var scope = {};
+
+  scope.config = {
+    url: 'https://github.com',
+    isEnterprise: false,
+    apiUrl: 'https://api.github.com',
+    accessToken: $cookies.github_access_token
+  };
+
+  scope.currentUser = {};
 
   var get_config = function(url, content_type) {
     var config = {
@@ -551,15 +563,45 @@ services.factory('github', ['$http', '$q', function($http, $q) {
       }
     };
 
-    return config;
-  }
+    if (scope.config.accessToken) {
+      config.headers.Authorization = 'token ' + scope.config.accessToken;
+    }
 
-  var scope = {};
+    return config;
+  };
+
+  scope.set_user = function() {
+    if (scope.config.accessToken) {
+      var request = {
+        method: 'GET',
+        url: (checkmate_server_base || '') + '/githubproxy/user',
+        headers: {
+          'X-Target-Url': scope.config.apiUrl,
+          'accept': 'application/json',
+          'Authorization': 'token ' + scope.config.accessToken
+        }
+      };
+      $http(request).
+        success(function(data, status, headers, config) {
+          scope.currentUser = data;
+        }).
+        error(function(data, status, headers, config) {
+          console.log(data);
+          scope.currentUser = {};
+        });
+    }
+  };
+
+  scope.logout = function() {
+    scope.config = {};
+    scope.currentUser = {};
+    $cookieStore.remove('github_access_token');
+  };
 
   scope.get_proxy_url = function(repo_url) {
       var uri = URI(repo_url);
       return '/githubproxy' + uri.path();
-  }
+  };
 
   // Determine api call url based on whether the repo is on GitHub website or hosted Github Enterprise
   scope.get_api_details = function(uri) {
@@ -574,14 +616,24 @@ services.factory('github', ['$http', '$q', function($http, $q) {
     if(/github\.com$/i.test(domain)) {
       // The repo is on the Github website
       api.server += 'api.github.com' + port;
+      api.isEnterprise = false;
     } else {
       // The repo is on Github Enterprise
       api.server += uri.host();
       api.url += 'api/v3/';
+      api.isEnterprise = true;
     }
 
     return api;
-  }
+  };
+
+  scope.set_github_url = function(uri) {
+    var api = scope.get_api_details(uri);
+    scope.config.url = url.protocol() + '://' + url.host();
+    scope.config.apiUrl = url.protocol() + '://' + api.server + '/' + api.url;
+    scope.config.isEnterprise = api.isEnterprise;
+    scope.set_user();
+  };
 
   scope.parse_url = function(url_string) {
     var remote = {};
@@ -824,6 +876,8 @@ services.factory('github', ['$http', '$q', function($http, $q) {
   scope.get_tags = function(repos) {
     return scope.get_refs(repos, 'tags');
   }
+
+  scope.set_user();
 
   return scope;
 }]);

@@ -354,7 +354,7 @@ function LoginModalController($scope, $modalInstance, auth, $route) {
 }
 
 //Root controller that implements authentication
-function AppController($scope, $http, $location, $resource, auth, $route, $q, $modal, $cookies, $cookieStore) {
+function AppController($scope, $http, $location, $resource, auth, $route, $q, $modal, $cookies, $cookieStore, github) {
   $scope.showHeader = true;
   $scope.showStatus = false;
   $scope.foldFunc = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
@@ -499,34 +499,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
 
   $scope.auth = auth;
 
-  $scope.github = {
-    url: 'https://github.com',
-    type: 'public', // vs. 'enterprise'
-    apiUrl: 'https://api.github.com', // enterprise appends .../api/v3 path
-    accessToken: $cookies.github_access_token
-  };
-  if ($scope.github.accessToken) {
-    var request = {
-      method: 'GET',
-      url: (checkmate_server_base || '') + '/githubproxy/user',
-      headers: {
-        'X-Target-Url': 'https://api.github.com',
-        'accept': 'application/json',
-        'Authorization': 'token ' + $scope.github.accessToken
-      }
-    };
-    $http(request).
-      success(function(data, status, headers, config) {
-        $scope.github.user = data;
-      }).
-      error(function(data, status, headers, config) {
-        console.log(data);
-        $scope.github.user = {};
-      });
-  }
+  $scope.github = github;
+
   $scope.githubLogout = function() {
-    $scope.github = {};
-    $cookieStore.remove('github_access_token');
+    $scope.github.logout();
     $scope.notify("Logged out of GitHub");
   };
 
@@ -864,7 +840,7 @@ function NavBarController($scope, $location, $http) {
 }
 
 
-function ActivityFeedController($scope, $http, items) {
+function ActivityFeedController($scope, $http, items, github) {
   $scope.loading = false;
   $scope.parse_event = function(event, key) {
     var parsed = {
@@ -917,25 +893,28 @@ function ActivityFeedController($scope, $http, items) {
       break;
     case 'WatchEvent':
       parsed.verb = 'starred';
+      break;
     default:
     }
     return parsed;
   };
 
   $scope.load = function() {
-    $scope.loading = true;
-    var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events';
-    $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
-      success(function(data, status, headers, config) {
-        var received_items = items.receive(data, $scope.parse_event);
-        $scope.count = received_items.count;
-        $scope.items = received_items.all;
-        $scope.loading = false;
-      }).
-      error(function(data, status, headers, config) {
-        var response = {data: data, status: status};
-        $scope.loading = false;
-      });
+    if (github.config.url === 'https://github.rackspace.com') {
+      $scope.loading = true;
+      var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events';
+      $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
+        success(function(data, status, headers, config) {
+          var received_items = items.receive(data, $scope.parse_event);
+          $scope.count = received_items.count;
+          $scope.items = received_items.all;
+          $scope.loading = false;
+        }).
+        error(function(data, status, headers, config) {
+          var response = {data: data, status: status};
+          $scope.loading = false;
+        });
+    }
   };
   $scope.load();
 }
