@@ -299,7 +299,6 @@ services.factory('workflow', [function() {
 services.factory('items', [ 'filterFilter', function($resource, filter) {
   var items = {
     receive: function(list, transform) {
-      console.log("Receiving");
 
       var all_items = [],
           data = {};
@@ -312,7 +311,6 @@ services.factory('items', [ 'filterFilter', function($resource, filter) {
       angular.forEach(list, function(value, key) {
         all_items.push(transform(value, key));
       });
-      console.log('Done receiving ' + all_items.length + ' entries');
       return { count: all_items.length,
                all:   all_items,
                data:  data };
@@ -684,7 +682,6 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
       path += 'orgs/' + remote.org + '/repos';
     } else
       path += 'users/' + remote.user + '/repos';
-    console.log("Loading: " + path);
     var config = get_config(remote.api.server);
     config.params = { per_page: GITHUB_MAX_PER_PAGE };
     return $http.get(path, config).then(
@@ -700,7 +697,6 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
   //Load one repo
   scope.get_repo = function(remote, repo_name, callback, error_callback) {
     var path = remote.api.url + 'repos/' + remote.owner + '/' + repo_name;
-    console.log("Loading: " + path);
     $http.get(path, get_config(remote.api.server)).
       success(function(data, status, headers, config) {
         callback(data);
