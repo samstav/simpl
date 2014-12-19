@@ -35,6 +35,34 @@
 .rs-app-launch-sidebar.stick-right {
   background-color: rgba(0,0,0,.85);
 }
+.rs-app-launch-sidebar input {
+  box-sizing: content-box;
+  padding: 5px 6px;
+  height: auto;
+  margin-bottom: 0;
+  background-color: #444;
+  border: 0;
+  color: #fff;
+}
+.rs-app-launch-sidebar .btn {
+  margin-left: auto;
+}
+.rs-app-launch-sidebar input:focus {
+  background-color: #555;
+}
+.rs-app-launch-sidebar label {
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: bold;
+  color: #999;
+}
+.rs-app-launch-sidebar label:after {
+  content: '';
+}
+.rs-app-launch-sidebar p {
+  color: #ccc;
+  font-size: 11px;
+}
 
 /* Catalog Sidebar Header */
 .rs-app-launch-header {
@@ -93,9 +121,11 @@
   bottom: 0;
   overflow-y: scroll;
 }
-.rs-app-launch-list-section {}
+.rs-app-launch-list-section {
+  padding: 5px 15px;
+}
 .rs-app-launch-list-section h4 {
-  padding: 0 20px;
+  padding: 0 0;
   margin: 0;
   line-height: 25px;
   color: #c0c0c0;
@@ -103,7 +133,7 @@
 .rs-app-launch-list-item {
   color: #666;
   padding: 5px 15px;
-  margin: 0px 15px;
+  margin: 0 0;
   display: block;
   text-align: left;
   position: relative;
@@ -260,11 +290,11 @@
 
 /* App Selection */
 .rs-app-launch-sidebar.stick-left.app-selection {
-  width: 400px;
+  width: 450px;
 }
 .rs-app-launch-sidebar.stick-left.app-selection,
 .editor-full-screen .rs-app-launch-sidebar.stick-left.app-selection {
-  left: -400px;
+  left: -450px;
 }
 .selection-open .rs-app-launch-sidebar.stick-left.app-selection {
   left: 0;

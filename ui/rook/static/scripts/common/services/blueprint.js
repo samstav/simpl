@@ -220,35 +220,51 @@ angular.module('checkmate.Blueprint')
         this.sort(component, target);
       },
       remove: function(selection) {
-        // Remove component to blueprint data.
-        this.get().services[selection.service].components.splice(selection.index, 1);
+        var services = this.get().services;
+        var service = services[selection.service];
+        var component = service.component
+        var components = service.components;
 
-        // If the service has no components, remove the service.
-        if(this.get().services[selection.service].components.length < 1) {
+        if(component) {
+          delete this.get().services[selection.service];
+        } else if(components) {
+          // Remove component to blueprint data.
+          components.splice(selection.index, 1);
+
+          // If the service has no components, remove the service.
+          if(components.length < 1) {
+            delete service
+          }
+
+          // Find all connections to the removed component and remove them.
+          _.each(services, function(_service, _id, _services) {
+            _.each(_service.relations, function(_relation, _index, _relations) {
+              _.each(_relation, function(_component, _service) {
+                if(_component == selection.component && _service == selection.service) {
+                  delete _relation[_service];
+                }
+              });
+
+              if(_.isEmpty(_relation)) {
+                _relations.splice(index, 1);
+              }
+
+              if(!_relations.length) {
+                delete _service.relations;
+              }
+            });
+          });
+
+          if(!service.components.length) {
+            delete service.components;
+          }
+        }
+
+        if(_.isEmpty(service)) {
           delete this.get().services[selection.service];
         }
 
-        // Find all connections to the removed component and remove them.
-        _.each(this.get().services, function(service, id, services) {
-          _.each(service.relations, function(relation, index, relations) {
-
-            _.each(relation, function(component, service) {
-              if(component == selection.component && service == selection.service) {
-                delete relation[service];
-              }
-            });
-
-            if(_.isEmpty(relation)) {
-              relations.splice(index, 1);
-            }
-
-            if(!relations.length) {
-              delete service.relations;
-            }
-          });
-        });
-
-        if(_.isEmpty(this.get().services)) {
+        if(_.isEmpty(services)) {
           delete this.get().services;
         }
 
@@ -351,15 +367,31 @@ angular.module('checkmate.Blueprint')
         }
       },
       componentInService: function(component, serviceName) {
-        return this.data.services && serviceName in this.data.services && this.data.services[serviceName].components.indexOf(component.id) > -1;
+        return this.getComponent(serviceName, component.id) ? true : false;
+      },
+      getComponent: function(serviceId, componentId) {
+        var components = ((this.data.services || {})[serviceId] || {}).components || [];
+        var component = _.find(components, function(_component) {
+          return _component.id == componentId;
+        });
+        return component;
+      },
+      getComponentConstraints: function(serviceId, componentId) {
+        return this.getComponent(serviceId, componentId).constraints || [];
+      },
+      saveComponentConstraints: function(data) {
+        this.getComponent(data.serviceId, data.component.id).constraints = data.constraints;
+        this.broadcast();
       },
       addComponentToService: function(component, serviceName) {
-        this.data.services[serviceName].components.push(component.id);
+        this.data.services[serviceName].components.push({id: component.id});
       },
       addService: function(serviceName, firstComponent) {
-        this.data.services[serviceName] = {
-          components: [firstComponent.id]
-        };
+        this.data.services[serviceName] = {components: []};
+
+        if(firstComponent) {
+          this.addComponentToService(firstComponent, serviceName);
+        }
       },
       broadcast: function() {
         $rootScope.$broadcast('blueprint:update', this.data);

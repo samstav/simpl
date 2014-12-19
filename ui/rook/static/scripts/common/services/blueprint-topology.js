@@ -68,7 +68,6 @@ angular.module('checkmate.Blueprint')
             .on("dragstart", linkstarted)
             .on("drag", linkdragged)
             .on("dragend", linkended);
-
         var svg = d3.select(element[0]);
 
         var zoomer = svg.append('g')
@@ -206,8 +205,14 @@ angular.module('checkmate.Blueprint')
               .attr('id', function(d) {
                 return d._id + '-service';
               })
-              .attr("transform", function(d) {
-                var safeMouse = mouse || [100, 100];
+              .attr("transform", function(d, index) {
+                var height = sizes.service.height((d.components || [1]).length);
+                var width = sizes.service.width((d.components || [1]).length);
+                var coords = {
+                  x: ((svg.style('width').replace('px','') * 1) / 2) + (index % 2 ? -1 * 60 : 60) - width,
+                  y: ((height + 25) * index) + 25
+                };
+                var safeMouse = mouse || [coords.x, coords.y]
                 var meta = blueprint['meta-data'];
 
                 d.x = ((meta.annotations || {})[d._id] || {})['gui-x'] || safeMouse[0];
@@ -226,7 +231,7 @@ angular.module('checkmate.Blueprint')
                   relation: null
                 };
 
-                toggleSelect(d3.select(this), data);
+                //toggleSelect(d3.select(this), data);
                 d3.event.stopPropagation();
               });
 
@@ -241,10 +246,10 @@ angular.module('checkmate.Blueprint')
           service.append('rect')
             .attr('class', 'service-container')
             .attr("width", function(d) {
-              return sizes.service.width(d.components.length);
+              return sizes.service.width((d.components || [1]).length);
             })
             .attr("height", function(d) {
-              return sizes.service.height(d.components.length);
+              return sizes.service.height((d.components || [1]) .length);
             })
             .attr('rx', sizes.service.radius)
             .attr('ry', sizes.service.radius);
@@ -261,10 +266,10 @@ angular.module('checkmate.Blueprint')
           title.append('tspan')
             .attr('text-anchor', 'middle')
             .attr('x', function(d) {
-              return sizes.service.width(d.components.length) / 2;
+              return sizes.service.width((d.components || [1]).length) / 2;
             })
             .attr('y', function(d) {
-              return sizes.service.height(d.components.length) - (sizes.service.margin.bottom / 2) + 3;
+              return sizes.service.height((d.components || [1]).length) - (sizes.service.margin.bottom / 2) + 3;
             })
             .text(function(d){
               return d._id.toUpperCase();
@@ -380,7 +385,7 @@ angular.module('checkmate.Blueprint')
           // This appends components to service container.
           component = service.selectAll('g.component')
               .data(function(d) {
-                return d.components;
+                return d.component ? [d.component] : d.components;
               })
             .enter()
               .append('g')
@@ -428,7 +433,7 @@ angular.module('checkmate.Blueprint')
 
               var data = {
                 service: d3.select(this.parentNode.parentNode).datum()._id,
-                component: d,
+                component: d.id,
                 index: index
               };
 
@@ -446,7 +451,7 @@ angular.module('checkmate.Blueprint')
               return 'translate('+x+','+y+')';
             })
             .attr('xlink:href', function(d) {
-              return scope.getTattoo(d);
+              return scope.getTattoo(d.id);
             })
             .attr('class', 'component-icon');
 
@@ -456,7 +461,7 @@ angular.module('checkmate.Blueprint')
 
           label.append('title')
             .text(function(d) {
-              return d;
+              return d.id;
             });
 
           label.append('tspan')
@@ -474,7 +479,7 @@ angular.module('checkmate.Blueprint')
               return sizes.service.margin.top + 28;
             })
             .text(function(d) {
-              var label = d;
+              var label = d.id;
 
               if(d.length > 12) {
                 label = label.slice(0,9) + '...';
@@ -528,7 +533,7 @@ angular.module('checkmate.Blueprint')
           // This defines linker drag events.
           linker.on("dragenter", function(d) {
             d3.select(this).classed('target', true);
-            Drag.target.set({componentId: d, serviceId: d3.select(this.parentNode.parentNode).datum()._id});
+            Drag.target.set({componentId: d.id, serviceId: d3.select(this.parentNode.parentNode).datum()._id});
           }).on("dragover", function(d) {
           }).on("dragleave", function(d) {
             Drag.target.set(null);
@@ -542,9 +547,9 @@ angular.module('checkmate.Blueprint')
             if (state.linking) {
               var source = Drag.source.get();
               var target = {
-                componentId: d,
+                componentId: d.id,
                 serviceId: d3.select(this.parentNode.parentNode).datum()._id,
-                protocol: d
+                protocol: d.id
               };
 
               if (source.serviceId === target.serviceId && source.componentId === target.componentId) {
@@ -615,7 +620,10 @@ angular.module('checkmate.Blueprint')
               .style("pointer-events", "none")
               .attr('class', 'linker dragline')
               .attr('d', 'M0,0L0,0');
-          Drag.source.set({componentId: d, serviceId: d3.select(this.parentNode.parentNode).datum()._id});
+          Drag.source.set({
+            componentId: d.id,
+            serviceId: d3.select(this.parentNode.parentNode).datum()._id
+          });
           d3.event.sourceEvent.stopPropagation();
           d3.select(this).classed("dragging dragged", true);
         }
@@ -628,7 +636,7 @@ angular.module('checkmate.Blueprint')
           var mouse = d3.mouse(zoomer[0][0]);
 
           component.classed('deactivated', function(d) {
-            target = {componentId: d, serviceId: d3.select(this.parentNode).datum()._id};
+            target = {componentId: d.id, serviceId: d3.select(this.parentNode).datum()._id};
 
             if (source && target) {
               if (!Blueprint.canConnect(source, target)) {

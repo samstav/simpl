@@ -4,7 +4,7 @@
           'editor-open': codemirror.isVisible,
           'editor-full-screen': codemirror.isFullScreen,
           'catalog-open': catalog.isVisible,
-          'selection-open': selection.isVisible
+          'selection-open': selection.isVisible && selection.hasSelection()
         }">
 
     <div class="catalog-toggle-button"
@@ -51,16 +51,17 @@
           Options
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
         <div class="rs-app-launch-title">
-          {{ selection.data.service }}\{{ selection.data.component }}
+          {{ selection.data.service }}\{{ selection.data.component.id }}
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
         <div class="rs-app-launch-control">
           <i class="fa fa-close fa-inverse" ng-click="selection.isVisible = false"></i>
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
       </header> <!-- /.rs-app-launch-header -->
       <section class="rs-app-launch-list-section">
-        <form name="frmOptions">
-          <ng-include src="'/scripts/app/applications/options.tpl.html'"></ng-include>
-        </form>
+        <component-options service-id="selection.data.service"
+                           component="selection.data.component"
+                           options="catalog.component(selection.data.component.id).options">
+        </component-options>
       </section> <!-- /.rs-app-launch-list-section -->
     </div> <!-- /.rs-app-launch-sidebar -->
 
@@ -73,7 +74,6 @@
 
       <!-- Code Mirror -->
       <div class="codemirror-toggle-button"
-           ng-show="deployment.blueprint.services"
            ng-click="codemirror.isVisible = !codemirror.isVisible">
         <span class="fa-stack fa-lg">
           <i class="fa fa-ban fa-stack-2x text-danger" ng-show="codemirror.isVisible"></i>
@@ -92,8 +92,7 @@
         </span>
       </div>
 
-      <deployment-editor ng-show="deployment.blueprint.services"
-                         class="rs-app-launch-sidebar stick-right"
+      <deployment-editor class="rs-app-launch-sidebar stick-right"
                          ng-class="{'visible': codemirror.isVisible}">
       </deployment-editor>
 
