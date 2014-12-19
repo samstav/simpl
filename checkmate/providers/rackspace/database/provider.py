@@ -107,14 +107,6 @@ class Provider(cmbase.ProviderBase):
                     flavor = key
                     break
 
-            # TODO(Paul): for redis support, flavor will need to be in the
-            #             range 101 - 108 (but is currently in the range 1 - 8.
-            #             Whether or not it's redis can be found in
-            #             definition['connections']['compute']['interface'].
-            #             the value of 'interface' will be 'redis'.
-            #
-            #             If it's redis, we'll need to add 100 to `flavor`.
-
             if not flavor:
                 raise CheckmateNoMapping("No flavor mapping for '%s' in '%s'" %
                                          (memory, self.key))
@@ -216,6 +208,12 @@ class Provider(cmbase.ProviderBase):
 
         resource_type = resource.get('type', resource.get('resource_type'))
         if component['is'] == 'database':
+            # For now, ignore all of this if we're spinning up a Redis
+            # instance. We definitely don't need the create_database task, but
+            # we may need the add_user task.
+            if resource.get('component') == 'redis_database':
+                return
+
             # Database name
             db_name = deployment.get_setting('database/name',
                                              resource_type=resource_type,
@@ -317,6 +315,7 @@ class Provider(cmbase.ProviderBase):
                            interface=resource.get('interface'),
                            provider=self.key,
                            task_tags=['create', 'root'])
+            LOG.info('Resource: %s', resource)
             create_instance_task = specs.Celery(
                 wfspec,
                 'Create Database Server',
@@ -332,6 +331,7 @@ class Provider(cmbase.ProviderBase):
                     None,
                     resource['region'],
                 ],
+                component=resource.get('component'),
                 merge_results=True,
                 defines=defines,
                 properties={'estimated_duration': 80}
@@ -363,7 +363,7 @@ class Provider(cmbase.ProviderBase):
             )
             wait_task.follow(create_instance_task)
             return dict(root=root, final=wait_task)
-        else:
+        elif resource.get('component') != 'redis_instance':
             error_message = ("Unsupported component type '%s' for  provider "
                              "%s" % (component['is'], self.key))
             raise CheckmateException(error_message)

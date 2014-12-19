@@ -22,6 +22,7 @@ import logging
 
 from pyrax import exceptions as cdb_errors
 
+from checkmate.providers.rackspace.database import cdbredis
 from checkmate import exceptions as cmexc
 from checkmate import utils
 
@@ -33,19 +34,21 @@ class Manager(object):
     """Database provider model and logic for interaction."""
 
     @staticmethod
-    def wait_on_build(instance_id, api, callback, simulate=False):
+    def wait_on_build(context, region, instance_id, callback, simulate=False):
         """Check provider resource.
 
         Returns True when built otherwise False.
         If resource goes into error state, raises exception.
         """
-        assert api, "API is required in wait_on_build"
         data = {}
         try:
             if simulate:
                 data['status'] = 'ACTIVE'
             else:
-                data['status'] = api.get(instance_id).status
+                details = cdbredis.get_instance(region, context.tenant,
+                                                context.auth_token,
+                                                instance_id)
+                data['status'] = details.get('instance', {}).get('status')
         except cdb_errors.ClientException as exc:
             raise cmexc.CheckmateException(
                 str(exc),

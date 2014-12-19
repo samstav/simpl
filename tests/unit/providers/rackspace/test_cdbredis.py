@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from checkmate.common import cdbredis
+from checkmate.providers.rackspace.database import cdbredis
 
 
 class TestCreateRedisInstance(unittest.TestCase):
@@ -29,41 +29,42 @@ class TestCreateRedisInstance(unittest.TestCase):
     def test_region_cannot_be_none(self):
         """Region cannot be None."""
         with self.assertRaises(AssertionError) as expected:
-            cdbredis.create_instance(None, '825642', 'VALID', 'name', 101)
-        self.assertEqual('Region must be a string', str(expected.exception))
+            cdbredis.create_instance(None, u'825642', u'VALID', u'name', 101)
+        self.assertEqual('Region must be unicode', str(expected.exception))
 
     def test_region_must_be_valid(self):
         """Region must be a valid region (e.g. 'ORD')."""
         with self.assertRaises(AssertionError) as expected:
-            cdbredis.create_instance('ARN', '825642', 'VALID', 'name', 101)
+            cdbredis.create_instance(u'ARN', u'825642', u'VALID', u'name', 101)
         self.assertEqual('Must be a valid region (e.g. ORD)',
                          str(expected.exception))
 
     def test_t_id_is_not_a_str(self):
         """t_id must be a string."""
         with self.assertRaises(AssertionError) as expected:
-            cdbredis.create_instance('IAD', 825642, 'VALID', 'name', 101)
-        self.assertEqual('t_id must be a string',
+            cdbredis.create_instance(u'IAD', 825642, u'VALID', u'name', 101)
+        self.assertEqual('t_id must be unicode',
                          str(expected.exception))
 
     def test_token_is_invalid(self):
         """Auth Token (token) must be a string."""
         with self.assertRaises(AssertionError) as expected:
-            cdbredis.create_instance('IAD', '825642', None, 'name', 101)
+            cdbredis.create_instance(u'IAD', u'825642', None, u'name', 101)
         self.assertEqual('A valid token must be provided',
                          str(expected.exception))
 
     def test_flavor_is_not_an_int(self):
         """Flavor must be an int."""
         with self.assertRaises(AssertionError) as expected:
-            cdbredis.create_instance('IAD', '825642', 'VALID', 'name', '101')
+            cdbredis.create_instance(u'IAD', u'825642', u'VALID', u'name',
+                                     u'101')
         self.assertEqual('flavor must be an int from 101 - 108',
                          str(expected.exception))
 
     def test_flavor_is_not_in_range(self):
         """Flavor must be in the appropriate range."""
         with self.assertRaises(AssertionError) as expected:
-            cdbredis.create_instance('IAD', '825642', 'VALID', 'name', 100)
+            cdbredis.create_instance(u'IAD', u'825642', u'VALID', u'name', 100)
         self.assertEqual('flavor must be an int from 101 - 108',
                          str(expected.exception))
 
@@ -88,6 +89,6 @@ class TestCreateRedisInstance(unittest.TestCase):
             }
         })
         mock_flavor_ref.return_value = expected_flavor_ref
-        cdbredis.create_instance('IAD', '825642', 'VALID', 'name', 101)
+        cdbredis.create_instance(u'IAD', u'825642', u'VALID', u'name', 101)
         mock_post.assert_called_with(expected_url, headers=expected_headers,
                                      data=expected_data)
