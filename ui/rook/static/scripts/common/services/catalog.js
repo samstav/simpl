@@ -156,7 +156,65 @@ var catalogData = {
     },
     "mysql": {
       "is": "database",
-      "id": "mysql",
+      "name": "mysql",
+      "provides": [
+      {
+        "database": "mysql"
+      }
+      ],
+      "options": {
+        "server_root_password": {
+          "default": "=generate_password(min_length=12, required_chars=[\"0123456789\", \"abcdefghijklmnopqrstuvwxyz\", \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"])",
+          "required": true,
+          "type": "password",
+          "display-hints": {
+            "group": "application",
+            "order": 1
+          },
+          "constraints": [
+          {
+            "regex": "^((.){8,255})?$",
+            "message": "must be between 8 and 255 characters long if provided"
+          }
+          ]
+        },
+        "username": {
+          "default": "root",
+          "required": true,
+          "type": "string",
+          "display-hints": {
+            "group": "application",
+            "order": 2
+          }
+        },
+        "password": {
+          "default": "=generate_password(min_length=12, required_chars=[\"0123456789\", \"abcdefghijklmnopqrstuvwxyz\", \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"])",
+          "required": true,
+          "type": "password",
+          "display-hints": {
+            "group": "application",
+            "order": 3
+          },
+          "constraints": [
+          {
+            "regex": "^((.){8,255})?$",
+            "message": "must be between 8 and 255 characters long if provided"
+          }
+          ]
+        }
+      },
+      "meta-data": {
+        "display-hints": {
+          "icon-20x20": "/images/mysql-small.png",
+          "tattoo": "/images/mysql-tattoo.png"
+        }
+      }
+    },
+    "opscode.chef-server.mysql": {
+      "id": "opscode.chef-server.mysql",
+      "name": "mysql",
+      "provider": "opscode.chef-server",
+      "is": "database",
       "provides": [
       {
         "database": "mysql"
@@ -215,133 +273,12 @@ var catalogData = {
         }
       }
     },
-    "mysql#slave": {
-      "is": "database",
-      "id": "mysql-slave",
-      "provides": [
-      {
-        "database": "mysql#slave"
-      }
-      ],
-      "requires": [
-      {
-        "host": "linux"
-      }, {
-        "database": "mysql#master"
-      }
-      ],
-      "options": {
-        "server_root_password": {
-          "default": "=generate_password(min_length=12, required_chars=[\"0123456789\", \"abcdefghijklmnopqrstuvwxyz\", \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"])",
-          "required": true,
-          "type": "password",
-          "display-hints": {
-            "group": "application",
-            "order": 1
-          },
-          "constraints": [
-          {
-            "regex": "^((.){8,255})?$",
-            "message": "must be between 8 and 255 characters long if provided"
-          }
-          ]
-        },
-        "username": {
-          "default": "root",
-          "required": true,
-          "type": "string",
-          "display-hints": {
-            "group": "application",
-            "order": 2
-          }
-        },
-        "password": {
-          "default": "=generate_password(min_length=12, required_chars=[\"0123456789\", \"abcdefghijklmnopqrstuvwxyz\", \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"])",
-          "required": true,
-          "type": "password",
-          "display-hints": {
-            "group": "application",
-            "order": 3
-          },
-          "constraints": [
-          {
-            "regex": "^((.){8,255})?$",
-            "message": "must be between 8 and 255 characters long if provided"
-          }
-          ]
-        }
-      },
-      "meta-data": {
-        "display-hints": {
-          "icon-20x20": "/images/mysql-small.png",
-          "tattoo": "/images/mysql-tattoo.png"
-        }
-      }
-    },
-    "mysql#master": {
-      "is": "database",
-      "id": "mysql-master",
-      "provides": [
-      {
-        "database": "mysql#master"
-      }
-      ],
-      "requires": [
-      {
-        "host": "linux"
-      }
-      ],
-      "options": {
-        "server_root_password": {
-          "default": "=generate_password(min_length=12, required_chars=[\"0123456789\", \"abcdefghijklmnopqrstuvwxyz\", \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"])",
-          "required": true,
-          "type": "password",
-          "display-hints": {
-            "group": "application",
-            "order": 1
-          },
-          "constraints": [
-          {
-            "regex": "^((.){8,255})?$",
-            "message": "must be between 8 and 255 characters long if provided"
-          }
-          ]
-        },
-        "username": {
-          "default": "root",
-          "required": true,
-          "type": "string",
-          "display-hints": {
-            "group": "application",
-            "order": 2
-          }
-        },
-        "password": {
-          "default": "=generate_password(min_length=12, required_chars=[\"0123456789\", \"abcdefghijklmnopqrstuvwxyz\", \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"])",
-          "required": true,
-          "type": "password",
-          "display-hints": {
-            "group": "application",
-            "order": 3
-          },
-          "constraints": [
-          {
-            "regex": "^((.){8,255})?$",
-            "message": "must be between 8 and 255 characters long if provided"
-          }
-          ]
-        }
-      },
-      "meta-data": {
-        "display-hints": {
-          "icon-20x20": "/images/mysql-small.png",
-          "tattoo": "/images/mysql-tattoo.png"
-        }
-      }
-    },
     "rsCloudDb": {
       "is": "database",
+      "name": "myql",
       "id": "rsCloudDb",
+      "display-name": "Cloud Database (MySQL)",
+      "provider": "rackspace.databases",
       "provides": [
       {
         "database": "mysql"
