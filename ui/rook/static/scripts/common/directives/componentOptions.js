@@ -64,16 +64,21 @@ angular.module('checkmate.ComponentOptions')
 
         $scope.save = function() {
           var _constraints = Blueprint.getComponentConstraints($scope.serviceId, $scope.component.id || '');
+          var data = {
+            serviceId: $scope.serviceId,
+            component: $scope.component,
+            constraints: []
+          };
 
+          // Loop over the payload data to convert back to an array.
           _.each($scope.inputs, function(input, id) {
             var newConstraint = {};
             var _exists = false;
 
             newConstraint[id] = input;
 
+            // Rewrite the constraits without losing meta data.
             _.each(_constraints, function(constraint, index) {
-              console.log(constraint, index, input, id);
-
               _exists = true;
 
               if(!id in constraint && !constraint.setting == id) {
@@ -94,11 +99,7 @@ angular.module('checkmate.ComponentOptions')
             }
           });
 
-          var data = {
-            serviceId: $scope.serviceId,
-            component: $scope.component,
-            constraints: _constraints
-          };
+          data.constraints = _constraints
 
           Blueprint.saveComponentConstraints(data);
         };

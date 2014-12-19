@@ -68,7 +68,6 @@ angular.module('checkmate.Blueprint')
             .on("dragstart", linkstarted)
             .on("drag", linkdragged)
             .on("dragend", linkended);
-
         var svg = d3.select(element[0]);
 
         var zoomer = svg.append('g')
@@ -206,8 +205,14 @@ angular.module('checkmate.Blueprint')
               .attr('id', function(d) {
                 return d._id + '-service';
               })
-              .attr("transform", function(d) {
-                var safeMouse = mouse || [100, 100];
+              .attr("transform", function(d, index) {
+                var height = sizes.service.height((d.components || [1]).length);
+                var width = sizes.service.width((d.components || [1]).length);
+                var coords = {
+                  x: ((svg.style('width').replace('px','') * 1) / 2) + (index % 2 ? -1 * 60 : 60) - width,
+                  y: ((height + 25) * index) + 25
+                };
+                var safeMouse = mouse || [coords.x, coords.y]
                 var meta = blueprint['meta-data'];
 
                 d.x = ((meta.annotations || {})[d._id] || {})['gui-x'] || safeMouse[0];
@@ -241,10 +246,10 @@ angular.module('checkmate.Blueprint')
           service.append('rect')
             .attr('class', 'service-container')
             .attr("width", function(d) {
-              return sizes.service.width(d.components.length);
+              return sizes.service.width((d.components || [1]).length);
             })
             .attr("height", function(d) {
-              return sizes.service.height(d.components.length);
+              return sizes.service.height((d.components || [1]) .length);
             })
             .attr('rx', sizes.service.radius)
             .attr('ry', sizes.service.radius);
@@ -261,10 +266,10 @@ angular.module('checkmate.Blueprint')
           title.append('tspan')
             .attr('text-anchor', 'middle')
             .attr('x', function(d) {
-              return sizes.service.width(d.components.length) / 2;
+              return sizes.service.width((d.components || [1]).length) / 2;
             })
             .attr('y', function(d) {
-              return sizes.service.height(d.components.length) - (sizes.service.margin.bottom / 2) + 3;
+              return sizes.service.height((d.components || [1]).length) - (sizes.service.margin.bottom / 2) + 3;
             })
             .text(function(d){
               return d._id.toUpperCase();
@@ -380,7 +385,7 @@ angular.module('checkmate.Blueprint')
           // This appends components to service container.
           component = service.selectAll('g.component')
               .data(function(d) {
-                return d.components;
+                return d.component ? [d.component] : d.components;
               })
             .enter()
               .append('g')
