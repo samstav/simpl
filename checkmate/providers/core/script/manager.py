@@ -53,7 +53,7 @@ class Manager(object):
         :param host: the address of the compute host to create the resource on
         :param host_os: 'linux' or 'windows'
         """
-        desired = resource.get('desired') or {}
+        desired = resource.get('desired-state') or {}
         if self.simulate is True:
             instance = copy.deepcopy(desired)
         else:

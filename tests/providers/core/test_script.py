@@ -16,7 +16,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Tests for script provider"""
+"""Tests for script provider."""
 
 import logging
 import unittest

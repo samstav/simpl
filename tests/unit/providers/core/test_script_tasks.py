@@ -29,31 +29,34 @@ LOG = logging.getLogger(__name__)
 
 
 class TestScriptTasks(unittest.TestCase):
+
     """Class to test core.script celery tasks."""
-    def test_create_resource_simulation(self):
+
+    @mock.patch.object(dep_tasks, 'postback')
+    @mock.patch.object(tasks.create_resource, 'provider')
+    def test_create_resource_simulation(self, mock_provider, mock_postback):
         api = mock.Mock()
-        tasks.create_resource.provider = mock.Mock(return_value=api)
-        tasks.create_resource.provider.translate_status.return_value = 'ACTIVE'
-        dep_tasks.postback = mock.Mock(return_value={})
+        mock_provider.return_value = api
+        mock_provider.translate_status.return_value = 'ACTIVE'
         context = {
             'simulation': True,
             'region': 'NOOP',
             'resource_key': '0',
+            'deployment_id': 'DX'
         }
         context = middleware.RequestContext(**context)
-        expected_result = {
+        expected = {
             'resources': {
                 '0': {
-                    'desired': {'A': 1},
                     'instance': {'A': 1, 'status': 'ACTIVE'},
+                    'status': 'ACTIVE'
                 }
             }
         }
         results = tasks.create_resource(
-            context, 'D1', {'desired': {'A': 1}}, 'localhost', 'root')
-        self.assertEqual(expected_result, results)
-        tasks.create_resource.callback.assert_called_with(
-            context, {'A': 1, 'status': 'ACTIVE'})
+            context, 'D1', {'desired-state': {'A': 1}}, 'localhost', 'root')
+        self.assertEqual(expected, results)
+        mock_postback.assert_called_with(context['deployment_id'], expected)
 
 
 if __name__ == '__main__':
