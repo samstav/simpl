@@ -217,6 +217,7 @@ class TestChefServerProvider(test.ProviderTester):
                 'auth_source': None,
                 'deployment_id': 'DEP1'
             },
+            'DEP1',
             'DEP1'
         ]
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
