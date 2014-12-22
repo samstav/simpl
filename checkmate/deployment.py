@@ -372,8 +372,8 @@ class Deployment(morpheus.MorpheusDict):
                 context['resource_key'] = key
                 result = provider.get_resource_status(context, self.get('id'),
                                                       resource, key)
-                if result:
-                    resources.update({key: result[str(key)]})
+                if result and 'resources' in result:
+                    resources.update({key: result['resources'][str(key)]})
         # If instance is 'DELETED' or 'ERROR', so is anything hosted on it
         for key, resource in self.get('resources', {}).items():
             if (key.isdigit() and 'hosted_on' in resource and

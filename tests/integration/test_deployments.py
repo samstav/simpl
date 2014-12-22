@@ -1819,8 +1819,10 @@ class TestCeleryTasks(unittest.TestCase):
         mock_get_driver.return_value = mock_db
         self.mox.ReplayAll()
         contents = {
-            '0': {
-                'field_name': 1
+            'resources': {
+                '0': {
+                    'field_name': 1
+                }
             }
         }
         deployment_tasks.resource_postback('1234', contents, driver=mock_db)

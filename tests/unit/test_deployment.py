@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Deployment class."""
+
 import mock
 import unittest
 
@@ -203,8 +204,7 @@ class TestDeployments(unittest.TestCase):
         environment.get_provider.return_value = self.provider
 
     def test_get_non_deleted_resources_for_service(self):
-        resources = self.deployment.get_resources_for_service(
-            'web')
+        resources = self.deployment.get_resources_for_service('web')
         self.assertListEqual(resources.keys(), ["2"])
 
     def test_get_planned_resources(self):
@@ -215,10 +215,10 @@ class TestDeployments(unittest.TestCase):
                                         "3": {"status": "NEW",
                                               "provider": "something else"}}
         resources = self.deployment.get_new_and_planned_resources()
-        self.assertDictEqual(resources, {"1": {"status": "PLANNED",
-                                               "provider": "load-balancer"},
-                                         "3": {"status": "NEW",
-                                               "provider": "something else"}})
+        self.assertEqual(resources, {"1": {"status": "PLANNED",
+                                           "provider": "load-balancer"},
+                                     "3": {"status": "NEW",
+                                           "provider": "something else"}})
 
     def test_get_indexed_resources(self):
         self.deployment["resources"] = {"1": {"status": "PLANNED",
@@ -232,15 +232,15 @@ class TestDeployments(unittest.TestCase):
                                         "bar": {"status": "NEW",
                                                 "provider": "something else"}}
         resources = self.deployment.get_indexed_resources()
-        self.assertDictEqual(resources, {"1": {"status": "PLANNED",
-                                               "provider": "load-balancer"},
-                                         "2": {"status": "BUILD",
-                                               "provider": "something"},
-                                         "3": {"status": "BUILD",
-                                               "provider": "something"}})
+        self.assertEqual(resources, {"1": {"status": "PLANNED",
+                                           "provider": "load-balancer"},
+                                     "2": {"status": "BUILD",
+                                           "provider": "something"},
+                                     "3": {"status": "BUILD",
+                                           "provider": "something"}})
 
     def test_get_statuses_for_deleted_resources(self):
-        resource_status = {'instance:0': {'status': 'DELETED'}}
+        resource_status = {'resources': {'0': {'status': 'DELETED'}}}
         self.provider.get_resource_status.return_value = resource_status
 
         expected = {
@@ -248,8 +248,7 @@ class TestDeployments(unittest.TestCase):
             'status': 'DELETED',
             'operation': {'status': 'COMPLETE'}
         }
-        self.assertDictEqual(expected,
-                             self.deployment.get_statuses(self.context))
+        self.assertEqual(expected, self.deployment.get_statuses(self.context))
         self.provider.get_resource_status.assert_called_with(
             self.context,
             'test',
@@ -258,7 +257,7 @@ class TestDeployments(unittest.TestCase):
         self.context.__setitem__.assert_called_with('resource_key', '0')
 
     def test_get_statuses_for_active_resources(self):
-        resource_status = {'instance:0': {'status': 'ACTIVE'}}
+        resource_status = {'resources': {'0': {'status': 'ACTIVE'}}}
         self.provider.get_resource_status.return_value = resource_status
 
         expected = {
@@ -266,15 +265,14 @@ class TestDeployments(unittest.TestCase):
             'status': 'UP',
             'operation': {'status': 'COMPLETE'}
         }
-        self.assertDictEqual(self.deployment.get_statuses(self.context),
-                             expected)
+        self.assertEqual(self.deployment.get_statuses(self.context), expected)
         self.provider.get_resource_status.assert_called_with(
             self.context, 'test', {'provider': 'test'}, '0'
         )
         self.context.__setitem__.assert_called_with('resource_key', '0')
 
     def test_get_statuses_for_new_resources(self):
-        resource_status = {'instance:0': {'status': 'NEW'}}
+        resource_status = {'resources': {'0': {'status': 'NEW'}}}
         self.provider.get_resource_status.return_value = resource_status
 
         expected = {
@@ -282,8 +280,7 @@ class TestDeployments(unittest.TestCase):
             'status': 'PLANNED',
             'operation': {'status': 'NEW'}
         }
-        self.assertDictEqual(self.deployment.get_statuses(self.context),
-                             expected)
+        self.assertEqual(self.deployment.get_statuses(self.context), expected)
         self.context.__setitem__.assert_called_with('resource_key', '0')
 
     def test_get_statuses_for_no_resources(self):
@@ -293,8 +290,7 @@ class TestDeployments(unittest.TestCase):
             'status': 'NEW',
             'operation': {'status': 'NEW'}
         }
-        self.assertDictEqual(self.deployment.get_statuses(self.context),
-                             expected)
+        self.assertEqual(self.deployment.get_statuses(self.context), expected)
         self.context.__setitem__.assert_called_with('resource_key', '0')
 
     def test_schema(self):
@@ -329,7 +325,7 @@ class TestDeployments(unittest.TestCase):
             'meta-data': {},
         }
         valid = cmdep.Deployment(deployment)
-        self.assertDictEqual(valid, deployment)
+        self.assertEqual(valid, deployment)
 
     def test_schema_negative(self):
         """Test the schema validates a deployment with bad fields."""
@@ -388,12 +384,12 @@ class TestGenerateServices(unittest.TestCase):
     def test_blank(self):
         deployment = cmdep.Deployment({})
         services = deployment.calculate_services()
-        self.assertDictEqual(services, {})
+        self.assertEqual(services, {})
 
     def test_no_services(self):
         deployment = cmdep.Deployment({'blueprint': {}})
         services = deployment.calculate_services()
-        self.assertDictEqual(services, {})
+        self.assertEqual(services, {})
 
     def test_blank_resources(self):
         deployment = cmdep.Deployment({
@@ -405,7 +401,7 @@ class TestGenerateServices(unittest.TestCase):
             'resources': {}
         })
         services = deployment.calculate_services()
-        self.assertDictEqual(services, {'app': {'resources': []}})
+        self.assertEqual(services, {'app': {'resources': []}})
 
     def test_simple(self):
         deployment = cmdep.Deployment({
@@ -426,7 +422,7 @@ class TestGenerateServices(unittest.TestCase):
                 'resources': [],
             }
         }
-        self.assertDictEqual(services, expected)
+        self.assertEqual(services, expected)
 
     def test_one_resource(self):
         deployment = cmdep.Deployment({
@@ -461,7 +457,7 @@ class TestGenerateServices(unittest.TestCase):
                 'resources': ['0'],
             }
         }
-        self.assertDictEqual(services, expected)
+        self.assertEqual(services, expected)
 
     def test_host_resource(self):
         deployment = cmdep.Deployment({
@@ -504,7 +500,7 @@ class TestGenerateServices(unittest.TestCase):
             }
         }
         services['db']['resources'].sort()
-        self.assertDictEqual(services, expected)
+        self.assertEqual(services, expected)
 
 
 class TestCalculateOutputs(unittest.TestCase):
@@ -661,8 +657,7 @@ class TestCeleryTasks(unittest.TestCase):
         }
         deployment.on_postback(updates)
         self.assertEqual("UP", deployment.get('status'))
-        self.assertDictEqual(updates.get('resources'),
-                             deployment.get('resources'))
+        self.assertEqual(updates.get('resources'), deployment.get('resources'))
 
     def test_on_postback_for_failed_deployment(self):
         deployment = cmdep.Deployment({

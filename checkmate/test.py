@@ -202,7 +202,7 @@ def register():
 
 
 def run_with_params(args=None):
-    """Helper method that handles command line arguments:
+    """Helper method that handles command line arguments.
 
     Having command line parameters passed on to checkmate is handy
     for troubleshooting issues. This helper method encapsulates
@@ -222,7 +222,9 @@ def run_with_params(args=None):
 
 
 class StubbedWorkflowBase(unittest.TestCase):
+
     """Base class that stubbs out a workflow so it does not call live APIs."""
+
     def setUp(self):
         self.mox = mox.Mox()
         self.deployment = None
@@ -446,8 +448,10 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'result': {
                             'resources': {
                                 str(key): {
-                                    'id': fake_id,
-                                    'password': "shecret",
+                                    'instance': {
+                                        'id': fake_id,
+                                        'password': "shecret",
+                                    }
                                 }
                             }
                         },
@@ -514,8 +518,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'result': {
                             'resources': {
                                 str(key): {
-                                    'id': fake_id,
                                     'instance': {
+                                        'id': fake_id,
                                         'ip': "4.4.4.%s" % fake_ip,
                                         'private_ip': "10.1.1.%s" % fake_ip,
                                         'password': "shecret",
@@ -878,11 +882,13 @@ class StubbedWorkflowBase(unittest.TestCase):
 
 
 class TestProvider(base.ProviderBase):
-    """Provider that returns mock responses for testing
+
+    """Provider that returns mock responses for testing.
 
     Defers to ProviderBase for most functionality, but implements
     prep_environment, add_connection_tasks and add_resource_tasks
     """
+
     name = "base"
     vendor = "test"
 
@@ -1009,6 +1015,7 @@ class TestProvider(base.ProviderBase):
 
 
 class ProviderTester(unittest.TestCase):
+
     """Basic Provider Test Suite
 
     To use this, load it in the provider tests and set the override the klass
@@ -1091,7 +1098,9 @@ class ProviderTester(unittest.TestCase):
 
 
 class MockContext(dict):
+
     """Used to mock RequestContext."""
+
     is_admin = False
     tenant = None
     username = "Ziad"
@@ -1099,6 +1108,7 @@ class MockContext(dict):
 
 
 class MockWsgiFilters(object):
+
     """Used to mock Context, Extension, and Tenant Middleware."""
 
     def __init__(self, app):
