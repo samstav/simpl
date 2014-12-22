@@ -18,7 +18,6 @@ import unittest
 
 from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps
-from checkmate import providers as cmprov
 from checkmate.providers import base
 from checkmate.providers.opscode.solo import provider as solo_provider
 from checkmate.providers.rackspace import loadbalancer
@@ -40,8 +39,8 @@ class TestPlanner(unittest.TestCase):
 
     def test_add_additional_nodes(self):
         base.PROVIDER_CLASSES = {}
-        cmprov.register_providers([loadbalancer.Provider,
-                                   solo_provider.Provider])
+        base.register_providers(
+            [loadbalancer.Provider, solo_provider.Provider])
         context = mock.Mock()
         deployment = cmdep.Deployment({
             'id': '1001',

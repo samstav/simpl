@@ -21,7 +21,6 @@ import unittest
 from checkmate import environment as cmenv
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
-from checkmate import providers as cmprv
 from checkmate.providers import base
 from checkmate.providers.rackspace import loadbalancer
 from checkmate import test
@@ -31,10 +30,10 @@ from checkmate import utils
 class TestEnvironment(unittest.TestCase):
     def setUp(self):
         base.PROVIDER_CLASSES = {}
-        cmprv.register_providers([loadbalancer.Provider, test.TestProvider])
+        base.register_providers([loadbalancer.Provider, test.TestProvider])
         self.context = cmmid.RequestContext()
-        with open(os.path.dirname(
-                __file__) + '/../data/environment_test.yaml') as data:
+        envpath = '/../data/environment_test.yaml'
+        with open(os.path.dirname(__file__) + envpath) as data:
             self.env_data = utils.yaml_to_dict(data)
 
     def test_get_provider(self):

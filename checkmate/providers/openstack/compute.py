@@ -17,12 +17,12 @@
 
 import logging
 
-from checkmate import providers
+from checkmate.providers import base
 
 LOG = logging.getLogger(__name__)
 
 
-class Provider(providers.ProviderBase):
+class Provider(base.ProviderBase):
 
     """Placeholder for identity provider."""
 

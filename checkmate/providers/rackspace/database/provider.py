@@ -34,7 +34,7 @@ from checkmate.exceptions import (
     CheckmateNoMapping,
 )
 from checkmate import middleware
-from checkmate import providers
+from checkmate.providers import base as cmbase
 from checkmate.providers.rackspace import base
 from checkmate import utils
 
@@ -56,7 +56,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
         LOG.warn("Error connecting to Redis: %s", exc)
 
 
-class Provider(providers.ProviderBase):
+class Provider(cmbase.ProviderBase):
 
     """Provider class for Cloud Databases."""
 
@@ -77,11 +77,10 @@ class Provider(providers.ProviderBase):
 
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition):
-        templates = providers.ProviderBase.generate_template(self, deployment,
-                                                             resource_type,
-                                                             service, context,
-                                                             index, self.key,
-                                                             definition)
+        templates = cmbase.ProviderBase.generate_template(
+            self, deployment, resource_type, service, context, index, self.key,
+            definition
+        )
         catalog = self.get_catalog(context)
 
         if resource_type == 'compute':
@@ -195,7 +194,7 @@ class Provider(providers.ProviderBase):
         """Verify that the user has permissions to create database resources.
         """
         roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
-        if providers.user_has_access(context, roles):
+        if cmbase.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
                 'message': "You have access to create Cloud Databases",
@@ -477,7 +476,7 @@ class Provider(providers.ProviderBase):
         """
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
-        results = providers.ProviderBase.get_catalog(
+        results = cmbase.ProviderBase.get_catalog(
             self, context, type_filter=type_filter)
         if results:
             # We have a prexisting or overridecatalog stored

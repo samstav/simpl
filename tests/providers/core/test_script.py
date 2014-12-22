@@ -24,7 +24,7 @@ import unittest
 from checkmate import deployment
 from checkmate import deployments
 from checkmate import middleware
-from checkmate import providers
+from checkmate.providers import base
 from checkmate.providers.core import script
 from checkmate import test
 from checkmate import utils
@@ -42,8 +42,8 @@ class TestScriptProvider(test.ProviderTester):
 class TestResources(unittest.TestCase):
 
     def setUp(self):
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([script.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([script.Provider, test.TestProvider])
         self.deployment = deployment.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 tenantId: T1000
@@ -107,8 +107,8 @@ class TestScriptTasks(unittest.TestCase):
     def setUp(self):
         self.context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                                  username='MOCK_USER')
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([script.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([script.Provider, test.TestProvider])
 
         self.deployment = deployment.Deployment(utils.yaml_to_dict("""
             id: 'DEP-ID-1000'
@@ -191,8 +191,8 @@ class TestScriptParameters(unittest.TestCase):
     def setUp(self):
         self.context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                                  username='MOCK_USER')
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([script.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([script.Provider, test.TestProvider])
 
         self.deployment = deployment.Deployment(utils.yaml_to_dict("""
             id: 'DEP-ID-1000'
@@ -255,8 +255,8 @@ class TestSingleWorkflow(test.StubbedWorkflowBase):
     """Test workflow for a single service works."""
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([script.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([script.Provider, test.TestProvider])
         self.deployment = \
             deployment.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
@@ -321,11 +321,12 @@ devstack.git
         wflow = workflow.init_spiff_workflow(
             workflow_spec, self.deployment, context, "w_id", "BUILD")
         task_list = wflow.spec.task_specs.keys()
-        expected = ['Root',
-                    'Start',
-                    'Create Resource 1',
-                    'Execute Script 0 (1)',
-                    ]
+        expected = [
+            'Root',
+            'Start',
+            'Create Resource 1',
+            'Execute Script 0 (1)',
+        ]
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)

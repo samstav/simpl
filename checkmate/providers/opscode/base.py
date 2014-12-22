@@ -28,12 +28,12 @@ from yaml.scanner import ScannerError
 from checkmate.common import schema
 from checkmate import exceptions
 from checkmate.providers.opscode.chef_map import ChefMap
-from checkmate.providers import ProviderBase
+from checkmate.providers import base
 
 LOG = logging.getLogger(__name__)
 
 
-class BaseOpscodeProvider(ProviderBase):
+class BaseOpscodeProvider(base.ProviderBase):
 
     """Shared class that holds common code for Opscode providers."""
 
@@ -192,10 +192,14 @@ class BaseOpscodeProvider(ProviderBase):
             write_databag = specs.Celery(
                 wfspec, name,
                 '%s.tasks.write_databag' % provider,
-                call_args=[context.get_queued_task_dict(
-                    deployment_id=deployment['id'],
-                    resource_key=resource_key),
-                    deployment['id'], bag_name, item_name,
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment_id=deployment['id'],
+                        resource_key=resource_key
+                    ),
+                    deployment['id'],
+                    bag_name,
+                    item_name,
                     operators.PathAttrib(path)
                 ],
                 secret_file=secret_file,
@@ -256,10 +260,14 @@ class BaseOpscodeProvider(ProviderBase):
             write_role = specs.Celery(
                 wfspec, name,
                 '%s.tasks.manage_role' % provider,
-                call_args=[context.get_queued_task_dict(
-                    deployment_id=deployment['id'],
-                    resource_key=resource_key), role_name,
-                    deployment['id']],
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment_id=deployment['id'],
+                        resource_key=resource_key
+                    ),
+                    role_name,
+                    deployment['id']
+                ],
                 kitchen_name='kitchen',
                 override_attributes=operators.PathAttrib(path),
                 run_list=run_list,
@@ -313,8 +321,8 @@ class BaseOpscodeProvider(ProviderBase):
         """
         # TODO(zns): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
-        results = ProviderBase.get_catalog(self, context,
-                                           type_filter=type_filter)
+        results = base.ProviderBase.get_catalog(self, context,
+                                                  type_filter=type_filter)
         if results:
             # We have a prexisting or injected catalog stored. Use it.
             return results

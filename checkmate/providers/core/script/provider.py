@@ -21,14 +21,14 @@ import logging
 from SpiffWorkflow import operators
 from SpiffWorkflow.specs import Celery
 
-from checkmate import providers
+from checkmate.providers import base
 from checkmate.providers.core.script import manager
 from checkmate import ssh
 
 LOG = logging.getLogger(__name__)
 
 
-class Provider(providers.ProviderBase):
+class Provider(base.ProviderBase):
 
     """Implements a script configuration management provider."""
 
@@ -42,8 +42,8 @@ class Provider(providers.ProviderBase):
     }
 
     def prep_environment(self, wfspec, deployment, context):
-        providers.ProviderBase.prep_environment(self, wfspec, deployment,
-                                                context)
+        base.ProviderBase.prep_environment(self, wfspec, deployment,
+                                                     context)
         if self.prep_task:
             return  # already prepped
         results = {}
