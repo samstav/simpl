@@ -19,10 +19,10 @@ Defined:
 identity      - OpenStack-compatible identity
 """
 
-from checkmate.providers import base
+from checkmate.providers import base as cmbase
 
 
 def register():
     """Register Provider."""
     from checkmate.providers.openstack.compute import Provider as compute
-    base.register_providers([compute])
+    cmbase.register_providers([compute])

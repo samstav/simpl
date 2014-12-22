@@ -23,7 +23,7 @@ import logging
 
 from celery import signals
 
-from checkmate.providers import base
+from checkmate.providers import base as cmbase
 
 LOG = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ LOG = logging.getLogger(__name__)
 def register():
     """Register package providers."""
     from checkmate.providers.core import script
-    base.register_providers([script.Provider])
+    cmbase.register_providers([script.Provider])
 
 
 # method signature defined by celery - pylint: disable=W0613
