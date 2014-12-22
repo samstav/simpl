@@ -885,7 +885,7 @@ class TestNovaCompute(test.ProviderTester):
 
         openstack_api_mock.servers.get.return_value = server
 
-        expected = {'instance:0': {"status": "ERROR"}}
+        expected = {'resources': {'0': {"status": "ERROR"}}}
 
         results = compute.sync_resource_task(context, resource, resource_key,
                                              openstack_api_mock)

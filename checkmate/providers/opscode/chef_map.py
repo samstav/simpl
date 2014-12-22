@@ -175,7 +175,8 @@ class ChefMap(object):
                         #  account for host
                         #  FIXME: This representation needs to be consistent!
                         if relations[0].get('relation', '') != 'host':
-                            mapping['path'] = ('resources/%s/interfaces/%s'
+                            mapping['path'] = ('resources/%s/instance/'
+                                               'interfaces/%s'
                                                % (target,
                                                   relations[0]['interface']))
                         else:
@@ -191,7 +192,8 @@ class ChefMap(object):
                                          r.get('target') == resource['index'])
                                      ]
                         if relations:
-                            mapping['path'] = 'resources/%s' % client['index']
+                            mapping['path'] = ('resources/%s/instance' %
+                                               client['index'])
                             result.append(copy.copy(mapping))
                 else:
                     result.append(mapping)

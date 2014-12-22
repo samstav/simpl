@@ -23,7 +23,7 @@ class TestPackage(unittest.TestCase):
     def test_package_registration(self):
         base.PROVIDER_CLASSES = {}
         rackspace.register()
-        self.assertIn('rackspace.legacy', base.PROVIDER_CLASSES)
+        self.assertNotIn('rackspace.legacy', base.PROVIDER_CLASSES)
         self.assertIn('rackspace.nova', base.PROVIDER_CLASSES)
         self.assertIn('rackspace.database', base.PROVIDER_CLASSES)
         self.assertIn('rackspace.load-balancer', base.PROVIDER_CLASSES)

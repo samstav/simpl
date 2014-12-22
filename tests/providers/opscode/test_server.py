@@ -135,7 +135,7 @@ class TestChefServerProvider(test.ProviderTester):
                 'source': 'clients://database:mysql/ip',
                 'targets': ['attributes://clients'],
                 'resource': '2',
-                'path': 'resources/0',
+                'path': 'resources/0/instance',
             },
         ]
         self.assertListEqual(result, expected)
@@ -414,7 +414,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'kwargs': {
                         'environment': 'DEP-ID-1000',
                         'recipes': ['mysql::server'],
-                        'password': None,
+                        'password': 'shecret',
                         'bootstrap_version': '11.16.4-1',
                         'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
                     },
@@ -1292,11 +1292,11 @@ interfaces/mysql/database_name
                         'kwargs': mox.IgnoreArg(),
                         'result': {
                             'resources': {
-                                '%s' % key: {
-                                    'id': '1',
-                                    'password': "shecret",
-                                    'ip': '4.4.4.4',
+                                str(key): {
                                     'instance': {
+                                        'id': '1',
+                                        'password': "shecret",
+                                        'ip': '4.4.4.4',
                                         'interfaces': {
                                             'linux': {
                                                 'password': "shecret",
@@ -1376,13 +1376,13 @@ interfaces/mysql/database_name
                         'args': [
                             context_dict,
                             'DEP-ID-1000',
-                            None,
-                            None
+                            '4.4.4.4',
+                            '4.4.4.4'
                         ],
                         'kwargs': {
                             'environment': 'DEP-ID-1000',
                             'recipes': ['bar'],
-                            'password': None,
+                            'password': 'shecret',
                             'bootstrap_version': '11.16.4-1',
                             'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
                         },
@@ -1420,8 +1420,7 @@ interfaces/mysql/database_name
         register = workflow.spec.task_specs["Register Server 1 (frontend)"]
         connections = (register.kwargs.get('attributes', {}).
                        get('connections'))
-        self.assertEqual(connections, 10,
-                         "Foo attribute not written")
+        self.assertEqual(connections, 10, "Foo attribute not written")
 
         self.mox.VerifyAll()
 

@@ -129,7 +129,6 @@ def delete_instance_task(context, api=None):
     """Deletes a database server instance and its associated databases and
     users.
     """
-
     utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -137,15 +136,16 @@ def delete_instance_task(context, api=None):
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
-            k = "instance:%s" % key
             ret = {
-                k: {
-                    'status': 'ERROR',
-                    'status-message': (
-                        'Unexpected error while deleting '
-                        'database instance %s' % key
-                    ),
-                    'error-message': str(exc)
+                'resources': {
+                    key: {
+                        'status': 'ERROR',
+                        'status-message': (
+                            'Unexpected error while deleting '
+                            'database instance %s' % key
+                        ),
+                        'error-message': str(exc)
+                    }
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -161,9 +161,7 @@ def delete_instance_task(context, api=None):
     assert 'resource' in context, 'No resource defined in context'
 
     region = context.get('region')
-    key = context.get('resource_key')
     resource = context.get('resource')
-    inst_key = "instance:%s" % key
     resource_key = context.get("resource_key")
     deployment_id = context.get("deployment_id")
     instance_id = resource.get('instance', {}).get('id')
@@ -172,26 +170,20 @@ def delete_instance_task(context, api=None):
                "skipping delete_instance_task for resource %s in deployment "
                "%s", (resource_key, deployment_id))
         # TODO(Nate): Clear status-message on delete
-        res = {inst_key: {'status': 'DELETED'}}
+        res = {'resources': {resource_key: {'status': 'DELETED'}}}
         for hosted in resource.get('hosts', []):
-            res.update({
-                'instance:%s' % hosted: {
-                    'status': 'DELETED',
-                }
-            })
+            res['resources'][hosted] = {'status': 'DELETED'}
         LOG.info(msg)
         resource_postback.delay(context['deployment_id'], res)
         return
 
     if context.get('simulation') is True:
-        results = {inst_key: {'status': 'DELETED'}}
+        results = {'resources': {resource_key: {'status': 'DELETED'}}}
         for hosted in resource.get('hosts', []):
-            results.update({
-                'instance:%s' % hosted: {
-                    'status': 'DELETED',
-                    'status-message': ''
-                }
-            })
+            results['resources'][hosted] = {
+                'status': 'DELETED',
+                'status-message': ''
+            }
         # Send data back to deployment
         resource_postback.delay(context['deployment_id'], results)
         return results
@@ -203,30 +195,28 @@ def delete_instance_task(context, api=None):
         api.delete(instance_id)
         LOG.info('Database instance %s deleted.', instance_id)
         # TODO(Nate): Add status-message to current resource
-        res = {inst_key: {'status': 'DELETING'}}
+        res = {'resources': {resource_key: {'status': 'DELETING'}}}
         for hosted in resource.get('hosts', []):
-            res.update({
-                'instance:%s' % hosted: {
-                    'status': 'DELETING',
-                    'status-message': 'Host %s is being deleted'
-                }
-            })
+            res['resources'][hosted] = {
+                'status': 'DELETED',
+                'status-message': 'Host %s is being deleted'
+            }
     except pyexc.NotFound as rese:
         if rese.code == '404':  # already deleted
             # TODO(Nate): Remove status-message on current resource
             res = {
-                inst_key: {
-                    'status': 'DELETED',
-                    'status-message': ''
-                }
-            }
-            for hosted in resource.get('hosts', []):
-                res.update({
-                    'instance:%s' % hosted: {
+                'resources': {
+                    resource_key: {
                         'status': 'DELETED',
                         'status-message': ''
                     }
-                })
+                }
+            }
+            for hosted in resource.get('hosts', []):
+                res['resources'][hosted] = {
+                    'status': 'DELETED',
+                    'status-message': ''
+                }
         else:
             # not too sure what this is, so maybe retry a time or two
             delete_instance_task.retry(exc=rese)
@@ -249,15 +239,16 @@ def wait_on_del_instance(context, api=None):
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
-            k = "instance:%s" % key
             ret = {
-                k: {
-                    'status': 'ERROR',
-                    'status-message': (
-                        'Unexpected error while deleting '
-                        'database instance %s' % key
-                    ),
-                    'error-message': str(exc)
+                'resources': {
+                    key: {
+                        'status': 'ERROR',
+                        'status-message': (
+                            'Unexpected error while deleting '
+                            'database instance %s' % key
+                        ),
+                        'error-message': str(exc)
+                    }
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -274,7 +265,6 @@ def wait_on_del_instance(context, api=None):
     region = context.get('region')
     key = context.get('resource_key')
     resource = context.get('resource')
-    inst_key = "instance:%s" % key
     instance_id = resource.get('instance', {}).get('id')
     instance = None
     deployment_id = context["deployment_id"]
@@ -285,9 +275,11 @@ def wait_on_del_instance(context, api=None):
                "%s" % (key, deployment_id))
         LOG.info(msg)
         results = {
-            inst_key: {
-                'status': 'DELETED',
-                'status-message': msg
+            'resources': {
+                key: {
+                    'status': 'DELETED',
+                    'status-message': msg
+                }
             }
         }
         resource_postback.delay(deployment_id, results)
@@ -302,14 +294,16 @@ def wait_on_del_instance(context, api=None):
 
     if not instance or ('DELETED' == instance.status):
         res = {
-            inst_key: {
-                'status': 'DELETED',
-                'status-message': ''
+            'resources': {
+                key: {
+                    'status': 'DELETED',
+                    'status-message': ''
+                }
             }
         }
         for hosted in resource.get('hosts', []):
-            res.update({
-                'instance:%s' % hosted: {
+            res['resources'].update({
+                hosted: {
                     'status': 'DELETED',
                     'status-message': ''
                 }
@@ -318,9 +312,11 @@ def wait_on_del_instance(context, api=None):
         msg = ("Waiting on state DELETED. Instance %s is in state %s" %
                (key, instance.status))
         res = {
-            inst_key: {
-                'status': 'DELETING',
-                "status-message": msg
+            'resources': {
+                key: {
+                    'status': 'DELETING',
+                    "status-message": msg
+                }
             }
         }
         resource_postback.delay(context['deployment_id'], res)
@@ -342,15 +338,16 @@ def delete_database(context, api=None):
         dep_id = args[0].get('deployment_id')
         key = args[0].get('resource_key')
         if dep_id and key:
-            k = "instance:%s" % key
             ret = {
-                k: {
-                    'status': 'ERROR',
-                    'status-message': (
-                        'Unexpected error while deleting '
-                        'database %s' % key
-                    ),
-                    'error-message': str(exc)
+                'resources': {
+                    key: {
+                        'status': 'ERROR',
+                        'status-message': (
+                            'Unexpected error while deleting '
+                            'database %s' % key
+                        ),
+                        'error-message': str(exc)
+                    }
                 }
             }
             resource_postback.delay(dep_id, ret)
@@ -366,7 +363,6 @@ def delete_database(context, api=None):
     resource = context.get('resource')
     assert 'index' in resource, 'Resource does not have an index'
     key = resource.get('index')
-    inst_key = "instance:%s" % key
 
     if not api:
         api = Provider.connect(context, region)
@@ -383,9 +379,11 @@ def delete_database(context, api=None):
                (resource_key, context["deployment_id"], instance,
                 host_instance))
         results = {
-            inst_key: {
-                'status': 'DELETED',
-                'status-message': msg
+            'resources': {
+                key: {
+                    'status': 'DELETED',
+                    'status-message': msg
+                }
             }
         }
         LOG.info(msg)
@@ -403,11 +401,13 @@ def delete_database(context, api=None):
     if not instance or (instance.status == 'DELETED'):
         # instance is gone, so is the db
         return {
-            inst_key: {
-                'status': 'DELETED',
-                'status-message': (
-                    'Host %s was deleted' % resource.get('hosted_on')
-                )
+            'resources': {
+                key: {
+                    'status': 'DELETED',
+                    'status-message': (
+                        'Host %s was deleted' % resource.get('hosted_on')
+                    )
+                }
             }
         }
     elif instance.status == 'BUILD':  # can't delete when instance in BUILD
@@ -418,7 +418,7 @@ def delete_database(context, api=None):
     except pyexc.ClientException as respe:
         delete_database.retry(exc=respe)
     LOG.info('Database %s deleted from instance %s', db_name, instance_id)
-    ret = {inst_key: {'status': 'DELETED'}}
+    ret = {'resources': {key: {'status': 'DELETED'}}}
     resource_postback.delay(deployment_id, ret)
     return ret
 

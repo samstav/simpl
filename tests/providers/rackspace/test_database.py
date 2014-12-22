@@ -69,26 +69,28 @@ class TestDatabase(test.ProviderTester):
         ).AndReturn(instance)
 
         expected = {
-            'instance:1': {
-                'id': instance.id,
-                'name': instance.name,
-                'status': instance.status,
-                'region': 'NORTH',
-                'flavor': 1,
-                'disk': 1,
-                'interfaces': {
-                    'mysql': {
-                        'host': instance.hostname,
+            'resources': {
+                '1': {
+                    'id': instance.id,
+                    'name': instance.name,
+                    'status': instance.status,
+                    'region': 'NORTH',
+                    'flavor': 1,
+                    'disk': 1,
+                    'interfaces': {
+                        'mysql': {
+                            'host': instance.hostname,
+                        },
                     },
-                },
-                'databases': {
-                    'db1': {
-                        'name': 'db1',
-                        'interfaces': {
-                            'mysql': {
-                                'host': instance.hostname,
-                                'database_name': 'db1',
-                            },
+                    'databases': {
+                        'db1': {
+                            'name': 'db1',
+                            'interfaces': {
+                                'mysql': {
+                                    'host': instance.hostname,
+                                    'database_name': 'db1',
+                                },
+                            }
                         }
                     }
                 }
@@ -101,7 +103,7 @@ class TestDatabase(test.ProviderTester):
         database.tasks.create_instance.callback(
             context, {'id': instance.id}).AndReturn({})
         database.tasks.create_instance.callback(
-            context, expected['instance:1']).AndReturn({})
+            context, expected['resources']['1']).AndReturn({})
 
         self.mox.ReplayAll()
         results = database.tasks.create_instance(context, instance.name, 1, 1,
@@ -168,25 +170,27 @@ class TestDatabase(test.ProviderTester):
         instance.create_database('db1', None, None).AndReturn(None)
 
         expected = {
-            'instance:1': {
-                'status': 'BUILD',
-                'host_instance': instance.id,
-                'interfaces': {
-                    'mysql': {
-                        'host': instance.hostname,
-                        'database_name': 'db1'
-                    }
-                },
-                'name': 'db1',
-                'id': 'db1',
-                'host_region': 'NORTH',
-                'flavor': '1'
+            'resources': {
+                '1': {
+                    'status': 'BUILD',
+                    'host_instance': instance.id,
+                    'interfaces': {
+                        'mysql': {
+                            'host': instance.hostname,
+                            'database_name': 'db1'
+                        }
+                    },
+                    'name': 'db1',
+                    'id': 'db1',
+                    'host_region': 'NORTH',
+                    'flavor': '1'
+                }
             }
         }
         database.tasks.create_database.callback(
             context, {'status': instance.status}).AndReturn({})
-        database.tasks.create_database.callback(context, expected['instance:1'])\
-            .AndReturn({})
+        database.tasks.create_database.callback(
+            context, expected['resources']['1']).AndReturn({})
         self.mox.ReplayAll()
         results = database.tasks.create_database(context, 'db1',
                                                  instance_id=instance.id,

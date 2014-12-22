@@ -626,7 +626,7 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
                   #TODO: find out if users would like writing to attributes
                   #      to happen by default (not needing this next line)
                   - attributes://db_name
-                  - outputs://instance:{{resource.index}}/instance/\
+                  - outputs://resources/{{resource.index}}/instance/\
 interfaces/mysql/database_name
                 - value: {{ setting('username') or 'root' }}
                   targets:
@@ -637,7 +637,7 @@ interfaces/mysql/database_name
                 # We can route data from requires to provides
                 - source: requirements://host:linux/ip
                   targets:
-                  - outputs://instance:{{resource.index}}/instance/\
+                  - outputs://resources/{{resource.index}}/instance/\
 interfaces/mysql/host
                 output:
                   resources:
@@ -746,14 +746,16 @@ interfaces/mysql/host
                         'args': [mox.IsA(dict), mox.IsA(dict)],
                         'kwargs': mox.IgnoreArg(),
                         'result': {
-                            'instance:%s' % key: {
-                                'id': '1',
-                                'password': "shecret",
-                                'ip': '4.4.4.4',
-                                'instance': {
-                                    'interfaces': {
-                                        'linux': {
-                                            'ip': '4.4.4.4'
+                            'resources': {
+                                key: {
+                                    'id': '1',
+                                    'password': "shecret",
+                                    'ip': '4.4.4.4',
+                                    'instance': {
+                                        'interfaces': {
+                                            'linux': {
+                                                'ip': '4.4.4.4'
+                                            }
                                         }
                                     }
                                 }
@@ -844,7 +846,8 @@ interfaces/mysql/host
         final = workflow.get_tasks()[-1]
         expected = utils.yaml_to_dict('''
                 chef_options:
-                instance:0:
+                resources:
+                  '0':
                     name: ''
                     instance:
                       interfaces:
@@ -858,8 +861,8 @@ interfaces/mysql/host
                         username: u1
                         host: 4.4.4.4
             ''')
-        self.assertDictEqual(final.attributes['instance:0'],
-                             expected['instance:0'])
+        self.assertDictEqual(final.attributes['resources']['0'],
+                             expected['resources']['0'])
 
 
 def do_nothing(self, my_task):
@@ -941,13 +944,13 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 - source: requirements://host:linux/ip
                   targets:
                   - attributes://master/ip
-                  - outputs://instance:{{resource.index}}/instance/ip
+                  - outputs://resources/{{resource.index}}/instance/ip
                 - source: requirements://host:linux/private_ip
                   targets:
-                  - outputs://instance:{{resource.index}}/instance/private_ip
+                  - outputs://resources/{{resource.index}}/instance/private_ip
                 - source: requirements://host:linux/public_ip
                   targets:
-                  - outputs://instance:{{resource.index}}/instance/public_ip
+                  - outputs://resources/{{resource.index}}/instance/public_ip
                 # Relation requirement resolved at run-time
                 - source: requirements://database:mysql/database_name
                   targets:
@@ -976,7 +979,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 maps:
                 - value: foo-db
                   targets:
-                  - outputs://instance:{{resource.index}}/instance/\
+                  - outputs://resources/{{resource.index}}/instance/\
 interfaces/mysql/database_name
                 - source: clients://database:mysql/ip
                   targets:
@@ -1041,27 +1044,27 @@ interfaces/mysql/database_name
                 {
                     'source': 'requirements://host:linux/ip',
                     'targets': ['attributes://master/ip',
-                                'outputs://instance:0/instance/ip'],
-                    'path': 'instance:1',
+                                'outputs://resources/0/instance/ip'],
+                    'path': 'resources/1',
                     'resource': '0',
                 },
                 {
                     'source': 'requirements://host:linux/private_ip',
-                    'targets': ['outputs://instance:0/instance/private_ip'],
-                    'path': 'instance:1',
+                    'targets': ['outputs://resources/0/instance/private_ip'],
+                    'path': 'resources/1',
                     'resource': '0',
                 },
                 {
                     'source': 'requirements://host:linux/public_ip',
-                    'targets': ['outputs://instance:0/instance/public_ip'],
-                    'path': 'instance:1',
+                    'targets': ['outputs://resources/0/instance/public_ip'],
+                    'path': 'resources/1',
                     'resource': '0',
                 },
                 {
                     'source': 'requirements://database:mysql/database_name',
                     'targets': ['attributes://db/name',
                                 'encrypted-databags://app_bag/mysql/db_name'],
-                    'path': 'instance:2/interfaces/mysql',
+                    'path': 'resources/2/interfaces/mysql',
                     'resource': '0',
                 }
             ]
@@ -1077,11 +1080,13 @@ interfaces/mysql/database_name
             'extend_lists': True,
             'chef_options': {
                 'outputs': {
-                    'instance:2': {
-                        'instance': {
-                            'interfaces': {
-                                'mysql': {
-                                    'database_name': 'foo-db'
+                    'resources': {
+                        '2': {
+                            'instance': {
+                                'interfaces': {
+                                    'mysql': {
+                                        'database_name': 'foo-db'
+                                    }
                                 }
                             }
                         }
@@ -1090,7 +1095,7 @@ interfaces/mysql/database_name
             },
             'chef_output': None,
             'chef_maps': [{
-                'path': 'instance:0',
+                'path': 'resources/0',
                 'resource': '2',
                 'source': 'clients://database:mysql/ip',
                 'targets': ['attributes://connections']
@@ -1251,15 +1256,17 @@ interfaces/mysql/database_name
                         'args': [mox.IsA(dict), mox.IsA(dict)],
                         'kwargs': None,
                         'result': {
-                            'instance:%s' % key: {
-                                'id': '1',
-                                'password': "shecret",
-                                'ip': '4.4.4.4',
-                                'instance': {
-                                    'interfaces': {
-                                        'linux': {
-                                            'password': "shecret",
-                                            'ip': '4.4.4.4',
+                            'resources': {
+                                key: {
+                                    'id': '1',
+                                    'password': "shecret",
+                                    'ip': '4.4.4.4',
+                                    'instance': {
+                                        'interfaces': {
+                                            'linux': {
+                                                'password': "shecret",
+                                                'ip': '4.4.4.4',
+                                            }
                                         }
                                     }
                                 }
@@ -1448,12 +1455,13 @@ class TestTransform(unittest.TestCase):
 
     def test_write_output_template(self):
         output = utils.yaml_to_dict('''
-                  'instance:0':
-                    name: test
-                    instance:
-                      interfaces:
-                        mysql:
-                          database_name: db1
+                  resources:
+                    '0':
+                      name: test
+                      instance:
+                        interfaces:
+                          mysql:
+                            database_name: db1
             ''')
 
         self.mox.StubOutWithMock(deployments.tasks.resource_postback, "delay")
@@ -1473,12 +1481,13 @@ class TestTransform(unittest.TestCase):
         self.mox.VerifyAll()
         self.assertTrue(result)  # task completes
         expected = utils.yaml_to_dict('''
-                  'instance:0':
-                    name: test
-                    instance:
-                      interfaces:
-                        mysql:
-                          database_name: db1
+                  resources:
+                    '0':
+                      name: test
+                      instance:
+                        interfaces:
+                          mysql:
+                            database_name: db1
             ''')
         self.assertDictEqual(results, expected)
 
@@ -1493,9 +1502,9 @@ class TestChefMapEvaluator(unittest.TestCase):
         chefmap = chef_map.ChefMap(parsed="")
         mapping = {
             'source': 'requirements://host/ip',
-            'path': 'instance:1'
+            'path': 'resources/1'
         }
-        data = {'instance:1': {'ip': '4.4.4.4'}}
+        data = {'resources': {'1': {'ip': '4.4.4.4'}}}
         result = chefmap.evaluate_mapping_source(mapping, data)
         self.assertEqual(result, '4.4.4.4')
 
@@ -1503,9 +1512,9 @@ class TestChefMapEvaluator(unittest.TestCase):
         chefmap = chef_map.ChefMap(parsed="")
         mapping = {
             'source': 'clients://host/ip',
-            'path': 'instance:1'
+            'path': 'resources/1'
         }
-        data = {'instance:1': {'ip': '4.4.4.4'}}
+        data = {'resources': {'1': {'ip': '4.4.4.4'}}}
         result = chefmap.evaluate_mapping_source(mapping, data)
         self.assertEqual(result, '4.4.4.4')
 
@@ -1527,21 +1536,22 @@ class TestChefMapResolver(unittest.TestCase):
                   targets:
                   - attributes://simple
                 - source: requirements://key/path/value
-                  path: instance:1/location
+                  path: resources/1/location
                   resource: '0'
                   targets:
                   - attributes://ready
                 - source: requirements://key/path/value
-                  path: instance:2/location
+                  path: resources/2/location
                   resource: '0'
                   targets:
                   - attributes://not
                 ''')
         data = utils.yaml_to_dict('''
-                instance:1:
-                  location:
-                    path:
-                      value: 8
+                resources:
+                  '1':
+                    location:
+                      path:
+                        value: 8
                 ''')
         result = {}
         unresolved = chef_map.ChefMap.resolve_ready_maps(maps, data, result)
