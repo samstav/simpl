@@ -708,13 +708,16 @@ class ProviderTask(celery.Task):
         resource_index = resource_key or context['resource_key']
         if not resource_index:
             return
-        results = {
-            'resources': {
-                resource_index: {
-                    'instance': data
+        if 'resources' not in data:
+            results = {
+                'resources': {
+                    resource_index: {
+                        'instance': data
+                    }
                 }
             }
-        }
+        else:
+            results = data
         if isinstance(data, dict) and 'status' in data:
             status = data['status']
             results['resources'][resource_index]['status'] = \

@@ -434,7 +434,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
     #Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
     runtime_context['token'] = context["auth_token"]
-    runtime_context.update(format(deployment.get_indexed_resources()))
+    runtime_context.update(deployment.get_indexed_resources())
     workflow.get_task(2).set_attribute(**runtime_context)
 
     # Calculate estimated_duration
@@ -464,21 +464,6 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
     update_workflow_status(workflow)
 
     return workflow
-
-
-def format(resources):
-    """Return a dictionary of resources in the {"<resource_key>":
-    [resource_instance]} format.
-
-    @param resources: A dict of resources, in {[resource_key]:[resource]}
-    format
-    @return:
-    """
-    formatted_resources = {}
-    for resource_key, resource_value in resources.iteritems():
-        formatted_resources.update({str(resource_key):
-                                    resource_value.get("instance", {})})
-    return formatted_resources
 
 
 def find_tasks(d_wf, state=Task.ANY_MASK, **kwargs):

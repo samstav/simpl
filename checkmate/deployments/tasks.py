@@ -162,6 +162,7 @@ def update_all_provider_resources(provider, deployment_id, status,
             rkey = str(resource.get('index'))
             ret.update({rkey: rupdate})
         if ret:
+            ret = {'resources': ret}
             resource_postback.delay(deployment_id, ret, driver=driver)
             return ret
 
