@@ -128,7 +128,9 @@ class Provider(rsbase.RackspaceProviderBase):
             connections = definition.get('connections', [])
             number_of_resources = len(connections)
 
-        for index_of_resource in range(index, index + number_of_resources):
+        # TODO(zns): remove assumption that index is number
+        for index_of_resource in range(int(index),
+                                       int(index) + number_of_resources):
             generated_templates = base.ProviderBase.generate_template(
                 self, deployment, resource_type, service, context,
                 index_of_resource, self.key, definition
@@ -136,7 +138,8 @@ class Provider(rsbase.RackspaceProviderBase):
             for template in generated_templates:
                 if interface == 'vip':
                     params = self._get_connection_params(
-                        connections, deployment, index - index_of_resource,
+                        connections, deployment,
+                        int(index) - index_of_resource,
                         resource_type, service
                     )
                     for key, value in params.iteritems():

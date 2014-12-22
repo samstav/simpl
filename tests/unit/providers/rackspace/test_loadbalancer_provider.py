@@ -28,6 +28,7 @@ from checkmate import workflow_spec
 
 
 class TestLoadBalancer(test.ProviderTester):
+
     klass = loadbalancer.Provider
 
     def test_provider(self):
@@ -262,6 +263,7 @@ class TestLoadBalancer(test.ProviderTester):
 
 
 class TestLoadBalancerProvider(unittest.TestCase):
+
     """Test Load Balancer Provider's functions."""
 
     def setUp(self):
@@ -279,7 +281,7 @@ class TestLoadBalancerProvider(unittest.TestCase):
         self.deployment_mocker.UnsetStubs()
 
     def test_generate_template_with_interface_vip(self):
-        self.deployment.get('blueprint').AndReturn(
+        self.deployment.get('blueprint', {}).AndReturn(
             {'services': {'lb': {'component': {'interface': 'vip'}}}})
 
         self.deployment.get_setting("protocol",
@@ -301,11 +303,11 @@ class TestLoadBalancerProvider(unittest.TestCase):
                                     service_name='lb',
                                     relation='master',
                                     default="http/80").AndReturn('http/80')
-        (self.deployment.get_setting('create_dns',
-                                     resource_type='load-balancer',
-                                     service_name='lb',
-                                     default=mox.IgnoreArg())
-            .AndReturn('false'))
+        self.deployment.get_setting('create_dns',
+                                    resource_type='load-balancer',
+                                    service_name='lb',
+                                    default=mox.IgnoreArg()
+                                    ).AndReturn('false')
 
         expected = {
             'service': 'lb',
@@ -329,7 +331,7 @@ class TestLoadBalancerProvider(unittest.TestCase):
         self.deployment_mocker.ReplayAll()
         results = self.provider.generate_template(self.deployment,
                                                   'load-balancer', 'lb',
-                                                  self.context, 1,
+                                                  self.context, '1',
                                                   self.provider.key,
                                                   connections)
 
@@ -337,7 +339,7 @@ class TestLoadBalancerProvider(unittest.TestCase):
         self.assertDictEqual(results[0], expected)
 
     def test_should_generate_template_with_allow_unencrypted(self):
-        self.deployment.get('blueprint').AndReturn(
+        self.deployment.get('blueprint', {}).AndReturn(
             {'services': {'lb': {'component': {'interface': 'https'}}}})
 
         self.deployment.get_setting("protocol",
@@ -378,7 +380,7 @@ class TestLoadBalancerProvider(unittest.TestCase):
         self.deployment_mocker.ReplayAll()
         results = self.provider.generate_template(self.deployment,
                                                   'load-balancer', 'lb',
-                                                  self.context, 1,
+                                                  self.context, '1',
                                                   self.provider.key, {})
         expected_https_lb = {
             'service': 'lb',
