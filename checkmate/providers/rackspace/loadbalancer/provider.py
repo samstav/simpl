@@ -112,8 +112,7 @@ class Provider(rsbase.RackspaceProviderBase):
             raise exceptions.CheckmateException(
                 error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
         number_of_resources = 1
-        interface = utils.read_path(
-            deployment.get('blueprint', {}),
+        interface = utils.read_path(deployment.get('blueprint') or {},
             'services/%s/component/interface' % service) or 'http'
         protocol = deployment.get_setting("protocol",
                                           resource_type=resource_type,
