@@ -12,9 +12,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""
-Test coverage for mailgun provider module.
-"""
+
+"""Test coverage for mailgun provider module."""
+
 import mock
 import unittest
 
@@ -24,6 +24,7 @@ from checkmate.providers.rackspace.mailgun import provider
 
 
 class TestGenerateTemplate(unittest.TestCase):
+
     """Class for testing mailgun.generate_template."""
 
     def test_return_data(self):
@@ -48,6 +49,7 @@ class TestGenerateTemplate(unittest.TestCase):
 
 
 class TestGetCatalog(unittest.TestCase):
+
     """Class for testing mailgun get_catalog function."""
 
     @mock.patch.object(base.ProviderBase, 'get_catalog')
@@ -90,6 +92,7 @@ class TestGetCatalog(unittest.TestCase):
 
 
 class TestAddResourceTask(unittest.TestCase):
+
     """Class for testing mailgun add_resource_task function."""
 
     def setUp(self):
@@ -138,6 +141,7 @@ class TestAddResourceTask(unittest.TestCase):
 
 
 class TestDeleteResourceTask(unittest.TestCase):
+
     """Class for testing mailgun delete_resource_task function."""
 
     def setUp(self):
@@ -188,6 +192,7 @@ class TestDeleteResourceTask(unittest.TestCase):
 
 
 class TestGetResources(unittest.TestCase):
+
     """Class for testing mailgun get_resources."""
 
     @mock.patch.object(provider.Provider, 'connect')
@@ -211,3 +216,7 @@ class TestGetResources(unittest.TestCase):
         results = provider.Provider.get_resources({})
         self.assertEqual(results, expected)
         mock_connect.assert_called_with({})
+
+if __name__ == '__main__':
+    from checkmate import test
+    test.run_with_params()

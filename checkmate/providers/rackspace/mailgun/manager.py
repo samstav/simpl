@@ -26,11 +26,12 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
-    '''Contains mailgun provider model and logic for interaction.'''
+
+    """Contains mailgun provider model and logic for interaction."""
 
     @staticmethod
     def create_domain(domain_name, password, context, api, simulate=False):
-        '''Creates specified domain in Mailgun for relaying.'''
+        """Creates specified domain in Mailgun for relaying."""
         exists = False
         if not domain_name:
             uid = context.get('deployment_id').split('-')[0]
@@ -67,13 +68,13 @@ class Manager(object):
                     'smtp_login': domain.smtp_login,
                     'smtp_password': domain.smtp_password
                 }
-            },
+            }
         }
         return results
 
     @staticmethod
     def delete_domain(domain_name, api, exists, simulate=False):
-        '''Deletes a domain from Mailgun.'''
+        """Deletes a domain from Mailgun."""
         if simulate or exists:
             status = 'DELETED'
         else:
