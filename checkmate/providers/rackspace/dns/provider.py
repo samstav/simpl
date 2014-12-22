@@ -28,7 +28,7 @@ from SpiffWorkflow.specs import Celery
 from checkmate.common import caching
 import checkmate.middleware
 import checkmate.providers
-import checkmate.providers.base
+from checkmate.providers import base
 from checkmate.providers.rackspace import base as rsbase
 
 LOG = logging.getLogger(__name__)
@@ -146,7 +146,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
     def verify_access(self, context):
         roles = ['identity:user-admin', 'dnsaas:admin', 'dnsaas:creator']
-        if checkmate.providers.base.user_has_access(context, roles):
+        if base.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
                 'message': "You have access to create Cloud DNS records",

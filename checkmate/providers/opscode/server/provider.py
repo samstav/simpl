@@ -17,13 +17,12 @@
 import logging
 import os
 
-import chef
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
 from checkmate import exceptions
 from checkmate.providers.opscode import base
-from checkmate.providers import ProviderBase
+from checkmate.providers import base as cmbase
 from checkmate.providers.opscode.chef_map import ChefMap
 
 
@@ -47,7 +46,7 @@ class Provider(base.BaseOpscodeProvider):
     }
 
     def __init__(self, provider, key=None):
-        ProviderBase.__init__(self, provider, key=key)
+        cmbase.ProviderBase.__init__(self, provider, key=key)
 
         # Map File
         self.source = self.get_setting('source')
@@ -59,7 +58,7 @@ class Provider(base.BaseOpscodeProvider):
         self.server_credentials = {}
 
     def prep_environment(self, wfspec, deployment, context):
-        ProviderBase.prep_environment(self, wfspec, deployment, context)
+        cmbase.ProviderBase.prep_environment(self, wfspec, deployment, context)
         if self.prep_task:
             return  # already prepped
 
@@ -342,9 +341,12 @@ class Provider(base.BaseOpscodeProvider):
                                                      provider=self.key,
                                                      tag='final')
                 host_complete = self.get_host_complete_task(wfspec, server)
-                final_tasks.extend(wfspec.find_task_specs(
-                    resource=server.get('index'),
-                    provider=self.key, tag='final')
+                final_tasks.extend(
+                    wfspec.find_task_specs(
+                        resource=server.get('index'),
+                        provider=self.key,
+                        tag='final'
+                    )
                 )
                 if not final_tasks:
                     # If server already configured, anchor to root
@@ -400,6 +402,6 @@ class Provider(base.BaseOpscodeProvider):
     @staticmethod
     def connect(context):
         # TODO (zns): support config from kitchen file?
-        #api = chef.from_config_file(... path to knife.rb...)
-        #return api
+        # api = chef.from_config_file(... path to knife.rb...)
+        # return api
         return

@@ -32,7 +32,7 @@ environment:
       vendor: rackspace
 """
 
-from checkmate.providers import register_providers as rps
+from checkmate.providers import base as cmbase
 
 
 def register():
@@ -47,4 +47,5 @@ def register():
     from checkmate.providers.rackspace.loadbalancer import (
         Provider as loadbalancer)
     from checkmate.providers.rackspace.mailgun import Provider as mg
-    rps([legacy, nova, loadbalancer, database, dns, files, mg])
+    cmbase.register_providers(
+        [legacy, nova, loadbalancer, database, dns, files, mg])

@@ -28,7 +28,7 @@ from checkmate.common import templating
 from checkmate import deployment as cm_dep
 from checkmate import deployments
 from checkmate import middleware
-from checkmate import providers
+from checkmate.providers import base
 from checkmate.providers.opscode import server
 from checkmate.providers.opscode import chef_map
 from checkmate.providers.opscode import transforms
@@ -45,8 +45,8 @@ class TestChefServerProvider(test.ProviderTester):
     klass = server.Provider
 
     def test_get_resource_prepared_maps(self):
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([server.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([server.Provider, test.TestProvider])
         deployment = cm_dep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
@@ -107,17 +107,17 @@ class TestChefServerProvider(test.ProviderTester):
                   - attributes://clients
             """)
         deployments.Manager.plan(deployment, middleware.RequestContext())
-        server_provider = deployment.environment().get_provider('chef-server')
 
         # Check requirement map
 
         resource = deployment['resources']['0']  # one of the mysql clients
         result = chefmap.get_resource_prepared_maps(resource, deployment)
-        expected = [{'source': 'requirements://database:mysql/ip',
-                     'targets': ['attributes://ip'],
-                     'path': 'instance:2/interfaces/mysql',
-                     'resource': '0',
-                     }]
+        expected = [{
+            'source': 'requirements://database:mysql/ip',
+            'targets': ['attributes://ip'],
+            'path': 'instance:2/interfaces/mysql',
+            'resource': '0',
+        }]
         self.assertListEqual(result, expected)
 
         # Check client maps
@@ -250,8 +250,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
     """
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([server.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([server.Provider, test.TestProvider])
         self.deployment = cm_dep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
                 blueprint:
@@ -446,8 +446,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([server.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([server.Provider, test.TestProvider])
         self.deployment = \
             cm_dep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
@@ -542,8 +542,8 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
     """
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([server.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([server.Provider, test.TestProvider])
         self.deployment = \
             cm_dep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
@@ -869,8 +869,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     """
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([server.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([server.Provider, test.TestProvider])
         self.deployment = \
             cm_dep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
@@ -1340,11 +1340,9 @@ interfaces/mysql/database_name
         # Hack to hijack postback in Transform which is called as a string in
         # exec(), so cannot be easily mocked.
         # We make the call hit our deployment directly
-        for task_name in [
-            'Collect Chef Data for 0',
-            'Collect Chef Data for 2',
-        ]:
-            transmerge = workflow.spec.task_specs.get(task_name)
+        task_names = ['Collect Chef Data for 0', 'Collect Chef Data for 2']
+        for name in task_names:
+            transmerge = workflow.spec.task_specs.get(name)
             transmerge.set_property(deployment=self.deployment)
             transmerge.function_name = "tests.providers.opscode." \
                                        "test_server.do_nothing"
@@ -1544,8 +1542,8 @@ class TestMapTemplating(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_parsing_scalar(self):
-        map = chef_map.ChefMap('')
-        map._raw = """
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = """
             {% set id = 'foo' %}
             id: {{ id }}
             maps:
@@ -1553,11 +1551,11 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://{{ 'here' }}
         """
-        self.assertDictEqual(map.get_attributes('foo', None), {'here': 1})
+        self.assertDictEqual(chefmap.get_attributes('foo', None), {'here': 1})
 
     def test_parsing_functions_parse_url(self):
-        map = chef_map.ChefMap('')
-        map._raw = """
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = """
             id: foo
             maps:
             - value: {{ 1 }}
@@ -1580,7 +1578,7 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://fragment
         """
-        result = map.get_attributes('bar', None)
+        result = chefmap.get_attributes('bar', None)
         expected = {
             'scheme': 'http',
             'netloc': 'github.com',
@@ -1591,8 +1589,8 @@ class TestMapTemplating(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_parse_url_Input(self):
-        map = chef_map.ChefMap('')
-        map._raw = """
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = """
             id: foo
             maps:
             - value: {{ 1 }}
@@ -1610,7 +1608,7 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://protocol_target/scheme
         """
-        result = map.get_attributes('bar', None)
+        result = chefmap.get_attributes('bar', None)
         expected = {
             'protocol_target': {
                 'scheme': 'http',
@@ -1650,8 +1648,8 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
             },
             'blueprint': {},
         })
-        map = chef_map.ChefMap('')
-        map._raw = """
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = """
             id: foo
             maps:
             - value: |
@@ -1662,13 +1660,13 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
               targets:
               - attributes://protocol_target/scheme
         """
-        result = templating.parse(map.raw, deployment=deployment)
+        result = templating.parse(chefmap.raw, deployment=deployment)
         data = yaml.safe_load(result)
         self.assertEqual(data['maps'][0]['value'], cert)
 
     def test_parsing_functions_hash(self):
-        map = chef_map.ChefMap('')
-        map._raw = """
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = """
             id: foo
             maps:
             - value: {{ hash('password', salt='ahem1234') }}
@@ -1676,7 +1674,7 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
               - attributes://here
         """
         self.assertDictEqual(
-            map.get_attributes('foo', None),
+            chefmap.get_attributes('foo', None),
             {
                 'here':
                 '$6$rounds=100000$ahem1234$WDinkd.aajNmGHPGJpdEnQwhipq3nDNSejs'

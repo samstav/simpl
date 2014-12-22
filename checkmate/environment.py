@@ -19,7 +19,7 @@ import logging
 
 from checkmate.component import Component
 from checkmate import exceptions
-from checkmate.providers import get_provider_class
+from checkmate.providers import base
 
 LOG = logging.getLogger(__name__)
 API_POOL = eventlet.GreenPool()
@@ -80,7 +80,7 @@ class Environment(object):
             error_message = "No vendor specified for '%s'" % key
             raise exceptions.CheckmateException(
                 error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
-        provider_class = get_provider_class(vendor, key)
+        provider_class = base.get_provider_class(vendor, key)
         return provider_class(provider, key=key)
 
     def find_component(self, blueprint_entry, context):

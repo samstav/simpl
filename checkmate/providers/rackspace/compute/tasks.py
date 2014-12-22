@@ -20,18 +20,18 @@ import logging
 from celery import task as ctask
 from checkmate.common import statsd
 from checkmate import exceptions as cmexc
-from checkmate import providers as cprov
+from checkmate.providers import base
 from checkmate.providers.rackspace.compute import manager
 from checkmate.providers.rackspace.compute import provider
 LOG = logging.getLogger(__name__)
 
 
-@ctask.task(base=cprov.RackspaceProviderTask, default_retry_delay=15,
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=15,
             max_retries=40, provider=provider.Provider)
 @statsd.collect
 def create_server(context, name, region=None, api=None, flavor="2",
                   files=None, image=None, tags=None):
-    #pylint: disable=W0613
+    # pylint: disable=W0613
     """Create a Rackspace Cloud server using novaclient.
 
     Note: Nova server creation requests are asynchronous. The IP address of the
@@ -76,12 +76,12 @@ def create_server(context, name, region=None, api=None, flavor="2",
     return data
 
 
-@ctask.task(base=cprov.RackspaceProviderTask, default_retry_delay=15,
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=15,
             max_retries=160, provider=provider.Provider)
 @statsd.collect
 def wait_on_build(context, server_id, region=None, ip_address_type='public',
                   api=None):
-    #pylint: disable=W0613
+    # pylint: disable=W0613
     """Checks build is complete.
 
     :param context: context data
@@ -98,7 +98,7 @@ def wait_on_build(context, server_id, region=None, ip_address_type='public',
         ip_address_type=ip_address_type, api=wait_on_build.api)
 
 
-@ctask.task(base=cprov.RackspaceProviderTask, default_retry_delay=15,
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=15,
             max_retries=40, provider=provider.Provider)
 @statsd.collect
 def verify_ssh_connection(context, server_id, server_ip, region=None,
@@ -106,7 +106,7 @@ def verify_ssh_connection(context, server_id, server_ip, region=None,
                           identity_file=None, port=22, api=None,
                           private_key=None, proxy_address=None,
                           proxy_credentials=None):
-    #pylint: disable=W0613
+    # pylint: disable=W0613
     """Verifies the ssh connection to a server
     :param context: context data
     :param server_id: server id
@@ -149,11 +149,11 @@ def verify_ssh_connection(context, server_id, server_ip, region=None,
         raise cmexc.CheckmateException(options=cmexc.CAN_RESUME)
 
 
-@ctask.task(base=cprov.RackspaceProviderTask, default_retry_delay=30,
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=30,
             max_retries=120, provider=provider.Provider)
 @statsd.collect
 def wait_on_delete_server(context, api=None):
-    #pylint: disable=W0613
+    # pylint: disable=W0613
     """Wait for a server resource to be deleted."""
     wait_on_delete_server.on_failure = _on_failure(
         action="while waiting on",
@@ -164,11 +164,11 @@ def wait_on_delete_server(context, api=None):
         context, wait_on_delete_server.api, wait_on_delete_server.partial)
 
 
-@ctask.task(base=cprov.RackspaceProviderTask, default_retry_delay=30,
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=30,
             max_retries=120, provider=provider.Provider)
 @statsd.collect
 def delete_server_task(context, api=None):
-    #pylint: disable=W0613
+    # pylint: disable=W0613
     """Celery Task to delete a Nova compute instance."""
     delete_server_task.on_failure = _on_failure(
         action="deleting",

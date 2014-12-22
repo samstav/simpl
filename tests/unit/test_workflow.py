@@ -29,7 +29,6 @@ from checkmate import deployment as cmdep
 from checkmate import deployments
 from checkmate import exceptions
 from checkmate import middleware as cmmid
-from checkmate import providers as cmprov
 from checkmate.providers import base
 from checkmate.providers.rackspace import loadbalancer
 from checkmate import test
@@ -47,7 +46,8 @@ class TestWorkflow(unittest.TestCase):
         self.tenant_id = "tenant_id"
         self.task_with_error.id = "task_id"
         base.PROVIDER_CLASSES = {}
-        cmprov.register_providers([loadbalancer.Provider, test.TestProvider])
+        base.register_providers(
+            [loadbalancer.Provider, test.TestProvider])
 
     def tearDown(self):
         self.mox.VerifyAll()
@@ -194,7 +194,7 @@ class TestWorkflow(unittest.TestCase):
             "task-id": "task_id",
             "error-traceback": "Traceback",
             "error-string": "CheckmateException('foo', 'exception_message', "
-            "2, None)"
+                            "2, None)"
         }
         self.assertDictEqual(expected_error, error)
 
@@ -207,7 +207,7 @@ class TestWorkflow(unittest.TestCase):
             "task-id": "task_id",
             "error-traceback": "Traceback",
             "error-string": "CheckmateException('foo', 'exception_message', "
-            "1, None)",
+                            "1, None)",
             "resumable": True,
             "resume-link": "/tenant_id/workflows/wf_id/tasks/task_id/+execute"
         }
@@ -225,7 +225,7 @@ class TestWorkflow(unittest.TestCase):
             "task-id": "task_id",
             "error-traceback": "Traceback",
             "error-string": "CheckmateException('foo', 'exception_message', "
-            "4, None)",
+                            "4, None)",
         }
         self.assertDictEqual(error, expected_error)
 
@@ -619,9 +619,13 @@ class TestGetStatusInfo(unittest.TestCase):
         }
         self.d_wf.get_tasks.return_value = [task]
         result = workflow.get_status_info(self.d_wf, 'wfid')
-        self.assertEqual({'status-message': 'Multiple errors have occurred. '
-                          'Please contact support'},
-                         result)
+        self.assertEqual(
+            {
+                'status-message': 'Multiple errors have occurred. '
+                                  'Please contact support'
+            },
+            result
+        )
 
     def test_multiple_errors_with_friendly_messages(self):
         task_one = mock.MagicMock()
@@ -666,15 +670,20 @@ class TestGetStatusInfo(unittest.TestCase):
         }
         self.d_wf.get_tasks.return_value = [task_one, task_two]
         result = workflow.get_status_info(self.d_wf, 'wfid')
-        self.assertEqual({'status-message': 'Multiple errors have occurred. '
-                          'Please contact support'}, result)
+        self.assertEqual(
+            {
+                'status-message': 'Multiple errors have occurred. Please '
+                                  'contact support'
+            },
+            result
+        )
 
 
 class TestBasicWorkflow(test.StubbedWorkflowBase):
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
-        cmprov.register_providers(
+        base.register_providers(
             [loadbalancer.Provider, test.TestProvider])
         self.deployment = cmdep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
@@ -799,20 +808,22 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             wf_spec, vip_deployment, self.context, "w_id", "BUILD")
 
         task_list = wf.spec.task_specs.keys()
-        expected = ['Root', 'Start',
-                    'Create Resource 3',
-                    'Create HTTP Loadbalancer (0)',
-                    'Wait for Loadbalancer 0 (lb) build',
-                    'Add monitor to Loadbalancer 0 (lb) build',
-                    'Create Resource 2',
-                    'Create HTTP Loadbalancer (1)',
-                    'Wait for Loadbalancer 1 (lb) build',
-                    'Add monitor to Loadbalancer 1 (lb) build',
-                    'Wait before adding 3 to LB 0',
-                    'Add Node 3 to LB 0',
-                    'Wait before adding 2 to LB 1',
-                    'Add Node 2 to LB 1'
-                    ]
+        expected = [
+            'Root',
+            'Start',
+            'Create Resource 3',
+            'Create HTTP Loadbalancer (0)',
+            'Wait for Loadbalancer 0 (lb) build',
+            'Add monitor to Loadbalancer 0 (lb) build',
+            'Create Resource 2',
+            'Create HTTP Loadbalancer (1)',
+            'Wait for Loadbalancer 1 (lb) build',
+            'Add monitor to Loadbalancer 1 (lb) build',
+            'Wait before adding 3 to LB 0',
+            'Add Node 3 to LB 0',
+            'Wait before adding 2 to LB 1',
+            'Add Node 2 to LB 1'
+        ]
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)

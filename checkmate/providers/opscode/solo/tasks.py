@@ -22,10 +22,10 @@ from checkmate.common import statsd
 from checkmate import deployments
 from checkmate.providers.opscode.solo.manager import Manager
 from checkmate.providers.opscode.solo import Provider
-from checkmate.providers import ProviderTask
+from checkmate.providers import base
 
 
-@ctask.task(base=ProviderTask, provider=Provider)
+@ctask.task(base=base.ProviderTask, provider=Provider)
 @statsd.collect
 def write_databag(context, environment, bag_name, item_name, contents,
                   path=None, secret_file=None, kitchen_name='kitchen'):
@@ -57,7 +57,7 @@ def write_databag(context, environment, bag_name, item_name, contents,
                                   simulate=context.simulation)
 
 
-@ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
+@ctask.task(base=base.ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
 def cook(context, host, environment, recipes=None, roles=None,
          path=None, username='root', password=None, identity_file=None,
@@ -138,7 +138,7 @@ def create_environment(context, name, service_name, path=None,
                                       simulation=context['simulation'])
 
 
-@ctask.task(base=ProviderTask, provider=Provider, max_retries=3,
+@ctask.task(base=base.ProviderTask, provider=Provider, max_retries=3,
             soft_time_limit=600)
 @statsd.collect
 def register_node(context, host, environment, path=None,
@@ -181,7 +181,7 @@ def register_node(context, host, environment, path=None,
                                  simulate=context.simulation)
 
 
-@ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
+@ctask.task(base=base.ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
 def manage_role(context, name, environment, path=None, desc=None,
                 run_list=None, default_attributes=None,
@@ -197,7 +197,7 @@ def manage_role(context, name, environment, path=None, desc=None,
                                simulate=context.simulation)
 
 
-@ctask.task(base=ProviderTask, provider=Provider, countdown=20, max_retries=3)
+@ctask.task(base=base.ProviderTask, provider=Provider, countdown=20, max_retries=3)
 @statsd.collect
 def delete_resource(context):
     """Marks the resource as deleted."""

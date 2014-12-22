@@ -25,7 +25,7 @@ from checkmate import exceptions
 from checkmate import keys
 from checkmate.providers.opscode import base
 from checkmate.providers.opscode.chef_map import ChefMap
-from checkmate.providers import ProviderBase
+from checkmate.providers import base as cmbase
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT',
@@ -48,7 +48,7 @@ class Provider(base.BaseOpscodeProvider):
     }
 
     def __init__(self, provider, key=None):
-        ProviderBase.__init__(self, provider, key=key)
+        cmbase.ProviderBase.__init__(self, provider, key=key)
 
         # Map File
         self.source = self.get_setting('source')
@@ -59,7 +59,7 @@ class Provider(base.BaseOpscodeProvider):
             self.map_file = ChefMap(raw="")
 
     def prep_environment(self, wfspec, deployment, context):
-        ProviderBase.prep_environment(self, wfspec, deployment, context)
+        cmbase.ProviderBase.prep_environment(self, wfspec, deployment, context)
         if self.prep_task:
             return  # already prepped
         self._hash_all_user_resource_passwords(deployment)
@@ -290,9 +290,11 @@ class Provider(base.BaseOpscodeProvider):
                     relation['target'], resource['service']
                 ),
                 'checkmate.providers.opscode.solo.tasks.register_node',
-                call_args=[context.get_queued_task_dict(
-                    deployment_id=deployment['id'],
-                    resource_key=key),
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment_id=deployment['id'],
+                        resource_key=key
+                    ),
                     operators.PathAttrib(
                         'instance:%s/ip' % relation['target']),
                     deployment['id']
@@ -318,9 +320,11 @@ class Provider(base.BaseOpscodeProvider):
                     relation['target'], service_name
                 ),
                 'checkmate.providers.opscode.solo.tasks.cook',
-                call_args=[context.get_queued_task_dict(
-                    deployment_id=deployment['id'],
-                    resource_key=key),
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment_id=deployment['id'],
+                        resource_key=key
+                    ),
                     operators.PathAttrib(
                         'instance:%s/ip' % relation['target']),
                     deployment['id']
@@ -380,9 +384,11 @@ class Provider(base.BaseOpscodeProvider):
                                                      provider=self.key,
                                                      tag='final')
                 host_complete = self.get_host_complete_task(wfspec, server)
-                final_tasks.extend(wfspec.find_task_specs(
-                    resource=server.get('index'),
-                    provider=self.key, tag='final')
+                final_tasks.extend(
+                    wfspec.find_task_specs(
+                        resource=server.get('index'),
+                        provider=self.key, tag='final'
+                    )
                 )
                 if not final_tasks:
                     # If server already configured, anchor to root
@@ -441,9 +447,11 @@ class Provider(base.BaseOpscodeProvider):
                 wfspec,
                 name,
                 'checkmate.providers.opscode.solo.tasks.cook',
-                call_args=[context.get_queued_task_dict(
-                    deployment_id=deployment['id'],
-                    resource_key=server['index']),
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment_id=deployment['id'],
+                        resource_key=server['index']
+                    ),
                     instance_ip,
                     deployment['id']
                 ],

@@ -23,12 +23,12 @@ from checkmate.common import statsd
 from checkmate.deployments import tasks
 from checkmate.providers.opscode.server.manager import Manager
 from checkmate.providers.opscode.server import Provider
-from checkmate.providers import ProviderTask
+from checkmate.providers import base
 
 LOG = logging.getLogger(__name__)
 
 
-@ctask.task(base=ProviderTask, provider=Provider)
+@ctask.task(base=base.ProviderTask, provider=Provider)
 @statsd.collect
 def register_node(context, deployment, name, recipes=None, roles=None,
                   attributes=None, environment=None, api=None):
@@ -77,7 +77,7 @@ def register_node(context, deployment, name, recipes=None, roles=None,
         register_node.retry(exc=exc)
 
 
-@ctask.task(base=ProviderTask, provider=Provider, max_retries=5,
+@ctask.task(base=base.ProviderTask, provider=Provider, max_retries=5,
             default_retry_delay=60)
 @statsd.collect
 def bootstrap(context, deployment, name, ip, username='root', password=None,
@@ -106,7 +106,7 @@ def bootstrap(context, deployment, name, ip, username='root', password=None,
                              callback=bootstrap.partial)
 
 
-@ctask.task(base=ProviderTask, provider=Provider)
+@ctask.task(base=base.ProviderTask, provider=Provider)
 @statsd.collect
 def write_databag(context, deployment, bagname, itemname, contents,
                   secret_file=None, api=None):
@@ -145,7 +145,7 @@ def write_databag(context, deployment, bagname, itemname, contents,
     return True
 
 
-@ctask.task(base=ProviderTask, provider=Provider)
+@ctask.task(base=base.ProviderTask, provider=Provider)
 @statsd.collect
 def manage_role(context, deployment, name, desc=None, run_list=None,
                 default_attributes=None, override_attributes=None,
@@ -197,7 +197,7 @@ def manage_role(context, deployment, name, desc=None, run_list=None,
     return True
 
 
-@ctask.task(base=ProviderTask, provider=Provider, max_retries=3)
+@ctask.task(base=base.ProviderTask, provider=Provider, max_retries=3)
 @statsd.collect
 def manage_environment(context, deployment, name, desc=None, versions=None,
                        default_attributes=None, override_attributes=None,
@@ -320,7 +320,7 @@ def upload_cookbooks(context, deployment, environment):
                           simulation=context['simulation'])
 
 
-@ctask.task(base=ProviderTask, provider=Provider)
+@ctask.task(base=base.ProviderTask, provider=Provider)
 @statsd.collect
 def delete_environment(context, deployment, name, api=None):
 

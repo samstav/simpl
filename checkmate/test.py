@@ -42,7 +42,7 @@ os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
 
 from checkmate.common import schema
 from checkmate import exceptions
-from checkmate.providers import base, register_providers, get_provider_class
+from checkmate.providers import base
 from checkmate.middleware import RequestContext  # also enables logging
 from checkmate import utils
 from checkmate.workflow import init_spiff_workflow
@@ -198,7 +198,7 @@ def register():
 
     This makes this module behave like a real provider package.
     """
-    register_providers([TestProvider])
+    base.register_providers([TestProvider])
 
 
 def run_with_params(args=None):
@@ -1021,21 +1021,21 @@ class ProviderTester(unittest.TestCase):
     def test_provider_loads_unregistered(self):
         """Check that provider loads without registration."""
         if not isinstance(self.klass, TestProvider):
-            self.assertIs(get_provider_class(self.klass.vendor,
-                                             self.klass.name), self.klass)
+            self.assertIs(base.get_provider_class(self.klass.vendor,
+                                                  self.klass.name), self.klass)
 
     def test_provider_loads_registered(self):
         """Check that provider loads."""
         base.PROVIDER_CLASSES = {}
-        register_providers([self.klass])
-        self.assertTrue(issubclass(get_provider_class(self.klass.vendor,
-                                                      self.klass.name),
+        base.register_providers([self.klass])
+        self.assertTrue(issubclass(base.get_provider_class(self.klass.vendor,
+                                                           self.klass.name),
                                    base.ProviderBase))
 
     def test_provider_registration(self):
         """Check that provider class registers."""
         base.PROVIDER_CLASSES = {}
-        register_providers([self.klass])
+        base.register_providers([self.klass])
         key = self.klass({}).key
         self.assertIn(key, base.PROVIDER_CLASSES)
         self.assertIs(base.PROVIDER_CLASSES[key], self.klass)

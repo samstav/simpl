@@ -36,7 +36,7 @@ from checkmate.common import config
 from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
-from checkmate import providers as cmprov
+from checkmate.providers import base as cmbase
 from checkmate.providers.rackspace import base
 from checkmate import utils
 
@@ -146,7 +146,7 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
     except StandardError as exception:
         LOG.warn("Error connecting to Redis: %s", exception)
 
-#FIXME: delete tasks talk to database directly, so we load drivers and manager
+# FIXME: delete tasks talk to database directly, so we load drivers and manager
 MANAGERS = {'deployments': cmdeps.Manager()}
 GET_RESOURCE_BY_ID = MANAGERS['deployments'].get_resource_by_id
 pyrax.set_setting('identity_type', 'rackspace')
@@ -157,7 +157,7 @@ class RackspaceComputeProviderBase(base.RackspaceProviderBase):
 
     def __init__(self, provider, key=None):
         base.RackspaceProviderBase.__init__(self, provider, key=key)
-        #kwargs added to server creation calls (contain things like ssh keys)
+        # kwargs added to server creation calls (contain things like ssh keys)
         self._kwargs = {}
         with open(os.path.join(os.path.dirname(__file__),
                                "scripts", "managed_cloud",
@@ -246,7 +246,7 @@ class Provider(RackspaceComputeProviderBase):
             for key, value in image_types.iteritems():
                 if (image == value['name'] or
                         (image.lower() == value['os'].lower() and
-                        not value['name'].startswith('OnMetal'))):
+                         not value['name'].startswith('OnMetal'))):
                     LOG.debug("Mapping image from '%s' to '%s'", image, key)
                     image = key
                     break
@@ -263,10 +263,13 @@ class Provider(RackspaceComputeProviderBase):
 
         # Get setting
         flavor = None
-        memory = self.parse_memory_setting(deployment.get_setting('memory',
-                                           resource_type=resource_type,
-                                           service_name=service,
-                                           provider_key=self.key, default=512))
+        memory = self.parse_memory_setting(
+            deployment.get_setting('memory',
+                                   resource_type=resource_type,
+                                   service_name=service,
+                                   provider_key=self.key,
+                                   default=512)
+        )
 
         # Find the available memory size that satisfies this
         matches = [e['memory'] for e in catalog['lists']['sizes'].values()
@@ -287,7 +290,7 @@ class Provider(RackspaceComputeProviderBase):
                 "No flavor mapping for '%s' in '%s'" % (memory, self.key))
 
         for template in templates:
-            #TODO(any): remove the entry from the root
+            # TODO(any): remove the entry from the root
             template['flavor'] = flavor
             template['image'] = image
             template['region'] = region
@@ -350,7 +353,7 @@ class Provider(RackspaceComputeProviderBase):
     def verify_access(self, context):
         """Verify that the user has permissions to create compute resources."""
         roles = ['identity:user-admin', 'nova:admin', 'nova:creator']
-        if cmprov.user_has_access(context, roles):
+        if cmbase.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
                 'message': "You have access to create Cloud Servers",
@@ -495,9 +498,12 @@ class Provider(RackspaceComputeProviderBase):
         preps = getattr(self, 'prep_task', None)
         if preps:
             wait_on.append(preps)
-        join = wfspec.wait_for(create_server_task, wait_on,
-                               name="Server Wait on:%s (%s)" % (key, resource[
-                                                                'service']))
+
+        join = wfspec.wait_for(
+            create_server_task,
+            wait_on,
+            name="Server Wait on:%s (%s)" % (key, resource['service'])
+        )
 
         return dict(
             root=join,
@@ -508,12 +514,10 @@ class Provider(RackspaceComputeProviderBase):
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
         from checkmate.providers.rackspace.compute import sync_resource_task
-        result = super(Provider, self).get_resource_status(context,
-                                                           deployment_id,
-                                                           resource, key,
-                                                           sync_callable=
-                                                           sync_resource_task,
-                                                           api=api)
+        result = super(Provider, self).get_resource_status(
+            context, deployment_id, resource, key,
+            sync_callable=sync_resource_task, api=api
+        )
         i_key = 'instance:%s' % key
         if result[i_key].get('status') in ['ACTIVE', 'DELETED']:
             result[i_key]['instance'] = {'status-message': ''}
@@ -619,9 +623,8 @@ class Provider(RackspaceComputeProviderBase):
         """
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #       do this for every provider
-        results = RackspaceComputeProviderBase.get_catalog(self, context,
-                                                           type_filter=
-                                                           type_filter)
+        results = RackspaceComputeProviderBase.get_catalog(
+            self, context, type_filter=type_filter)
         if results:
             # We have a prexisting or overriding catalog stored
             return results
@@ -655,7 +658,7 @@ class Provider(RackspaceComputeProviderBase):
                 images = vals['images']
 
         if type_filter is None or type_filter == 'compute':
-            #TODO(any): add regression tests - copy.copy leaking across tenants
+            # TODO(any): add regression tests. copy.copy leaking across tenants
             results['compute'] = copy.deepcopy(CATALOG_TEMPLATE['compute'])
             linux = results['compute']['linux_instance']
             windows = results['compute']['windows_instance']
@@ -783,10 +786,10 @@ class Provider(RackspaceComputeProviderBase):
     @staticmethod
     def connect(context, region=None):
         """Use context info to connect to API and return api object."""
-        #FIXME: figure out better serialization/deserialization scheme
+        # FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
             context = cmmid.RequestContext(**context)
-        #TODO(any): Hard-coded to Rax auth for now
+        # TODO(any): Hard-coded to Rax auth for now
         if not context.auth_token:
             raise cmexc.CheckmateNoTokenError()
 
@@ -909,7 +912,7 @@ def detect_image(name, metadata=None):
                       os_name, extra={'data': metadata})
             return {'name': name, 'os': os_name, 'type': os_type}
 
-    #Look for keywords like 'precise'
+    # Look for keywords like 'precise'
     lower_name = name.lower()
     for hint, mapped_os in IMAGE_MAP.iteritems():
         if hint in lower_name:
@@ -917,7 +920,7 @@ def detect_image(name, metadata=None):
             LOG.debug("Identified image using hint '%s': %s", hint, os_name)
             return {'name': name, 'os': os_name, 'type': 'linux'}
 
-    #Look for Checkmate name
+    # Look for Checkmate name
     for mapped_os in IMAGE_MAP.itervalues():
         if mapped_os.lower() in lower_name:
             os_name = mapped_os
@@ -925,7 +928,7 @@ def detect_image(name, metadata=None):
                       os_name)
             return {'name': name, 'os': os_name, 'type': 'linux'}
 
-    #Parse for known OSes and versions
+    # Parse for known OSes and versions
     for os_lower, versions in KNOWN_OSES.iteritems():
         if os_lower in lower_name:
             for version in versions:
@@ -935,12 +938,12 @@ def detect_image(name, metadata=None):
                     return {'name': name, 'os': os_name, 'type': 'linux'}
 
     if ' LTS ' in name:
-        #NOTE: hack to find some images by name in Rackspace
+        # NOTE: hack to find some images by name in Rackspace
         os_name = name.split(' LTS ')[0].split(' (')[0]
         LOG.debug("Identified image by name split: %s", os_name)
         return {'name': name, 'os': os_name, 'type': 'linux'}
 
-    #NOTE: hack to make our blueprints work with iNova
+    # NOTE: hack to make our blueprints work with iNova
     if 'LTS' in name:
         os_name = name.split('LTS')[0].strip()
         LOG.debug("Identified image by iNova name: %s", os_name)

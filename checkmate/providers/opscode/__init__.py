@@ -30,13 +30,14 @@ environment:
 
 import urlparse
 
-from checkmate.providers import register_providers
+from checkmate.providers import base as cmbase
 
 
 def register():
+    """Register Provider."""
     from checkmate.providers.opscode.server import Provider as server
     from checkmate.providers.opscode.solo import Provider as solo
-    register_providers([server, solo])
+    cmbase.register_providers([server, solo])
 
 
 def register_scheme(scheme):

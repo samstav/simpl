@@ -20,21 +20,21 @@ import unittest
 
 from checkmate import exceptions as cmexc
 from checkmate import middleware
-from checkmate.providers import base as cm_base
+from checkmate.providers import base
 from checkmate.providers.rackspace import database
 
 
 class TestProviderBasePlanningMixIn(unittest.TestCase):
     # Tests for generate_resource_tag
     def test_no_values_given(self):
-        result = cm_base.ProviderBasePlanningMixIn.generate_resource_tag()
+        result = base.ProviderBasePlanningMixIn.generate_resource_tag()
         self.assertEquals(
             {'RAX-CHECKMATE': 'None/None/deployments/None/resources/None'},
             result
         )
 
     def test_with_good_values(self):
-        result = cm_base.ProviderBasePlanningMixIn.generate_resource_tag(
+        result = base.ProviderBasePlanningMixIn.generate_resource_tag(
             base_url='http://blerp.com',
             tenant_id='T1',
             deployment_id='deba8c',
@@ -49,7 +49,7 @@ class TestProviderBase(unittest.TestCase):
 
     def test_translate_status_success(self):
         """Test checkmate status schema entry returned."""
-        class Testing(cm_base.ProviderBase):
+        class Testing(base.ProviderBase):
             __status_mapping__ = {
                 'ACTIVE': 'ACTIVE',
                 'BUILD': 'BUILD',
@@ -64,7 +64,7 @@ class TestProviderBase(unittest.TestCase):
 
     def test_translate_status_fail(self):
         """Test checkmate status schema UNDEFINED returned."""
-        class Testing(cm_base.ProviderBase):
+        class Testing(base.ProviderBase):
             __status_mapping__ = {
                 'ACTIVE': 'ACTIVE',
                 'BUILD': 'BUILD',
@@ -92,9 +92,8 @@ class TestProviderTask(unittest.TestCase):
         do_something.callback = self._callback
 
     def test_provider_task_success(self):
-        context = middleware.RequestContext(**{'region': 'ORD',
-                                            'resource_key': '1',
-                                            'deployment': {}})
+        context = middleware.RequestContext(
+            **{'region': 'ORD', 'resource_key': '1', 'deployment': {}})
         expected = {
             'instance:1': {
                 'api1': 'test_api',
@@ -112,9 +111,8 @@ class TestProviderTask(unittest.TestCase):
         assert do_something.partial, 'Partial attr should be set'
 
     def test_provider_task_success_with_no_data(self):
-        context = middleware.RequestContext(**{'region': 'ORD',
-                                            'resource_key': '1',
-                                            'deployment': {}})
+        context = middleware.RequestContext(
+            **{'region': 'ORD', 'resource_key': '1', 'deployment': {}})
 
         do_nothing.callback = mock.MagicMock(return_value=True)
         results = do_nothing(context, 'test', api='test_api')
@@ -206,7 +204,7 @@ class TestRackspaceProviderTask(unittest.TestCase):
                                                        api='api', region='ORD')
 
 
-@celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
+@celery.task.task(base=base.ProviderTask, provider=database.Provider)
 def do_something(context, name, api, region=None):
     return {
         'api1': do_something.api,
@@ -216,12 +214,12 @@ def do_something(context, name, api, region=None):
     }
 
 
-@celery.task.task(base=cm_base.ProviderTask, provider=database.Provider)
+@celery.task.task(base=base.ProviderTask, provider=database.Provider)
 def do_nothing(context, name, api, region=None):
     return
 
 
-@celery.task.task(base=cm_base.RackspaceProviderTask,
+@celery.task.task(base=base.RackspaceProviderTask,
                   provider=database.Provider)
 def rackspace_provider_task(context, name, api, region=None):
     return {

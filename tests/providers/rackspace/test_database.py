@@ -24,7 +24,6 @@ from checkmate import deployment
 from checkmate.deployments import tasks
 from checkmate import exceptions
 from checkmate import middleware
-from checkmate import providers
 from checkmate.providers import base
 from checkmate.providers.rackspace import database
 from checkmate.providers.rackspace.database import (
@@ -563,7 +562,8 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
-        providers.register_providers([database.Provider, test.TestProvider])
+        base.register_providers(
+            [database.Provider, test.TestProvider])
         self.deployment = deployment.Deployment(utils.yaml_to_dict("""
 id: 'DEP-ID-1000'
 blueprint:

@@ -28,7 +28,7 @@ from checkmate.common import templating
 from checkmate import deployment as cm_dep
 from checkmate import deployments
 from checkmate import middleware
-from checkmate import providers
+from checkmate.providers import base
 from checkmate.providers.opscode import solo
 from checkmate.providers.opscode import chef_map
 from checkmate.providers.opscode import transforms
@@ -45,8 +45,8 @@ class TestChefSoloProvider(test.ProviderTester):
     klass = solo.Provider
 
     def test_get_resource_prepared_maps(self):
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([solo.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([solo.Provider, test.TestProvider])
         deployment = cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
@@ -107,17 +107,17 @@ class TestChefSoloProvider(test.ProviderTester):
                   - attributes://clients
             ''')
         deployments.Manager.plan(deployment, middleware.RequestContext())
-        solo_provider = deployment.environment().get_provider('chef-solo')
 
         # Check requirement map
 
         resource = deployment['resources']['0']  # one of the mysql clients
         result = chefmap.get_resource_prepared_maps(resource, deployment)
-        expected = [{'source': 'requirements://database:mysql/ip',
-                     'targets': ['attributes://ip'],
-                     'path': 'instance:2/interfaces/mysql',
-                     'resource': '0',
-                     }]
+        expected = [{
+            'source': 'requirements://database:mysql/ip',
+            'targets': ['attributes://ip'],
+            'path': 'instance:2/interfaces/mysql',
+            'resource': '0',
+        }]
         self.assertListEqual(result, expected)
 
         # Check client maps
@@ -259,8 +259,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
     """
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([solo.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([solo.Provider, test.TestProvider])
         self.deployment = cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 blueprint:
@@ -329,9 +329,12 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             # Use only one kitchen. Call it "kitchen" like we used to
             'call': 'checkmate.providers.opscode.solo.tasks'
                     '.create_environment',
-            'args': [context.get_queued_task_dict(
+            'args': [
+                context.get_queued_task_dict(
                     deployment_id=self.deployment['id']),
-                self.deployment['id'], 'kitchen'],
+                self.deployment['id'],
+                'kitchen'
+            ],
             'kwargs': mox.And(
                 mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
                 mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
@@ -462,8 +465,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
 class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([solo.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([solo.Provider, test.TestProvider])
         self.deployment = \
             cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
@@ -558,8 +561,8 @@ class TestMappedSingleWorkflow(test.StubbedWorkflowBase):
     """
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([solo.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([solo.Provider, test.TestProvider])
         self.deployment = \
             cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
@@ -656,17 +659,18 @@ interfaces/mysql/host
         workflow = cm_wf.init_spiff_workflow(
             wf_spec, self.deployment, context, "w_id", "BUILD")
         task_list = workflow.spec.task_specs.keys()
-        expected = ['Root',
-                    'Start',
-                    'Create Chef Environment',
-                    'Create Resource 1',
-                    'After Environment is Ready and Server 1 (db) is Up',
-                    'Register Server 1 (db)',
-                    'Pre-Configure Server 1 (db)',
-                    'Collect Chef Data for 0',
-                    'Configure mysql: 0 (db)',
-                    'Delete Cookbooks',
-                    ]
+        expected = [
+            'Root',
+            'Start',
+            'Create Chef Environment',
+            'Create Resource 1',
+            'After Environment is Ready and Server 1 (db) is Up',
+            'Register Server 1 (db)',
+            'Pre-Configure Server 1 (db)',
+            'Collect Chef Data for 0',
+            'Configure mysql: 0 (db)',
+            'Delete Cookbooks',
+        ]
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
@@ -719,8 +723,7 @@ interfaces/mysql/host
             'args': [self.deployment['id'], 'kitchen'],
             'result': None,
             'kwargs': None
-        },
-        ]
+        }]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
                 context_dict = context.get_queued_task_dict(
@@ -882,8 +885,8 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
     """
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
-        providers.base.PROVIDER_CLASSES = {}
-        providers.register_providers([solo.Provider, test.TestProvider])
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([solo.Provider, test.TestProvider])
         self.deployment = \
             cm_dep.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
@@ -1193,8 +1196,7 @@ interfaces/mysql/database_name
             'args': [self.deployment['id'], 'kitchen'],
             'result': None,
             'kwargs': None
-        },
-        ]
+        }]
         for key, resource in self.deployment['resources'].iteritems():
             if resource.get('type') == 'compute':
                 context_dict = context.get_queued_task_dict(
@@ -1362,12 +1364,13 @@ interfaces/mysql/database_name
         # Hack to hijack postback in Transform which is called as a string in
         # exec(), so cannot be easily mocked.
         # We make the call hit our deployment directly
-        for task_name in [
+        task_names = [
             'Collect Chef Data for 0',
             'Collect Chef Data for 2',
-            'Reconfig Chef Data for 2',
-        ]:
-            transmerge = workflow.spec.task_specs[task_name]
+            'Reconfig Chef Data for 2'
+        ]
+        for name in task_names:
+            transmerge = workflow.spec.task_specs[name]
             transmerge.set_property(deployment=self.deployment)
             transmerge.function_name = "tests.providers.opscode.test_solo." \
                                        "do_nothing"
@@ -1580,8 +1583,8 @@ class TestMapTemplating(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_parsing_scalar(self):
-        map = chef_map.ChefMap('')
-        map._raw = '''
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = '''
             {% set id = 'foo' %}
             id: {{ id }}
             maps:
@@ -1589,11 +1592,11 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://{{ 'here' }}
         '''
-        self.assertDictEqual(map.get_attributes('foo', None), {'here': 1})
+        self.assertDictEqual(chefmap.get_attributes('foo', None), {'here': 1})
 
     def test_parsing_functions_parse_url(self):
-        map = chef_map.ChefMap('')
-        map._raw = '''
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = '''
             id: foo
             maps:
             - value: {{ 1 }}
@@ -1616,7 +1619,7 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://fragment
         '''
-        result = map.get_attributes('bar', None)
+        result = chefmap.get_attributes('bar', None)
         expected = {
             'scheme': 'http',
             'netloc': 'github.com',
@@ -1627,8 +1630,8 @@ class TestMapTemplating(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_parsing_functions_parse_url_Input(self):
-        map = chef_map.ChefMap('')
-        map._raw = '''
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = '''
             id: foo
             maps:
             - value: {{ 1 }}
@@ -1646,7 +1649,7 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://protocol_target/scheme
         '''
-        result = map.get_attributes('bar', None)
+        result = chefmap.get_attributes('bar', None)
         expected = {
             'protocol_target': {
                 'scheme': 'http',
@@ -1686,8 +1689,8 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
             },
             'blueprint': {},
         })
-        map = chef_map.ChefMap('')
-        map._raw = '''
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = '''
             id: foo
             maps:
             - value: |
@@ -1698,13 +1701,13 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
               targets:
               - attributes://protocol_target/scheme
         '''
-        result = templating.parse(map.raw, deployment=deployment)
+        result = templating.parse(chefmap.raw, deployment=deployment)
         data = yaml.safe_load(result)
         self.assertEqual(data['maps'][0]['value'], cert)
 
     def test_parsing_functions_hash(self):
-        map = chef_map.ChefMap('')
-        map._raw = '''
+        chefmap = chef_map.ChefMap('')
+        chefmap._raw = '''
             id: foo
             maps:
             - value: {{ hash('password', salt='ahem1234') }}
@@ -1712,7 +1715,7 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
               - attributes://here
         '''
         self.assertDictEqual(
-            map.get_attributes('foo', None),
+            chefmap.get_attributes('foo', None),
             {
                 'here':
                 '$6$rounds=100000$ahem1234$WDinkd.aajNmGHPGJpdEnQwhipq3nDNSejs'
