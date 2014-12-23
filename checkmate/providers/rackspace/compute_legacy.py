@@ -197,7 +197,7 @@ class Provider(RackspaceComputeProviderBase):
                                            "'%s'" % (memory, self.key))
         for template in templates:
             template['desired-state'] = {
-                'falvor': flavor,
+                'flavor': flavor,
                 'image': image
             }
             if region:

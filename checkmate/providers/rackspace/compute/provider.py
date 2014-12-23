@@ -310,8 +310,8 @@ class Provider(RackspaceComputeProviderBase):
         for compute in resources:
             flavor = compute['desired-state']['flavor']
             details = flavors[flavor]
-            memory_needed += details['desired-state']['memory']
-            cores_needed += details['desired-state']['cores']
+            memory_needed += details['memory']
+            cores_needed += details['cores']
 
         limits = _get_limits(url, context.auth_token)
         memory_available = limits['maxTotalRAMSize'] - limits['totalRAMUsed']
