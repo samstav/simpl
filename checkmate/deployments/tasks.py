@@ -92,16 +92,6 @@ def process_post_deployment(deployment, context, driver=None):
     LOG.debug("Triggered workflow (task='%s')", async_task)
 
 
-@task
-@statsd.collect
-def update_operation(deployment_id, workflow_id, driver=None, **kwargs):
-    """Wrapper for common_tasks.update_operation."""
-    # TODO(any): Deprecate this
-    driver = db.get_driver(api_id=deployment_id)
-    return common_tasks.update_operation(deployment_id, workflow_id,
-                                         driver=driver, **kwargs)
-
-
 @task(default_retry_delay=2, max_retries=60)
 @statsd.collect
 def delete_deployment_task(dep_id, driver=None):
@@ -126,7 +116,7 @@ def delete_deployment_task(dep_id, driver=None):
                     )
                     updates['status'] = 'ERROR'
                     contents = {
-                        'instance:%s' % resource['index']: updates,
+                        str(resource['index']): updates,
                     }
                     resource_postback.delay(dep_id, contents, driver=driver)
 
@@ -169,9 +159,10 @@ def update_all_provider_resources(provider, deployment_id, status,
         ret = {}
         for resource in [res for res in dep.get('resources', {}).values()
                          if res.get('provider') == provider]:
-            rkey = "instance:%s" % resource.get('index')
+            rkey = str(resource.get('index'))
             ret.update({rkey: rupdate})
         if ret:
+            ret = {'resources': ret}
             resource_postback.delay(deployment_id, ret, driver=driver)
             return ret
 
@@ -194,14 +185,22 @@ def resource_postback(deployment_id, contents, driver=None):
     The data updated can be:
     - a value: usually not tied to a resource or relation
     - an instance value (with the instance id appended with a colon):]
-        {'instance:0':
-            {'field_name': value}
+        {
+            'resources': {
+                '0': {
+                    'field_name': value
+                }
+            }
         }
     - an interface value (under interfaces/interface_name)
-        {'instance:0':
-            {'interfaces':
-                {'mysql':
-                    {'username': 'johnny', ...}
+        {
+            'resources': {
+                '0': {
+                    'interfaces': {
+                        'mysql': {
+                            'username': 'johnny', ...
+                        }
+                    }
                 }
             }
         }
@@ -215,6 +214,7 @@ def resource_postback(deployment_id, contents, driver=None):
 
     The contents are a hash (dict) of all the above
     """
+    assert 'resources' in contents or 'connections' in contents
     utils.match_celery_logging(LOG)
     driver = db.get_driver(api_id=deployment_id)
 
@@ -225,31 +225,54 @@ def resource_postback(deployment_id, contents, driver=None):
     assert isinstance(contents, dict), "Must postback data in dict"
 
     # Set status of resource if post_back includes status
-    for key, value in contents.items():
+    resources = contents.get('resources') or {}
+    for key, value in resources.items():
         if 'status' in value:
-            r_id = key.split(':')[1]
-            r_status = value.get('status')
-            utils.write_path(updates, 'resources/%s/status' % r_id, r_status)
+            status = value.get('status')
+            utils.write_path(updates, 'resources/%s/status' % key, status)
             # Don't want to write status to resource instance
             value.pop('status', None)
             if 'error-message' in value:
                 r_msg = value.get('error-message')
-                utils.write_path(updates, 'resources/%s/error-message' % r_id,
+                utils.write_path(updates, 'resources/%s/error-message' % key,
                                  r_msg)
                 value.pop('error-message', None)
-            if r_status == "ERROR":
+            if status == "ERROR":
+                if deployment.fsm.permitted("FAILED"):
+                    updates['status'] = 'FAILED'
+
+    # Set status of resource if post_back includes status
+    connections = contents.get('connections') or {}
+    for key, value in connections.items():
+        if 'status' in value:
+            status = value.get('status')
+            utils.write_path(updates, 'connections/%s/status' % key, status)
+            # Don't want to write status to resource instance
+            value.pop('status', None)
+            if 'error-message' in value:
+                r_msg = value.get('error-message')
+                utils.write_path(updates, 'connections/%s/error-message' % key,
+                                 r_msg)
+                value.pop('error-message', None)
+            if status == "ERROR":
                 if deployment.fsm.permitted("FAILED"):
                     updates['status'] = 'FAILED'
 
     # Create new contents dict if values existed
     # TODO(any): make this smarter
     new_contents = {}
-    for key, value in contents.items():
+    for key, value in resources.items():
         if value:
             new_contents[key] = value
-
     if new_contents:
         deployment.on_resource_postback(new_contents, target=updates)
+
+    new_contents = {}
+    for key, value in connections.items():
+        if value:
+            new_contents[key] = value
+    if new_contents:
+        deployment.on_connection_postback(new_contents, target=updates)
 
     if updates:
         body, secrets = utils.extract_sensitive_data(updates)

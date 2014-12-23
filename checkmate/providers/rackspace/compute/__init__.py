@@ -84,11 +84,12 @@ def sync_resource_task(context, resource, resource_key, api=None):
     #pylint: disable=W0703
     """Syncs resource status with provider status."""
     utils.match_celery_logging(LOG)
-    key = "instance:%s" % resource_key
     if context.get('simulation') is True:
         return {
-            key: {
-                'status': resource.get('status', 'DELETED')
+            'resources': {
+                resource_key: {
+                    'status': resource.get('status', 'DELETED')
+                }
             }
         }
 
@@ -115,14 +116,18 @@ def sync_resource_task(context, resource, resource_key, api=None):
             LOG.info(exc)
 
         return {
-            key: {
-                'status': server.status
+            'resources': {
+                resource_key: {
+                    'status': server.status
+                }
             }
         }
     except (ncexc.NotFound, cmexc.CheckmateDoesNotExist):
         return {
-            key: {
-                'status': 'DELETED'
+            'resources': {
+                resource_key: {
+                    'status': 'DELETED'
+                }
             }
         }
     except ncexc.BadRequest as exc:

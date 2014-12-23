@@ -83,7 +83,7 @@ def register_node(context, deployment, name, recipes=None, roles=None,
 def bootstrap(context, deployment, name, ip, username='root', password=None,
               port=22, identity_file=None, roles=None, recipes=None,
               distro='chef-full', environment=None, bootstrap_version=None,
-              api=None):
+              attributes=None, api=None):
 
     def on_failure(exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
@@ -102,6 +102,7 @@ def bootstrap(context, deployment, name, ip, username='root', password=None,
                              run_list=run_list, distro=distro,
                              environment=environment,
                              bootstrap_version=bootstrap_version,
+                             attributes=attributes,
                              simulation=context.simulation,
                              callback=bootstrap.partial)
 

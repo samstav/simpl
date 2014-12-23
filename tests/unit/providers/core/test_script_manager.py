@@ -24,6 +24,7 @@ from checkmate.providers.core.script import Manager
 
 
 class TestCreateResource(unittest.TestCase):
+
     """Class for testing Script.Manager."""
 
     def setUp(self):
@@ -33,8 +34,8 @@ class TestCreateResource(unittest.TestCase):
     def test_simulation(self):
         expected = {'A': 1, 'status': 'ACTIVE'}
         manager = Manager(api=self.api, callback=self.callback, simulate=True)
-        results = manager.create_resource({}, 'D1', {'desired': {'A': 1}},
-                                          'localhost', 'root')
+        results = manager.create_resource(
+            {}, 'D1', {'desired-state': {'A': 1}}, 'localhost', 'root')
         self.assertEqual(expected, results)
 
     def test_success(self):
@@ -45,7 +46,7 @@ class TestCreateResource(unittest.TestCase):
         }
         expected = {'A': 1, 'status': 'ACTIVE'}
         manager = Manager(api=self.api, callback=self.callback)
-        results = manager.create_resource({}, 'D1', {'desired': {'A': 1}},
+        results = manager.create_resource({}, 'D1', {'desired-state': {'A': 1}},
                                           'localhost', 'root',
                                           install_script="apt get update")
         self.assertEqual(results, expected)
@@ -58,11 +59,10 @@ class TestCreateResource(unittest.TestCase):
         """Verifies CheckmateException raised when caught SSH Exception."""
         manager = Manager(api=self.api, callback=self.callback)
         self.api.remote_execute.side_effect = Exception("Fail")
-        self.assertRaisesRegexp(exceptions.CheckmateException,
-                                "Fail",
-                                manager.create_resource, {}, 'D1',
-                                {'desired': {'A': 1}}, 'localhost', 'root',
-                                install_script="apt get update")
+        self.assertRaisesRegexp(
+            exceptions.CheckmateException, "Fail", manager.create_resource,
+            {}, 'D1', {'desired-state': {'A': 1}}, 'localhost', 'root',
+            install_script="apt get update")
 
 
 if __name__ == '__main__':

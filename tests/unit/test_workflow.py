@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Workflow class."""
+
 import re
 import unittest
 
@@ -580,18 +581,6 @@ class TestWorkflow(unittest.TestCase):
         wf_spec.start.connect(wf_a)
         return Workflow(wf_spec)
 
-    def test_format_resources_for_path_attrib(self):
-        actual = workflow.format({"1": {"instance": {"id": "1000",
-                                                     "foo": "bar"}}})
-        expected = {"instance:1": {"id": "1000",
-                                   "foo": "bar"}}
-        self.assertDictEqual(actual, expected)
-
-        actual = workflow.format({"1": {"index": "1"}})
-        expected = {"instance:1": {}}
-
-        self.assertDictEqual(actual, expected)
-
 
 class TestGetStatusInfo(unittest.TestCase):
     def setUp(self):
@@ -1022,27 +1011,31 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     'args': [mox.IsA(dict), resource],
                     'kwargs': None,
                     'result': {
-                        'instance:%s' % key: {
-                            'id': 'server9',
-                            'status': 'ACTIVE',
-                            'ip': '4.4.4.1',
-                            'private_ip': '10.1.2.1',
-                            'addresses': {
-                                'public': [
-                                    {
-                                        'version': 4,
-                                        'addr': '4.4.4.1'
-                                    },
-                                    {
-                                        'version': 6,
-                                        'addr': '2001:babe::ff04:36c1'
+                        'resources': {
+                            str(key): {
+                                'instance': {
+                                    'id': 'server9',
+                                    'status': 'ACTIVE',
+                                    'ip': '4.4.4.1',
+                                    'private_ip': '10.1.2.1',
+                                    'addresses': {
+                                        'public': [
+                                            {
+                                                'version': 4,
+                                                'addr': '4.4.4.1'
+                                            },
+                                            {
+                                                'version': 6,
+                                                'addr': '2001:babe::ff04:36c1'
+                                            }
+                                        ],
+                                        'private': [{
+                                            'version': 4,
+                                            'addr': '10.1.2.1'
+                                        }]
                                     }
-                                ],
-                                'private': [{
-                                    'version': 4,
-                                    'addr': '10.1.2.1'
-                                }]
-                            },
+                                }
+                            }
                         }
                     },
                     'post_back_result': True,
@@ -1072,12 +1065,17 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     },
                     'post_back_result': True,
                     'result': {
-                        'instance:0': {
-                            'id': 121212,
-                            'public_ip': '8.8.8.8',
-                            'port': 80,
-                            'protocol': 'http',
-                            'status': 'ACTIVE'
+                        'resources': {
+                            '0': {
+                                'instance': {
+                                    'id': 121212,
+                                    'public_ip': '8.8.8.8',
+                                    'port': 80,
+                                    'protocol': 'http',
+                                    'status': 'ACTIVE'
+                                },
+                                'status': 'ACTIVE'
+                            }
                         }
                     },
                     'resource': key,

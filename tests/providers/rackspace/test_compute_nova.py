@@ -161,33 +161,22 @@ class TestNovaCompute(test.ProviderTester):
 
         openstack_api_mock.client.region_name = "NORTH"
 
-        expected_resources = {
-            '1': {
-                'status': 'NEW',
-                'instance': {
-                'status': 'NEW',
-                'flavor': '2',
-                'error-message': '',
-                'image': '00000000-0000-0000-0000-000000000000',
-                'region': 'NORTH',
-                'password': 'password',
-                'id': 'fake_server_id',
-                'status-message': ''}
-            }
-        }
-
         expected = {
-            'instance:1': {
-                'status': 'NEW',
-                'id': server.id,
-                'password': server.adminPass,
-                'region': "NORTH",
-                'flavor': flavor.id,
-                'image': image.id,
-                'error-message': '',
-                'status-message': ''
-            },
-            'resources':  expected_resources,
+            'resources': {
+                '1': {
+                    'status': 'NEW',
+                    'instance': {
+                        'status': 'NEW',
+                        'flavor': flavor.id,
+                        'error-message': '',
+                        'image': image.id,
+                        'region': 'NORTH',
+                        'password': server.adminPass,
+                        'id': 'fake_server_id',
+                        'status-message': ''
+                    }
+                }
+            }
         }
 
         results = compute.tasks.create_server(context, 'fake_server',
@@ -215,9 +204,7 @@ class TestNovaCompute(test.ProviderTester):
             }
         )
 
-        postback.assert_called_once_with('DEP', {
-            'resources': expected_resources
-        })
+        postback.assert_called_once_with('DEP', expected)
 
     @mock.patch('checkmate.providers.rackspace.compute.utils')
     @mock.patch('checkmate.providers.rackspace.compute.manager.LOG')
@@ -352,54 +339,34 @@ class TestNovaCompute(test.ProviderTester):
             '1': {
                 'status': 'ACTIVE',
                 'instance': {
-                'status': 'ACTIVE',
-                'addresses': {
-                'public': [
-                    {
-                        'version': 4,
-                        'addr': '4.4.4.4'
-                    },
-                    {
-                        'version': 6,
-                        'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
-                    }],
-                'private': [
-                    {
-                        'version': 4,
-                        'addr': '10.10.10.10'
-                    }]},
-                'ip': '8.8.8.8',
-                'region': 'North',
-                'public_ip': '4.4.4.4',
-                'private_ip': '10.10.10.10',
-                'id': 'fake_server_id',
-                'status-message': '',
-                'rackconnect-automation-status': 'DEPLOYED'
+                    'status': 'ACTIVE',
+                    'addresses': {
+                    'public': [
+                        {
+                            'version': 4,
+                            'addr': '4.4.4.4'
+                        },
+                        {
+                            'version': 6,
+                            'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
+                        }],
+                    'private': [
+                        {
+                            'version': 4,
+                            'addr': '10.10.10.10'
+                        }]},
+                    'ip': '8.8.8.8',
+                    'region': 'North',
+                    'public_ip': '4.4.4.4',
+                    'private_ip': '10.10.10.10',
+                    'id': 'fake_server_id',
+                    'status-message': '',
+                    'rackconnect-automation-status': 'DEPLOYED'
                 }
             }
         }
 
         expected = {
-            'instance:1': {
-                'status': 'ACTIVE',
-                'addresses': {
-                    'public': [
-                        {'version': 4, 'addr': '4.4.4.4'},
-                        {'version': 6, 'addr': '2001:4800:780e'
-                                               ':0510:d87b:9cbc:ff04:513a'}
-                    ],
-                    'private': [
-                        {'version': 4, 'addr': '10.10.10.10'}
-                    ],
-                },
-                'ip': '8.8.8.8',
-                'region': 'North',
-                'public_ip': '4.4.4.4',
-                'private_ip': '10.10.10.10',
-                'id': 'fake_server_id',
-                'status-message': '',
-                'rackconnect-automation-status': 'DEPLOYED'
-            },
             'resources': expected_resources
         }
 
@@ -408,8 +375,7 @@ class TestNovaCompute(test.ProviderTester):
 
         self.assertDictEqual(results, expected)
         openstack_api_mock.servers.find.assert_called_once_with(id=server.id)
-        postback.assert_called_once_with("DEP",
-                                         {"resources": expected_resources})
+        postback.assert_called_once_with("DEP", expected)
 
     @mock.patch.object(cm_deps.tasks, 'postback')
     def test_wait_on_build_rackconnect_failed(self, postback):
@@ -524,41 +490,8 @@ class TestNovaCompute(test.ProviderTester):
                        roles=['rack_connect'])
 
         expected_resource = {
-            '1': {
-                'status': 'ACTIVE',
-                'instance': {
-                    'status': 'ACTIVE',
-                    'addresses': {
-                        'public': [
-                            {
-                                'version': 4,
-                                'addr': '4.4.4.4'
-                            },
-                            {
-                                'version': 6,
-                                'addr': '2001:4800:780e:0510'
-                                        ':d87b:9cbc:ff04:513a'
-                            }
-                        ],
-                        'private': [
-                            {
-                                'version': 4,
-                                'addr': '10.10.10.10'
-                            }]
-                    },
-                    'ip': '8.8.8.8',
-                    'region': 'North',
-                    'public_ip': '4.4.4.4',
-                    'private_ip': '10.10.10.10',
-                    'id': 'fake_server_id',
-                    'status-message': '',
-                    'rackconnect-automation-status': 'UNPROCESSABLE'
-                }
-            }
-        }
-
-        expected_result = {
-            'instance:1': {
+            'status': 'ACTIVE',
+            'instance': {
                 'status': 'ACTIVE',
                 'addresses': {
                     'public': [
@@ -568,7 +501,8 @@ class TestNovaCompute(test.ProviderTester):
                         },
                         {
                             'version': 6,
-                            'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
+                            'addr': '2001:4800:780e:0510'
+                                    ':d87b:9cbc:ff04:513a'
                         }
                     ],
                     'private': [
@@ -584,16 +518,16 @@ class TestNovaCompute(test.ProviderTester):
                 'id': 'fake_server_id',
                 'status-message': '',
                 'rackconnect-automation-status': 'UNPROCESSABLE'
-            },
-            'resources': expected_resource
+            }
         }
+
+        expected_result = {'resources': {'1': expected_resource}}
 
         results = compute.tasks.wait_on_build(context, server.id,
                                               api=openstack_api_mock)
 
         self.assertDictEqual(results, expected_result)
-        postback.assert_called_once_with("DEP",
-                                         {"resources": expected_resource})
+        postback.assert_called_once_with("DEP", expected_result)
         openstack_api_mock.servers.find.assert_called_once_with(id=server.id)
 
     @mock.patch.object(cm_deps.tasks, 'postback')
@@ -658,36 +592,17 @@ class TestNovaCompute(test.ProviderTester):
                             }
                         ]
                     },
-                'ip': '4.4.4.4',
-                'region': 'North',
-                'public_ip': '4.4.4.4',
-                'private_ip': '10.10.10.10',
-                'id': 'fake_server_id',
-                'status-message': ''
+                    'ip': '4.4.4.4',
+                    'region': 'North',
+                    'public_ip': '4.4.4.4',
+                    'private_ip': '10.10.10.10',
+                    'id': 'fake_server_id',
+                    'status-message': ''
                 }
             }
         }
 
         expected = {
-            'instance:1': {
-                'status': 'ACTIVE',
-                'addresses': {
-                    'public': [
-                        {'version': 4, 'addr': '4.4.4.4'},
-                        {'version': 6, 'addr': '2001:4800:780e'
-                                               ':0510:d87b:9cbc:ff04:513a'}
-                    ],
-                    'private': [
-                        {'version': 4, 'addr': '10.10.10.10'}
-                    ]
-                },
-                'ip': '4.4.4.4',
-                'region': 'North',
-                'public_ip': '4.4.4.4',
-                'private_ip': '10.10.10.10',
-                'id': 'fake_server_id',
-                'status-message': ''
-            },
             'resources': expected_resources
         }
 
@@ -697,8 +612,7 @@ class TestNovaCompute(test.ProviderTester):
         self.assertDictEqual(results, expected)
 
         openstack_api_mock.servers.find.assert_called_once_with(id=server.id)
-        postback.assert_called_once_with("DEP", {"resources":
-                                                 expected_resources})
+        postback.assert_called_once_with("DEP", expected)
 
     def test_verify_ssh_connection_for_linux(self):
         server = self.mox.CreateMockAnything()
@@ -795,10 +709,6 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
         expect = {
-            "instance:1": {
-                'status': 'DELETING',
-                "status-message": "Waiting on resource deletion"
-            },
             "resources": {
                 "1": {
                     'status': "DELETING",
@@ -877,10 +787,6 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
         expect = {
-            "instance:1": {
-                'status': 'DELETED',
-                'status-message': ''
-            },
             "resources": {
                 "1": {
                     "status": "DELETED",
@@ -979,7 +885,7 @@ class TestNovaCompute(test.ProviderTester):
 
         openstack_api_mock.servers.get.return_value = server
 
-        expected = {'instance:0': {"status": "ERROR"}}
+        expected = {'resources': {'0': {"status": "ERROR"}}}
 
         results = compute.sync_resource_task(context, resource, resource_key,
                                              openstack_api_mock)
@@ -1026,20 +932,22 @@ class TestNovaCompute(test.ProviderTester):
     def verify_limits(self, cores_used, ram_used):
         """Helper method to validate constraints."""
         context = cm_mid.RequestContext()
-        resources = [
-            {'component': 'linux_instance',
-             'dns-name': 'master.wordpress.cldsrvr.com',
-             'flavor': '3',
-             'hosts': ['1'],
-             'image': 'e4dbdba7-b2a4-4ee5-8e8f-4595b6d694ce',
-             'index': '2',
-             'instance': {},
-             'provider': 'nova',
-             'region': 'ORD',
-             'service': 'master',
-             'status': 'NEW',
-             'type': 'compute'}
-        ]
+        resources = [{
+            'component': 'linux_instance',
+            'dns-name': 'master.wordpress.cldsrvr.com',
+            'desired-state': {
+                'flavor': '3',
+                'image': 'e4dbdba7-b2a4-4ee5-8e8f-4595b6d694ce',
+                'region': 'ORD',
+            },
+            'hosts': ['1'],
+            'index': '2',
+            'instance': {},
+            'provider': 'nova',
+            'service': 'master',
+            'status': 'NEW',
+            'type': 'compute',
+        }]
         flavors = {
             'flavors': {
                 '3': {'cores': 1,
@@ -1173,10 +1081,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             'dns-name': 'master.domain',
             'type': 'compute',
             'provider': provider.key,
-            'flavor': '2',
             'service': 'master',
-            'image': '00000000-0000-0000-0000-000000000000',
-            'region': 'ORD',
             'desired-state': {
                 'region': 'ORD',
                 'flavor': '2',

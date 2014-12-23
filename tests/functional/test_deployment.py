@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Deployment Planning."""
+
 import unittest
 
 from checkmate import deployment as cmdep
@@ -26,7 +27,9 @@ from checkmate import utils
 
 
 class TestDeploymentPlanning(unittest.TestCase):
+
     """Tests the Plan() class and its deployment planning logic."""
+
     def test_find_components_positive(self):
         """Test the Plan() class can find components."""
         deployment = cmdep.Deployment(utils.yaml_to_dict("""
@@ -331,8 +334,7 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         resources = {key: [] for key in planner['services'].keys()}
         for key, resource in planner.resources.iteritems():
-            if key != 'connections':
-                resources[resource['service']].append(resource)
+            resources[resource['service']].append(resource)
 
         expect = "Expecting one 'back' resource"
         self.assertEqual(len(resources['back']), 2, msg=expect)
@@ -523,14 +525,14 @@ class TestDeploymentPlanning(unittest.TestCase):
         cmdeps.Manager.plan(deployment, middleware.RequestContext())
         resources = deployment['resources']
 
-        expected = utils.yaml_to_dict("""
-                  front-middle:       # easy to see this is service-to-service
-                    interface: foo
-                  john:               # this is explicitely named
-                    interface: bar
-                                      # 'host' does not exist
-            """)
-        self.assertDictEqual(resources['connections'], expected)
+        connections = [v['name'] for v in resources['0']['relations'].values()]
+        self.assertItemsEqual(connections, ['front-middle'])
+
+        connections = [v['name'] for v in resources['1']['relations'].values()]
+        self.assertItemsEqual(connections, ['front-middle', 'john'])
+
+        connections = [v['name'] for v in resources['2']['relations'].values()]
+        self.assertItemsEqual(connections, ['gadget:mysql', 'john'])
 
     def test_resource_name(self):
         """Test the Plan() class handles resource naming correctly."""

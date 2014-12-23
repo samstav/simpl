@@ -98,7 +98,7 @@ class BaseOpscodeProvider(base.ProviderBase):
         # Jinja context. These objects had not been available until now.
 
         map_with_context = self.map_file.get_map_with_context(
-            deployment=deployment, resource=resource, omponent=component)
+            deployment=deployment, resource=resource, component=component)
         all_maps = map_with_context.get_resource_prepared_maps(resource,
                                                                deployment)
 

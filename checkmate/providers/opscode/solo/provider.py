@@ -153,7 +153,8 @@ class Provider(base.BaseOpscodeProvider):
 
         resource = deployment['resources'][key]
         host_idx = resource.get('hosted_on', key)
-        instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
+        instance_ip = operators.PathAttrib("resources/%s/instance/ip" %
+                                           host_idx)
         anchor_task = configure_task = specs.Celery(
             wfspec,
             'Configure %s: %s (%s)' % (component_id, key, service_name),
@@ -166,7 +167,8 @@ class Provider(base.BaseOpscodeProvider):
                 deployment['id']
             ],
             password=operators.PathAttrib(
-                'instance:%s/password' % resource.get('hosted_on', key)
+                'resources/%s/instance/password' %
+                resource.get('hosted_on', key)
             ),
             attributes=operators.PathAttrib('chef_options/attributes:%s' %
                                             key),
@@ -296,11 +298,11 @@ class Provider(base.BaseOpscodeProvider):
                         resource_key=key
                     ),
                     operators.PathAttrib(
-                        'instance:%s/ip' % relation['target']),
+                        'resources/%s/instance/ip' % relation['target']),
                     deployment['id']
                 ],
                 password=operators.PathAttrib(
-                    'instance:%s/password' % relation['target']
+                    'resources/%s/instance/password' % relation['target']
                 ),
                 kitchen_name='kitchen',
                 attributes=attributes,
@@ -326,11 +328,11 @@ class Provider(base.BaseOpscodeProvider):
                         resource_key=key
                     ),
                     operators.PathAttrib(
-                        'instance:%s/ip' % relation['target']),
+                        'resources/%s/instance/ip' % relation['target']),
                     deployment['id']
                 ],
                 password=operators.PathAttrib(
-                    'instance:%s/password' % relation['target']
+                    'resources/%s/instance/password' % relation['target']
                 ),
                 identity_file=operators.Attrib('private_key_path'),
                 description="Install basic pre-requisites on %s"
@@ -441,7 +443,7 @@ class Provider(base.BaseOpscodeProvider):
             name = 'Reconfigure %s: client ready' % server['component']
             host_idx = server.get('hosted_on', server['index'])
             run_list = self.map_file.get_component_run_list(server_component)
-            instance_ip = operators.PathAttrib("instance:%s/ip" % host_idx)
+            instance_ip = operators.PathAttrib("resources/%s/instance/ip" % host_idx)
 
             reconfigure_task = specs.Celery(
                 wfspec,
@@ -456,7 +458,7 @@ class Provider(base.BaseOpscodeProvider):
                     deployment['id']
                 ],
                 password=operators.PathAttrib(
-                    'instance:%s/password' % host_idx),
+                    'resources/%s/instance/password' % host_idx),
                 attributes=operators.PathAttrib(
                     'chef_options/attributes:%s' % server['index']
                 ),

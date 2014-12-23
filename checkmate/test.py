@@ -202,7 +202,7 @@ def register():
 
 
 def run_with_params(args=None):
-    """Helper method that handles command line arguments:
+    """Helper method that handles command line arguments.
 
     Having command line parameters passed on to checkmate is handy
     for troubleshooting issues. This helper method encapsulates
@@ -222,7 +222,9 @@ def run_with_params(args=None):
 
 
 class StubbedWorkflowBase(unittest.TestCase):
+
     """Base class that stubbs out a workflow so it does not call live APIs."""
+
     def setUp(self):
         self.mox = mox.Mox()
         self.deployment = None
@@ -444,9 +446,13 @@ class StubbedWorkflowBase(unittest.TestCase):
                             ContainsKeyValue('flavor', flavor)
                         ),
                         'result': {
-                            'instance:%s' % key: {
-                                'id': fake_id,
-                                'password': "shecret",
+                            'resources': {
+                                str(key): {
+                                    'instance': {
+                                        'id': fake_id,
+                                        'password': "shecret",
+                                    }
+                                }
                             }
                         },
                         'post_back_result': True,
@@ -463,28 +469,35 @@ class StubbedWorkflowBase(unittest.TestCase):
                         ],
                         'kwargs': And(In('password')),
                         'result': {
-                            'instance:%s' % key: {
-                                'status': "ACTIVE",
-                                'ip': '4.4.4.%s' % fake_ip,
-                                'private_ip': '10.1.2.%s' % fake_ip,
-                                'addresses': {
-                                    'public': [
-                                        {
-                                            "version": 4,
-                                            "addr": "4.4.4.%s" % fake_ip,
-                                        },
-                                        {
-                                            "version": 6,
-                                            "addr":
-                                            "2001:babe::ff04:36c%s" % index,
+                            'resources': {
+                                str(key): {
+                                    'status': "ACTIVE",
+                                    'instance': {
+                                        'ip': '4.4.4.%s' % fake_ip,
+                                        'private_ip': '10.1.2.%s' % fake_ip,
+                                        'addresses': {
+                                            'public': [
+                                                {
+                                                    "version": 4,
+                                                    "addr": "4.4.4.%s" %
+                                                    fake_ip,
+                                                },
+                                                {
+                                                    "version": 6,
+                                                    "addr":
+                                                    "2001:babe::ff04:36c%s" %
+                                                    index,
+                                                }
+                                            ],
+                                            'private': [
+                                                {
+                                                    "version": 4,
+                                                    "addr": "10.1.2.%s" %
+                                                    fake_ip,
+                                                }
+                                            ]
                                         }
-                                    ],
-                                    'private': [
-                                        {
-                                            "version": 4,
-                                            "addr": "10.1.2.%s" % fake_ip,
-                                        }
-                                    ]
+                                    }
                                 }
                             }
                         },
@@ -503,11 +516,15 @@ class StubbedWorkflowBase(unittest.TestCase):
                             ContainsKeyValue('ip_address_type', 'public')
                         ),
                         'result': {
-                            'instance:%s' % key: {
-                                'id': fake_id,
-                                'ip': "4.4.4.%s" % fake_ip,
-                                'private_ip': "10.1.1.%s" % fake_ip,
-                                'password': "shecret",
+                            'resources': {
+                                str(key): {
+                                    'instance': {
+                                        'id': fake_id,
+                                        'ip': "4.4.4.%s" % fake_ip,
+                                        'private_ip': "10.1.1.%s" % fake_ip,
+                                        'password': "shecret",
+                                    }
+                                }
                             }
                         },
                         'post_back_result': True,
@@ -520,28 +537,35 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'args': [Func(is_good_context), fake_id],
                         'kwargs': And(In('password')),
                         'result': {
-                            'instance:%s' % key: {
-                                'status': "ACTIVE",
-                                'ip': '4.4.4.%s' % fake_ip,
-                                'private_ip': '10.1.2.%s' % fake_ip,
-                                'addresses': {
-                                    'public': [
-                                        {
-                                            "version": 4,
-                                            "addr": "4.4.4.%s" % fake_ip,
-                                        },
-                                        {
-                                            "version": 6,
-                                            "addr":
-                                            "2001:babe::ff04:36c%s" % index,
+                            'resources': {
+                                str(key): {
+                                    'status': "ACTIVE",
+                                    'instance': {
+                                        'ip': '4.4.4.%s' % fake_ip,
+                                        'private_ip': '10.1.2.%s' % fake_ip,
+                                        'addresses': {
+                                            'public': [
+                                                {
+                                                    "version": 4,
+                                                    "addr": "4.4.4.%s" %
+                                                    fake_ip,
+                                                },
+                                                {
+                                                    "version": 6,
+                                                    "addr":
+                                                    "2001:babe::ff04:36c%s" %
+                                                    index,
+                                                }
+                                            ],
+                                            'private': [
+                                                {
+                                                    "version": 4,
+                                                    "addr": "10.1.2.%s" %
+                                                    fake_ip,
+                                                }
+                                            ]
                                         }
-                                    ],
-                                    'private': [
-                                        {
-                                            "version": 4,
-                                            "addr": "10.1.2.%s" % fake_ip,
-                                        }
-                                    ]
+                                    }
                                 }
                             }
                         },
@@ -696,19 +720,23 @@ class StubbedWorkflowBase(unittest.TestCase):
                     ],
                     'kwargs': IgnoreArg(),
                     'result': {
-                        # 'id': 'db-inst-1',
-                        'instance:%s' % key: {
-                            'id': 'db-inst-1',
-                            'name': 'dbname.domain.local',
-                            'status': 'BUILD',
-                            'region': self.deployment.get_setting(
-                                'region', default='testonia'),
-                            'interfaces': {
-                                'mysql': {
-                                    'host': 'verylong.rackspaceclouddb.com',
-                                },
-                            },
-                            'databases': {}
+                        'resources': {
+                            str(key): {
+                                'instance': {
+                                    'id': 'db-inst-1',
+                                    'name': 'dbname.domain.local',
+                                    'status': 'BUILD',
+                                    'region': self.deployment.get_setting(
+                                            'region', default='testonia'),
+                                    'interfaces': {
+                                        'mysql': {
+                                            'host':
+                                            'verylong.rackspaceclouddb.com',
+                                        },
+                                    },
+                                    'databases': {}
+                                }
+                            }
                         },
                     },
                     'post_back_result': True,
@@ -722,10 +750,13 @@ class StubbedWorkflowBase(unittest.TestCase):
                     ],
                     'kwargs': IgnoreArg(),
                     'result': {
-                        # 'id': 'db-inst-1',
-                        'instance:%s' % key: {
-                            'id': 'db-inst-1',
-                            'status': 'ACTIVE'
+                        'resources': {
+                            str(key): {
+                                'status': 'ACTIVE',
+                                'instance': {
+                                    'id': 'db-inst-1',
+                                }
+                            }
                         },
                     },
                     'post_back_result': True,
@@ -745,16 +776,21 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'args': IgnoreArg(),
                     'kwargs': IgnoreArg(),
                     'result': {
-                        'instance:%s' % key: {
-                            'name': 'db1',
-                            'host_instance': 'db-inst-1',
-                            'host_region': self.deployment.get_setting(
-                                'region', default='testonia'),
-                            'interfaces': {
-                                'mysql': {
-                                    'host': 'verylong.rackspaceclouddb.com',
-                                    'database_name': 'db1',
-                                },
+                        'resources': {
+                            str(key): {
+                                'instance': {
+                                    'name': 'db1',
+                                    'host_instance': 'db-inst-1',
+                                    'host_region': self.deployment.get_setting(
+                                        'region', default='testonia'),
+                                    'interfaces': {
+                                        'mysql': {
+                                            'host':
+                                            'verylong.rackspaceclouddb.com',
+                                            'database_name': 'db1',
+                                        },
+                                    }
+                                }
                             }
                         }
                     },
@@ -778,13 +814,17 @@ class StubbedWorkflowBase(unittest.TestCase):
                     ],
                     'kwargs': None,
                     'result': {
-                        'instance:%s' % key: {
-                            'username': username,
-                            'password': 'DbPxWd',
-                            'interfaces': {
-                                'mysql': {
+                        'resources': {
+                            str(key): {
+                                'instance': {
                                     'username': username,
                                     'password': 'DbPxWd',
+                                    'interfaces': {
+                                        'mysql': {
+                                            'username': username,
+                                            'password': 'DbPxWd',
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -826,9 +866,13 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'kwargs': ContainsKeyValue('tag',
                                                {'RAX-CHECKMATE': IgnoreArg()}),
                     'result': {
-                        'instance:%s' % key: {
-                            'id': 20001, 'vip': "200.1.1.1",
-                            'lbid': 20001
+                        'resources': {
+                            str(key): {
+                                'instance': {
+                                    'id': 20001, 'vip': "200.1.1.1",
+                                    'lbid': 20001,
+                                }
+                            }
                         }
                     },
                     'post_back_result': True,
@@ -838,11 +882,13 @@ class StubbedWorkflowBase(unittest.TestCase):
 
 
 class TestProvider(base.ProviderBase):
-    """Provider that returns mock responses for testing
+
+    """Provider that returns mock responses for testing.
 
     Defers to ProviderBase for most functionality, but implements
     prep_environment, add_connection_tasks and add_resource_tasks
     """
+
     name = "base"
     vendor = "test"
 
@@ -903,10 +949,10 @@ class TestProvider(base.ProviderBase):
                 "to do for connection '%s'", interface, relation_key)
             return  # nothing to do
 
-        # Build full path to 'instance:id/interfaces/:interface/:field_name'
+        # Build full path to 'resources/:id/interfaces/:interface/:field_name'
         fields_with_path = []
         for field in fields:
-            fields_with_path.append('instance:%s/interfaces/%s/%s' % (
+            fields_with_path.append('resources/%s/interfaces/%s/%s' % (
                 relation['target'], interface, field))
 
         # Get the final task for the target
@@ -969,6 +1015,7 @@ class TestProvider(base.ProviderBase):
 
 
 class ProviderTester(unittest.TestCase):
+
     """Basic Provider Test Suite
 
     To use this, load it in the provider tests and set the override the klass
@@ -1051,7 +1098,9 @@ class ProviderTester(unittest.TestCase):
 
 
 class MockContext(dict):
+
     """Used to mock RequestContext."""
+
     is_admin = False
     tenant = None
     username = "Ziad"
@@ -1059,6 +1108,7 @@ class MockContext(dict):
 
 
 class MockWsgiFilters(object):
+
     """Used to mock Context, Extension, and Tenant Middleware."""
 
     def __init__(self, app):

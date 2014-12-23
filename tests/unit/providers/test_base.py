@@ -95,18 +95,23 @@ class TestProviderTask(unittest.TestCase):
         context = middleware.RequestContext(
             **{'region': 'ORD', 'resource_key': '1', 'deployment': {}})
         expected = {
-            'instance:1': {
-                'api1': 'test_api',
-                'name': 'test',
-                'api2': 'test_api',
-                'status': 'BLOCKED'
+            'resources': {
+                '1': {
+                    'instance': {
+                        'api1': 'test_api',
+                        'name': 'test',
+                        'api2': 'test_api',
+                        'status': 'BLOCKED'
+                    },
+                    'status': 'BLOCKED'
+                }
             }
         }
-        do_something.callback = mock.MagicMock(return_value={})
+        do_something.callback = mock.MagicMock(return_value=expected)
         results = do_something(context, 'test', api='test_api')
 
         do_something.callback.assert_called_with(
-            context, expected['instance:1'])
+            context, expected['resources']['1']['instance'])
         self.assertEqual(results, expected)
         assert do_something.partial, 'Partial attr should be set'
 
@@ -144,12 +149,12 @@ class TestProviderTask(unittest.TestCase):
     def test_provider_task_callback(self, mocked_lib):
         context = {
             'region': 'ORD',
-            'resource_key': 1,
+            'resource_key': '1',
             'deployment_id': 'DEP_ID'}
 
         expected_postback = {
             'resources': {
-                1: {
+                '1': {
                     'status': 'ERROR',
                     'instance': {
                         'status': 'BLOCKED',
@@ -170,7 +175,7 @@ class TestProviderTask(unittest.TestCase):
     def test_provider_task_callback_with_no_data(self, mocked_lib):
         context = {
             'region': 'ORD',
-            'resource_key': 1,
+            'resource_key': '1',
             'deployment_id': 'DEP_ID'
         }
         mocked_lib.postback = mock.MagicMock()
