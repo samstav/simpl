@@ -86,6 +86,7 @@ class TestDatabaseTasks(unittest.TestCase):
                                           mock_postback,
                                           mock_partial):
         """Create instance with simulation and databases."""
+        mock_provider.translate_status.side_effect = lambda x: x
         partial = mock.Mock()
         mock_partial.return_value = partial
         context = {
@@ -759,14 +760,10 @@ class TestDeleteInstanceTask(unittest.TestCase):
             'resources': {
                 '1': {
                     'status': 'DELETED'
-                }
-            },
-            'resources': {
+                },
                 '0': {
                     'status': 'DELETED'
-                }
-            },
-            'resources': {
+                },
                 '2': {
                     'status': 'DELETED'
                 }
@@ -790,9 +787,11 @@ class TestDeleteInstanceTask(unittest.TestCase):
         self.context['simulation'] = True
         self.context['resource']['hosts'] = ['1', '2']
         expected = {
-            'resources': {'0': {'status': 'DELETED'}},
-            'resources': {'1': {'status': 'DELETED', 'status-message': ''}},
-            'resources': {'2': {'status': 'DELETED', 'status-message': ''}}
+            'resources': {
+                '0': {'status': 'DELETED'},
+                '1': {'status': 'DELETED', 'status-message': ''},
+                '2': {'status': 'DELETED', 'status-message': ''},
+            }
         }
         results = database.tasks.delete_instance_task(self.context)
         self.assertEqual(results, expected)
@@ -851,9 +850,11 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_exception = pyrax.exceptions.NotFound(code='404')
         api.delete = mock.MagicMock(side_effect=mock_exception)
         expected = {
-            'resources': {'0': {'status': 'DELETED', 'status-message': ''}},
-            'resources': {'1': {'status': 'DELETED', 'status-message': ''}},
-            'resources': {'2': {'status': 'DELETED', 'status-message': ''}}
+            'resources': {
+                '0': {'status': 'DELETED', 'status-message': ''},
+                '1': {'status': 'DELETED', 'status-message': ''},
+                '2': {'status': 'DELETED', 'status-message': ''},
+            }
         }
         results = database.tasks.delete_instance_task(self.context, api)
         self.assertEqual(results, expected)
@@ -973,7 +974,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
                                          expected)
 
     @mock.patch.object(database.tasks.resource_postback, 'delay')
-    def test_api_instance_status_deleted_with_hosts(self, mock_postback):
+    def test_api_instance_status_deleted_with_hosts(self, mock_res_postback):
         api = mock.Mock()
         instance = mock.Mock()
         instance.status = 'DELETED'
@@ -984,27 +985,22 @@ class TestWaitOnDelInstance(unittest.TestCase):
                 '3': {
                     'status': 'DELETED',
                     'status-message': ''
-                }
-            },
-            'resources': {
+                },
                 '2': {
                     'status': 'DELETED',
                     'status-message': ''
-                }
-            },
-            'resources': {
+                },
                 '4': {
                     'status': 'DELETED',
                     'status-message': ''
                 }
             }
         }
-        results = database.tasks.wait_on_del_instance(self.context, api)
-        print results, expected
+        results = database.tasks.wait_on_del_instance(self.context, api=api)
         self.assertEqual(results, expected)
         api.get.assert_called_with(self.context['resource']['instance']['id'])
-        mock_postback.assert_called_with(self.context['deployment_id'],
-                                         expected)
+        mock_res_postback.assert_called_with(self.context['deployment_id'],
+                                             expected)
 
     @mock.patch.object(database.tasks.wait_on_del_instance, 'retry')
     @mock.patch.object(database.tasks.resource_postback, 'delay')

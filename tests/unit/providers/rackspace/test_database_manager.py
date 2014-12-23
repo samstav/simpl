@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Module for testing loadbalancer manager
-"""
+"""Module for testing loadbalancer manager."""
+
 import mock
 import unittest
 

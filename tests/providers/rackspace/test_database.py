@@ -40,7 +40,8 @@ class TestDatabase(test.ProviderTester):
         self.mox = mox.Mox()
         self.deployment = self.mox.CreateMockAnything()
 
-    def test_create_instance(self):
+    @mock.patch.object(tasks, 'postback')
+    def test_create_instance(self, mock_postback):
         # Mock instance
         instance = self.mox.CreateMockAnything()
         instance.id = 'fake_instance_id'
@@ -52,9 +53,6 @@ class TestDatabase(test.ProviderTester):
 
         # Stub out postback call
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
-
-        # Stub out postback call
-        self.mox.StubOutWithMock(database.tasks.create_instance, 'callback')
 
         # Stub out wait_on_build
         self.mox.StubOutWithMock(database.tasks.wait_on_build, 'delay')
@@ -71,25 +69,28 @@ class TestDatabase(test.ProviderTester):
         expected = {
             'resources': {
                 '1': {
-                    'id': instance.id,
-                    'name': instance.name,
                     'status': instance.status,
-                    'region': 'NORTH',
-                    'flavor': 1,
-                    'disk': 1,
-                    'interfaces': {
-                        'mysql': {
-                            'host': instance.hostname,
+                    'instance': {
+                        'id': instance.id,
+                        'name': instance.name,
+                        'status': instance.status,
+                        'region': 'NORTH',
+                        'flavor': 1,
+                        'disk': 1,
+                        'interfaces': {
+                            'mysql': {
+                                'host': instance.hostname,
+                            },
                         },
-                    },
-                    'databases': {
-                        'db1': {
-                            'name': 'db1',
-                            'interfaces': {
-                                'mysql': {
-                                    'host': instance.hostname,
-                                    'database_name': 'db1',
-                                },
+                        'databases': {
+                            'db1': {
+                                'name': 'db1',
+                                'interfaces': {
+                                    'mysql': {
+                                        'host': instance.hostname,
+                                        'database_name': 'db1',
+                                    },
+                                }
                             }
                         }
                     }
@@ -100,17 +101,12 @@ class TestDatabase(test.ProviderTester):
                                             resource_key='1',
                                             region='NORTH')
 
-        database.tasks.create_instance.callback(
-            context, {'id': instance.id}).AndReturn({})
-        database.tasks.create_instance.callback(
-            context, expected['resources']['1']).AndReturn({})
-
         self.mox.ReplayAll()
         results = database.tasks.create_instance(context, instance.name, 1, 1,
                                                  [{'name': 'db1'}], 'NORTH',
                                                  api=clouddb_api_mock)
 
-        self.assertDictEqual(results, expected)
+        self.assertEqual(results, expected)
         self.mox.VerifyAll()
 
     def test_create_database_fail_building(self):
@@ -144,7 +140,8 @@ class TestDatabase(test.ProviderTester):
         self.mox.UnsetStubs()
         self.mox.VerifyAll()
 
-    def test_create_database(self):
+    @mock.patch.object(tasks, 'postback')
+    def test_create_database(self, mock_postback):
         context = middleware.RequestContext(**{
             'deployment_id': 'DEP',
             'resource_key': '1',
@@ -160,10 +157,6 @@ class TestDatabase(test.ProviderTester):
         instance.status = 'ACTIVE'
         instance.hostname = 'fake.cloud.local'
 
-        # Stub out postback call
-        self.mox.StubOutWithMock(database.tasks.create_database, 'callback')
-        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
-
         # Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get(instance.id).AndReturn(instance)
@@ -173,30 +166,28 @@ class TestDatabase(test.ProviderTester):
             'resources': {
                 '1': {
                     'status': 'BUILD',
-                    'host_instance': instance.id,
-                    'interfaces': {
-                        'mysql': {
-                            'host': instance.hostname,
-                            'database_name': 'db1'
-                        }
-                    },
-                    'name': 'db1',
-                    'id': 'db1',
-                    'host_region': 'NORTH',
-                    'flavor': '1'
+                    'instance': {
+                        'host_instance': instance.id,
+                        'interfaces': {
+                            'mysql': {
+                                'host': instance.hostname,
+                                'database_name': 'db1'
+                            }
+                        },
+                        'name': 'db1',
+                        'id': 'db1',
+                        'host_region': 'NORTH',
+                        'flavor': '1',
+                        'status': 'BUILD',
+                    }
                 }
             }
         }
-        database.tasks.create_database.callback(
-            context, {'status': instance.status}).AndReturn({})
-        database.tasks.create_database.callback(
-            context, expected['resources']['1']).AndReturn({})
         self.mox.ReplayAll()
         results = database.tasks.create_database(context, 'db1',
                                                  instance_id=instance.id,
                                                  api=clouddb_api_mock)
-
-        self.assertDictEqual(results, expected)
+        self.assertEqual(results, expected)
         self.mox.VerifyAll()
 
     def test_template_generation_database(self):
