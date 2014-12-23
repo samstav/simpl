@@ -25,10 +25,8 @@ from checkmate.deployments import tasks
 from checkmate import exceptions
 from checkmate import middleware
 from checkmate.providers import base
-from checkmate.providers.rackspace import database
-from checkmate.providers.rackspace.database import (
-    provider as db_provider
-)
+from checkmate.providers.rackspace.database import provider
+from checkmate.providers.rackspace.database import tasks as dbtasks
 from checkmate import test
 from checkmate import utils
 
@@ -55,7 +53,7 @@ class TestDatabase(test.ProviderTester):
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
         # Stub out wait_on_build
-        self.mox.StubOutWithMock(database.tasks.wait_on_build, 'delay')
+        self.mox.StubOutWithMock(dbtasks.wait_on_build, 'delay')
 
         # Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -102,9 +100,9 @@ class TestDatabase(test.ProviderTester):
                                             region='NORTH')
 
         self.mox.ReplayAll()
-        results = database.tasks.create_instance(context, instance.name, 1, 1,
-                                                 [{'name': 'db1'}], 'NORTH',
-                                                 api=clouddb_api_mock)
+        results = dbtasks.create_instance(context, instance.name, 1, 1,
+                                          [{'name': 'db1'}], 'NORTH',
+                                          api=clouddb_api_mock)
 
         self.assertEqual(results, expected)
         self.mox.VerifyAll()
@@ -123,17 +121,17 @@ class TestDatabase(test.ProviderTester):
         instance.hostname = 'fake.cloud.local'
 
         # Stub out postback call
-        self.mox.StubOutWithMock(database.tasks.create_database, 'callback')
+        self.mox.StubOutWithMock(dbtasks.create_database, 'callback')
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
-        database.tasks.create_database.callback(context, {'status': 'BUILD'})
+        dbtasks.create_database.callback(context, {'status': 'BUILD'})
         # Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
         clouddb_api_mock.get(instance.id).AndReturn(instance)
         self.mox.ReplayAll()
         # Should throw exception when instance.status="BUILD"
         self.assertRaises(exceptions.CheckmateException,
-                          database.tasks.create_database,
+                          dbtasks.create_database,
                           context, 'db1', instance_id=instance.id,
                           api=clouddb_api_mock)
 
@@ -184,9 +182,9 @@ class TestDatabase(test.ProviderTester):
             }
         }
         self.mox.ReplayAll()
-        results = database.tasks.create_database(context, 'db1',
-                                                 instance_id=instance.id,
-                                                 api=clouddb_api_mock)
+        results = dbtasks.create_database(context, 'db1',
+                                          instance_id=instance.id,
+                                          api=clouddb_api_mock)
         self.assertEqual(results, expected)
         self.mox.VerifyAll()
 
@@ -206,7 +204,7 @@ class TestDatabase(test.ProviderTester):
                 }
             }
         }
-        provider = database.Provider({'catalog': catalog})
+        dbprovider = provider.Provider({'catalog': catalog})
 
         # Mock Base Provider, context and deployment
         context = self.mox.CreateMockAnything()
@@ -216,16 +214,15 @@ class TestDatabase(test.ProviderTester):
             'instance': {},
             'dns-name': 'master.test.checkmate',
             'type': 'database',
-            'provider': provider.key,
+            'provider': dbprovider.key,
             'service': 'master',
             'desired-state': {},
         }]
 
         self.mox.ReplayAll()
-        results = provider.generate_template(
-            self.deployment, 'database', 'master',
-            context, 1, provider.key, None
-        )
+        results = dbprovider.generate_template(self.deployment, 'database',
+                                               'master', context, 1,
+                                               dbprovider.key, None)
 
         self.assertListEqual(results, expected)
         self.mox.VerifyAll()
@@ -249,7 +246,7 @@ class TestDatabase(test.ProviderTester):
                 }
             }
         }
-        provider = database.Provider({'catalog': catalog})
+        dbprovider = provider.Provider({'catalog': catalog})
 
         # Mock Base Provider, context and deployment
         self.deployment.get_setting(
@@ -266,26 +263,26 @@ class TestDatabase(test.ProviderTester):
         self.deployment.get_setting(
             'memory', resource_type='compute',
             service_name='master',
-            provider_key=provider.key
+            provider_key=dbprovider.key
         ).AndReturn(1025)
         self.deployment.get_setting(
             'disk',
             resource_type='compute',
             service_name='master',
-            provider_key=provider.key,
+            provider_key=dbprovider.key,
             default=1
         ).AndReturn(2)
         self.deployment.get_setting(
             'region',
             resource_type='compute',
             service_name='master',
-            provider_key=provider.key
+            provider_key=dbprovider.key
         ).AndReturn('North')
         expected = [{
             'instance': {},
             'dns-name': 'master.test.domain',
             'type': 'compute',
-            'provider': provider.key,
+            'provider': dbprovider.key,
             'service': 'master',
             'region': 'North',
             'disk': 2,
@@ -294,9 +291,9 @@ class TestDatabase(test.ProviderTester):
         }]
 
         self.mox.ReplayAll()
-        results = provider.generate_template(
+        results = dbprovider.generate_template(
             self.deployment, 'compute', 'master',
-            context, 1, provider.key, None
+            context, 1, dbprovider.key, None
         )
 
         self.assertListEqual(results, expected)
@@ -367,13 +364,13 @@ class TestDatabase(test.ProviderTester):
         instance2.volume = self.mox.CreateMockAnything()
         instance2.volume.size = volume_size_used
         instances = [instance1, instance2]
-        self.mox.StubOutWithMock(database.Provider, 'connect')
+        self.mox.StubOutWithMock(provider.Provider, 'connect')
         cdb = self.mox.CreateMockAnything()
-        database.Provider.connect(mox.IgnoreArg()).AndReturn(cdb)
+        provider.Provider.connect(mox.IgnoreArg()).AndReturn(cdb)
         cdb.list().AndReturn(instances)
         self.mox.ReplayAll()
-        provider = database.Provider({})
-        result = provider.verify_limits(context, resources)
+        dbprovider = provider.Provider({})
+        result = dbprovider.verify_limits(context, resources)
         self.mox.VerifyAll()
         return result
 
@@ -388,21 +385,21 @@ class TestDatabase(test.ProviderTester):
     def test_verify_access_positive(self):
         context = middleware.RequestContext()
         context.roles = 'identity:user-admin'
-        provider = database.Provider({})
-        result = provider.verify_access(context)
+        dbprovider = provider.Provider({})
+        result = dbprovider.verify_access(context)
         self.assertEqual(result['type'], 'ACCESS-OK')
         context.roles = 'dbaas:admin'
-        result = provider.verify_access(context)
+        result = dbprovider.verify_access(context)
         self.assertEqual(result['type'], 'ACCESS-OK')
         context.roles = 'dbaas:creator'
-        result = provider.verify_access(context)
+        result = dbprovider.verify_access(context)
         self.assertEqual(result['type'], 'ACCESS-OK')
 
     def test_verify_access_negative(self):
         context = middleware.RequestContext()
         context.roles = 'dbaas:observer'
-        provider = database.Provider({})
-        result = provider.verify_access(context)
+        dbprovider = provider.Provider({})
+        result = dbprovider.verify_access(context)
         self.assertEqual(result['type'], 'NO-ACCESS')
 
 
@@ -415,7 +412,7 @@ class TestCatalog(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def test_generation(self):
-        provider = database.Provider({})
+        dbprovider = provider.Provider({})
         context = self.mox.CreateMockAnything()
         flavor1 = {'id': '1', 'ram': 1024, 'name': 'm1.tiny'}
 
@@ -542,13 +539,12 @@ class TestCatalog(unittest.TestCase):
             }
         }
 
-        self.mox.StubOutWithMock(db_provider, '_get_flavors')
-        db_provider._get_flavors(context,
-                                 'https://north.databases.com/v1/55BB',
-                                 'DUMMY_TOKEN').AndReturn([flavor1])
+        self.mox.StubOutWithMock(provider, '_get_flavors')
+        provider._get_flavors(context, 'https://north.databases.com/v1/55BB',
+                              'DUMMY_TOKEN').AndReturn([flavor1])
 
         self.mox.ReplayAll()
-        results = provider.get_catalog(context)
+        results = dbprovider.get_catalog(context)
         self.assertDictEqual(expected, results, results)
         self.mox.VerifyAll()
 
@@ -558,7 +554,7 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
         base.register_providers(
-            [database.Provider, test.TestProvider])
+            [provider.Provider, test.TestProvider])
         self.deployment = deployment.Deployment(utils.yaml_to_dict("""
 id: 'DEP-ID-1000'
 blueprint:
@@ -638,8 +634,8 @@ environment:
 
 
 class TestDatabaseGetResources(unittest.TestCase):
-    @mock.patch('checkmate.providers.rackspace.database.provider.pyrax')
-    @mock.patch('checkmate.providers.rackspace.database.Provider.connect')
+    @mock.patch.object(provider, 'pyrax')
+    @mock.patch.object(provider.Provider, 'connect')
     def test_get_resources_returns_db_host_instances(self, mock_connect,
                                                      mock_pyrax):
         request = mock.Mock()
@@ -659,7 +655,7 @@ class TestDatabaseGetResources(unittest.TestCase):
         api.list.return_value = [db_host]
 
         mock_connect.return_value = api
-        results = database.Provider.get_resources(request, 'tenant')
+        results = provider.Provider.get_resources(request, 'tenant')
         resource = results[0]
         self.assertEqual(len(results), 1)
         self.assertEqual(resource['status'], 'status')

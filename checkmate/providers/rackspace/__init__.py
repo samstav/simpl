@@ -32,20 +32,19 @@ environment:
       vendor: rackspace
 """
 
-from checkmate.providers import base as cmbase
-
 
 def register():
     """Register Provider classes."""
+    from checkmate.providers import base
     from checkmate.providers.rackspace.compute import (
         Provider as nova)
     from checkmate.providers.rackspace.compute_legacy import (
         Provider as legacy)
-    from checkmate.providers.rackspace.database import Provider as database
+    from checkmate.providers.rackspace.database.provider import Provider as db
     from checkmate.providers.rackspace.dns.provider import Provider as dns
     from checkmate.providers.rackspace.files import Provider as files
     from checkmate.providers.rackspace.loadbalancer import (
         Provider as loadbalancer)
     from checkmate.providers.rackspace.mailgun import Provider as mg
-    cmbase.register_providers(
-        [legacy, nova, loadbalancer, database, dns, files, mg])
+    base.register_providers(
+        [legacy, nova, loadbalancer, db, dns, files, mg])

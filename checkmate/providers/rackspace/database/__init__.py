@@ -12,9 +12,4 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Rackspace Cloud Databases Provider
-"""
-
-from checkmate.providers.rackspace.database.provider import Provider
-from checkmate.providers.rackspace.database import tasks
+"""Rackspace Cloud Databases Provider"""

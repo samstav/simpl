@@ -21,7 +21,7 @@ import unittest
 from checkmate import exceptions as cmexc
 from checkmate import middleware
 from checkmate.providers import base
-from checkmate.providers.rackspace import database
+from checkmate.providers.rackspace.database import provider
 
 
 class TestProviderBasePlanningMixIn(unittest.TestCase):
@@ -209,7 +209,7 @@ class TestRackspaceProviderTask(unittest.TestCase):
                                                        api='api', region='ORD')
 
 
-@celery.task.task(base=base.ProviderTask, provider=database.Provider)
+@celery.task.task(base=base.ProviderTask, provider=provider.Provider)
 def do_something(context, name, api, region=None):
     return {
         'api1': do_something.api,
@@ -219,13 +219,13 @@ def do_something(context, name, api, region=None):
     }
 
 
-@celery.task.task(base=base.ProviderTask, provider=database.Provider)
+@celery.task.task(base=base.ProviderTask, provider=provider.Provider)
 def do_nothing(context, name, api, region=None):
     return
 
 
 @celery.task.task(base=base.RackspaceProviderTask,
-                  provider=database.Provider)
+                  provider=provider.Provider)
 def rackspace_provider_task(context, name, api, region=None):
     return {
         'context': context,

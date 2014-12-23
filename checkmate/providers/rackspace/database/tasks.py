@@ -26,7 +26,7 @@ from checkmate.deployments.tasks import resource_postback
 from checkmate import exceptions
 from checkmate.providers.base import RackspaceProviderTask
 from checkmate.providers.rackspace.database.manager import Manager
-from checkmate.providers.rackspace.database import Provider
+from checkmate.providers.rackspace.database.provider import Provider
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
