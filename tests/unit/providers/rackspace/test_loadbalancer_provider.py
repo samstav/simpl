@@ -281,7 +281,7 @@ class TestLoadBalancerProvider(unittest.TestCase):
         self.deployment_mocker.UnsetStubs()
 
     def test_generate_template_with_interface_vip(self):
-        self.deployment.get('blueprint', {}).AndReturn(
+        self.deployment.get('blueprint').AndReturn(
             {'services': {'lb': {'component': {'interface': 'vip'}}}})
 
         self.deployment.get_setting("protocol",
@@ -339,7 +339,7 @@ class TestLoadBalancerProvider(unittest.TestCase):
         self.assertDictEqual(results[0], expected)
 
     def test_should_generate_template_with_allow_unencrypted(self):
-        self.deployment.get('blueprint', {}).AndReturn(
+        self.deployment.get('blueprint').AndReturn(
             {'services': {'lb': {'component': {'interface': 'https'}}}})
 
         self.deployment.get_setting("protocol",
