@@ -180,7 +180,10 @@ class ChefMap(object):
                                                % (target,
                                                   relations[0]['interface']))
                         else:
-                            mapping['path'] = 'resources/%s' % target
+                            path = 'resources/%s' % target
+                            if not url['path'].startswith('instance'):
+                                path = '%s/instance' % path
+                            mapping['path'] = path
                     result.append(mapping)
                 elif url['scheme'] == 'clients':
                     key = url['netloc']
