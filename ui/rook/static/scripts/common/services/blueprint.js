@@ -291,43 +291,25 @@ angular.module('checkmate.Blueprint')
         this.broadcast();
       },
       canConnect: function(source, target, protocol, optionalTag) {
-        var isValid = [];
-
         if(!source || !target) {
-          return isValid;
+          return false;
         }
+        var components = Catalog.getComponents();
+        var connections = [];
 
-        var catalog = {
-          source: Catalog.getComponent(source.componentId) || [],
-          target: Catalog.getComponent(target.componentId) || []
-        };
-        var map = {
-          provides: {},
-          requires: {}
-        };
+        // Find interface match in source requires and target provides
+        _.each(components[source.componentId].requires, function(_requirement, index) {
+          _.each(components[target.componentId].provides, function(_provided, index) {
+            if(JSON.stringify(_requirement) ==  JSON.stringify(_provided)) {
+              connections.push({
+                'type': _.keys(_requirement)[0],
+                'interface': _.values(_requirement)[0]
+              });
+            }
+          });
+        });
 
-        if(catalog.source.requires) {
-          for (var i = 0; i < catalog.source.requires.length; i++) {
-            _.extend(map.requires, catalog.source.requires[i]);
-          }
-        }
-
-        if(catalog.target.provides) {
-          for (var j = 0; j < catalog.target.provides.length; j++) {
-            _.extend(map.provides, catalog.target.provides[j]);
-
-            _.each(catalog.target.provides[j], function(val, key) {
-              if(map.requires[key] && map.requires[key] == val) {
-                isValid.push({
-                  'type': key,
-                  'interface': map.requires[key]
-                });
-              }
-            });
-          }
-        }
-
-        return isValid.length ? isValid : false;
+        return connections.length ? connections : false;
       },
       connect: function(fromServiceId, toServiceId, protocol, optionalTag) {
         var fromService = this.data.services[fromServiceId];
