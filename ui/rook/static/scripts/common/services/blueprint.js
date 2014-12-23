@@ -238,25 +238,28 @@ angular.module('checkmate.Blueprint')
 
           // Find all connections to the removed component and remove them.
           _.each(services, function(_service, _id, _services) {
-            _.each(_service.relations, function(_relation, _index, _relations) {
-              _.each(_relation, function(_component, _service) {
-                if(_component == selection.component && _service == selection.service) {
-                  delete _relation[_service];
-                }
+            var i = _service.relations ? _service.relations.length : 0;
+
+            while (i--) {
+              _.each(_service.relations[i], function(_componentId, _serviceId) {
+                if(_serviceId == selection.service) {
+                  delete _service.relations[i];
+                };
               });
 
-              if(_.isEmpty(_relation)) {
-                _relations.splice(index, 1);
+              if(_.isEmpty(_service.relations[i])) {
+                _service.relations.splice(i, 1);
               }
 
-              if(!_relations.length) {
+              if(!_service.relations.length) {
                 delete _service.relations;
               }
-            });
+            }
           });
 
           if(!service.components.length) {
             delete service.components;
+            delete service.relations;
           }
         }
 
@@ -287,40 +290,26 @@ angular.module('checkmate.Blueprint')
 
         this.broadcast();
       },
-      canConnect: function(from, target, protocol, optionalTag) {
-        var isValid = false;
-        var catalog = {
-          source: Catalog.getComponent(from.componentId) || [],
-          target: Catalog.getComponent(target.componentId) || []
-        };
-        var map = {
-          provides: {},
-          requires: {}
-        };
-
-        if(catalog.source.requires) {
-          for (var i = 0; i < catalog.source.requires.length; i++) {
-            _.extend(map.requires, catalog.source.requires[i]);
-          }
+      canConnect: function(source, target, protocol, optionalTag) {
+        if(!source || !target) {
+          return false;
         }
+        var components = Catalog.getComponents();
+        var connections = [];
 
-        if(catalog.target.provides) {
-          for (var j = 0; j < catalog.target.provides.length; j++) {
-            _.extend(map.provides, catalog.target.provides[j]);
+        // Find interface match in source requires and target provides
+        _.each(components[source.componentId].requires, function(_requirement, index) {
+          _.each(components[target.componentId].provides, function(_provided, index) {
+            if(JSON.stringify(_requirement) ==  JSON.stringify(_provided)) {
+              connections.push({
+                'type': _.keys(_requirement)[0],
+                'interface': _.values(_requirement)[0]
+              });
+            }
+          });
+        });
 
-            _.each(catalog.target.provides[j], function(val, key) {
-              if(map.requires[key] && map.requires[key] == val) {
-                isValid = true;
-              }
-            });
-          }
-        }
-
-        if(!protocol && isValid) {
-          return isValid;
-        }
-
-        return isValid;
+        return connections.length ? connections : false;
       },
       connect: function(fromServiceId, toServiceId, protocol, optionalTag) {
         var fromService = this.data.services[fromServiceId];

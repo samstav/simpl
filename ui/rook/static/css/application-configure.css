@@ -9,7 +9,7 @@
   overflow: hidden;
 }
 .rs-app-launch-container * {
-  transition: fill 0.5s ease, stroke 0.5s ease, opacity 0.5s ease, width 0.5s ease, height 0.5s ease, transform 0.5s ease, top 0.5s ease, right 0.5s ease, bottom 0.5s ease, left 0.5s ease;
+  transition: opacity 0.3s ease, width 0.5s ease, height 0.5s ease, transform 0.5s ease, top 0.5s ease, right 0.5s ease, bottom 0.5s ease, left 0.5s ease;
 }
 
 /* Sidebar */
@@ -279,9 +279,6 @@
 .rs-app-launch-sidebar.stick-left.app-catalog {
   bottom: 55px;
   width: 260px;
-}
-.editor-full-screen .rs-app-launch-sidebar.stick-left.app-catalog,
-.rs-app-launch-sidebar.stick-left.app-catalog {
   left: -260px;
 }
 .catalog-open .rs-app-launch-sidebar.stick-left.app-catalog {
@@ -303,20 +300,16 @@
 /* Right sidebar */
 .rs-app-launch-sidebar.stick-right {
   right: -30%;
-  width: 30%;
+  left: 100%;
 }
 .editor-open .rs-app-launch-sidebar.stick-right {
   right: 0%;
+  left: 70%;
 }
-.editor-full-screen .rs-app-launch-sidebar.stick-right {
-  width: 100%;
+.editor-full-screen.editor-open .rs-app-launch-sidebar.stick-right {
+  width: auto;
+  left: 260px;
 }
-/*.editor-open .rs-app-launch-controls {
-  right: 30%;
-}
-.editor-full-screen .rs-app-launch-controls {
-  opacity: 0;
-}*/
 
 .codemirror-toggle-button .fa-stack {
   opacity: .4;
