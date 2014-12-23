@@ -196,10 +196,12 @@ class Provider(RackspaceComputeProviderBase):
             raise cmexc.CheckmateNoMapping("No flavor mapping for '%s' in "
                                            "'%s'" % (memory, self.key))
         for template in templates:
-            template['flavor'] = flavor
-            template['image'] = image
+            template['desired-state'] = {
+                'falvor': flavor,
+                'image': image
+            }
             if region:
-                template['region'] = region
+                template['desired-state']['region'] = region
         return templates
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
@@ -209,6 +211,7 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO: use environment keys instead of private key
         """
+        desired_state = resource['desired-state']
         create_server_task = specs.Celery(
             wfspec, 'Create Server %s (%s)' % (key, resource['service']),
             'checkmate.providers.rackspace.compute_legacy.create_server',
@@ -217,8 +220,8 @@ class Provider(RackspaceComputeProviderBase):
                 resource=key),
                 resource.get('dns-name')
             ],
-            image=resource.get('image', 119),
-            flavor=resource.get('flavor', 2),
+            image=desired_state.get('image', 119),
+            flavor=desired_state.get('flavor', 2),
             files=self._kwargs.get('files', None),
             ip_address_type='public',
             defines=dict(
@@ -542,13 +545,22 @@ def create_server(context, name, api_object=None, flavor=2, files=None,
     ip_address = str(server.addresses[ip_address_type][0])
     private_ip_address = str(server.addresses['private'][0])
 
-    instance_key = 'resources/%s'instance/ % context['resource']
-    results = {instance_key: dict(id=server.id, ip=ip_address,
-               password=server.adminPass, private_ip=private_ip_address,
-               status="BUILD")}
+    results = {
+        'resources': {
+            context['resource']: {
+                'instance': {
+                    'id': server.id,
+                    'ip': ip_address,
+                    'password': server.adminPass,
+                    'private_ip': private_ip_address,
+                    'status': "BUILD"
+                },
+                'status': "BUILD"
+            }
+        }
+    }
     # Send data back to deployment
-    resource_postback.delay(context['deployment'],
-                            results)  # @UndefinedVariable
+    resource_postback.delay(context['deployment'], results)
     return results
 
 
@@ -581,8 +593,14 @@ def wait_on_build(context, server_id, ip_address_type='public',
     if server.status == 'ERROR':
         msg = "Server %s build failed" % server_id
         results = {'status': "ERROR", 'error-message': msg}
-        instance_key = 'resources/%s'instance/ % context['resource']
-        results = {instance_key: results}
+        instance_key = 'resources/%s/instance' % context['resource']
+        results = {
+            'resources': {
+                context['resource']: {
+                    'instance': results
+                }
+            }
+        }
         resource_postback.delay(context['deployment'], results)
         delete_server(context, server_id, api_object)
         raise cmexc.CheckmateException(msg, msg, cmexc.CAN_RESET)
