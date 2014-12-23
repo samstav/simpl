@@ -584,7 +584,7 @@ def wait_on_build(context, server_id, ip_address_type='public',
     assert server_id, "ID must be provided"
     LOG.debug("Getting server %s", server_id)
     server = api_object.servers.find(id=server_id)
-    results = {
+    instance = {
         'id': server_id,
         'status': server.status,
         'addresses': _convert_v1_adresses_to_v2(server.addresses)
@@ -592,12 +592,11 @@ def wait_on_build(context, server_id, ip_address_type='public',
 
     if server.status == 'ERROR':
         msg = "Server %s build failed" % server_id
-        results = {'status': "ERROR", 'error-message': msg}
-        instance_key = 'resources/%s/instance' % context['resource']
+        instance = {'status': "ERROR", 'error-message': msg}
         results = {
             'resources': {
                 context['resource']: {
-                    'instance': results
+                    'instance': instance
                 }
             }
         }
@@ -612,29 +611,29 @@ def wait_on_build(context, server_id, ip_address_type='public',
         if addresses:
             if isinstance(addresses, list):
                 server_ip = addresses[0]
-            results['ip'] = server_ip
+            instance['ip'] = server_ip
 
         # Get public (default) IP
         addresses = server.addresses.get('public', None)
         if addresses:
             if isinstance(addresses, list):
                 public_ip = addresses[0]
-            results['public_ip'] = public_ip
+            instance['public_ip'] = public_ip
 
         # Also get service_net IP
         addresses = server.addresses.get('private', None)
         if addresses:
             if isinstance(addresses, list):
                 private_ip = addresses[0]
-            results['private_ip'] = private_ip
+            instance['private_ip'] = private_ip
 
     if server.status == 'BUILD':
-        results['progress'] = server.progress
+        instance['progress'] = server.progress
         #countdown = 100 - server.progress
         #if countdown <= 0:
         #    countdown = 15  # progress is not accurate. Allow at least 15s
         #    wait
-        wait_on_build.update_state(state='PROGRESS', meta=results)
+        wait_on_build.update_state(state='PROGRESS', meta=instance)
         # progress indicate shows percentage, give no inidication of seconds
         # left to build.
         # It often, if not usually takes at least 30 seconds after a server
@@ -657,12 +656,16 @@ def wait_on_build(context, server_id, ip_address_type='public',
                              port=port, private_key=private_key)
         if up:
             LOG.info("Server %s is up", server_id)
-            results['status'] = "ACTIVE"
-            instance_key = 'resources/%s'instance/ % context['resource']
-            results = {instance_key: results}
+            instance['status'] = "ACTIVE"
+            results = {
+                'resources': {
+                    context['resource']: {
+                        'instance': instance
+                    }
+                }
+            }
             # Send data back to deployment
-            resource_postback.delay(context['deployment'],
-                                    results)
+            resource_postback.delay(context['deployment'], results)
             return results
         return wait_on_build.retry(exc=cmexc.CheckmateException(
             "Server %s not ready yet" % server_id))

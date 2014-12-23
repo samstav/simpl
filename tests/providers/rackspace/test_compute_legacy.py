@@ -31,7 +31,9 @@ LOG = logging.getLogger(__name__)
 
 
 class TestLegacyCompute(test.ProviderTester):
+
     """Test Legacy Compute Provider."""
+
     def setUp(self):
         test.ProviderTester.setUp(self)
 
@@ -82,7 +84,8 @@ class TestLegacyCompute(test.ProviderTester):
                         'id': server.id,
                         'ip': server.ip,
                         'password': server.adminPass,
-                        'private_ip': server.private_ip
+                        'private_ip': server.private_ip,
+                        'status': 'BUILD',
                     }
                 }
             }
@@ -202,10 +205,11 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'type': 'compute',
             'provider': 'rackspace.legacy',
             'service': 'master',
-            'flavor': '2',
-            'image': '119',
-            'region': 'ORD',
-            'desired-state': {},
+            'desired-state': {
+                'flavor': '2',
+                'image': '119',
+                'region': 'ORD',
+            },
         }]
 
         provider.get_catalog(context).AndReturn(catalog)
@@ -297,10 +301,11 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'dns-name': 'master.test.checkmate',
             'type': 'compute',
             'provider': 'rackspace.legacy',
-            'flavor': '2',
-            'image': '119',
             'service': 'master',
-            'desired-state': {},
+            'desired-state': {
+                'flavor': '2',
+                'image': '119',
+            },
         }]
 
         provider.get_catalog(context).AndReturn(catalog)
@@ -360,10 +365,11 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
             'type': 'compute',
             'provider': 'rackspace.legacy',
             'service': 'master',
-            'flavor': '2',
-            'image': '119',
-            'region': 'ORD',
-            'desired-state': {},
+            'desired-state': {
+                'flavor': '2',
+                'image': '119',
+                'region': 'ORD',
+            },
         }]
 
         provider.get_catalog(context).AndReturn(catalog)
@@ -426,10 +432,11 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                 'type': 'compute',
                 'provider': 'rackspace.legacy',
                 'service': 'master',
-                'flavor': '2',
-                'image': '119',
-                'region': 'ORD',
-                'desired-state': {},
+                'desired-state': {
+                    'flavor': '2',
+                    'image': '119',
+                    'region': 'ORD',
+                },
             }
         ]
 
