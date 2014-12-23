@@ -238,25 +238,28 @@ angular.module('checkmate.Blueprint')
 
           // Find all connections to the removed component and remove them.
           _.each(services, function(_service, _id, _services) {
-            _.each(_service.relations, function(_relation, _index, _relations) {
-              _.each(_relation, function(_component, _service) {
-                if(_component == selection.component && _service == selection.service) {
-                  delete _relation[_service];
-                }
+            var i = _service.relations ? _service.relations.length : 0;
+
+            while (i--) {
+              _.each(_service.relations[i], function(_componentId, _serviceId) {
+                if(_serviceId == selection.service) {
+                  delete _service.relations[i];
+                };
               });
 
-              if(_.isEmpty(_relation)) {
-                _relations.splice(index, 1);
+              if(_.isEmpty(_service.relations[i])) {
+                _service.relations.splice(i, 1);
               }
 
-              if(!_relations.length) {
+              if(!_service.relations.length) {
                 delete _service.relations;
               }
-            });
+            }
           });
 
           if(!service.components.length) {
             delete service.components;
+            delete service.relations;
           }
         }
 
@@ -287,10 +290,15 @@ angular.module('checkmate.Blueprint')
 
         this.broadcast();
       },
-      canConnect: function(from, target, protocol, optionalTag) {
-        var isValid = false;
+      canConnect: function(source, target, protocol, optionalTag) {
+        var isValid = [];
+
+        if(!source || !target) {
+          return isValid;
+        }
+
         var catalog = {
-          source: Catalog.getComponent(from.componentId) || [],
+          source: Catalog.getComponent(source.componentId) || [],
           target: Catalog.getComponent(target.componentId) || []
         };
         var map = {
@@ -310,17 +318,16 @@ angular.module('checkmate.Blueprint')
 
             _.each(catalog.target.provides[j], function(val, key) {
               if(map.requires[key] && map.requires[key] == val) {
-                isValid = true;
+                isValid.push({
+                  'type': key,
+                  'interface': map.requires[key]
+                });
               }
             });
           }
         }
 
-        if(!protocol && isValid) {
-          return isValid;
-        }
-
-        return isValid;
+        return isValid.length ? isValid : false;
       },
       connect: function(fromServiceId, toServiceId, protocol, optionalTag) {
         var fromService = this.data.services[fromServiceId];

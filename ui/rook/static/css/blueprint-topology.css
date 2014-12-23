@@ -46,7 +46,7 @@ text.fa {
   stroke-width: 1;
 }
 .deactivated {
-  opacity: .3;
+  opacity: .4;
 }
 
 g.selected > .service-container,
@@ -89,21 +89,27 @@ g.relation-linker.dragging circle {
   stroke: #1abc9c;
 }
 
-g.relation-linker.target text {
+.target g.relation-linker text {
   fill: #1abc9c;
 }
-g.relation-linker.target circle {
+.target rect.component-container {
   stroke: #1abc9c;
 }
+.target rect {
+  fill: rgba(46, 204, 113,0.1);
+}
 
-g.relation-linker.target.unsuitable text {
+.unsuitable.target g.relation-linker text {
   fill: #c0392b;
 }
-g.relation-linker.target.unsuitable circle {
+.unsuitable.target rect.component-container {
   stroke: #c0392b;
 }
+.unsuitable.target rect {
+  fill: rgba(192, 57, 43, 0.1);
+}
 
-path.linker {
+.linker {
   fill: none;
   stroke: #95a5a6;
   stroke-width: 2px;
@@ -143,4 +149,25 @@ g.relation-indicator .connection text {
 g.relation-indicator.active .connections-container,
 g.relation-indicator.active .connections-arrow {
   display: block;
+}
+
+/* Interface Option */
+.interface-container {
+  stroke-width: 1;
+  stroke: #ccc;
+  fill: #fff;
+}
+.interface-option tspan {
+  fill: #2980b9;
+  cursor: pointer;
+}
+.interface-option:hover tspan {
+  fill: #3498db;
+}
+.interface-option rect {
+  cursor: pointer;
+  fill: #fff;
+}
+.interface-option:hover rect  {
+  fill: #f5f5f5;
 }

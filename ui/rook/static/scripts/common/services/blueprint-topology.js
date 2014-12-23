@@ -24,6 +24,13 @@ angular.module('checkmate.Blueprint')
           Blueprint.remove(selection);
         };
 
+        $scope.connect = function() {
+          var source = Drag.source.get() || {};
+          var target = Drag.target.get() || {};
+
+          Blueprint.connect(source.serviceId, target.serviceId, target.interface);
+        };
+
         $scope.$on('blueprint:update', function(event, data) {
           $timeout(function() {
             $scope.blueprint = angular.copy(data);
@@ -43,7 +50,6 @@ angular.module('checkmate.Blueprint')
         var component;
         var sizes = Sizes;
 
-        var dragConnectorLine = null;
         var state = {
           linking: false,
           translation: [0, 0],
@@ -68,6 +74,7 @@ angular.module('checkmate.Blueprint')
             .on("dragstart", linkstarted)
             .on("drag", linkdragged)
             .on("dragend", linkended);
+
         var svg = d3.select(element[0]);
 
         var zoomer = svg.append('g')
@@ -88,6 +95,8 @@ angular.module('checkmate.Blueprint')
         var container = zoomer.append('g')
             .call(zoom)
             .attr('class', 'container');
+
+        var dragConnectorLine = svg.append('path');
 
         container.append('g').attr('class', 'relations');
 
@@ -190,6 +199,7 @@ angular.module('checkmate.Blueprint')
           // This resizes and cleans up old container elements.
           container.selectAll('g.service').remove();
           container.selectAll('g.relation').remove();
+          dragConnectorLine.remove();
           resize();
 
           // Append service container
@@ -351,13 +361,13 @@ angular.module('checkmate.Blueprint')
           indicator.append('rect')
             .attr('width', sizes.indicator.width)
             .attr('height', function(d, i) {
-              return 25;
+              return d.connections.length * 25;
             })
             .attr('x', 0)
             .attr('y', 0)
             .attr('transform', function(d, i) {
               var x = -1 * (sizes.indicator.width / 2);
-              var y = (sizes.indicator.spacing + ((sizes.indicator.radius + 2) * 2)) * -1;
+              var y = ((d.connections.length * 25) + sizes.indicator.radius * 2.5) * -1;
               return 'translate('+x+','+y+')';
             })
             .attr('class', 'connections-container');
@@ -370,7 +380,7 @@ angular.module('checkmate.Blueprint')
               .append('g')
               .attr('class', 'connection')
               .attr('transform', function(d, i) {
-                return 'translate(0,'+((i-1)*sizes.indicator.spacing)+')'; // ext sizes
+                return 'translate(0,'+((i * -1) * sizes.indicator.spacing - 26)+')'; // ext sizes
               });
 
           connections.append("text")
@@ -451,7 +461,7 @@ angular.module('checkmate.Blueprint')
               return 'translate('+x+','+y+')';
             })
             .attr('xlink:href', function(d) {
-              return scope.getTattoo(d.id);
+              return scope.getTattoo((d.name || d.id));
             })
             .attr('class', 'component-icon');
 
@@ -530,51 +540,125 @@ angular.module('checkmate.Blueprint')
             })
             .attr('class', 'fa fa-link relation-linker-icon');
 
-          // This defines linker drag events.
-          linker.on("dragenter", function(d) {
-            d3.select(this).classed('target', true);
-            Drag.target.set({componentId: d.id, serviceId: d3.select(this.parentNode.parentNode).datum()._id});
-          }).on("dragover", function(d) {
-          }).on("dragleave", function(d) {
-            Drag.target.set(null);
-            d3.select(this).classed('target unsuitable', false);
-          }).on("drop", function() {
-            d3.select(this).classed('target unsuitable', false);
-          });
+          // TODO: This is a backup for drag events not firing due to propagation issues.
+          component.style("pointer-events", "all")
+            .on("mouseover", function(d) {
+              if (state.linking) {
+                var source = Drag.source.get();
+                var target = {
+                  componentId: d.id,
+                  serviceId: d3.select(this.parentNode).datum()._id,
+                  interface: null
+                };
 
-          // TODO: This is a backup for drag events not firing
-          linker.on("mouseover", function(d) {
-            if (state.linking) {
-              var source = Drag.source.get();
-              var target = {
-                componentId: d.id,
-                serviceId: d3.select(this.parentNode.parentNode).datum()._id,
-                protocol: d.id
-              };
+                if (source.serviceId === target.serviceId && source.componentId === target.componentId) {
+                  return;
+                }
 
-              if (source.serviceId === target.serviceId && source.componentId === target.componentId) {
+                if (Blueprint.canConnect(source, target)) {
+                  d3.select(this).classed('unsuitable', false);
+                } else {
+                  d3.select(this).classed('unsuitable', true);
+                }
+
+                Drag.target.set(target);
+
+                d3.select(this).classed('target', true);
+              }
+            }).on("mouseout", function(d) {
+              if (state.linking) {
+                d3.select(this).classed('target unsuitable', false);
+                Drag.target.set(null);
+              }
+            }).on("mouseup", function(d) {
+              if (state.linking) {
+                var target = Drag.target.get();
+                var source = Drag.source.get();
+                var connections = Blueprint.canConnect(source, target);
+                var components = Catalog.getComponents();
+
+                // Add interface
+                if(connections.length == 1) {
+                  target.interface = connections[0].interface;
+
+                  if(target && target.interface) {
+                    scope.connect();
+                  }
+                } else if(connections.length > 1) {
+                  // Ask user to select connection instead.
+                  determineProtocol(d3.select(this), connections);
+                }
+
+                d3.select(this).classed('target unsuitable', false);
+              }
+            });
+        }
+
+        function determineProtocol(element, connections) {
+          // Spawns popover asking for user input
+          var selector = element.append('g')
+            .attr('class', 'interface-selector')
+            .attr('transform', "translate(" + sizes.component.width() + "," + sizes.component.height() + ")")
+
+          selector.append('rect')
+            .attr('class', 'interface-container')
+            .attr('height', function() {
+              return connections.length * 25;
+            })
+            .attr('width', 80)
+            .attr('x', 0)
+            .attr('y', 0);
+
+          var options = selector.selectAll('g.interface-selector')
+              .data(connections)
+            .enter()
+            .append('g')
+            .attr('class', 'interface-option')
+            .on('mousedown', function(d) {
+              d3.event.stopPropagation();
+            }).on('click', function(d) {
+              if(d3.event.defaultPrevented) {
                 return;
               }
+              d3.event.stopPropagation();
+              setProtocol(d.interface);
+            });
 
-              d3.select(this).classed('target', true);
+          options.append('rect')
+            .attr('x', 0)
+            .attr('y', function(d, index) {
+              return index * sizes.interfaces.height()
+            })
+            .attr('width', sizes.interfaces.width())
+            .attr('height', sizes.interfaces.height());
 
-              if (Blueprint.canConnect(source, target)) {
-                Drag.target.set(target);
-                d3.select(this).classed('unsuitable', false);
-              } else {
-                d3.select(this).classed('unsuitable', true);
-              }
-            }
-          }).on("mouseout", function(d) {
-            if (state.linking) {
-              d3.select(this).classed('target unsuitable', false);
-              Drag.target.set(null);
-            }
-          }).on("mouseup", function(d) {
-            if (state.linking) {
-              d3.select(this).classed('target unsuitable', false);
-            }
-          });
+          var option = options.append('text')
+            .attr('class', 'interface-title');
+
+          option.append('title')
+            .text(function(d) {
+              return d.interface.substring(0,12);
+            });
+
+          option.append('tspan')
+            .attr('text-anchor', 'middle')
+            .attr('x', function(d) {
+              return sizes.interfaces.width() / 2;
+            })
+            .attr('y', function(d, index) {
+              return ((sizes.interfaces.height() - 2) * (index + 1)) - 5;
+            })
+            .text(function(d){
+              return d.interface.substring(0,12);
+            });
+        }
+
+        function setProtocol(interface) {
+          var target = Drag.target.get();
+          target.interface = interface;
+          Drag.target.set(target);
+
+          scope.connect();
         }
 
         function toggleSelect(el, data) {
@@ -616,10 +700,15 @@ angular.module('checkmate.Blueprint')
 
         function linkstarted(d) {
           state.linking = true;
-          dragConnectorLine = svg.append('path')
-              .style("pointer-events", "none")
-              .attr('class', 'linker dragline')
-              .attr('d', 'M0,0L0,0');
+          var coords = getCoords(d3.select(this.parentNode.parentNode));
+
+          dragConnectorLine = svg
+            .append('path')
+            .attr('class', 'linker dragline')
+            .style("pointer-events", "none")
+            .attr('d', 'M0,0L0,0');
+
+          Drag.reset();
           Drag.source.set({
             componentId: d.id,
             serviceId: d3.select(this.parentNode.parentNode).datum()._id
@@ -649,19 +738,11 @@ angular.module('checkmate.Blueprint')
         }
 
         function linkended(d) {
-          state.linking = false;
-          dragConnectorLine.remove();
           d3.event.sourceEvent.stopPropagation();
           d3.select(this).classed("dragging", false);
           component.classed('deactivated', false);
-          var source = Drag.source.get();
-          var target = Drag.target.get();
-          if (source && target) {
-            if (Blueprint.canConnect(source, target)) {
-              Blueprint.connect(source.serviceId, target.serviceId, target.protocol);
-            }
-          }
-          Drag.reset();
+          state.linking = false;
+          dragConnectorLine.remove();
         }
 
         function resize() {
@@ -675,6 +756,7 @@ angular.module('checkmate.Blueprint')
         function zoomed() {
           state.translation = d3.event.translate;
           state.scale = d3.event.scale;
+          dragConnectorLine.remove();
           container.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
         }
 
