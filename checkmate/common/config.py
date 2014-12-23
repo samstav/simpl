@@ -43,6 +43,7 @@ ENV_MAP = {
     'CHECKMATE_GITHUB_ENDPOINT': 'github_api',
     'CHECKMATE_GITHUB_CLIENT_ID': 'github_client_id',
     'CHECKMATE_GITHUB_CLIENT_SECRET': 'github_client_secret',
+    'CHECKMATE_GIT_USE_HTTPS': 'git_use_https',
 
     'CHECKMATE_BASTION_ADDRESS': 'bastion_address',
     'CHECKMATE_BASTION_PKEY_FILE': 'bastion_key_filename',
@@ -93,6 +94,7 @@ class Config(object):
     github_token = None
     github_client_id = None
     github_client_secret = None
+    git_use_https = False
     organization = None
     ref = 'stable'
     cache_dir = None
