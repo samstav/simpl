@@ -576,14 +576,14 @@ class Planner(classes.ExtensibleDict):
         # Validate
 
         if 'relations' in resource and write_key in resource['relations']:
-            if resource['relations'][write_key] != result:
+            if resource['relations'][write_key] == result:
                 LOG.debug("Relation '%s' already exists",
                           resource['relations'][write_key])
                 return
             else:
-                LOG.debug("Conflicting relation named '%s' exists in service "
-                          "'%s'", write_key, target['service'])
-                return
+                raise CheckmateValidationException(
+                    "Conflicting relation named '%s' exists in service "
+                    "'%s'." % (write_key, target['service']))
 
         # Write relation
 
@@ -1025,7 +1025,7 @@ class Planner(classes.ExtensibleDict):
             final_key = key
             final_map = value
         else:
-            if key == 'host':
+            if key == 'host' or key.startswith('host:'):
                 # Format #3
                 final_key = '%s:%s' % (key, value)
                 final_map['relation'] = 'host'
