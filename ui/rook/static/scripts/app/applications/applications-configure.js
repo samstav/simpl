@@ -54,6 +54,11 @@ angular.module('checkmate.applications-configure')
       }
     };
 
+    $scope.$on('catalog:update', function(event, data) {
+      $scope.catalog.data = Catalog.get();
+      $scope.catalog.components = Catalog.getComponents();
+    });
+
     // This is the codemirror model for the sidebar.
     $scope.codemirror = {
     };
