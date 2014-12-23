@@ -94,7 +94,7 @@ class TestChefSoloProvider(test.ProviderTester):
                 requires:
                 - database: mysql
                 maps:
-                - source: requirements://database:mysql/ip
+                - source: requirements://database:mysql/host
                   targets:
                   - attributes://ip
             \n--- # bar component
@@ -113,9 +113,9 @@ class TestChefSoloProvider(test.ProviderTester):
         resource = deployment['resources']['0']  # one of the mysql clients
         result = chefmap.get_resource_prepared_maps(resource, deployment)
         expected = [{
-            'source': 'requirements://database:mysql/ip',
+            'source': 'requirements://database:mysql/host',
             'targets': ['attributes://ip'],
-            'path': 'resources/2/interfaces/mysql',
+            'path': 'resources/2/instance/interfaces/mysql',
             'resource': '0',
         }]
         self.assertListEqual(result, expected)
@@ -129,13 +129,13 @@ class TestChefSoloProvider(test.ProviderTester):
                 'source': 'clients://database:mysql/ip',
                 'targets': ['attributes://clients'],
                 'resource': '2',
-                'path': 'resources/1',
+                'path': 'resources/1/instance',
             },
             {
                 'source': 'clients://database:mysql/ip',
                 'targets': ['attributes://clients'],
                 'resource': '2',
-                'path': 'resources/0',
+                'path': 'resources/0/instance',
             },
         ]
         self.assertListEqual(result, expected)
@@ -748,10 +748,10 @@ interfaces/mysql/host
                         'result': {
                             'resources': {
                                 key: {
-                                    'id': '1',
-                                    'password': "shecret",
-                                    'ip': '4.4.4.4',
                                     'instance': {
+                                        'id': '1',
+                                        'password': "shecret",
+                                        'ip': '4.4.4.4',
                                         'interfaces': {
                                             'linux': {
                                                 'ip': '4.4.4.4'
@@ -848,18 +848,14 @@ interfaces/mysql/host
                 chef_options:
                 resources:
                   '0':
-                    name: ''
+                    name: app_db
                     instance:
                       interfaces:
                         mysql:
                           password: myPassW0rd       # from constraints
                           username: u1               # from blueprint settings
                           host: 4.4.4.4              # from host requirement
-                    interfaces:                      # add this for v3.0 compat
-                      mysql:
-                        password: myPassW0rd
-                        username: u1
-                        host: 4.4.4.4
+                          database_name: app_db      # from defaults
             ''')
         self.assertDictEqual(final.attributes['resources']['0'],
                              expected['resources']['0'])
@@ -1040,32 +1036,40 @@ interfaces/mysql/database_name
                 'roles': {
                     'foo-master': {'how-many': 2}}},
             'chef_output': None,
-            'chef_maps': [
+            "chef_maps": [
                 {
-                    'source': 'requirements://host:linux/ip',
-                    'targets': ['attributes://master/ip',
-                                'outputs://resources/0/instance/ip'],
-                    'path': 'resources/1',
-                    'resource': '0',
+                    "source": "requirements://host:linux/ip",
+                    "resource": "0",
+                    "targets": [
+                        "attributes://master/ip",
+                        "outputs://resources/0/instance/ip"
+                    ],
+                    "path": "resources/1/instance"
                 },
                 {
-                    'source': 'requirements://host:linux/private_ip',
-                    'targets': ['outputs://resources/0/instance/private_ip'],
-                    'path': 'resources/1',
-                    'resource': '0',
+                    "source": "requirements://host:linux/private_ip",
+                    "resource": "0",
+                    "targets": [
+                        "outputs://resources/0/instance/private_ip"
+                    ],
+                    "path": "resources/1/instance"
                 },
                 {
-                    'source': 'requirements://host:linux/public_ip',
-                    'targets': ['outputs://resources/0/instance/public_ip'],
-                    'path': 'resources/1',
-                    'resource': '0',
+                    "source": "requirements://host:linux/public_ip",
+                    "resource": "0",
+                    "targets": [
+                        "outputs://resources/0/instance/public_ip"
+                    ],
+                    "path": "resources/1/instance"
                 },
                 {
-                    'source': 'requirements://database:mysql/database_name',
-                    'targets': ['attributes://db/name',
-                                'encrypted-databags://app_bag/mysql/db_name'],
-                    'path': 'resources/2/interfaces/mysql',
-                    'resource': '0',
+                    "source": "requirements://database:mysql/database_name",
+                    "resource": "0",
+                    "targets": [
+                        "attributes://db/name",
+                        "encrypted-databags://app_bag/mysql/db_name"
+                    ],
+                    "path": "resources/2/instance/interfaces/mysql"
                 }
             ]
         }
@@ -1095,7 +1099,7 @@ interfaces/mysql/database_name
             },
             'chef_output': None,
             'chef_maps': [{
-                'path': 'resources/0',
+                'path': 'resources/0/instance',
                 'resource': '2',
                 'source': 'clients://database:mysql/ip',
                 'targets': ['attributes://connections']
@@ -1258,10 +1262,10 @@ interfaces/mysql/database_name
                         'result': {
                             'resources': {
                                 key: {
-                                    'id': '1',
-                                    'password': "shecret",
-                                    'ip': '4.4.4.4',
                                     'instance': {
+                                        'id': '1',
+                                        'password': "shecret",
+                                        'ip': '4.4.4.4',
                                         'interfaces': {
                                             'linux': {
                                                 'password': "shecret",
