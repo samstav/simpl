@@ -932,20 +932,22 @@ class TestNovaCompute(test.ProviderTester):
     def verify_limits(self, cores_used, ram_used):
         """Helper method to validate constraints."""
         context = cm_mid.RequestContext()
-        resources = [
-            {'component': 'linux_instance',
-             'dns-name': 'master.wordpress.cldsrvr.com',
-             'flavor': '3',
-             'hosts': ['1'],
-             'image': 'e4dbdba7-b2a4-4ee5-8e8f-4595b6d694ce',
-             'index': '2',
-             'instance': {},
-             'provider': 'nova',
-             'region': 'ORD',
-             'service': 'master',
-             'status': 'NEW',
-             'type': 'compute'}
-        ]
+        resources = [{
+            'component': 'linux_instance',
+            'dns-name': 'master.wordpress.cldsrvr.com',
+            'desired-state': {
+                'flavor': '3',
+                'image': 'e4dbdba7-b2a4-4ee5-8e8f-4595b6d694ce',
+                'region': 'ORD',
+            },
+            'hosts': ['1'],
+            'index': '2',
+            'instance': {},
+            'provider': 'nova',
+            'service': 'master',
+            'status': 'NEW',
+            'type': 'compute',
+        }]
         flavors = {
             'flavors': {
                 '3': {'cores': 1,
