@@ -261,6 +261,10 @@ class ChefKitchen(object):
             cache.update()
             utils.copy_contents(cache.cache_path, self._kitchen_path,
                                 with_overwrite=True, create_path=True)
+            if CONFIG.git_use_https:
+                berks_file = os.path.join(self._kitchen_path, 'Berksfile')
+                if os.path.exists(berks_file):
+                    self._ensure_berks_https(berks_file)
 
         LOG.debug("Finished creating kitchen: %s", self._kitchen_path)
         return {"kitchen": self._kitchen_path}
@@ -331,3 +335,17 @@ class ChefKitchen(object):
         if not os.path.exists(berkshelf_path):
             os.makedirs(berkshelf_path)
             LOG.info("Created berkshelf_path: %s", berkshelf_path)
+
+    @staticmethod
+    def _ensure_berks_https(berks_file_path):
+        """Updates the Berkshelf file to use https and not git: protocol.
+
+        TODO (zns): make this handle other github domains
+        """
+        with open(berks_file_path, 'rw') as handle:
+            contents = handle.read()
+            if 'git@' in contents:
+                updated = contents.replace('git@github.com:',
+                                           'https://github.com/')
+                handle.write(updated)
+                LOG.info("Rewrote Berksfile to use https instead of ssh")
