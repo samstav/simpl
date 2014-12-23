@@ -1335,34 +1335,6 @@ class Deployment(morpheus.MorpheusDict):
                     LOG.debug("Merging postback data for resource %s: %s",
                               resource_id, value, extra=dict(data=resource))
                     utils.merge_dictionary(target, data)
-
-                elif key.startswith('connection:'):
-                    # TODO(any): deprecate this (or handle it better)
-                    # I don't think this is being used. [ZNS 2013-04-22]
-                    # New partial resource_postback logic would skip this
-                    # and not have it get saved
-                    assert False
-                    LOG.error("Connection was recieved in a resource_postback "
-                              "and the logic for that code path is slated for "
-                              "deprecation (or a refresh) '%s'=%s", key, value)
-                    # Find the connection
-                    connection_id = key.split(':')[1]
-                    connection = self['connections'][connection_id]
-                    if not connection:
-                        raise IndexError("Connection %s not found" %
-                                         connection_id)
-                    # Check the value
-                    if not isinstance(value, dict):
-                        raise exceptions.CheckmateException(
-                            "Postback value for connection '%s' was not a "
-                            "dictionary" % connection_id)
-                    # Canonicalize it
-                    value = schema.translate_dict(value)
-                    # Merge it in
-                    LOG.debug("Merging postback data for connection %s: %s",
-                              connection_id, value,
-                              extra=dict(data=connection))
-                    utils.merge_dictionary(connection, value)
                 elif key == 'resources':
                     LOG.debug("Merging postback resources: %s", value.keys(),
                               extra=dict(data=value))

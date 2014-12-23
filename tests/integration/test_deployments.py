@@ -466,11 +466,16 @@ class TestDeploymentRelationParser(unittest.TestCase):
 
         parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         expected_connections = {
-            'balanced-front': {'interface': 'foo'},
-            'allyourbase': {'interface': 'bar'},
+            ('balanced-front', 'foo'),
+            ('allyourbase', 'bar'),
         }
-        self.assertDictEqual(parsed['resources']['connections'],
-                             expected_connections)
+        connections = set()
+        for resource in parsed['resources'].values():
+            if not 'relations' in resource:
+                continue
+            for connection in resource['relations'].values():
+                connections.add((connection['name'], connection['interface']))
+        self.assertEqual(connections, expected_connections)
 
 
 class TestComponentSearch(unittest.TestCase):

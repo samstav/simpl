@@ -37,8 +37,7 @@ class ProviderFactory:
 
         non_deleted_resources = deployment.get_non_deleted_resources()
         for key, resource in non_deleted_resources.iteritems():
-            if (key not in ['connections', 'keys'] and
-                    'provider' in resource and
+            if ('provider' in resource and
                     resource['provider'] not in self.providers.keys()):
                 provider = environment.get_provider(resource['provider'])
                 if not provider:
@@ -187,9 +186,7 @@ class WorkflowSpec(specs.WorkflowSpec):
 
         resources_to_del = deployment.get_non_deleted_resources().iteritems()
         for key, resource in resources_to_del:
-            if (key not in ['connections', 'keys'] and
-                    'provider' in resource and
-                    'hosted_on' not in resource):
+            if ('provider' in resource and 'hosted_on' not in resource):
                 provider = factory.get_provider(resource)
 
                 host_del_tasks = []
@@ -376,8 +373,8 @@ class WorkflowSpec(specs.WorkflowSpec):
         provider_keys = set()
         non_deleted_resources = deployment.get_non_deleted_resources()
         for key, resource in non_deleted_resources.iteritems():
-            if (key not in ['connections', 'keys'] and 'provider' in
-                    resource and resource['provider'] not in provider_keys):
+            if ('provider' in resource and
+                    resource['provider'] not in provider_keys):
                 provider_keys.add(resource['provider'])
         LOG.debug("Obtained providers from resources: %s",
                   ', '.join(provider_keys))
@@ -415,7 +412,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                 if resource_key not in sorted_list:
                     sorted_list.append(resource_key)
         for key, resource in new_and_planned_resources.iteritems():
-            if key not in ['connections', 'keys'] and 'provider' in resource:
+            if 'provider' in resource:
                 recursive_add_host(sorted_resources, key,
                                    deployment.get('resources'),
                                    [])

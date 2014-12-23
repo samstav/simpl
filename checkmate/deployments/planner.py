@@ -82,7 +82,7 @@ mfCNuJ71hzS3"""
 
 class Planner(classes.ExtensibleDict):
 
-    """Analyzes a Checkmate deployment and persists the analysis results
+    """Analyzes a Checkmate deployment and persists the analysis results.
 
     This class will do the following:
     - identify which components the blueprint calls for
@@ -132,7 +132,6 @@ class Planner(classes.ExtensibleDict):
         classes.ExtensibleDict.__init__(self, *args, **kwargs)
         self.deployment = deployment
         self.resources = self.deployment.get('resources', {})
-        self.connections = self.deployment.get('connections', {})
         self.parse_only = parse_only
 
         # Find blueprint and environment. Otherwise, there's nothing to plan!
@@ -365,7 +364,7 @@ class Planner(classes.ExtensibleDict):
         """Wire up resource connections within a Plan."""
         # Add connections
         LOG.debug("Connect resources")
-        for _, service_plan in self['services'].iteritems():
+        for service_plan in self['services'].values():
             # Do main component
             definition = service_plan['component']
             for index in definition.get('instances', []):
@@ -377,9 +376,6 @@ class Planner(classes.ExtensibleDict):
                     for index in definition.get('instances', []):
                         self.connect_resource(self.resources[index],
                                               definition)
-                        #Write resources and connections to deployment
-        if self.connections:
-            self.resources['connections'] = self.connections
 
     def add_static_resources(self, deployment, context):
         """Generate static resources and add them to resources collection."""
@@ -499,7 +495,7 @@ class Planner(classes.ExtensibleDict):
             service = self.blueprint["services"][service_name]
             interface = service["component"].get("interface")
             if interface == 'vip':
-                connections = definition["connections"]
+                connections = definition['connections']
                 connection_indices = connections.keys()
                 current_connection = connection_indices[int(index)]
                 connections[current_connection]["outbound-from"] = index
@@ -514,7 +510,7 @@ class Planner(classes.ExtensibleDict):
             if connection.get('outbound-from') and connection.get(
                     'outbound-from') != resource['index']:
                 continue
-            if (connection.get('relation', 'reference') == 'host' and
+            if (connection.get('relation') == 'host' and
                     connection['direction'] == 'inbound'):
                 continue  # we don't write host relation on host
 
@@ -524,25 +520,22 @@ class Planner(classes.ExtensibleDict):
                 target_def = target_service['extra-components'][extra_key]
             else:
                 target_def = target_service['component']
-            if (target_def["connections"].get(resource["service"]) and
-                    target_def["connections"][resource["service"]].get(
+            if (target_def['connections'].get(resource['service']) and
+                    target_def['connections'][resource['service']].get(
                     "outbound-from")):
-                instances = target_def["connections"][
-                    resource["service"]]["outbound-from"]
+                instances = target_def['connections'][
+                    resource['service']]["outbound-from"]
+            elif connection.get('relation') == 'host':
+                # must be outbound (we continued above if inbound host)
+                # don't connect to all hosts, just the the one hosted on
+                if 'hosted_on' not in resource:
+                    return
+                instances = [resource.get('hosted_on')]
             else:
                 instances = target_def.get('instances', [])
             for target_index in instances:
                 target = self.resources[target_index]
-
                 self.connect_instances(resource, target, connection, key)
-
-                #TODO(any): this is just copied in for legacy compatibility
-            if (connection['direction'] == 'outbound' and
-                    'extra-key' not in connection):
-                rel_key = key  # connection['name']
-                if rel_key not in self.connections:
-                    con_def = {'interface': connection['interface']}
-                    self.connections[rel_key] = con_def
 
     @staticmethod
     def connect_instances(resource, target, connection, connection_key):
@@ -944,8 +937,8 @@ class Planner(classes.ExtensibleDict):
         """
         count = 0
         for _, resource in self.resources.iteritems():
-            if (resource.get("service") == service_name and resource.get(
-                    "provider") == provider_key):
+            if (resource.get('service') == service_name and resource.get(
+                    'provider') == provider_key):
                 count += 1
         return count
 
