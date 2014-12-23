@@ -290,10 +290,6 @@ class Provider(RackspaceComputeProviderBase):
                 "No flavor mapping for '%s' in '%s'" % (memory, self.key))
 
         for template in templates:
-            # TODO(any): remove the entry from the root
-            template['flavor'] = flavor
-            template['image'] = image
-            template['region'] = region
             template['desired-state']['flavor'] = flavor
             template['desired-state']['image'] = image
             template['desired-state']['region'] = region
@@ -312,10 +308,10 @@ class Provider(RackspaceComputeProviderBase):
         memory_needed = 0
         cores_needed = 0
         for compute in resources:
-            flavor = compute['flavor']
+            flavor = compute['desired-state']['flavor']
             details = flavors[flavor]
-            memory_needed += details['memory']
-            cores_needed += details['cores']
+            memory_needed += details['desired-state']['memory']
+            cores_needed += details['desired-state']['cores']
 
         limits = _get_limits(url, context.auth_token)
         memory_available = limits['maxTotalRAMSize'] - limits['totalRAMUsed']

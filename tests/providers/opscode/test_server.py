@@ -93,29 +93,33 @@ class TestChefServerProvider(test.ProviderTester):
                 id: foo
                 requires:
                 - database: mysql
+                - host: linux
                 maps:
-                - source: requirements://database:mysql/ip
+                - source: requirements://database:mysql/host
                   targets:
                   - attributes://ip
             \n--- # bar component
                 id: bar
                 provides:
                 - database: mysql
+                requires:
+                - host: linux
                 maps:
                 - source: clients://database:mysql/ip
                   targets:
                   - attributes://clients
             """)
         deployments.Manager.plan(deployment, middleware.RequestContext())
+        deployment.environment().get_provider('chef-server')
 
         # Check requirement map
 
         resource = deployment['resources']['0']  # one of the mysql clients
         result = chefmap.get_resource_prepared_maps(resource, deployment)
         expected = [{
-            'source': 'requirements://database:mysql/ip',
+            'source': 'requirements://database:mysql/host',
             'targets': ['attributes://ip'],
-            'path': 'instance:2/interfaces/mysql',
+            'path': 'resources/2/instance/interfaces/mysql',
             'resource': '0',
         }]
         self.assertListEqual(result, expected)
@@ -235,8 +239,8 @@ class TestChefServerProvider(test.ProviderTester):
             'task_tags': ['cleanup'],
         }
         properties.update(defines)
-        self.assertDictEqual(cleanup_task_spec.defines, defines)
-        self.assertDictEqual(cleanup_task_spec.properties, properties)
+        self.assertEqual(cleanup_task_spec.defines, defines)
+        self.assertEqual(cleanup_task_spec.properties, properties)
         self.assertEqual(
             cleanup_task_spec.call, 'checkmate.providers.opscode.server.tasks'
                                     '.delete_environment')
@@ -382,6 +386,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                                 'status': 'ACTIVE',
                                 'instance': {
                                     'ip': '4.4.4.1',
+                                    'password': 'floop',
                                     'private_ip': '10.1.2.1',
                                     'addresses': {
                                         'public': [
@@ -414,11 +419,12 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                     'kwargs': {
                         'environment': 'DEP-ID-1000',
                         'recipes': ['mysql::server'],
-                        'password': 'shecret',
+                        'password': 'floop',
                         'bootstrap_version': '11.16.4-1',
                         'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
                     },
-                    'result': None
+                    'result': None,
+                    'resource': key,
                 })
                 expected.append({
                     'call': 'checkmate.providers.opscode.server.tasks'
@@ -433,27 +439,6 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                         mox.ContainsKeyValue('environment',
                                              self.deployment['id']),
                         mox.ContainsKeyValue('recipes', ['mysql::server']),
-                    ),
-                    'result': None,
-                    'resource': key,
-                })
-                expected.append({
-                    'call': 'checkmate.providers.opscode.server.tasks'
-                            '.bootstrap',
-                    'args': [
-                        context_dict,
-                        self.deployment['id'],
-                        '4.4.4.1',
-                        '4.4.4.1',
-                    ],
-                    'kwargs': mox.And(
-                        mox.ContainsKeyValue('bootstrap_version', '11.16.4-1'),
-                        mox.ContainsKeyValue('environment',
-                                             self.deployment['id']),
-                        mox.ContainsKeyValue('recipes', ['mysql::server']),
-                        mox.ContainsKeyValue(
-                            'identity_file',
-                            '/var/tmp/DEP-ID-1000/private.pem'),
                     ),
                     'result': None,
                     'resource': key,
@@ -543,9 +528,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
             'Create Workspace',
             'Root',
             'Start',
-            'Upload Cookbooks',
-            'Configure bar: 1 (backend)',
-            'Configure foo: 0 (frontend)',
+            'Upload Cookbooks'
         ]
         task_list.sort()
         expected.sort()
@@ -777,10 +760,11 @@ interfaces/mysql/host
                                     'instance': {
                                         'id': '1',
                                         'password': "shecret",
-                                        'ip': '4.4.4.4',
+                                        'ip': '4.4.4.%s' % (int(key) + 1),
                                         'interfaces': {
                                             'linux': {
-                                                'ip': '4.4.4.4'
+                                                'ip': '4.4.4.%s' % (
+                                                    int(key) + 1)
                                             }
                                         }
                                     }
@@ -798,7 +782,7 @@ interfaces/mysql/host
                         'args': [
                             context_dict,
                             self.deployment['id'],
-                            '4.4.4.4',
+                            '4.4.4.%s' % (int(key) + 1),
                         ],
                         'kwargs': {
                             'attributes': attributes,
@@ -813,8 +797,8 @@ interfaces/mysql/host
                         'args': [
                             context_dict,
                             self.deployment['id'],
-                            '4.4.4.4',
-                            '4.4.4.4',
+                            '4.4.4.%s' % (int(key) + 1),
+                            '4.4.4.%s' % (int(key) + 1),
                         ],
                         'kwargs': mox.And(
                             mox.ContainsKeyValue('bootstrap_version',
@@ -845,29 +829,24 @@ interfaces/mysql/host
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())
-        self.assertDictEqual(self.outcome, {})
+        self.assertEqual(self.outcome, {})
         self.mox.VerifyAll()
 
         final = workflow.get_tasks()[-1]
         expected = utils.yaml_to_dict("""
-                chef_options:
                 resources:
                   '0':
-                    name: ''
+                    name: app_db
                     instance:
                       interfaces:
                         mysql:
-                          host: 4.4.4.4              # from host requirement
+                          host: 4.4.4.2              # from host requirement
                           password: myPassW0rd       # from constraints
                           username: u1               # from blueprint settings
-                    interfaces:                      # add this for v3.0 compat
-                      mysql:
-                        host: 4.4.4.4
-                        password: myPassW0rd
-                        username: u1
+                          database_name: app_db      # from map output entry
             """)
-        self.assertDictEqual(final.attributes['resources']['0'],
-                             expected['resources']['0'])
+        self.assertEqual(final.attributes['resources']['0'],
+                         expected['resources']['0'])
 
 
 def do_nothing(self, my_task):
@@ -948,14 +927,14 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 # Host requirement resolved at run-time
                 - source: requirements://host:linux/ip
                   targets:
-                  - attributes://master/ip
+                  - attributes://master/instance/ip
                   - outputs://resources/{{resource.index}}/instance/ip
                 - source: requirements://host:linux/private_ip
                   targets:
-                  - outputs://resources/{{resource.index}}/instance/private_ip
-                - source: requirements://host:linux/public_ip
+                  - outputs://resources/{{resource.index}}/private_ip
+                - source: requirements://host:linux/instance/public_ip
                   targets:
-                  - outputs://resources/{{resource.index}}/instance/public_ip
+                  - outputs://resources/{{resource.index}}/public_ip
                 # Relation requirement resolved at run-time
                 - source: requirements://database:mysql/database_name
                   targets:
@@ -981,7 +960,13 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                 is: database
                 provides:
                 - database: mysql
+                requires:
+                - host: linux
                 maps:
+                - source: requirements://host:linux/ip
+                  targets:
+                  - outputs://resources/{{resource.index}}/instance/\
+interfaces/mysql/host
                 - value: foo-db
                   targets:
                   - outputs://resources/{{resource.index}}/instance/\
@@ -1011,21 +996,22 @@ interfaces/mysql/database_name
         task_list = workflow.spec.task_specs.keys()
         expected = [
             'After Environment is Ready and Server 1 (frontend) is Up',
+            'After Environment is Ready and Server 3 (backend) is Up',
             'Collect Chef Data for 0',
             'Collect Chef Data for 2',
             'Configure bar: 2 (backend)',
             'Configure foo: 0 (frontend)',
             'Create Chef Server Environment',
             'Create Resource 1',
+            'Create Resource 3',
             'Create Workspace',
             'Register Server 1 (frontend)',
+            'Register Server 3 (backend)',
             'Root',
             'Start',
             'Upload Cookbooks',
             'Write Data Bag for 0',
             'Write Role foo-master for 0',
-            'Configure bar: 2 (backend)',
-            'Configure foo: 0 (frontend)',
         ]
         task_list.sort()
         expected.sort()
@@ -1041,39 +1027,37 @@ interfaces/mysql/database_name
             'task_tags': ['collect'],
             'extend_lists': True,
             'chef_options': {
-                'roles': {
-                    'foo-master': {'how-many': 2}}},
+            'roles': {
+                'foo-master': {'how-many': 2}}},
             'chef_output': None,
             'chef_maps': [
                 {
                     'source': 'requirements://host:linux/ip',
-                    'targets': ['attributes://master/ip',
+                    'resource': '0',
+                    'targets': ['attributes://master/instance/ip',
                                 'outputs://resources/0/instance/ip'],
-                    'path': 'resources/1/instance',
-                    'resource': '0',
-                },
-                {
+                    'path': 'resources/1/instance'
+                }, {
                     'source': 'requirements://host:linux/private_ip',
-                    'targets': ['outputs://resources/0/instance/private_ip'],
-                    'path': 'resources/1/instance',
                     'resource': '0',
-                },
-                {
-                    'source': 'requirements://host:linux/public_ip',
-                    'targets': ['outputs://resources/0/instance/public_ip'],
-                    'path': 'resources/1/instance',
+                    'targets': ['outputs://resources/0/private_ip'],
+                    'path': 'resources/1/instance'
+                }, {
+                    'source': 'requirements://host:linux/instance/public_ip',
                     'resource': '0',
-                },
-                {
+                    'targets': ['outputs://resources/0/public_ip'],
+                    'path': 'resources/1'  # 'instance' included in source
+                }, {
                     'source': 'requirements://database:mysql/database_name',
+                    'resource': '0',
                     'targets': ['attributes://db/name',
                                 'encrypted-databags://app_bag/mysql/db_name'],
-                    'path': 'resources/2/interfaces/mysql',
-                    'resource': '0',
+                    'path': 'resources/2/instance/interfaces/mysql'
                 }
             ]
         }
-        self.assertDictEqual(transmerge.properties, expected)
+        self.maxDiff = None
+        self.assertEqual(transmerge.properties, expected)
 
         transmerge = workflow.spec.task_specs['Collect Chef Data for 2']
         expected = {
@@ -1098,14 +1082,23 @@ interfaces/mysql/database_name
                 }
             },
             'chef_output': None,
-            'chef_maps': [{
-                'path': 'resources/0',
-                'resource': '2',
-                'source': 'clients://database:mysql/ip',
-                'targets': ['attributes://connections']
-            }]
+            'chef_maps': [
+                {
+                    "source": "requirements://host:linux/ip",
+                    "resource": "2",
+                    "targets": [
+                        "outputs://resources/2/instance/interfaces/mysql/host"
+                    ],
+                    "path": "resources/3/instance"
+                }, {
+                    'source': 'clients://database:mysql/ip',
+                    'resource': '2',
+                    'targets': ['attributes://connections'],
+                    'path': 'resources/0/instance',  # front-end as client
+                }
+            ]
         }
-        self.assertDictEqual(transmerge.properties, expected)
+        self.assertEqual(transmerge.properties, expected)
 
         # Make sure plan-time data is correct
         register = workflow.spec.task_specs['Register Server 1 (frontend)']
@@ -1116,9 +1109,9 @@ interfaces/mysql/database_name
             'estimated_duration': 120,
             'task_tags': ['final'],
         }
-        self.assertDictEqual(register.properties, expected)
-        self.assertDictEqual(register.kwargs['attributes'], {'connections': 10,
-                                                             'widgets': 10})
+        self.assertEqual(register.properties, expected)
+        self.assertEqual(register.kwargs['attributes'],
+                         {'connections': 10, 'widgets': 10})
 
         # Make sure role is being created
         role = workflow.spec.task_specs['Write Role foo-master for 0']
@@ -1244,48 +1237,6 @@ interfaces/mysql/database_name
                     resource_key=resource.get('hosts')[0])
                 expected_calls.extend([
                     {
-                        'call':
-                        'checkmate.providers.opscode.server.tasks'
-                        '.register_node',
-                        'args': [
-                            context_dict,
-                            self.deployment['id'],
-                            "4.4.4.4",
-                        ],
-                        'kwargs': mox.And(
-                            mox.ContainsKeyValue(
-                                'recipes', ['something', 'something::role']),
-                            mox.ContainsKeyValue('roles', ['foo-master']),
-                            mox.ContainsKeyValue('environment',
-                                                 self.deployment['id']),
-                            mox.ContainsKeyValue(
-                                'attributes',
-                                {'connections': 10, 'widgets': 10}
-                            )
-                        ),
-                        'result': None,
-                        'resource': key,
-                    },
-                    {
-                        'call': 'checkmate.providers.opscode.server.tasks.'
-                                'bootstrap',
-                        'args': [
-                            context_dict,
-                            'DEP-ID-1000',
-                            '4.4.4.4',
-                            '4.4.4.4'
-                        ],
-                        'kwargs': {
-                            'bootstrap_version': '11.16.4-1',
-                            'roles': ['foo-master'],
-                            'recipes': ['something', 'something::role'],
-                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem',
-                            'environment': 'DEP-ID-1000',
-                            'password': 'shecret'
-                        },
-                        'result': None
-                    },
-                    {
                         # Create Server
                         'call': 'checkmate.providers.test.create_resource',
                         'args': [mox.IsA(dict), mox.IsA(dict)],
@@ -1294,13 +1245,13 @@ interfaces/mysql/database_name
                             'resources': {
                                 str(key): {
                                     'instance': {
-                                        'id': '1',
+                                        'id': '100%s' % int(key),
                                         'password': "shecret",
-                                        'ip': '4.4.4.4',
+                                        'ip': '4.4.4.%s' % int(key),
                                         'interfaces': {
                                             'linux': {
                                                 'password': "shecret",
-                                                'ip': '4.4.4.4',
+                                                'ip': '4.4.4.%s' % int(key),
                                             }
                                         }
                                     }
@@ -1308,27 +1259,6 @@ interfaces/mysql/database_name
                             }
                         },
                         'post_back_result': True,
-                        'resource': key,
-                    }, {
-                        'call': 'checkmate.providers.opscode.server.tasks'
-                                '.bootstrap',
-                        'args': [
-                            context_dict,
-                            self.deployment['id'],
-                            '4.4.4.4',
-                            '4.4.4.4',
-                        ],
-                        'kwargs': mox.And(
-                            mox.ContainsKeyValue('bootstrap_version',
-                                                 '11.16.4-1'),
-                            mox.ContainsKeyValue('environment',
-                                                 self.deployment['id']),
-                            mox.ContainsKeyValue('recipes', ['mysql::server']),
-                            mox.ContainsKeyValue(
-                                'identity_file',
-                                '/var/tmp/DEP-ID-1000/private.pem'),
-                        ),
-                        'result': None,
                         'resource': key,
                     }
                 ])
@@ -1363,6 +1293,48 @@ interfaces/mysql/database_name
                             'kitchen_name': 'kitchen',
                         },
                         'result': None
+                    },
+                    {
+                        'call': 'checkmate.providers.opscode.server.tasks.'
+                                'bootstrap',
+                        'args': [
+                            context_dict,
+                            'DEP-ID-1000',
+                            '4.4.4.%s' % (int(key) + 1),
+                            '4.4.4.%s' % (int(key) + 1)
+                        ],
+                        'kwargs': {
+                            'bootstrap_version': '11.16.4-1',
+                            'roles': ['foo-master'],
+                            'recipes': ['something', 'something::role'],
+                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem',
+                            'environment': 'DEP-ID-1000',
+                            'password': 'shecret'
+                        },
+                        'result': None
+                    },
+                    {
+                        'call':
+                        'checkmate.providers.opscode.server.tasks'
+                        '.register_node',
+                        'args': [
+                            context_dict,
+                            self.deployment['id'],
+                            "4.4.4.%s" % (int(key) + 1),
+                        ],
+                        'kwargs': mox.And(
+                            mox.ContainsKeyValue(
+                                'recipes', ['something', 'something::role']),
+                            mox.ContainsKeyValue('roles', ['foo-master']),
+                            mox.ContainsKeyValue(
+                                'attributes',
+                                {'connections': 10, 'widgets': 10}
+                            ),
+                            mox.ContainsKeyValue('environment',
+                                                 self.deployment['id']),
+                        ),
+                        'result': None,
+                        'resource': key,
                     }
                 ])
             elif resource.get('type') == 'database':
@@ -1376,8 +1348,8 @@ interfaces/mysql/database_name
                         'args': [
                             context_dict,
                             'DEP-ID-1000',
-                            '4.4.4.4',
-                            '4.4.4.4'
+                            '4.4.4.%s' % (int(key) + 1),
+                            '4.4.4.%s' % (int(key) + 1)
                         ],
                         'kwargs': {
                             'environment': 'DEP-ID-1000',
@@ -1387,6 +1359,23 @@ interfaces/mysql/database_name
                             'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
                         },
                         'result': None
+                    },
+                    {
+                        'call':
+                        'checkmate.providers.opscode.server.tasks'
+                        '.register_node',
+                        'args': [
+                            context_dict,
+                            self.deployment['id'],
+                            "4.4.4.%s" % (int(key) + 1),
+                        ],
+                        'kwargs': mox.And(
+                            mox.ContainsKeyValue('recipes', ['bar']),
+                            mox.ContainsKeyValue('environment',
+                                                 self.deployment['id']),
+                        ),
+                        'result': None,
+                        'resource': key,
                     }
                 ])
 
@@ -1396,17 +1385,17 @@ interfaces/mysql/database_name
         # Hack to hijack postback in Transform which is called as a string in
         # exec(), so cannot be easily mocked.
         # We make the call hit our deployment directly
-        task_names = ['Collect Chef Data for 0', 'Collect Chef Data for 2']
-        for name in task_names:
-            transmerge = workflow.spec.task_specs.get(name)
-            transmerge.set_property(deployment=self.deployment)
-            transmerge.function_name = "tests.providers.opscode." \
-                                       "test_server.do_nothing"
+        for task_name in workflow.spec.task_specs:
+            if task_name.startswith('Collect Chef Data for'):
+                transmerge = workflow.spec.task_specs.get(task_name)
+                transmerge.set_property(deployment=self.deployment)
+                transmerge.function_name = "tests.providers.opscode." \
+                                           "test_server.do_nothing"
 
         self.mox.ReplayAll()
         workflow.complete_all()
         self.assertTrue(workflow.is_completed(), msg=workflow.get_dump())
-        self.assertDictEqual(self.outcome, {})
+        self.assertEqual(self.outcome, {})
 
         for task in workflow.get_tasks():
             if task.get_name() == "Collect Chef Data for 0":
@@ -1453,16 +1442,17 @@ class TestTransform(unittest.TestCase):
         self.mox.VerifyAll()
         self.assertTrue(result)  # task completes
         expected = {'chef_options': {'attributes:0': {'widgets': 10}}}
-        self.assertDictEqual(results, expected)
+        self.assertEqual(results, expected)
 
     def test_write_output_template(self):
         output = utils.yaml_to_dict("""
-                  'resources/0':
-                    name: test
-                    instance:
-                      interfaces:
-                        mysql:
-                          database_name: db1
+                  resources:
+                    '0':
+                      name: test
+                      instance:
+                        interfaces:
+                          mysql:
+                            database_name: db1
             """)
 
         self.mox.StubOutWithMock(deployments.tasks.resource_postback, "delay")
@@ -1482,14 +1472,15 @@ class TestTransform(unittest.TestCase):
         self.mox.VerifyAll()
         self.assertTrue(result)  # task completes
         expected = utils.yaml_to_dict("""
-                  'resources/0':
-                    name: test
-                    instance:
-                      interfaces:
-                        mysql:
-                          database_name: db1
+                  resources:
+                    '0':
+                      name: test
+                      instance:
+                        interfaces:
+                          mysql:
+                            database_name: db1
             """)
-        self.assertDictEqual(results, expected)
+        self.assertEqual(results, expected)
 
 
 class TestChefMapEvaluator(unittest.TestCase):
@@ -1557,7 +1548,7 @@ class TestChefMapResolver(unittest.TestCase):
         result = {}
         unresolved = chef_map.ChefMap.resolve_ready_maps(maps, data, result)
         expected = {'attributes:0': {'ready': 8, 'simple': 1}}
-        self.assertDictEqual(result, expected)
+        self.assertEqual(result, expected)
         self.assertListEqual(unresolved, [maps[2]])
 
 
@@ -1608,7 +1599,7 @@ class TestMapTemplating(unittest.TestCase):
               targets:
               - attributes://{{ 'here' }}
         """
-        self.assertDictEqual(chefmap.get_attributes('foo', None), {'here': 1})
+        self.assertEqual(chefmap.get_attributes('foo', None), {'here': 1})
 
     def test_parsing_functions_parse_url(self):
         chefmap = chef_map.ChefMap('')
@@ -1643,7 +1634,7 @@ class TestMapTemplating(unittest.TestCase):
             'path': '/checkmate',
             'a': {'b': {'c': {'d': '/checkmate'}}}
         }
-        self.assertDictEqual(result, expected)
+        self.assertEqual(result, expected)
 
     def test_parsing_functions_parse_url_Input(self):
         chefmap = chef_map.ChefMap('')
@@ -1674,7 +1665,7 @@ class TestMapTemplating(unittest.TestCase):
                 'certificate': 'TEST_CERT',
             },
         }
-        self.assertDictEqual(result, expected)
+        self.assertEqual(result, expected)
 
     def test_parsing_functions_url_certificate(self):
         cert = """-----BEGIN CERTIFICATE-----
@@ -1730,7 +1721,7 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
               targets:
               - attributes://here
         """
-        self.assertDictEqual(
+        self.assertEqual(
             chefmap.get_attributes('foo', None),
             {
                 'here':
