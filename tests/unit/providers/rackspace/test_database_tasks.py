@@ -26,7 +26,9 @@ import pyrax
 from checkmate.deployments import tasks
 from checkmate import exceptions
 from checkmate import middleware
-from checkmate.providers.rackspace import database
+from checkmate.providers.rackspace.database import manager
+from checkmate.providers.rackspace.database import provider
+from checkmate.providers.rackspace.database import tasks as dbtasks
 
 LOG = logging.getLogger(__name__)
 
@@ -37,7 +39,7 @@ class TestDatabaseTasks(unittest.TestCase):
 
     @mock.patch.object(functools, 'partial')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.create_instance, 'provider')
+    @mock.patch.object(dbtasks.create_instance, 'provider')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_sim_no_dbs(self, mock_reset,
                                         mock_provider,
@@ -71,7 +73,7 @@ class TestDatabaseTasks(unittest.TestCase):
                 }
             }
         }
-        results = database.tasks.create_instance(
+        results = dbtasks.create_instance(
             context, 'test_instance', 1, 1, None, None)
         self.assertEqual(expected, results)
         partial.assert_called_with({'id': 'DBS0'})
@@ -79,7 +81,7 @@ class TestDatabaseTasks(unittest.TestCase):
 
     @mock.patch.object(functools, 'partial')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.create_instance, 'provider')
+    @mock.patch.object(dbtasks.create_instance, 'provider')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_sim_with_dbs(self, mock_reset,
                                           mock_provider,
@@ -137,7 +139,7 @@ class TestDatabaseTasks(unittest.TestCase):
             }
         }
         databases = [{'name': 'db1'}, {'name': 'db2'}]
-        results = database.tasks.create_instance(
+        results = dbtasks.create_instance(
             context, 'test_instance', 1, 1, databases, None)
         self.assertEqual(expected_result, results)
         partial.assert_called_with({'id': 'DBS0'})
@@ -146,7 +148,7 @@ class TestDatabaseTasks(unittest.TestCase):
 
     @mock.patch.object(functools, 'partial')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.create_instance, 'provider')
+    @mock.patch.object(dbtasks.create_instance, 'provider')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_no_sim_no_dbs(self, mock_reset,
                                            mock_provider,
@@ -188,8 +190,8 @@ class TestDatabaseTasks(unittest.TestCase):
         }
         api.create = mock.Mock(return_value=instance)
 
-        results = database.tasks.create_instance(context, 'test_instance', '1',
-                                                 '1', None, 'DFW')
+        results = dbtasks.create_instance(context, 'test_instance', '1', '1',
+                                          None, 'DFW')
 
         mock_provider.connect.assert_called_with(context)
         api.create.assert_called_with('test_instance', flavor=1, volume=1,
@@ -200,7 +202,7 @@ class TestDatabaseTasks(unittest.TestCase):
 
     @mock.patch.object(functools, 'partial')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.create_instance, 'provider')
+    @mock.patch.object(dbtasks.create_instance, 'provider')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     def test_create_instance_no_sim_with_dbs(self, mock_reset,
                                              mock_provider,
@@ -263,8 +265,8 @@ class TestDatabaseTasks(unittest.TestCase):
         }
         api.create = mock.Mock(return_value=instance)
 
-        results = database.tasks.create_instance(context, 'test_instance', '1',
-                                                 '1', databases, 'DFW')
+        results = dbtasks.create_instance(context, 'test_instance', '1', '1',
+                                          databases, 'DFW')
 
         mock_provider.connect.assert_called_with(context)
         api.create.assert_called_with('test_instance', volume=1, flavor=1,
@@ -279,8 +281,8 @@ class TestDatabaseTasks(unittest.TestCase):
         context = {'resource': '0', 'deployment_od': 0}
         context = middleware.RequestContext(**context)
         try:
-            database.tasks.create_instance(context, 'test_instance', '1', '1',
-                                           None, 'DFW', api='invalid')
+            dbtasks.create_instance(context, 'test_instance', '1', '1', None,
+                                    'DFW', api='invalid')
         except exceptions.CheckmateException as exc:
             self.assertEqual(exc.message, "'str' object has no attribute "
                              "'create'")
@@ -300,13 +302,13 @@ class TestAddUser(unittest.TestCase):
         self.region = 'ORD'
 
     def test_assert_instance_id(self):
-        self.assertRaises(AssertionError, database.tasks.add_user,
+        self.assertRaises(AssertionError, dbtasks.add_user,
                           self.context, None, self.databases, self.username,
                           self.password, api="api")
 
-    @mock.patch.object(database.manager.LOG, 'info')
+    @mock.patch.object(manager.LOG, 'info')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.add_user.provider, 'connect')
+    @mock.patch.object(dbtasks.add_user.provider, 'connect')
     def test_add_user_sim(self, mock_connect, mock_postback, mock_LOG):
         self.context['simulation'] = True
         expected = {
@@ -329,9 +331,9 @@ class TestAddUser(unittest.TestCase):
                 }
             }
         }
-        results = database.tasks.add_user(self.context, self.instance_id,
-                                          self.databases, self.username,
-                                          self.password, self.region)
+        results = dbtasks.add_user(self.context, self.instance_id,
+                                   self.databases, self.username,
+                                   self.password, self.region)
 
         mock_LOG.assert_called_with('Added user %s to %s on instance %s',
                                     'test_user', ['blah'], '12345')
@@ -339,7 +341,7 @@ class TestAddUser(unittest.TestCase):
             self.context['deployment_id'], expected)
         self.assertEqual(results, expected)
 
-    @mock.patch.object(database.tasks.add_user, 'retry')
+    @mock.patch.object(dbtasks.add_user, 'retry')
     def test_api_get_exc_retry(self, mock_retry):
         api = mock.Mock()
         mock_exception = pyrax.exceptions.ClientException(code='422')
@@ -347,14 +349,14 @@ class TestAddUser(unittest.TestCase):
         mock_retry.side_effect = AssertionError('retry')
 
         self.assertRaisesRegexp(AssertionError, 'retry',
-                                database.tasks.add_user, self.context,
+                                dbtasks.add_user, self.context,
                                 self.instance_id, self.databases,
                                 self.username, self.password, api=api)
 
         api.get.assert_called_with(self.instance_id)
 
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.add_user, 'retry')
+    @mock.patch.object(dbtasks.add_user, 'retry')
     def test_instance_status_exc_retry(self, mock_retry, mock_postback):
         api = mock.Mock()
         instance = mock.Mock()
@@ -363,7 +365,7 @@ class TestAddUser(unittest.TestCase):
         mock_retry.side_effect = AssertionError('retry')
 
         self.assertRaisesRegexp(AssertionError, 'retry',
-                                database.tasks.add_user, self.context,
+                                dbtasks.add_user, self.context,
                                 self.instance_id, self.databases,
                                 self.username, self.password,
                                 api=api)
@@ -382,7 +384,7 @@ class TestAddUser(unittest.TestCase):
         api.get.assert_called_with(self.instance_id)
 
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.add_user, 'retry')
+    @mock.patch.object(dbtasks.add_user, 'retry')
     def test_instance_create_user_exc_retry(self, mock_retry, mock_postback):
         mock_exception = pyrax.exceptions.ClientException(code='422')
         api = mock.Mock()
@@ -402,7 +404,7 @@ class TestAddUser(unittest.TestCase):
             }
         }
         self.assertRaisesRegexp(AssertionError, 'retry',
-                                database.tasks.add_user, self.context,
+                                dbtasks.add_user, self.context,
                                 self.instance_id, self.databases,
                                 self.username, self.password, api=api)
 
@@ -421,7 +423,7 @@ class TestAddUser(unittest.TestCase):
         api.get = mock.Mock(return_value=instance)
 
         self.assertRaises(exceptions.CheckmateException,
-                          database.tasks.add_user, self.context,
+                          dbtasks.add_user, self.context,
                           self.instance_id, self.databases, self.username,
                           self.password, api=api)
 
@@ -439,7 +441,7 @@ class TestAddUser(unittest.TestCase):
         instance.create_user.assert_called_with(self.username, self.password,
                                                 self.databases)
 
-    @mock.patch.object(database.manager.LOG, 'info')
+    @mock.patch.object(manager.LOG, 'info')
     @mock.patch.object(tasks, 'postback')
     def test_add_user(self, mock_postback, mock_LOG):
         api = mock.Mock()
@@ -469,9 +471,9 @@ class TestAddUser(unittest.TestCase):
                 }
             }
         }
-        results = database.tasks.add_user(self.context, self.instance_id,
-                                          self.databases, self.username,
-                                          self.password, api=api)
+        results = dbtasks.add_user(self.context, self.instance_id,
+                                   self.databases, self.username,
+                                   self.password, api=api)
         api.get.assert_called_with(self.instance_id)
         instance.create_user.assert_called_with(self.username,
                                                 self.password,
@@ -487,23 +489,23 @@ class TestDeleteDatabaseItems(unittest.TestCase):
     def test_delete_database_no_context_region(self):
         context = {}
         self.assertRaisesRegexp(AssertionError, 'Region not supplied in '
-                                'context', database.tasks.delete_database,
+                                'context', dbtasks.delete_database,
                                 context)
 
     def test_delete_database_no_context_resource(self):
         context = {'region': 'ORD'}
         self.assertRaisesRegexp(AssertionError, 'Resource not supplied in '
-                                'context', database.tasks.delete_database,
+                                'context', dbtasks.delete_database,
                                 context)
 
     def test_delete_database_no_resource_index(self):
         context = {'region': 'ORD', 'resource': {}}
         self.assertRaisesRegexp(AssertionError, 'Resource does not have an '
-                                'index', database.tasks.delete_database,
+                                'index', dbtasks.delete_database,
                                 context)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
-    @mock.patch.object(database.Provider, 'connect')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(provider.Provider, 'connect')
     def test_delete_database_no_api_no_instance_host_instance(self,
                                                               mock_connect,
                                                               mock_postback):
@@ -528,13 +530,13 @@ class TestDeleteDatabaseItems(unittest.TestCase):
             }
         }
 
-        results = database.tasks.delete_database(context)
+        results = dbtasks.delete_database(context)
 
         self.assertEqual(results, None)
         mock_connect.assert_called_with(context, 'ORD')
         mock_postback.assert_called_with('123', expected)
 
-    @mock.patch.object(database.tasks.delete_database, 'retry')
+    @mock.patch.object(dbtasks.delete_database, 'retry')
     def test_delete_database_api_get_exception(self, mock_retry):
         context = {
             'region': 'ORD',
@@ -555,7 +557,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
             side_effect=mock_exception)
         mock_retry.side_effect = AssertionError('retry')
         self.assertRaisesRegexp(AssertionError, 'retry',
-                                database.tasks.delete_database, context, api)
+                                dbtasks.delete_database, context, api)
 
         mock_retry.assert_called_with(
             exc=mock_exception)
@@ -586,7 +588,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
             }
         }
 
-        results = database.tasks.delete_database(context, api)
+        results = dbtasks.delete_database(context, api)
 
         self.assertEqual(results, expected)
 
@@ -612,7 +614,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
 
         self.assertRaisesRegexp(exceptions.CheckmateException, 'Waiting on '
                                 'instance to be out of BUILD status',
-                                database.tasks.delete_database, context, api)
+                                dbtasks.delete_database, context, api)
 
     def test_delete_database_api_delete_exception_retry(self):
         context = {
@@ -637,13 +639,13 @@ class TestDeleteDatabaseItems(unittest.TestCase):
         api.get = mock.Mock(return_value=instance)
 
         try:
-            database.tasks.delete_database(context, api)
+            dbtasks.delete_database(context, api)
         except pyrax.exceptions.ClientException as exc:
             self.assertEqual(exc.code, '400')
 
         instance.delete_database.assert_called_with('test_name')
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_delete_database_success(self, mock_postback):
         context = {
             'region': 'ORD',
@@ -666,11 +668,11 @@ class TestDeleteDatabaseItems(unittest.TestCase):
         api.get = mock.Mock(return_value=instance)
         expected = {'resources': {'1': {'status': 'DELETED'}}}
 
-        results = database.tasks.delete_database(context, api)
+        results = dbtasks.delete_database(context, api)
         self.assertEqual(expected, results)
         mock_postback.assert_called_with('123', expected)
 
-    @mock.patch.object(database.Provider, 'connect')
+    @mock.patch.object(provider.Provider, 'connect')
     def test_delete_user_no_api(self, mock_connect):
         context = {}
         instance_id = 12345
@@ -682,7 +684,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
         api.get = mock.Mock(return_value=instance)
         mock_connect.return_value = api
 
-        database.tasks.delete_user(context, instance_id, username, region)
+        dbtasks.delete_user(context, instance_id, username, region)
         mock_connect.assert_called_with(context, region)
 
     def test_delete_user_api_success(self):
@@ -695,7 +697,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
         api = mock.Mock()
         api.get = mock.Mock(return_value=instance)
 
-        database.tasks.delete_user(context, instance_id, username, region, api)
+        dbtasks.delete_user(context, instance_id, username, region, api)
         api.get.assert_called_with(instance_id)
         instance.delete_user.assert_called_with(username)
 
@@ -717,33 +719,33 @@ class TestDeleteInstanceTask(unittest.TestCase):
     def test_delete_instance_no_dep_id(self):
         self.context.pop('deployment_id')
         self.assertRaisesRegexp(AssertionError, 'No deployment id in context',
-                                database.tasks.delete_instance_task,
+                                dbtasks.delete_instance_task,
                                 self.context)
 
     def test_delete_instance_no_region(self):
         self.context.pop('region')
         self.assertRaisesRegexp(AssertionError, 'No region defined in context',
-                                database.tasks.delete_instance_task,
+                                dbtasks.delete_instance_task,
                                 self.context)
 
     def test_delete_instance_no_resource_key(self):
         self.context.pop('resource_key')
         self.assertRaisesRegexp(AssertionError, 'No resource key in context',
-                                database.tasks.delete_instance_task,
+                                dbtasks.delete_instance_task,
                                 self.context)
 
     def test_delete_instance_no_resource(self):
         self.context.pop('resource')
         self.assertRaisesRegexp(AssertionError, 'No resource defined in '
-                                'context', database.tasks.delete_instance_task,
+                                'context', dbtasks.delete_instance_task,
                                 self.context)
 
-    @mock.patch.object(database.tasks.LOG, 'info')
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.LOG, 'info')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_no_instance_id_no_hosts(self, mock_postback, mock_logger):
         self.context['resource']['instance']['id'] = None
         expected = {'resources': {'0': {'status': 'DELETED'}}}
-        results = database.tasks.delete_instance_task(self.context)
+        results = dbtasks.delete_instance_task(self.context)
         self.assertEqual(results, None)
         mock_logger.assert_called_with(('Instance ID is not available for '
                                         'Database server Instance, skipping '
@@ -752,7 +754,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_no_instance_id_with_hosts(self, mock_postback):
         self.context['resource']['instance']['id'] = None
         self.context['resource']['hosts'] = ['1', '2']
@@ -769,20 +771,20 @@ class TestDeleteInstanceTask(unittest.TestCase):
                 }
             }
         }
-        database.tasks.delete_instance_task(self.context)
+        dbtasks.delete_instance_task(self.context)
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_simulation_no_hosts(self, mock_postback):
         self.context['simulation'] = True
         expected = {'resources': {'0': {'status': 'DELETED'}}}
-        results = database.tasks.delete_instance_task(self.context)
+        results = dbtasks.delete_instance_task(self.context)
         self.assertEqual(results, expected)
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_simulation_with_hosts(self, mock_postback):
         self.context['simulation'] = True
         self.context['resource']['hosts'] = ['1', '2']
@@ -793,21 +795,21 @@ class TestDeleteInstanceTask(unittest.TestCase):
                 '2': {'status': 'DELETED', 'status-message': ''},
             }
         }
-        results = database.tasks.delete_instance_task(self.context)
+        results = dbtasks.delete_instance_task(self.context)
         self.assertEqual(results, expected)
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.LOG, 'info')
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
-    @mock.patch.object(database.Provider, 'connect')
+    @mock.patch.object(dbtasks.LOG, 'info')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(provider.Provider, 'connect')
     def test_no_api_no_hosts_success(self, mock_connect, mock_postback,
                                      mock_logger):
         api = mock.Mock()
         api.delete = mock.Mock()
         mock_connect.return_value = api
         expected = {'resources': {'0': {'status': 'DELETING'}}}
-        results = database.tasks.delete_instance_task(self.context)
+        results = dbtasks.delete_instance_task(self.context)
         self.assertEqual(results, expected)
         mock_connect.assert_called_with(self.context, self.context['region'])
         api.delete.assert_called_with(
@@ -816,16 +818,16 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
-    @mock.patch.object(database.tasks.delete_instance_task, 'retry')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.delete_instance_task, 'retry')
     def test_api_client_exception_400(self, mock_retry, mock_postback):
         api = mock.Mock()
         mock_exception = pyrax.exceptions.NotFound(code='400')
         api.delete = mock.MagicMock(side_effect=mock_exception)
-        database.tasks.delete_instance_task(self.context, api)
+        dbtasks.delete_instance_task(self.context, api)
         mock_retry.assert_called_with(exc=mock_exception)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_api_client_exception_404_no_hosts(self, mock_postback):
         api = mock.Mock()
         mock_exception = pyrax.exceptions.NotFound(code='404')
@@ -838,12 +840,12 @@ class TestDeleteInstanceTask(unittest.TestCase):
                 }
             }
         }
-        results = database.tasks.delete_instance_task(self.context, api)
+        results = dbtasks.delete_instance_task(self.context, api)
         self.assertEqual(results, expected)
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_api_client_exception_404_with_hosts(self, mock_postback):
         self.context['resource']['hosts'] = ['1', '2']
         api = mock.Mock()
@@ -856,18 +858,18 @@ class TestDeleteInstanceTask(unittest.TestCase):
                 '2': {'status': 'DELETED', 'status-message': ''},
             }
         }
-        results = database.tasks.delete_instance_task(self.context, api)
+        results = dbtasks.delete_instance_task(self.context, api)
         self.assertEqual(results, expected)
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
-    @mock.patch.object(database.tasks.delete_instance_task, 'retry')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.delete_instance_task, 'retry')
     def test_api_client_exception_retry(self, mock_retry, mock_postback):
         api = mock.Mock()
         mock_exception = Exception('retry')
         api.delete = mock.MagicMock(side_effect=mock_exception)
-        database.tasks.delete_instance_task(self.context, api)
+        dbtasks.delete_instance_task(self.context, api)
         mock_retry.assert_called_with(exc=mock_exception)
 
 
@@ -888,23 +890,23 @@ class TestWaitOnDelInstance(unittest.TestCase):
     def test_region_assert(self):
         self.context.pop('region')
         self.assertRaisesRegexp(AssertionError, 'No region defined in context',
-                                database.tasks.wait_on_del_instance,
+                                dbtasks.wait_on_del_instance,
                                 self.context)
 
     def test_resource_key_assert(self):
         self.context.pop('resource_key')
         self.assertRaisesRegexp(AssertionError, 'No resource key in context',
-                                database.tasks.wait_on_del_instance,
+                                dbtasks.wait_on_del_instance,
                                 self.context)
 
     def test_resource_assert(self):
         self.context.pop('resource')
         self.assertRaisesRegexp(AssertionError, 'No resource defined in '
-                                'context', database.tasks.wait_on_del_instance,
+                                'context', dbtasks.wait_on_del_instance,
                                 self.context)
 
-    @mock.patch.object(database.tasks.LOG, 'info')
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.LOG, 'info')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_no_instance_id(self, mock_postback, mock_logger):
         self.context['resource']['instance']['id'] = None
         message = ('Instance ID is not available for Database, skipping '
@@ -918,7 +920,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
                 }
             }
         }
-        results = database.tasks.wait_on_del_instance(self.context)
+        results = dbtasks.wait_on_del_instance(self.context)
         self.assertEqual(results, None)
         mock_logger.assert_called_with('Instance ID is not available for '
                                        'Database, skipping '
@@ -927,8 +929,8 @@ class TestWaitOnDelInstance(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.LOG, 'info')
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.LOG, 'info')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_simulation(self, mock_postback, mock_logger):
         self.context['simulation'] = True
         message = ('Instance ID is not available for Database, skipping '
@@ -942,7 +944,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
                 }
             }
         }
-        results = database.tasks.wait_on_del_instance(self.context)
+        results = dbtasks.wait_on_del_instance(self.context)
         self.assertEqual(results, None)
         mock_logger.assert_called_with('Instance ID is not available for '
                                        'Database, skipping '
@@ -951,8 +953,8 @@ class TestWaitOnDelInstance(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
-    @mock.patch.object(database.Provider, 'connect')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(provider.Provider, 'connect')
     def test_no_api_get_client_exception_no_hosts(self, mock_connect,
                                                   mock_postback):
         api = mock.Mock()
@@ -967,13 +969,13 @@ class TestWaitOnDelInstance(unittest.TestCase):
                 }
             }
         }
-        results = database.tasks.wait_on_del_instance(self.context)
+        results = dbtasks.wait_on_del_instance(self.context)
         self.assertEqual(results, expected)
         mock_connect.assert_called_with(self.context, self.context['region'])
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_api_instance_status_deleted_with_hosts(self, mock_res_postback):
         api = mock.Mock()
         instance = mock.Mock()
@@ -996,14 +998,14 @@ class TestWaitOnDelInstance(unittest.TestCase):
                 }
             }
         }
-        results = database.tasks.wait_on_del_instance(self.context, api=api)
+        results = dbtasks.wait_on_del_instance(self.context, api=api)
         self.assertEqual(results, expected)
         api.get.assert_called_with(self.context['resource']['instance']['id'])
         mock_res_postback.assert_called_with(self.context['deployment_id'],
                                              expected)
 
-    @mock.patch.object(database.tasks.wait_on_del_instance, 'retry')
-    @mock.patch.object(database.tasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.wait_on_del_instance, 'retry')
+    @mock.patch.object(dbtasks.resource_postback, 'delay')
     def test_api_task_retry(self, mock_postback, mock_retry):
         api = mock.Mock()
         instance = mock.Mock()
@@ -1018,7 +1020,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
                 }
             }
         }
-        database.tasks.wait_on_del_instance(self.context, api)
+        dbtasks.wait_on_del_instance(self.context, api)
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
         assert mock_retry.called
@@ -1037,7 +1039,7 @@ class TestCreateDatabase(unittest.TestCase):
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     def test_create_database_sim_no_instance_id(self, mock_connect,
                                                 mock_postback,
                                                 mock_reset_failed_task):
@@ -1064,14 +1066,13 @@ class TestCreateDatabase(unittest.TestCase):
             }
         }
 
-        results = database.tasks.create_database(self.context, self.name,
-                                                 self.region,
-                                                 instance_id=self.instance_id)
+        results = dbtasks.create_database(self.context, self.name, self.region,
+                                          instance_id=self.instance_id)
         self.assertEqual(expected, results)
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     def test_create_database_sim_instance_id(self, mock_connect,
                                              mock_postback,
                                              mock_reset_failed_task):
@@ -1098,16 +1099,15 @@ class TestCreateDatabase(unittest.TestCase):
             }
         }
 
-        results = database.tasks.create_database(self.context, self.name,
-                                                 self.region,
-                                                 instance_id=self.instance_id)
+        results = dbtasks.create_database(self.context, self.name, self.region,
+                                          instance_id=self.instance_id)
         self.assertEqual(expected, results)
 
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.manager.Manager, 'wait_on_build')
+    @mock.patch.object(manager.Manager, 'wait_on_build')
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.manager.Manager, 'create_instance')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(manager.Manager, 'create_instance')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     def test_create_databaseno_api_no_iid_no_attrs(self, mock_connect,
                                                    mock_create,
                                                    mock_reset, mock_wob,
@@ -1137,8 +1137,7 @@ class TestCreateDatabase(unittest.TestCase):
         mock_create.return_value = instance
         mock_wob.return_value = {'status': 'ACTIVE'}
 
-        results = database.tasks.create_database(self.context, self.name,
-                                                 self.region)
+        results = dbtasks.create_database(self.context, self.name, self.region)
 
         mock_connect.assert_called_once_with(self.context)
 
@@ -1147,21 +1146,21 @@ class TestCreateDatabase(unittest.TestCase):
             [{'name': self.name}],
             self.context,
             mock_connect.return_value,
-            database.tasks.create_database.partial
+            dbtasks.create_database.partial
         )
 
         mock_wob.assert_called_once_with(
             '12345', mock_connect.return_value,
-            database.tasks.create_database.partial
+            dbtasks.create_database.partial
         )
         self.assertEqual(expected, results)
 
     # pylint: disable=R0913
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.manager.Manager, 'wait_on_build')
-    @mock.patch.object(database.manager.Manager, 'create_instance')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(manager.Manager, 'wait_on_build')
+    @mock.patch.object(manager.Manager, 'create_instance')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     def test_create_database_no_api_no_iid_no_attrs_charset(self, mock_connect,
                                                             mock_create,
                                                             mock_wob,
@@ -1193,9 +1192,8 @@ class TestCreateDatabase(unittest.TestCase):
         mock_create.return_value = instance
         mock_wob.return_value = {'status': 'ACTIVE'}
 
-        results = database.tasks.create_database(self.context, self.name,
-                                                 self.region,
-                                                 character_set='latin')
+        results = dbtasks.create_database(self.context, self.name, self.region,
+                                          character_set='latin')
 
         mock_connect.assert_called_once_with(self.context)
 
@@ -1203,20 +1201,20 @@ class TestCreateDatabase(unittest.TestCase):
                                        [{'name': self.name,
                                          'character_set': 'latin'}],
                                        self.context, mock_connect.return_value,
-                                       database.tasks.create_database.partial)
+                                       dbtasks.create_database.partial)
 
         mock_wob.assert_called_once_with(
             '12345', mock_connect.return_value,
-            database.tasks.create_database.partial
+            dbtasks.create_database.partial
         )
         self.assertEqual(expected, results)
 
     # pylint: disable=R0913
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.manager.Manager, 'wait_on_build')
-    @mock.patch.object(database.manager.Manager, 'create_instance')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(manager.Manager, 'wait_on_build')
+    @mock.patch.object(manager.Manager, 'create_instance')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     def test_create_database_no_api_no_iid_no_attrs_collate(self, mock_connect,
                                                             mock_create,
                                                             mock_wob,
@@ -1248,9 +1246,8 @@ class TestCreateDatabase(unittest.TestCase):
         mock_create.return_value = instance
         mock_wob.return_value = {'status': 'ACTIVE'}
 
-        results = database.tasks.create_database(self.context, self.name,
-                                                 self.region,
-                                                 character_set='latin')
+        results = dbtasks.create_database(self.context, self.name, self.region,
+                                          character_set='latin')
 
         mock_connect.assert_called_once_with(self.context)
 
@@ -1258,20 +1255,20 @@ class TestCreateDatabase(unittest.TestCase):
                                        [{'name': self.name,
                                          'character_set': 'latin'}],
                                        self.context, mock_connect.return_value,
-                                       database.tasks.create_database.partial)
+                                       dbtasks.create_database.partial)
 
         mock_wob.assert_called_once_with(
             '12345', mock_connect.return_value,
-            database.tasks.create_database.partial
+            dbtasks.create_database.partial
         )
         self.assertEqual(expected, results)
 
     # pylint: disable=R0913
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.manager.Manager, 'wait_on_build')
-    @mock.patch.object(database.manager.Manager, 'create_instance')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(manager.Manager, 'wait_on_build')
+    @mock.patch.object(manager.Manager, 'create_instance')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     def test_create_database_no_api_no_iid_with_attrs(self, mock_connect,
                                                       mock_create, mock_wob,
                                                       mock_postback,
@@ -1301,27 +1298,26 @@ class TestCreateDatabase(unittest.TestCase):
         mock_create.return_value = instance
         mock_wob.return_value = {'status': 'ACTIVE'}
 
-        results = database.tasks.create_database(self.context, self.name,
-                                                 self.region,
-                                                 instance_attributes=attrs)
+        results = dbtasks.create_database(self.context, self.name, self.region,
+                                          instance_attributes=attrs)
 
         mock_connect.assert_called_once_with(self.context)
 
         mock_create.assert_called_with(self.name+'_instance', '3', 5,
                                        [{'name': self.name}], self.context,
                                        mock_connect.return_value,
-                                       database.tasks.create_database.partial)
+                                       dbtasks.create_database.partial)
 
         mock_wob.assert_called_once_with(
             '12345', mock_connect.return_value,
-            database.tasks.create_database.partial
+            dbtasks.create_database.partial
         )
         self.assertEqual(expected, results)
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.tasks.create_database, 'retry')
+    @mock.patch.object(dbtasks.create_database, 'retry')
     @mock.patch.object(tasks, 'postback')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     def test_instance_not_active_retry(self, mock_connect, mock_postback,
                                        mock_retry, mock_reset):
         api = mock.Mock()
@@ -1337,15 +1333,15 @@ class TestCreateDatabase(unittest.TestCase):
                 }
             }
         }
-        database.tasks.create_database(self.context, self.name, self.region,
-                                       instance_id=self.instance_id, api=api)
+        dbtasks.create_database(self.context, self.name, self.region,
+                                instance_id=self.instance_id, api=api)
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
         assert mock_retry.called
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
-    @mock.patch.object(database.manager.LOG, 'info')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
+    @mock.patch.object(manager.LOG, 'info')
     @mock.patch.object(tasks, 'postback')
     def test_success_char_set(self, mock_postback, mock_logger,
                               mock_connect, mock_reset):
@@ -1381,11 +1377,10 @@ class TestCreateDatabase(unittest.TestCase):
                 }
             }
         }
-        results = database.tasks.create_database(self.context, self.name,
-                                                 self.region,
-                                                 character_set='latin',
-                                                 instance_id=self.instance_id,
-                                                 api=api)
+        results = dbtasks.create_database(self.context, self.name, self.region,
+                                          character_set='latin',
+                                          instance_id=self.instance_id,
+                                          api=api)
         self.assertEqual(results, expected)
         instance.create_database.assert_called_with(self.name, 'latin', None)
         mock_logger.assert_called_with('Created database %s on instance %s',
@@ -1394,8 +1389,8 @@ class TestCreateDatabase(unittest.TestCase):
                                          expected)
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.manager.LOG, 'exception')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(manager.LOG, 'exception')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     @mock.patch.object(tasks, 'postback')
     def test_client_exception_400(self, mock_postback, mock_connect,
                                   mock_logger, mock_reset):
@@ -1407,14 +1402,14 @@ class TestCreateDatabase(unittest.TestCase):
         api.get = mock.Mock(return_value=instance)
         mock_connect.return_value = api
         self.assertRaises(pyrax.exceptions.ClientException,
-                          database.tasks.create_database, self.context,
+                          dbtasks.create_database, self.context,
                           self.name, self.region, instance_id=self.instance_id,
                           api=api)
         mock_logger.assert_called_with(mock_exception)
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.manager.LOG, 'exception')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(manager.LOG, 'exception')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     @mock.patch.object(tasks, 'postback')
     def test_client_exception_not_400(self, mock_postback,
                                       mock_connect,
@@ -1427,13 +1422,13 @@ class TestCreateDatabase(unittest.TestCase):
         api.get = mock.Mock(return_value=instance)
         mock_connect.return_value = api
         self.assertRaises(exceptions.CheckmateException,
-                          database.tasks.create_database, self.context,
+                          dbtasks.create_database, self.context,
                           self.name, self.region, instance_id=self.instance_id,
                           api=api)
         mock_logger.assert_called_with(mock_exception)
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.tasks.create_database.provider, 'connect')
+    @mock.patch.object(dbtasks.create_database.provider, 'connect')
     @mock.patch.object(tasks, 'postback')
     def test_exception_on_create_database(self, mock_postback, mock_connect,
                                           mock_reset):
@@ -1445,14 +1440,14 @@ class TestCreateDatabase(unittest.TestCase):
         api.get = mock.Mock(return_value=instance)
         mock_connect.return_value = api
         self.assertRaises(exceptions.CheckmateException,
-                          database.tasks.create_database, self.context,
+                          dbtasks.create_database, self.context,
                           self.name, self.region, instance_id=self.instance_id,
                           api=api)
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
-    @mock.patch.object(database.manager.LOG, 'info')
-    @mock.patch.object(database.manager.Manager, 'wait_on_build')
-    @mock.patch.object(database.manager.Manager, 'create_instance')
+    @mock.patch.object(manager.LOG, 'info')
+    @mock.patch.object(manager.Manager, 'wait_on_build')
+    @mock.patch.object(manager.Manager, 'create_instance')
     def test_no_instance_id_wob_resumable(self, mock_create, mock_wob,
                                           mock_logger, mock_reset):
         data = {'status': 'BUILD'}
@@ -1461,7 +1456,7 @@ class TestCreateDatabase(unittest.TestCase):
         mock_wob.side_effect = exceptions.CheckmateException(
             '', options=exceptions.CAN_RESUME)
         self.assertRaisesRegexp(Exception, 'testing',
-                                database.tasks.create_database, self.context,
+                                dbtasks.create_database, self.context,
                                 self.name, self.region, api='api')
 
 
