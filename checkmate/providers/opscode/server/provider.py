@@ -164,6 +164,11 @@ class Provider(base.BaseOpscodeProvider):
                     service_name=service_name, default=OMNIBUS_DEFAULT)
 
         kwargs = self.map_file.get_component_run_list(component)
+
+        map_with_context = self.map_file.get_map_with_context(
+            deployment=deployment, resource=resource, component=component)
+        attributes = map_with_context.get_attributes(resource['component'],
+                                                     deployment)
         resource = deployment['resources'][key]
         host_idx = resource.get('hosted_on')
         if host_idx:
@@ -191,6 +196,7 @@ class Provider(base.BaseOpscodeProvider):
                 defines=dict(resource=key, provider=self.key,
                              task_tags=['final']),
                 properties={'estimated_duration': 100},
+                attributes=attributes,
                 **kwargs
             )
 

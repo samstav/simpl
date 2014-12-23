@@ -119,8 +119,6 @@ class Manager(object):
                       default_attributes=None, normal_attributes=None,
                       override_attributes=None, environment=None):
         """Create Node on CHhef Server."""
-        kitchen = ChefKitchen(deployment_id)
-        knife = kitchen._knife
         data = {
             'chef_type': 'node',
             'json_class': 'Chef::Node',
@@ -140,6 +138,10 @@ class Manager(object):
             data['override'] = override_attributes
 
         LOG.debug("Writing node '%s'", name)
+        # TODO(zns): bypassing node creation - causes 403 in bootstrap
+        return
+        kitchen = ChefKitchen(deployment_id)
+        knife = kitchen._knife
         with tempfile.NamedTemporaryFile(suffix='.js') as handle:
             json.dump(data, handle)
             handle.flush()
@@ -305,7 +307,8 @@ class Manager(object):
     def bootstrap(context, deployment_id, name, ip, username='root',
                   password=None, port=22, identity_file=None,
                   run_list=None, distro='chef-full', bootstrap_version=None,
-                  environment=None, simulation=False, callback=None):
+                  environment=None, attributes=None,
+                  simulation=False, callback=None):
         """Bootstrap a node with knife."""
         kitchen = ChefKitchen(deployment_id)
         knife = kitchen._knife
@@ -339,6 +342,8 @@ class Manager(object):
         results = {'status': 'BUILD'}
         if callable(callback):
             callback(results)
+        if attributes:
+            params.extend(['-j', json.dumps(attributes)])
         knife.run_command(params)
         results = {'status': "ACTIVE"}
         return results

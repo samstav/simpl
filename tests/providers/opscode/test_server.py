@@ -421,7 +421,8 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                         'recipes': ['mysql::server'],
                         'password': 'floop',
                         'bootstrap_version': '11.16.4-1',
-                        'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                        'identity_file': '/var/tmp/DEP-ID-1000/private.pem',
+                        'attributes': None,
                     },
                     'result': None,
                     'resource': key,
@@ -1309,7 +1310,8 @@ interfaces/mysql/database_name
                             'recipes': ['something', 'something::role'],
                             'identity_file': '/var/tmp/DEP-ID-1000/private.pem',
                             'environment': 'DEP-ID-1000',
-                            'password': 'shecret'
+                            'password': 'shecret',
+                            'attributes':  {'widgets': 10, 'connections': 10},
                         },
                         'result': None
                     },
@@ -1356,7 +1358,9 @@ interfaces/mysql/database_name
                             'recipes': ['bar'],
                             'password': 'shecret',
                             'bootstrap_version': '11.16.4-1',
-                            'identity_file': '/var/tmp/DEP-ID-1000/private.pem'
+                            'identity_file':
+                            '/var/tmp/DEP-ID-1000/private.pem',
+                            'attributes': {},
                         },
                         'result': None
                     },
