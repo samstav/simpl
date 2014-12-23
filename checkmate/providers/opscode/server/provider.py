@@ -387,7 +387,6 @@ class Provider(base.BaseOpscodeProvider):
                                           provider=self.key,
                                           tag='client-ready')
         collect_tag = "reconfig"
-        ready_tag = "reconfig-options-ready"
 
         if existing:
             reconfigure_task = existing[0]

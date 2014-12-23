@@ -475,7 +475,8 @@ class Provider(RackspaceComputeProviderBase):
                     "touch /tmp/checkmate-complete",
                     "root",
                 ],
-                password=swops.PathAttrib('resources/%s/instance/password' % key),
+                password=swops.PathAttrib(
+                    'resources/%s/instance/password' % key),
                 private_key=deployment.settings().get('keys', {}).get(
                     'deployment', {}).get('private_key'),
                 properties={'estimated_duration': 10},

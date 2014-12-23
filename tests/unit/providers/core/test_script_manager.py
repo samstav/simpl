@@ -24,6 +24,7 @@ from checkmate.providers.core.script import Manager
 
 
 class TestCreateResource(unittest.TestCase):
+
     """Class for testing Script.Manager."""
 
     def setUp(self):
