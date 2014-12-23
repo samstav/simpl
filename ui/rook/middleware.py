@@ -77,6 +77,17 @@ class BrowserMiddleware(object):
         - unauthenticated to resource route: render root UI so client can auth
     """
 
+    supported = [
+        'html',
+        'gif',
+        'ico',
+        'jpeg',
+        'jpg',
+        'css',
+        'js',
+        'yml',
+    ]
+
     def __init__(self, nextapp, config, proxy_endpoints=None,
                  with_simulator=False, with_admin=False):
         LOG.info("Loading Rook API")
@@ -123,8 +134,7 @@ class BrowserMiddleware(object):
                           environ['REQUEST_METHOD'], path, extension)
                 return self.nextapp(environ, handler)
 
-            supported = ['html', 'gif', 'ico', 'jpeg', 'jpg', 'css', 'js']
-            if (extension in supported or
+            if (extension in self.supported or
                     environ['PATH_INFO'].startswith('/static/')):
                 LOG.debug("Rook handling %s %s with extension %s",
                           environ['REQUEST_METHOD'], path, extension)
@@ -202,10 +212,13 @@ def static(path=None):
             mimetype = 'image/jpeg'
         elif path.endswith('.ico'):
             mimetype = 'image/x-icon'
+        elif path.endswith('.yml'):
+            mimetype = 'application/x-yaml'
     # Check if path exists and return it, otherwise serve index.html
     if path and os.path.exists(os.path.join(root, path)):
         return bottle.static_file(path, root=root, mimetype=mimetype)
     else:
+        LOG.debug("Returning index.html because '%s' was not found", path)
         return bottle.static_file('/index.html', root=root, mimetype=mimetype)
 
 
