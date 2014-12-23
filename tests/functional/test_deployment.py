@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Deployment Planning."""
+
 import unittest
 
 from checkmate import deployment as cmdep
@@ -26,7 +27,9 @@ from checkmate import utils
 
 
 class TestDeploymentPlanning(unittest.TestCase):
+
     """Tests the Plan() class and its deployment planning logic."""
+
     def test_find_components_positive(self):
         """Test the Plan() class can find components."""
         deployment = cmdep.Deployment(utils.yaml_to_dict("""
