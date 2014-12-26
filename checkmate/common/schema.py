@@ -27,6 +27,32 @@ from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
 
+RESOURCE_TYPES = [
+    'application',
+    'cache',
+    'compute',
+    'database',
+    'directory',
+    'dns',
+    'object-store',
+    'host',
+    'load-balancer',
+    'mail-relay',
+    'web',
+    'monitoring',
+    'storage',
+
+    # TODO(zns): All below to be removed (including testing ones)
+    'wordpress',
+    'php5',
+    'endpoint',  # not sure what this was used for
+
+    # for testing
+    'widget',
+    'gadget',
+]
+
+
 RESOURCE_METADATA = yaml_to_dict("""
     application:
       label: Application
@@ -195,26 +221,6 @@ INTERFACE_SCHEMA = yaml_to_dict("""
     """)
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
-
-RESOURCE_TYPES = [
-    'compute',
-    'database',
-    'object-store',
-    'wordpress',
-    'php5',
-    'load-balancer',
-    'endpoint',
-    'host',
-    'application',
-    'mail-relay',
-    'web',
-    'cache',
-    'monitoring',
-    'storage',
-    'dns',
-    'widget',
-    'gadget',  # last two for testing
-]
 
 BLUEPRINT_SCHEMA = [
     'id', 'name', 'services', 'options', 'resources', 'meta-data',
