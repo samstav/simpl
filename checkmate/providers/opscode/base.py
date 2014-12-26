@@ -351,6 +351,9 @@ class BaseOpscodeProvider(base.ProviderBase):
         try:
             for doc in yaml.safe_load_all(map_file.parsed):
                 if 'id' in doc:
+                    for key in doc.keys():
+                        if key not in schema.COMPONENT_STRICT_SCHEMA_DICT:
+                            del doc[key]
                     resource_type = doc.get('is', 'application')
                     if resource_type not in catalog:
                         catalog[resource_type] = {}

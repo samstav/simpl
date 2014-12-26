@@ -366,28 +366,37 @@ def schema_from_list(keys_list):
 
 
 ENDPOINTS_SCHEMA = [Shorthand()]
+COMPONENT_STRICT_SCHEMA_DICT = {
+    'id': All(str, Length(min=3, max=32)),
+    'name': str,
+    'is': Any(*RESOURCE_TYPES),
+    'provider': str,
+    'options': DictOf(schema_from_list(OPTION_SCHEMA)),
+    'requires': ENDPOINTS_SCHEMA,
+    'provides': ENDPOINTS_SCHEMA,
+    'uses': ENDPOINTS_SCHEMA,
+    'summary': str,
+    'display_name': str,
+    'version': str,
+    'roles': [str],
+    'properties': dict,
+}
 COMPONENT_SCHEMA = All(
-    Schema({
-        'id': All(str, Length(min=3, max=32)),
-        'name': str,
-        'is': Any(*RESOURCE_TYPES),
-        'type': Any(*RESOURCE_TYPES),
-        'resource_type': Any(*RESOURCE_TYPES),
-        'provider': str,
-        'options': DictOf(schema_from_list(OPTION_SCHEMA)),
-        'requires': ENDPOINTS_SCHEMA,
-        'provides': ENDPOINTS_SCHEMA,
-        'uses': ENDPOINTS_SCHEMA,
-        'summary': str,
-        'version': str,
-        'role': str,
-        'roles': [str],
-        'source_name': str,
-        'properties': dict,
-        Extra: object,  # To support provider-specific values
-    }),
+    Schema(COMPONENT_STRICT_SCHEMA_DICT),
     RequireOne(['id', 'name'])
 )
+
+
+# Loose schema for compatibility and loose validation
+COMPONENT_LOOSE_SCHEMA_DICT = COMPONENT_STRICT_SCHEMA_DICT.copy()
+COMPONENT_LOOSE_SCHEMA_DICT.update({
+    'role': str,
+    'source_name': str,
+    'type': Any(*RESOURCE_TYPES),
+    'resource_type': Any(*RESOURCE_TYPES),
+    Extra: object,  # To support provider-specific values
+})
+COMPONENT_LOOSE_SCHEMA = Schema(COMPONENT_LOOSE_SCHEMA_DICT)
 
 WORKFLOW_SCHEMA = [
     'id', 'attributes', 'last_task', 'task_tree', 'workflow', 'success',
