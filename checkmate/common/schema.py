@@ -382,6 +382,7 @@ COMPONENT_SCHEMA = All(
         'roles': [str],
         'source_name': str,
         'properties': dict,
+        Extra: object,  # To support provider-specific values
     }),
     RequireOne(['id', 'name'])
 )
