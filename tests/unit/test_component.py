@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Component class."""
+
 import unittest
 
 from checkmate import component as cmcomp
@@ -142,6 +143,21 @@ class TestComponent(unittest.TestCase):
                       interface: linux
             """)
         self.assertDictEqual(comp.requires, expected)
+
+    def test_input_validation(self):
+        """Check that components can test option constraints."""
+        data = utils.yaml_to_dict("""
+                id: component1
+                options:
+                  foo:
+                    type: int
+                    constraints:
+                    - greater-than: 2
+            """)
+        comp = cmcomp.Component(data)
+        self.assertTrue(comp.check_input(3, 'foo'))
+        with self.assertRaises(cmexc.CheckmateValidationException):
+            comp.check_input(1, 'foo')
 
 
 if __name__ == '__main__':

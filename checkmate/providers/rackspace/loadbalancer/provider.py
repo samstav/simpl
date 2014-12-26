@@ -112,7 +112,8 @@ class Provider(rsbase.RackspaceProviderBase):
             raise exceptions.CheckmateException(
                 error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
         number_of_resources = 1
-        interface = utils.read_path(deployment.get('blueprint') or {},
+        interface = utils.read_path(
+            deployment.get('blueprint') or {},
             'services/%s/component/interface' % service) or 'http'
         protocol = deployment.get_setting("protocol",
                                           resource_type=resource_type,
@@ -589,14 +590,7 @@ class Provider(rsbase.RackspaceProviderBase):
             comp = comp[0]  # there should be only one
             options = comp.get('options', {})
             protocol_option = options.get("protocol", {})
-            protocols = protocol_option.get("choice", [])
-            if interface not in protocols:
-                error_message = ("'%s' is an invalid relation interface for "
-                                 "provider '%s'. Valid options are: %s"
-                                 % (interface, self.key, protocols))
-                raise exceptions.CheckmateException(
-                    error_message,
-                    friendly_message=exceptions.BLUEPRINT_ERROR)
+            comp.check_input(interface, 'protocol', option=protocol_option)
 
         # Get all tasks we need to precede the LB Add Node task
         finals = wfspec.find_task_specs(resource=relation['target'],

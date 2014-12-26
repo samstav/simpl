@@ -22,9 +22,13 @@ and so on.
 import copy
 import logging
 
+from checkmate import constraints
 from checkmate.classes import ExtensibleDict
+from checkmate import functions
+from checkmate import inputs
 from checkmate.common import schema
 from checkmate.exceptions import CheckmateValidationException
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -54,6 +58,38 @@ class Component(ExtensibleDict):
             provider = self._provider.key
         return "<%s id='%s' provider='%s'>" % (self.__class__.__name__,
                                                self.get('id'), provider)
+
+    def check_input(self, value, option_name, **kwargs):
+        """Check if the value of an option passes constraints."""
+        options = self.get('options') or {}
+        option = options.get(option_name) or kwargs.get('option') or {}
+        option_constraints = option.get('constraints')
+        if option_constraints:
+            # Handle special defaults
+            if utils.is_evaluable(value):
+                value = utils.evaluate(value[1:])
+
+            if value is None:
+                return True  # don't validate null inputs
+
+            for entry in option_constraints:
+                parsed = functions.parse(
+                    entry,
+                    options=kwargs.get('options'),
+                    services=kwargs.get('services'),
+                    resources=kwargs.get('resources'),
+                    inputs=kwargs.get('inputs'))
+                constraint = constraints.Constraint.from_constraint(parsed)
+                if not constraint.test(inputs.Input(value)):
+                    msg = ("The input for option '%s' did not pass "
+                           "validation. The value was '%s'. The "
+                           "validation rule was %s" %
+                           (option_name,
+                            value if option.get('type') != 'password'
+                            else '*******',
+                            constraint.message))
+                    raise CheckmateValidationException(msg)
+        return True
 
     @classmethod
     def inspect(cls, obj):

@@ -392,7 +392,6 @@ COMPONENT_SCHEMA = All(
     RequireOne(['id', 'name'])
 )
 
-
 # Loose schema for compatibility and loose validation
 COMPONENT_LOOSE_SCHEMA_DICT = COMPONENT_STRICT_SCHEMA_DICT.copy()
 COMPONENT_LOOSE_SCHEMA_DICT.update({
