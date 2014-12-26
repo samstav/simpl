@@ -155,6 +155,19 @@ RESOURCE_METADATA = yaml_to_dict("""
     """)
 
 INTERFACE_SCHEMA = yaml_to_dict("""
+      bar:
+        description: for testing
+      dns_udp:
+      dns_tcp:
+      foo:
+        description: for testing
+      ftp:
+      gluster:
+      http:
+        is: url
+        constraint:
+        - protocol: [http, https]
+      https:
       host:
          options:
            id:
@@ -178,6 +191,25 @@ INTERFACE_SCHEMA = yaml_to_dict("""
            password:
              type: string
              required: false
+      imaps:
+      imapv2:
+      imapv3:
+      imapv4:
+      ldap:
+      ldaps:
+      linux:
+        description: ssh or shell interface to linux
+        options:
+          protocol:
+            default: shell
+            type: string
+            options:
+            - shell
+            - ssh
+      # community cares about this. The software is memcached, but I speak
+      # memcache
+      memcache:
+      mongodb:
       mysql:
         options:
           username:
@@ -197,10 +229,30 @@ INTERFACE_SCHEMA = yaml_to_dict("""
             type: string
             required: false
       mssql:
-      http:
-        is: url
-        constraint:
-        - protocol: [http, https]
+      new-relic:
+      php:
+      pop3:
+      pop3s:
+      postgres:
+      proxy:
+        description: A proxy for other protocols; i.e. a load balancer or IDS
+        options:
+          protocol:
+             type: string
+             description: the protocol being proxied
+             required: true
+
+      rackspace-cloud-monitoring:
+      redis:
+      rdp:
+      sftp:
+      smtp:
+      ssh:
+      tcp_client_first:
+      tcp_stream:
+      tcp:
+      udp:
+      udp_stream:
       url:
         options:
           protocol:
@@ -232,32 +284,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
           password:
             type: string
             required: false
-      linux:
-        description: ssh or shell interface to linux
-        options:
-          protocol:
-            default: shell
-            type: string
-            options:
-            - shell
-            - ssh
-      windows:
-        description: wmi and shell interface to Windows
-        options:
-          protocol:
-            default: wmi
-            type: string
-            options:
-            - shell
-            - wmi
-      foo:
-        description: for testing
-      bar:
-        description: for testing
-      ftp:
-      sftp:
-      https:
-      ldap:
+      varnish:
       vip:
          options:
            ip:
@@ -268,63 +295,46 @@ INTERFACE_SCHEMA = yaml_to_dict("""
              required: false
            public_ip:
              type: string
-      ldaps:
-      smtp:
-      pop3:
-      pop3s:
-      imaps:
-      imapv2:
-      imapv3:
-      imapv4:
-      dns_udp:
-      dns_tcp:
-      rdp:
-      ssh:
-      udp:
-      udp_stream:
-      tcp_client_first:
-      tcp_stream:
-      tcp:
-      proxy:
-        description: A proxy for other protocols; i.e. a load balancer or IDS
+      windows:
+        description: wmi and shell interface to Windows
         options:
           protocol:
-             type: string
-             description: the protocol being proxied
-             required: true
-      new-relic:
-      rackspace-cloud-monitoring:
-      mongodb:
-      postgres:
-      varnish:
-      # community cares about this. The software is memcached, but I speak
-      # memcache
-      memcache:
-      redis:
-      gluster:
-      php:
+            default: wmi
+            type: string
+            options:
+            - shell
+            - wmi
     """)
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
 
 BLUEPRINT_SCHEMA = [
-    'id', 'name', 'services', 'options', 'resources', 'meta-data',
-    'description', 'display-outputs', 'documentation', 'version', 'source',
+    'id',
+    'name',
+    'services',
+    'options',
+    'resources',
+    'meta-data',
+    'description',
+    'display-outputs',
+    'documentation',
+    'version',
+    'source',
 ]
 
 OPTION_SCHEMA = [
-    'label',
-    'default',
-    'help',
-    'description',
-    'required',
-    'type',
     'constrains',
     'constraints',
+    'default',
+    'description',
     'display-hints',
     'display-output',
-    'unit',
+    'help',
+    'label',
+    'required',
     'source_field_name',
+    'type',
+    'unit',
 ]
 
 # Add parts used internally by providers, but not part of the public schema
@@ -334,16 +344,16 @@ OPTION_SCHEMA_INTERNAL = OPTION_SCHEMA + [
 ]
 
 OPTION_SCHEMA_URL = [
-    'url',
-    'protocol',
-    'scheme',
-    'netloc',
-    'hostname',
-    'port',
-    'path',
     'certificate',
-    'private_key',
+    'hostname',
     'intermediate_key',
+    'netloc',
+    'path',
+    'port',
+    'protocol',
+    'private_key',
+    'scheme',
+    'url',
 ]
 
 OPTION_TYPES = [
@@ -395,8 +405,14 @@ COMPONENT_LOOSE_SCHEMA_DICT.update({
 COMPONENT_LOOSE_SCHEMA = Schema(COMPONENT_LOOSE_SCHEMA_DICT)
 
 WORKFLOW_SCHEMA = [
-    'id', 'attributes', 'last_task', 'task_tree', 'workflow', 'success',
-    'wf_spec', 'tenantId',
+    'attributes',
+    'id',
+    'last_task',
+    'task_tree',
+    'tenantId',
+    'success',
+    'wf_spec',
+    'workflow',
 ]
 
 SCHEMA_MAPS = {
@@ -406,9 +422,10 @@ SCHEMA_MAPS = {
 
 def get_schema(name):
     """Return the schema that matches the supplied module name."""
-    if name in DOCS_MAP:
+    if name in SCHEMA_MAPS:
         return SCHEMA_MAPS[name]
     return {}
+
 
 def validate_catalog(obj):
     """Validate provider catalog."""
