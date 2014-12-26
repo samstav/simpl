@@ -613,7 +613,6 @@ class Planner(classes.ExtensibleDict):
             definition = service['component']
             LOG.debug("Identifying component '%s' for service '%s'",
                       definition, service_name)
-            component = self.identify_component(definition, context)
             try:
                 component = self.identify_component(definition, context)
             except Exception as exc:
