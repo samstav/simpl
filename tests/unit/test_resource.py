@@ -16,8 +16,9 @@
 
 """Tests for Resource class."""
 import json
-import mock
 import unittest
+
+import mock
 import yaml
 
 from checkmate import exceptions as cmexc

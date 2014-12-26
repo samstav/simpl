@@ -322,7 +322,7 @@ class BaseOpscodeProvider(base.ProviderBase):
         # TODO(zns): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
         results = base.ProviderBase.get_catalog(self, context,
-                                                  type_filter=type_filter)
+                                                type_filter=type_filter)
         if results:
             # We have a prexisting or injected catalog stored. Use it.
             return results

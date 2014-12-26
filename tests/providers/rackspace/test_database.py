@@ -16,9 +16,10 @@
 
 """Tests for Rackspace Database provider."""
 import logging
+import unittest
+
 import mock
 import mox
-import unittest
 
 from checkmate import deployment
 from checkmate.deployments import tasks

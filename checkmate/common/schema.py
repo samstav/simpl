@@ -300,6 +300,8 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       mongodb:
       postgres:
       varnish:
+      # community cares about this. The software is memcached, but I speak
+      # memcache
       memcache:
       redis:
       gluster:
