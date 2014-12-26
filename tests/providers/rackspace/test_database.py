@@ -617,7 +617,6 @@ environment:
       catalog:
         compute:
           linux_instance:
-            id: linux_instance
             is: compute
             provides:
             - compute: linux
