@@ -562,10 +562,8 @@ blueprint:
   services:
     db:
       component:
-        is: database
-        type: database
-        requires:
-        - host: 'linux'
+        name: database
+        interface: mysql
 environment:
   name: test
   providers:
@@ -590,8 +588,8 @@ environment:
             provides:
             - database: mysql
             requires:
-            - compute:  # FIXME: this syntax needs to be deprecated
-                resource_type: compute
+            - server:
+                type: compute
                 relation: host
                 interface: mysql
         lists:

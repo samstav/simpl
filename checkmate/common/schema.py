@@ -22,6 +22,16 @@ stabilized theschema.
 
 import logging
 
+from voluptuous import (
+    All,
+    Any,
+    Extra,
+    Invalid,
+    Length,
+    MultipleInvalid,
+    Schema,
+)
+
 from checkmate.inputs import Input
 from checkmate.utils import yaml_to_dict
 
@@ -51,6 +61,82 @@ RESOURCE_TYPES = [
     'widget',
     'gadget',
 ]
+
+
+class RequireOneInvalid(Invalid):
+
+    """At least one of a required set of keys is missing from a dict."""
+
+
+def RequireOne(keys):
+    """Validate that at least on of the supplied keys exists on a dict."""
+    def check(val):
+        if any(([k in val for k in keys])):
+            return
+        raise RequireOneInvalid("one of '%s' is required" % ', '.join(keys))
+    return check
+
+
+def DictOf(schema):
+    """Validate that all values in a dict adhere to the supplied schema."""
+    def check(val):
+        if not isinstance(val, dict):
+            raise Invalid('value not a dict')
+        errors = []
+        for value in val.itervalues():
+            try:
+                schema(value)
+            except MultipleInvalid as exc:
+                errors.extend(exc.errors)
+            except Invalid as exc:
+                errors.append(exc)
+        if errors:
+            raise MultipleInvalid(errors)
+
+    return check
+
+
+FUNCTION_SCHEMA = Schema({
+    'from': list,
+    'if': dict,
+})
+
+ENDPOINT_SCHEMA = Schema({
+    'type': Any(*RESOURCE_TYPES),
+    'interface': Any(str, dict),
+    'relation': Any('reference', 'host'),
+    'constraints': [dict],
+    'id': str
+})
+
+
+def check_schema(schema, value):
+    """Test that a value abides by a specific schema."""
+    try:
+        schema(value)
+        return True
+    except MultipleInvalid:
+        return False
+
+
+def Shorthand(msg=None):
+    """Coerce a shorthand connection point value to longhand."""
+    def check(entry):
+        if isinstance(entry, dict) and len(entry) == 1:
+            key, value = entry.items()[0]
+            if isinstance(value, dict):
+                if check_schema(ENDPOINT_SCHEMA, value):
+                    # index + endpoint (long form)
+                    return dict(id=key, **value)
+                elif check_schema(FUNCTION_SCHEMA, value):
+                    # shorthand with function
+                    return {'type': key, 'interface': value}
+                else:
+                    raise Invalid('not a valid endpoint')
+            # shorthand (type: interface)
+            return {'type': key, 'interface': value}
+        return entry
+    return check
 
 
 RESOURCE_METADATA = yaml_to_dict("""
@@ -227,20 +313,6 @@ BLUEPRINT_SCHEMA = [
     'description', 'display-outputs', 'documentation', 'version', 'source',
 ]
 
-COMPONENT_SCHEMA = [
-    'id',
-    'options',
-    'requires',
-    'provides',
-    'summary',
-    'version',
-    'is',
-    'role',
-    'roles',
-    'source_name',
-    'properties',
-]
-
 OPTION_SCHEMA = [
     'label',
     'default',
@@ -283,11 +355,50 @@ OPTION_TYPES = [
     'text',
 ]
 
+
+def schema_from_list(keys_list):
+    """Generates a schema from a list of keys."""
+    return Schema(dict((key, object) for key in keys_list))
+
+
+ENDPOINTS_SCHEMA = [Shorthand()]
+COMPONENT_SCHEMA = All(
+    Schema({
+        'id': All(str, Length(min=3, max=32)),
+        'name': str,
+        'is': Any(*RESOURCE_TYPES),
+        'type': Any(*RESOURCE_TYPES),
+        'resource_type': Any(*RESOURCE_TYPES),
+        'provider': str,
+        'options': DictOf(schema_from_list(OPTION_SCHEMA)),
+        'requires': ENDPOINTS_SCHEMA,
+        'provides': ENDPOINTS_SCHEMA,
+        'uses': ENDPOINTS_SCHEMA,
+        'summary': str,
+        'version': str,
+        'role': str,
+        'roles': [str],
+        'source_name': str,
+        'properties': dict,
+    }),
+    RequireOne(['id', 'name'])
+)
+
 WORKFLOW_SCHEMA = [
     'id', 'attributes', 'last_task', 'task_tree', 'workflow', 'success',
     'wf_spec', 'tenantId',
 ]
 
+SCHEMA_MAPS = {
+    'component': COMPONENT_SCHEMA,
+}
+
+
+def get_schema(name):
+    """Return the schema that matches the supplied module name."""
+    if name in DOCS_MAP:
+        return SCHEMA_MAPS[name]
+    return {}
 
 def validate_catalog(obj):
     """Validate provider catalog."""
@@ -297,8 +408,10 @@ def validate_catalog(obj):
             if key == 'lists':
                 pass
             elif key in RESOURCE_TYPES:
-                for instance in value.values():
-                    errors.extend(validate(instance, COMPONENT_SCHEMA) or [])
+                for id_, component in value.iteritems():
+                    if 'id' not in component and 'name' not in component:
+                        component['id'] = id_
+                    errors.extend(validate(component, COMPONENT_SCHEMA) or [])
             else:
                 errors.append("'%s' not a valid value. Only %s, 'lists' "
                               "allowed" % (key, ', '.join(RESOURCE_TYPES)))
@@ -316,10 +429,16 @@ def validate(obj, schema):
     errors = []
     if obj:
         if schema:
-            for key, _ in obj.iteritems():
-                if key not in schema:
-                    errors.append("'%s' not a valid value. Only %s allowed" %
-                                  (key, ', '.join(schema)))
+            if isinstance(schema, list):
+                LOG.debug("Converting list to Schema: %s", schema)
+                schema = schema_from_list(schema)
+            try:
+                schema(obj)
+            except MultipleInvalid as exc:
+                for error in exc.errors:
+                    errors.append(str(error))
+            except Invalid as exc:
+                errors.append(str(exc))
     return errors
 
 

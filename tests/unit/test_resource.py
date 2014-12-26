@@ -26,11 +26,7 @@ from checkmate import utils
 
 
 class TestResource(unittest.TestCase):
-    error_string = (
-        "'%s' not a valid value. Only index, name, provider, relations, "
-        "hosted_on, hosts, type, component, dns-name, instance, service, "
-        "status, desired-state allowed"
-    )
+    error_string = "extra keys not allowed @ data['%s']"
 
     def setUp(self):
         self.resource = cmres.Resource('0', {})

@@ -138,12 +138,8 @@ class TestSchema(unittest.TestCase):
                 try_boolean: true
             """)
         expected = [
-            ("'foo' not a valid value. Only url, protocol, scheme, netloc, "
-             "hostname, port, path, certificate, private_key, "
-             "intermediate_key allowed"),
-            ("'bar' not a valid value. Only url, protocol, scheme, netloc, "
-             "hostname, port, path, certificate, private_key, "
-             "intermediate_key allowed"),
+            "extra keys not allowed @ data['bar']",
+            "extra keys not allowed @ data['foo']",
             ("Option 'try_list' should be a string or valid url mapping. It "
              "is a 'list' which is not valid"),
             ("Option 'try_int' should be a string or valid url mapping. It is "

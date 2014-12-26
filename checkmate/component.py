@@ -26,10 +26,14 @@ from checkmate.exceptions import CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
 
+COMPONENT_SCHEMA = schema.get_schema(__name__)
+
 
 class Component(ExtensibleDict):
 
     """TODO: docstring."""
+
+    __schema__ = COMPONENT_SCHEMA
 
     def __init__(self, *args, **kwargs):
         self._provider = kwargs.pop('provider', None)
@@ -51,51 +55,7 @@ class Component(ExtensibleDict):
 
     @classmethod
     def inspect(cls, obj):
-        errors = schema.validate(obj, schema.COMPONENT_SCHEMA)
-        if 'provides' in obj:
-            if not isinstance(obj['provides'], list):
-                errors.append("Provides not a list in %s: %s" % (
-                    obj.get('id', 'N/A'), obj['provides']))
-            for item in obj['provides']:
-                if not isinstance(item, dict):
-                    errors.append("Requirement not a dict in %s: %s" % (
-                        obj.get('id', 'N/A'), item))
-                else:
-                    value = item.values()[0]
-                    # convert short form to long form
-                    if not isinstance(value, dict):
-                        value = {'interface': value}
-                    interface = value['interface']
-                    if interface not in schema.INTERFACE_SCHEMA:
-                        errors.append("Invalid interface in provides: %s" %
-                                      item)
-                    if item.keys()[0] not in schema.RESOURCE_TYPES:
-                        errors.append("Invalid resource type in provides: %s" %
-                                      item)
-        if 'requires' in obj:
-            if not isinstance(obj['requires'], list):
-                errors.append("Requires not a list in %s: %s" % (
-                    obj.get('id', 'N/A'), obj['requires']))
-            for item in obj['requires']:
-                if not isinstance(item, dict):
-                    errors.append("Requirement not a dict in %s: %s" % (
-                        obj.get('id', 'N/A'), item))
-                else:
-                    value = item.values()[0]
-                    # convert short form to long form
-                    if not isinstance(value, dict):
-                        value = {'interface': value}
-                    interface = value['interface']
-                    if interface not in schema.INTERFACE_SCHEMA:
-                        errors.append("Invalid interface in requires: %s" %
-                                      item)
-                    if item.keys()[0] not in schema.RESOURCE_TYPES:
-                        errors.append("Invalid resource type in requires: %s" %
-                                      item)
-        if 'is' in obj:
-            if obj['is'] not in schema.RESOURCE_TYPES:
-                errors.append("Invalid resource type: %s" % obj['is'])
-        return errors
+        return schema.validate(obj, schema.COMPONENT_SCHEMA)
 
     @property
     def provides(self):
