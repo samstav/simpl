@@ -13,16 +13,18 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Components."""
+"""Components.
 
-#!/usr/bin/env python
+A component is a representation of a server, database, load balancer, app,
+and so on.
+"""
+
 import copy
 import logging
 
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate.exceptions import CheckmateValidationException
-
 
 LOG = logging.getLogger(__name__)
 
