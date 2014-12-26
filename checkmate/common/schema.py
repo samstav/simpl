@@ -99,6 +99,12 @@ def DictOf(schema):
 FUNCTION_SCHEMA = Schema({
     'from': list,
     'if': dict,
+    'if-not': dict,
+    'or': list,
+    'and': list,
+    'exists': dict,
+    'not-exists': dict,
+    'value': Any(str, dict)
 })
 
 ENDPOINT_SCHEMA = Schema({
