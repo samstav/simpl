@@ -327,6 +327,8 @@ OPTION_SCHEMA = [
     'constraints',
     'display-hints',
     'display-output',
+    'unit',
+    'sample',
 ]
 
 # Add parts used internally by providers, but not part of the public schema
