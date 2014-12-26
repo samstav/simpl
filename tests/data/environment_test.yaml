@@ -13,7 +13,8 @@ valid:
             options:
               protocol:
                 type: list
-                choice: [http]
+                constraints:
+                - in: [http]
     base:
       vendor: test
       catalog:
@@ -37,8 +38,9 @@ valid_with_multiple_lb_providers:
             - application: http
             options:
               protocol:
-                type: list
-                choice: [http]
+                type: string
+                constraints:
+                - in: [http]
     base:
       vendor: test
       catalog:
@@ -76,7 +78,8 @@ common_vendor:
             - application: http
             options:
               protocol:
-                type: list
-                choice: [http]
+                type: string
+                constraints:
+                - in: [http]
     common:
       vendor: rackspace

@@ -415,7 +415,8 @@ class TestWorkflow(unittest.TestCase):
                             options:
                               protocol:
                                 type: list
-                                choice: [http]
+                                constraints:
+                                - in: [http]
                     base:
                       vendor: test
                       catalog:
@@ -476,7 +477,8 @@ class TestWorkflow(unittest.TestCase):
                             options:
                               protocol:
                                 type: list
-                                choice: [http]
+                                constraints:
+                                - in: [http]
                     base:
                       vendor: test
                       catalog:
@@ -545,7 +547,8 @@ class TestWorkflow(unittest.TestCase):
                             options:
                               protocol:
                                 type: list
-                                choice: [http]
+                                constraints:
+                                - in: [http]
                     base:
                       vendor: test
                       catalog:
@@ -706,7 +709,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             options:
                               protocol:
                                 type: list
-                                choice: [http]
+                                constraints:
+                                - in: [http]
                     base:
                       vendor: test
                       catalog:
@@ -775,7 +779,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             options:
                               protocol:
                                 type: list
-                                choice: [http, https]
+                                constraints:
+                                - in: [http, https]
                     base:
                       vendor: test
                       catalog:
@@ -863,7 +868,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             options:
                               protocol:
                                 type: list
-                                choice: [http, https]
+                                constraints:
+                                - in: [http, https]
                     base:
                       vendor: test
                       catalog:
@@ -945,7 +951,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             options:
                               protocol:
                                 type: list
-                                choice: [http]
+                                constraints:
+                                - in: [http]
                     base:
                       vendor: test
                       catalog:

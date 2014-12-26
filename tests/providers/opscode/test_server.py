@@ -1735,8 +1735,8 @@ BQADgYEAYxnk0LCk+kZB6M93Cr4Br0brE/NvNguJVoep8gb1sHI0bbnKY9yAfwvF
         )
 
 
-TEMPLATE = \
-    """# vim: set filetype=yaml syntax=yaml:
+TEMPLATE = """
+# vim: set filetype=yaml syntax=yaml:
 # Global function
 {% set app_id = deployment.id + '_app' %}
 
@@ -1750,7 +1750,8 @@ requires:
 options:
   "site_name":
     type: string
-    sample: "Bob's tire shop"
+    display-hints:
+      sample: "Bob's tire shop"
     required: false
 run-list:
   recipes:

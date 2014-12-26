@@ -71,7 +71,8 @@ RACKSPACE_VERSION_KEY = 'os_version'
 
 OPENSTACK_DISTRO_KEY = 'org.openstack__1__os_distro'
 OPENSTACK_VERSION_KEY = 'org.openstack__1__os_version'
-CATALOG_TEMPLATE = utils.yaml_to_dict("""compute:
+CATALOG_TEMPLATE = utils.yaml_to_dict("""
+compute:
   linux_instance:
     id: linux_instance
     is: compute
@@ -84,17 +85,22 @@ CATALOG_TEMPLATE = utils.yaml_to_dict("""compute:
         'os':
             source_field_name: image
             required: true
-            choice: []
+            constraints: []
+            display-hints:
+                choice: []
         'memory':
             default: 512
             required: true
             source_field_name: flavor
-            choice: []
+            constraints: []
+            display-hints:
+                choice: []
         'personality': &personality
             type: hash
             required: false
             description: File path and contents.
-            sample: |
+            display-hints:
+                sample: |
                     "personality: [
                         {
                             "path" : "/etc/banner.txt",
@@ -110,7 +116,8 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
             type: hash
             required: false
             description: Metadata key and value pairs.
-            sample: |
+            display-hints:
+                sample: |
                     "metadata" : {
                         "My Server Name" : "API Test Server 1"
                     }
@@ -128,12 +135,16 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
         'os':
             required: true
             source_field_name: image
-            choice: []
+            constraints: []
+            display-hints:
+                choice: []
         'memory':
             required: true
             default: 1024
             source_field_name: flavor
-            choice: []
+            constraints: []
+            display-hints:
+                choice: []
 """)
 API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
@@ -660,21 +671,32 @@ class Provider(RackspaceComputeProviderBase):
             linux = results['compute']['linux_instance']
             windows = results['compute']['windows_instance']
             if types:
+                linch = linux['options']['os']['display-hints']['choice']
+                winch = windows['options']['os']['display-hints']['choice']
                 for image in types.values():
-                    choice = dict(name=image['name'], value=image['os'])
                     if image['type'] == 'windows':
-                        windows['options']['os']['choice'].append(choice)
+                        winch.append({
+                            'name': image['name'],
+                            'value': image['os'],
+                        })
                     else:
-                        linux['options']['os']['choice'].append(choice)
+                        linch.append({
+                            'name': image['name'],
+                            'value': image['os']
+                        })
 
             if flavors:
+                linch = linux['options']['memory']['display-hints']['choice']
+                winch = windows['options']['memory']['display-hints']['choice']
                 for flavor in flavors.values():
-                    choice = dict(value=int(flavor['memory']),
-                                  name="%s (%s Gb disk)" % (flavor['name'],
-                                                            flavor['disk']))
-                    linux['options']['memory']['choice'].append(choice)
+                    choice = {
+                        'value': int(flavor['memory']),
+                        'name': "%s (%s Gb disk)" % (flavor['name'],
+                                                     flavor['disk'])
+                    }
+                    linch.append(choice)
                     if flavor['memory'] >= 1024:  # Windows needs min 1Gb
-                        windows['options']['memory']['choice'].append(choice)
+                        winch.append(choice)
 
         if types and (type_filter is None or type_filter == 'type'):
             if 'lists' not in results:
@@ -713,19 +735,17 @@ class Provider(RackspaceComputeProviderBase):
 
             resource = {
                 'status': server.status,
-                'image': server.image['id'],
                 'provider': 'nova',
+                'type': 'compute',
                 'dns-name': server.name,
                 'instance': {
+                    'status': server.status,
                     'addresses': server.addresses,
                     'id': server.id,
                     'flavor': server.flavor['id'],
                     'region': server.manager.api.client.region_name,
                     'image': server.image['id']
                 },
-                'flavor': server.flavor['id'],
-                'type': 'compute',
-                'region': server.manager.api.client.region_name
             }
             results.append(resource)
             utils.merge_dictionary(

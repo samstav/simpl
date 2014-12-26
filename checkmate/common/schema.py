@@ -143,24 +143,14 @@ RESOURCE_METADATA = yaml_to_dict("""
     application:
       label: Application
       description: An application that is installed on a compute resource
-      help-text: |
-        sd.jhsdflkgjhsdfg
-        sdfg;kjhsdfg
-        sdfgsdfg
-        sdfgsdfg
-        dfgsdfg
     compute:
       label: Servers
       description: A server
-      help-text: |
-        sd.jhsdflkgjhsdfg
-        sdfg;kjhsdfg
-        sdfgsdfg
     """)
 
 INTERFACE_SCHEMA = yaml_to_dict("""
       host:
-         fields:
+         options:
            id:
              type: string
              required: true
@@ -183,7 +173,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
              type: string
              required: false
       mysql:
-        fields:
+        options:
           username:
             type: string
             required: true
@@ -206,17 +196,18 @@ INTERFACE_SCHEMA = yaml_to_dict("""
         constraint:
         - protocol: [http, https]
       url:
-        fields:
+        options:
           protocol:
             type: string
             required: true
             default: http
-            options:
-            - http
-            - https
-            - ldap
-            - ftp
-            - ssh
+            constraints:
+            - in:
+              - http
+              - https
+              - ldap
+              - ftp
+              - ssh
           path:
             type: string
             required: false
@@ -237,7 +228,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
             required: false
       linux:
         description: ssh or shell interface to linux
-        fields:
+        options:
           protocol:
             default: shell
             type: string
@@ -246,7 +237,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
             - ssh
       windows:
         description: wmi and shell interface to Windows
-        fields:
+        options:
           protocol:
             default: wmi
             type: string
@@ -262,7 +253,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       https:
       ldap:
       vip:
-         fields:
+         options:
            ip:
              type: string
              required: true
@@ -290,7 +281,7 @@ INTERFACE_SCHEMA = yaml_to_dict("""
       tcp:
       proxy:
         description: A proxy for other protocols; i.e. a load balancer or IDS
-        fields:
+        options:
           protocol:
              type: string
              description: the protocol being proxied
@@ -319,7 +310,6 @@ OPTION_SCHEMA = [
     'label',
     'default',
     'help',
-    'choice',
     'description',
     'required',
     'type',
@@ -328,7 +318,7 @@ OPTION_SCHEMA = [
     'display-hints',
     'display-output',
     'unit',
-    'sample',
+    'source_field_name',
 ]
 
 # Add parts used internally by providers, but not part of the public schema

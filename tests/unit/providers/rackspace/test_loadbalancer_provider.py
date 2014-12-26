@@ -43,7 +43,7 @@ class TestLoadBalancer(test.ProviderTester):
         })
         context = middleware.RequestContext()
 
-        resource_1 = {"index": "1", "region": "ORD"}
+        resource_1 = {"index": "1", "instance": {"region": "ORD"}}
         resource_2 = {"index": "2", }
 
         provider = loadbalancer.Provider({})
@@ -69,8 +69,8 @@ class TestLoadBalancer(test.ProviderTester):
             'service': 'lb',
             'instance': {
                 'id': "LB_ID",
-            },
-            'region': 'ORD',
+                'region': 'ORD',
+            }
         }
         target_resource = {
             'index': '1',
@@ -112,8 +112,8 @@ class TestLoadBalancer(test.ProviderTester):
             'service': 'lb',
             'instance': {
                 'id': "LB_ID",
+                'region': 'ORD',
             },
-            'region': 'ORD',
         }
         target_resource = {
             'index': '1',
@@ -153,7 +153,9 @@ class TestLoadBalancer(test.ProviderTester):
                 "status": "BUILD",
                 "index": "0",
                 "service": "lb",
-                "region": "DFW",
+                "instance": {
+                    "region": "DFW",
+                },
                 "component": "http",
                 "relations": {
                     "lb-master-1": {
@@ -180,7 +182,9 @@ class TestLoadBalancer(test.ProviderTester):
                 "status": "BUILD",
                 "index": "1",
                 "service": "lb2",
-                "region": "DFW",
+                "instance": {
+                    "region": "DFW",
+                },
                 "component": "http",
                 "relations": {
                     "lb-master-1": {
@@ -311,14 +315,15 @@ class TestLoadBalancerProvider(unittest.TestCase):
 
         expected = {
             'service': 'lb',
-            'region': 'NORTH',
             'dns-name': 'lb.test.checkmate',
             'instance': {},
             'type': 'load-balancer',
             'provider': self.provider.key,
-            'port': '80',
-            'protocol': 'http',
-            'desired-state': {'protocol': 'http', 'region': 'NORTH'},
+            'desired-state': {
+                'protocol': 'http',
+                'port': '80',
+                'region': 'NORTH',
+            },
         }
 
         connections = {
@@ -384,27 +389,30 @@ class TestLoadBalancerProvider(unittest.TestCase):
                                                   self.provider.key, {})
         expected_https_lb = {
             'service': 'lb',
-            'region': 'NORTH',
             'dns-name': 'lb.test.checkmate',
             'instance': {},
             'type': 'load-balancer',
             'provider': self.provider.key,
-            'desired-state': {'protocol': 'https', 'region': 'NORTH'},
+            'desired-state': {
+                'protocol': 'https',
+                'region': 'NORTH'
+            },
         }
 
         expected_http_lb = {
             'service': 'lb',
-            'region': 'NORTH',
             'dns-name': 'lb.test.checkmate',
             'instance': {},
             'type': 'load-balancer',
             'provider': self.provider.key,
-            'protocol': 'http',
-            'desired-state': {'protocol': 'http', 'region': 'NORTH'},
+            'desired-state': {
+                'protocol': 'http',
+                'region': 'NORTH',
+            },
         }
         self.assertEqual(len(results), 2)
-        self.assertDictEqual(results[0], expected_https_lb)
-        self.assertDictEqual(results[1], expected_http_lb)
+        self.assertEqual(results[0], expected_https_lb)
+        self.assertEqual(results[1], expected_http_lb)
 
 
 class TestGetAlgorithms(unittest.TestCase):
@@ -524,11 +532,11 @@ class TestLoadBalancerGetResources(unittest.TestCase):
 
         result = loadbalancer.Provider.get_resources(request, 'tenant')[0]
 
-        self.assertEqual(len(result.keys()), 6)
+        self.assertEqual(len(result.keys()), 5)
         self.assertEqual(result['status'], 'status')
-        self.assertEqual(result['region'], 'region_name')
         self.assertEqual(result['provider'], 'load-balancer')
         self.assertEqual(result['dns-name'], 'name')
+        self.assertEqual(result['instance']['region'], 'region_name')
         self.assertEqual(result['instance']['protocol'], 'protocol')
         self.assertEqual(result['instance']['id'], 'id')
         self.assertEqual(result['instance']['port'], 'port')

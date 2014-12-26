@@ -33,6 +33,9 @@ class TestComponent(unittest.TestCase):
                 requires:
                 - database: mysql
                 - database: mssql
+                uses:
+                - database: mysql
+                - database: mssql
             """)
         comp = cmcomp.Component(data)
         self.assertDictEqual(comp._data, data)

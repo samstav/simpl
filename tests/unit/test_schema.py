@@ -62,10 +62,10 @@ class TestSchema(unittest.TestCase):
                                             "default": "None",
                                             "display-hints": {
                                                 "group": "test group",
-                                                "weight": 5
+                                                "weight": 5,
+                                                'choice': [],
                                             },
                                             'help': "Here's how...",
-                                            'choice': [],
                                             'description': "Yada yada",
                                             'required': False,
                                             'constrains': [],
