@@ -21,6 +21,7 @@ import logging
 from celery.task import task
 from pyrax import exceptions as pyexc
 
+from checkmate.providers.rackspace.database import cdbredis
 from checkmate.common import statsd
 from checkmate.deployments.tasks import resource_postback
 from checkmate import exceptions
@@ -37,7 +38,7 @@ LOG = logging.getLogger(__name__)
 @task(base=RackspaceProviderTask, default_retry_delay=30, max_retries=120,
       acks_late=True, provider=Provider)
 @statsd.collect
-def wait_on_build(context, region, instance=None, api=None, callback=None):
+def wait_on_build(context, region, instance=None, callback=None):
     """Waits on the instance to be created, deletes the instance if it goes
     into an ERRORed status
     :param context: Context
@@ -47,9 +48,9 @@ def wait_on_build(context, region, instance=None, api=None, callback=None):
     :param callback:
     :return:
     """
-    return Manager.wait_on_build(instance["id"], wait_on_build.api,
+    return Manager.wait_on_build(context, region, instance["id"],
                                  wait_on_build.partial,
-                                 context.simulation)
+                                 simulate=context.simulation)
 
 
 # Disable on api and callback.  Suppress num args
@@ -68,7 +69,7 @@ def sync_resource_task(context, resource, api=None, callback=None):
       provider=Provider)
 @statsd.collect
 def create_instance(context, instance_name, flavor, size, databases, region,
-                    api=None, callback=None):
+                    api=None, callback=None, component=None):
     """Creates a Cloud Database instance with optional initial databases.
 
     :param databases: an array of dictionaries with keys to set the database
@@ -78,6 +79,13 @@ def create_instance(context, instance_name, flavor, size, databases, region,
                    {'name': 'db2', 'character_set': 'latin5',
                     'collate': 'latin5_turkish_ci'}]
     """
+    if component == 'redis_instance':
+        flavor = int(flavor)
+        flavor += 100
+        return cdbredis.create_instance(region, context.tenant,
+                                        context.auth_token, instance_name,
+                                        flavor)
+
     return Manager.create_instance(instance_name, flavor, size,
                                    databases, context, create_instance.api,
                                    create_instance.partial,

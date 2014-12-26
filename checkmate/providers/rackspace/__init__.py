@@ -32,6 +32,8 @@ environment:
       vendor: rackspace
 """
 
+from checkmate.providers.rackspace.database import tasks
+
 
 def register():
     """Register Provider classes."""
