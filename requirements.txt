@@ -80,4 +80,5 @@ simplefsm==0.1.3
 six==1.8.0
 SQLAlchemy==0.9.8
 tldextract==1.5.1
+voluptuous==0.8.7
 WebOb==1.4

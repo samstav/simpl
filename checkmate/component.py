@@ -13,23 +13,33 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Components."""
+"""Components.
 
-#!/usr/bin/env python
+A component is a representation of a server, database, load balancer, app,
+and so on.
+"""
+
 import copy
 import logging
 
+from checkmate import constraints
 from checkmate.classes import ExtensibleDict
+from checkmate import functions
+from checkmate import inputs
 from checkmate.common import schema
 from checkmate.exceptions import CheckmateValidationException
-
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
+
+COMPONENT_SCHEMA = schema.get_schema(__name__)
 
 
 class Component(ExtensibleDict):
 
     """TODO: docstring."""
+
+    __schema__ = COMPONENT_SCHEMA
 
     def __init__(self, *args, **kwargs):
         self._provider = kwargs.pop('provider', None)
@@ -49,53 +59,41 @@ class Component(ExtensibleDict):
         return "<%s id='%s' provider='%s'>" % (self.__class__.__name__,
                                                self.get('id'), provider)
 
+    def check_input(self, value, option_name, **kwargs):
+        """Check if the value of an option passes constraints."""
+        options = self.get('options') or {}
+        option = options.get(option_name) or kwargs.get('option') or {}
+        option_constraints = option.get('constraints')
+        if option_constraints:
+            # Handle special defaults
+            if utils.is_evaluable(value):
+                value = utils.evaluate(value[1:])
+
+            if value is None:
+                return True  # don't validate null inputs
+
+            for entry in option_constraints:
+                parsed = functions.parse(
+                    entry,
+                    options=kwargs.get('options'),
+                    services=kwargs.get('services'),
+                    resources=kwargs.get('resources'),
+                    inputs=kwargs.get('inputs'))
+                constraint = constraints.Constraint.from_constraint(parsed)
+                if not constraint.test(inputs.Input(value)):
+                    msg = ("The input for option '%s' did not pass "
+                           "validation. The value was '%s'. The "
+                           "validation rule was %s" %
+                           (option_name,
+                            value if option.get('type') != 'password'
+                            else '*******',
+                            constraint.message))
+                    raise CheckmateValidationException(msg)
+        return True
+
     @classmethod
     def inspect(cls, obj):
-        errors = schema.validate(obj, schema.COMPONENT_SCHEMA)
-        if 'provides' in obj:
-            if not isinstance(obj['provides'], list):
-                errors.append("Provides not a list in %s: %s" % (
-                    obj.get('id', 'N/A'), obj['provides']))
-            for item in obj['provides']:
-                if not isinstance(item, dict):
-                    errors.append("Requirement not a dict in %s: %s" % (
-                        obj.get('id', 'N/A'), item))
-                else:
-                    value = item.values()[0]
-                    # convert short form to long form
-                    if not isinstance(value, dict):
-                        value = {'interface': value}
-                    interface = value['interface']
-                    if interface not in schema.INTERFACE_SCHEMA:
-                        errors.append("Invalid interface in provides: %s" %
-                                      item)
-                    if item.keys()[0] not in schema.RESOURCE_TYPES:
-                        errors.append("Invalid resource type in provides: %s" %
-                                      item)
-        if 'requires' in obj:
-            if not isinstance(obj['requires'], list):
-                errors.append("Requires not a list in %s: %s" % (
-                    obj.get('id', 'N/A'), obj['requires']))
-            for item in obj['requires']:
-                if not isinstance(item, dict):
-                    errors.append("Requirement not a dict in %s: %s" % (
-                        obj.get('id', 'N/A'), item))
-                else:
-                    value = item.values()[0]
-                    # convert short form to long form
-                    if not isinstance(value, dict):
-                        value = {'interface': value}
-                    interface = value['interface']
-                    if interface not in schema.INTERFACE_SCHEMA:
-                        errors.append("Invalid interface in requires: %s" %
-                                      item)
-                    if item.keys()[0] not in schema.RESOURCE_TYPES:
-                        errors.append("Invalid resource type in requires: %s" %
-                                      item)
-        if 'is' in obj:
-            if obj['is'] not in schema.RESOURCE_TYPES:
-                errors.append("Invalid resource type: %s" % obj['is'])
-        return errors
+        return schema.validate(obj, schema.COMPONENT_SCHEMA)
 
     @property
     def provides(self):

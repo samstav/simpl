@@ -22,33 +22,154 @@ stabilized theschema.
 
 import logging
 
+from voluptuous import (
+    All,
+    Any,
+    Extra,
+    Invalid,
+    Length,
+    MultipleInvalid,
+    Schema,
+)
+
 from checkmate.inputs import Input
 from checkmate.utils import yaml_to_dict
 
 LOG = logging.getLogger(__name__)
 
+RESOURCE_TYPES = [
+    'application',
+    'cache',
+    'compute',
+    'database',
+    'directory',
+    'dns',
+    'object-store',
+    'host',
+    'load-balancer',
+    'mail-relay',
+    'web',
+    'monitoring',
+    'storage',
+
+    # TODO(zns): All below to be removed (including testing ones)
+    'wordpress',
+    'php5',
+    'endpoint',  # not sure what this was used for
+
+    # for testing
+    'widget',
+    'gadget',
+]
+
+
+class RequireOneInvalid(Invalid):
+
+    """At least one of a required set of keys is missing from a dict."""
+
+
+def RequireOne(keys):
+    """Validate that at least on of the supplied keys exists on a dict."""
+    def check(val):
+        if any(([k in val for k in keys])):
+            return
+        raise RequireOneInvalid("one of '%s' is required" % ', '.join(keys))
+    return check
+
+
+def DictOf(schema):
+    """Validate that all values in a dict adhere to the supplied schema."""
+    def check(val):
+        if not isinstance(val, dict):
+            raise Invalid('value not a dict')
+        errors = []
+        for value in val.itervalues():
+            try:
+                schema(value)
+            except MultipleInvalid as exc:
+                errors.extend(exc.errors)
+            except Invalid as exc:
+                errors.append(exc)
+        if errors:
+            raise MultipleInvalid(errors)
+
+    return check
+
+
+FUNCTION_SCHEMA = Schema({
+    'from': list,
+    'if': dict,
+    'if-not': dict,
+    'or': list,
+    'and': list,
+    'exists': dict,
+    'not-exists': dict,
+    'value': Any(str, dict)
+})
+
+ENDPOINT_SCHEMA = Schema({
+    'type': Any(*RESOURCE_TYPES),
+    'interface': Any(str, dict),
+    'relation': Any('reference', 'host'),
+    'constraints': [dict],
+    'id': str
+})
+
+
+def check_schema(schema, value):
+    """Test that a value abides by a specific schema."""
+    try:
+        schema(value)
+        return True
+    except MultipleInvalid:
+        return False
+
+
+def Shorthand(msg=None):
+    """Coerce a shorthand connection point value to longhand."""
+    def check(entry):
+        if isinstance(entry, dict) and len(entry) == 1:
+            key, value = entry.items()[0]
+            if isinstance(value, dict):
+                if check_schema(ENDPOINT_SCHEMA, value):
+                    # index + endpoint (long form)
+                    return dict(id=key, **value)
+                elif check_schema(FUNCTION_SCHEMA, value):
+                    # shorthand with function
+                    return {'type': key, 'interface': value}
+                else:
+                    raise Invalid('not a valid endpoint')
+            # shorthand (type: interface)
+            return {'type': key, 'interface': value}
+        return entry
+    return check
+
+
 RESOURCE_METADATA = yaml_to_dict("""
     application:
       label: Application
       description: An application that is installed on a compute resource
-      help-text: |
-        sd.jhsdflkgjhsdfg
-        sdfg;kjhsdfg
-        sdfgsdfg
-        sdfgsdfg
-        dfgsdfg
     compute:
       label: Servers
       description: A server
-      help-text: |
-        sd.jhsdflkgjhsdfg
-        sdfg;kjhsdfg
-        sdfgsdfg
     """)
 
 INTERFACE_SCHEMA = yaml_to_dict("""
+      bar:
+        description: for testing
+      dns_udp:
+      dns_tcp:
+      foo:
+        description: for testing
+      ftp:
+      gluster:
+      http:
+        is: url
+        constraint:
+        - protocol: [http, https]
+      https:
       host:
-         fields:
+         options:
            id:
              type: string
              required: true
@@ -70,8 +191,27 @@ INTERFACE_SCHEMA = yaml_to_dict("""
            password:
              type: string
              required: false
+      imaps:
+      imapv2:
+      imapv3:
+      imapv4:
+      ldap:
+      ldaps:
+      linux:
+        description: ssh or shell interface to linux
+        options:
+          protocol:
+            default: shell
+            type: string
+            options:
+            - shell
+            - ssh
+      # community cares about this. The software is memcached, but I speak
+      # memcache
+      memcache:
+      mongodb:
       mysql:
-        fields:
+        options:
           username:
             type: string
             required: true
@@ -89,22 +229,43 @@ INTERFACE_SCHEMA = yaml_to_dict("""
             type: string
             required: false
       mssql:
-      http:
-        is: url
-        constraint:
-        - protocol: [http, https]
+      new-relic:
+      php:
+      pop3:
+      pop3s:
+      postgres:
+      proxy:
+        description: A proxy for other protocols; i.e. a load balancer or IDS
+        options:
+          protocol:
+             type: string
+             description: the protocol being proxied
+             required: true
+
+      rackspace-cloud-monitoring:
+      redis:
+      rdp:
+      sftp:
+      smtp:
+      ssh:
+      tcp_client_first:
+      tcp_stream:
+      tcp:
+      udp:
+      udp_stream:
       url:
-        fields:
+        options:
           protocol:
             type: string
             required: true
             default: http
-            options:
-            - http
-            - https
-            - ldap
-            - ftp
-            - ssh
+            constraints:
+            - in:
+              - http
+              - https
+              - ldap
+              - ftp
+              - ssh
           path:
             type: string
             required: false
@@ -123,34 +284,9 @@ INTERFACE_SCHEMA = yaml_to_dict("""
           password:
             type: string
             required: false
-      linux:
-        description: ssh or shell interface to linux
-        fields:
-          protocol:
-            default: shell
-            type: string
-            options:
-            - shell
-            - ssh
-      windows:
-        description: wmi and shell interface to Windows
-        fields:
-          protocol:
-            default: wmi
-            type: string
-            options:
-            - shell
-            - wmi
-      foo:
-        description: for testing
-      bar:
-        description: for testing
-      ftp:
-      sftp:
-      https:
-      ldap:
+      varnish:
       vip:
-         fields:
+         options:
            ip:
              type: string
              required: true
@@ -159,94 +295,46 @@ INTERFACE_SCHEMA = yaml_to_dict("""
              required: false
            public_ip:
              type: string
-      ldaps:
-      smtp:
-      pop3:
-      pop3s:
-      imaps:
-      imapv2:
-      imapv3:
-      imapv4:
-      dns_udp:
-      dns_tcp:
-      rdp:
-      ssh:
-      udp:
-      udp_stream:
-      tcp_client_first:
-      tcp_stream:
-      tcp:
-      proxy:
-        description: A proxy for other protocols; i.e. a load balancer or IDS
-        fields:
+      windows:
+        description: wmi and shell interface to Windows
+        options:
           protocol:
-             type: string
-             description: the protocol being proxied
-             required: true
-      new-relic:
-      rackspace-cloud-monitoring:
-      mongodb:
-      postgres:
-      varnish:
-      memcache:
-      redis:
-      gluster:
-      php:
+            default: wmi
+            type: string
+            options:
+            - shell
+            - wmi
     """)
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
 
-RESOURCE_TYPES = [
-    'compute',
-    'database',
-    'object-store',
-    'wordpress',
-    'php5',
-    'load-balancer',
-    'endpoint',
-    'host',
-    'application',
-    'mail-relay',
-    'web',
-    'cache',
-    'monitoring',
-    'storage',
-    'dns',
-    'widget',
-    'gadget',  # last two for testing
-]
-
 BLUEPRINT_SCHEMA = [
-    'id', 'name', 'services', 'options', 'resources', 'meta-data',
-    'description', 'display-outputs', 'documentation', 'version', 'source',
-]
-
-COMPONENT_SCHEMA = [
     'id',
+    'name',
+    'services',
     'options',
-    'requires',
-    'provides',
-    'summary',
+    'resources',
+    'meta-data',
+    'description',
+    'display-outputs',
+    'documentation',
     'version',
-    'is',
-    'role',
-    'roles',
-    'source_name',
-    'properties',
+    'source',
 ]
 
 OPTION_SCHEMA = [
-    'label',
-    'default',
-    'help',
-    'choice',
-    'description',
-    'required',
-    'type',
     'constrains',
     'constraints',
+    'default',
+    'description',
     'display-hints',
     'display-output',
+    'help',
+    'label',
+    'required',
+    'source_field_name',
+    'type',
+    'unit',
 ]
 
 # Add parts used internally by providers, but not part of the public schema
@@ -256,16 +344,16 @@ OPTION_SCHEMA_INTERNAL = OPTION_SCHEMA + [
 ]
 
 OPTION_SCHEMA_URL = [
-    'url',
-    'protocol',
-    'scheme',
-    'netloc',
-    'hostname',
-    'port',
-    'path',
     'certificate',
-    'private_key',
+    'hostname',
     'intermediate_key',
+    'netloc',
+    'path',
+    'port',
+    'protocol',
+    'private_key',
+    'scheme',
+    'url',
 ]
 
 OPTION_TYPES = [
@@ -277,10 +365,65 @@ OPTION_TYPES = [
     'text',
 ]
 
+
+def schema_from_list(keys_list):
+    """Generates a schema from a list of keys."""
+    return Schema(dict((key, object) for key in keys_list))
+
+
+ENDPOINTS_SCHEMA = [Shorthand()]
+COMPONENT_STRICT_SCHEMA_DICT = {
+    'id': All(str, Length(min=3, max=32)),
+    'name': str,
+    'is': Any(*RESOURCE_TYPES),
+    'provider': str,
+    'options': DictOf(schema_from_list(OPTION_SCHEMA)),
+    'requires': ENDPOINTS_SCHEMA,
+    'provides': ENDPOINTS_SCHEMA,
+    'uses': ENDPOINTS_SCHEMA,
+    'summary': str,
+    'display_name': str,
+    'version': str,
+    'roles': [str],
+    'properties': dict,
+}
+COMPONENT_SCHEMA = All(
+    Schema(COMPONENT_STRICT_SCHEMA_DICT),
+    RequireOne(['id', 'name'])
+)
+
+# Loose schema for compatibility and loose validation
+COMPONENT_LOOSE_SCHEMA_DICT = COMPONENT_STRICT_SCHEMA_DICT.copy()
+COMPONENT_LOOSE_SCHEMA_DICT.update({
+    'role': str,
+    'source_name': str,
+    'type': Any(*RESOURCE_TYPES),
+    'resource_type': Any(*RESOURCE_TYPES),
+    Extra: object,  # To support provider-specific values
+})
+COMPONENT_LOOSE_SCHEMA = Schema(COMPONENT_LOOSE_SCHEMA_DICT)
+
 WORKFLOW_SCHEMA = [
-    'id', 'attributes', 'last_task', 'task_tree', 'workflow', 'success',
-    'wf_spec', 'tenantId',
+    'attributes',
+    'id',
+    'last_task',
+    'task_tree',
+    'tenantId',
+    'success',
+    'wf_spec',
+    'workflow',
 ]
+
+SCHEMA_MAPS = {
+    'component': COMPONENT_SCHEMA,
+}
+
+
+def get_schema(name):
+    """Return the schema that matches the supplied module name."""
+    if name in SCHEMA_MAPS:
+        return SCHEMA_MAPS[name]
+    return {}
 
 
 def validate_catalog(obj):
@@ -291,8 +434,10 @@ def validate_catalog(obj):
             if key == 'lists':
                 pass
             elif key in RESOURCE_TYPES:
-                for instance in value.values():
-                    errors.extend(validate(instance, COMPONENT_SCHEMA) or [])
+                for id_, component in value.iteritems():
+                    if 'id' not in component and 'name' not in component:
+                        component['id'] = id_
+                    errors.extend(validate(component, COMPONENT_SCHEMA) or [])
             else:
                 errors.append("'%s' not a valid value. Only %s, 'lists' "
                               "allowed" % (key, ', '.join(RESOURCE_TYPES)))
@@ -310,10 +455,16 @@ def validate(obj, schema):
     errors = []
     if obj:
         if schema:
-            for key, _ in obj.iteritems():
-                if key not in schema:
-                    errors.append("'%s' not a valid value. Only %s allowed" %
-                                  (key, ', '.join(schema)))
+            if isinstance(schema, list):
+                LOG.debug("Converting list to Schema: %s", schema)
+                schema = schema_from_list(schema)
+            try:
+                schema(obj)
+            except MultipleInvalid as exc:
+                for error in exc.errors:
+                    errors.append(str(error))
+            except Invalid as exc:
+                errors.append(str(exc))
     return errors
 
 

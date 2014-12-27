@@ -16,9 +16,10 @@
 
 """Tests for Rackspace Database provider."""
 import logging
+import unittest
+
 import mock
 import mox
-import unittest
 
 from checkmate import deployment
 from checkmate.deployments import tasks
@@ -444,12 +445,16 @@ class TestCatalog(unittest.TestCase):
                         'disk': {
                             'type': 'integer',
                             'unit': 'Gb',
-                            'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                            'constraints': [
+                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                            ]
                         },
                         'memory': {
                             'type': 'integer',
                             'unit': 'Mb',
-                            'choice': [512, 1024, 2048, 4096]
+                            'constraints': [
+                                {'in': [512, 1024, 2048, 4096]}
+                            ]
                         }
                     }
                 },
@@ -461,12 +466,16 @@ class TestCatalog(unittest.TestCase):
                         'disk': {
                             'type': 'integer',
                             'unit': 'Gb',
-                            'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                            'constraints': [
+                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                            ]
                         },
                         'memory': {
                             'type': 'integer',
                             'unit': 'Mb',
-                            'choice': [512, 1024, 2048, 4096]
+                            'constraints': [
+                                {'in': [512, 1024, 2048, 4096]}
+                            ]
                         }
                     }
                 }
@@ -562,10 +571,8 @@ blueprint:
   services:
     db:
       component:
-        is: database
-        type: database
-        requires:
-        - host: 'linux'
+        name: database
+        interface: mysql
 environment:
   name: test
   providers:
@@ -590,8 +597,8 @@ environment:
             provides:
             - database: mysql
             requires:
-            - compute:  # FIXME: this syntax needs to be deprecated
-                resource_type: compute
+            - server:
+                type: compute
                 relation: host
                 interface: mysql
         lists:
@@ -618,7 +625,6 @@ environment:
       catalog:
         compute:
           linux_instance:
-            id: linux_instance
             is: compute
             provides:
             - compute: linux

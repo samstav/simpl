@@ -851,6 +851,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'resource': key,
                 })
             elif resource.get('type') == 'load-balancer':
+                region = self.deployment.get_setting('region',
+                                                     default='testonia')
                 expected_calls.append({
                     # Create Load Balancer
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
@@ -860,8 +862,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'PUBLIC',
                         'HTTP',
                         80,
-                        self.deployment.get_setting('region',
-                                                    default='testonia')
+                        region
                     ],
                     'kwargs': ContainsKeyValue('tag',
                                                {'RAX-CHECKMATE': IgnoreArg()}),
@@ -871,6 +872,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 'instance': {
                                     'id': 20001, 'vip': "200.1.1.1",
                                     'lbid': 20001,
+                                    'region': region,
                                 }
                             }
                         }
@@ -942,10 +944,10 @@ class TestProvider(base.ProviderBase):
         # Get the definition of the interface
         interface_schema = schema.INTERFACE_SCHEMA.get(interface, {})
         # Get the fields this interface defines
-        fields = interface_schema.get('fields', {}).keys()
+        fields = interface_schema.get('options', {}).keys()
         if not fields:
             LOG.debug(
-                "No fields defined for interface '%s', so nothing "
+                "No options defined for interface '%s', so nothing "
                 "to do for connection '%s'", interface, relation_key)
             return  # nothing to do
 
@@ -973,7 +975,7 @@ class TestProvider(base.ProviderBase):
 
         def get_fields_code(my_task):  # Holds code for the task
             """Write the task to get the values."""
-            fields = my_task.get_property('fields', [])
+            fields = my_task.get_property('options', [])
             data = {}
             # Get fields by navigating path
             for field in fields:

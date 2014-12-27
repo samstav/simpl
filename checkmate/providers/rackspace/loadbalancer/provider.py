@@ -112,7 +112,8 @@ class Provider(rsbase.RackspaceProviderBase):
             raise exceptions.CheckmateException(
                 error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
         number_of_resources = 1
-        interface = utils.read_path(deployment.get('blueprint') or {},
+        interface = utils.read_path(
+            deployment.get('blueprint') or {},
             'services/%s/component/interface' % service) or 'http'
         protocol = deployment.get_setting("protocol",
                                           resource_type=resource_type,
@@ -142,27 +143,23 @@ class Provider(rsbase.RackspaceProviderBase):
                         int(index) - index_of_resource,
                         resource_type, service
                     )
-                    for key, value in params.iteritems():
-                        template[key] = value
+                    template['desired-state'].update(params)
+                else:
+                    template['desired-state']['protocol'] = protocol
 
-                template['region'] = region
+                template['desired-state']['region'] = region
                 templates.append(template)
 
         if support_unencrypted:
-            templates[len(templates) - 1]['protocol'] = PROTOCOL_PAIRS[
-                protocol]
+            templates[len(templates) - 1]['desired-state']['protocol'] = \
+                PROTOCOL_PAIRS[protocol]
         if self._handle_dns(deployment, service, resource_type=resource_type):
-            templates[0]['instance']['dns-A-name'] = \
+            templates[0]['desired-state']['dns-A-name'] = \
                 deployment.get_setting("domain",
                                        resource_type=resource_type,
                                        service_name=service,
                                        provider_key=self.key,
                                        default=templates[0].get('dns-name'))
-
-        for template in templates:
-            template['desired-state']['protocol'] = (template.get('protocol')
-                                                     or protocol)
-            template['desired-state']['region'] = region
         return templates
 
     def _support_unencrypted(self, deployment, protocol, resource_type=None,
@@ -215,11 +212,11 @@ class Provider(rsbase.RackspaceProviderBase):
                 'severity': "CRITICAL"
             })
         for res in resources:
-            if 'dns-A-name' in res.get('instance', {}):
+            if 'dns-A-name' in res.get('desired-state', {}):
                 messages.append(dns.Provider({}).verify_limits(context,
                                 [{"type": "dns-record",
                                   "interface": "A",
-                                  'dns-name': res.get('instance')
+                                  'dns-name': res.get('desired-state')
                                                  .get('dns-A-name')}]))
             nodes = len(res.get("relations", {}))
             if max_nodes < nodes:
@@ -256,30 +253,22 @@ class Provider(rsbase.RackspaceProviderBase):
                            wait_on=None):
         service_name = resource.get('service')
         resource_type = resource.get('type')
-        proto = resource['protocol'] if resource.get('protocol', None) \
-            else deployment.get_setting("protocol",
-                                        resource_type=resource_type,
-                                        service_name=service_name,
-                                        provider_key=self.key,
-                                        default="http").lower()
+        desired = resource.get('desired-state') or {}
+        kwargs = {
+            'resource_type': resource_type,
+            'service_name': service_name,
+            'provider_key': self.key,
+        }
+        proto = desired.get('protocol') or deployment.get_setting(
+            "protocol", default="http", **kwargs).lower()
 
-        port = resource['port'] if resource.get('port', None) \
-            else deployment.get_setting("port",
-                                        resource_type=resource_type,
-                                        service_name=service_name,
-                                        provider_key=self.key,
-                                        default=None)
+        port = desired.get('port') or deployment.get_setting(
+            "port", default=None, **kwargs)
 
-        algorithm = deployment.get_setting("algorithm",
-                                           resource_type=resource_type,
-                                           service_name=service_name,
-                                           provider_key=self.key,
-                                           default="ROUND_ROBIN")
-        content_caching = deployment.get_setting("caching",
-                                                 resource_type=resource_type,
-                                                 service_name=service_name,
-                                                 provider_key=self.key,
-                                                 default=False)
+        algorithm = deployment.get_setting("algorithm", default="ROUND_ROBIN",
+                                           **kwargs)
+        content_caching = deployment.get_setting("caching", default=False,
+                                                 **kwargs)
         cdns = self._handle_dns(deployment, service_name,
                                 resource_type=resource_type)
         create_lb_task_tags = ['create', 'root', 'vip']
@@ -303,7 +292,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 context.get_queued_task_dict(
                     deployment_id=deployment['id'],
                     resource_key=key,
-                    region=resource['region']
+                    region=desired['region']
                 ),
                 resource.get('dns-name'),
                 'PUBLIC',
@@ -339,7 +328,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 context.get_queued_task_dict(
                     deployment_id=deployment['id'],
                     resource_key=key,
-                    region=resource['region']
+                    region=desired['region']
                 ),
                 operators.PathAttrib('resources/%s/instance/id' % key),
             ],
@@ -358,7 +347,7 @@ class Provider(rsbase.RackspaceProviderBase):
             task_name = ("Create DNS Record for Load balancer %s (%s)"
                          % (key, resource['service']))
             celery_call = "checkmate.providers.rackspace.dns.create_record"
-            name = resource.get('dns-name')
+            name = desired.get('dns-name')
             create_record_task = specs.Celery(
                 wfspec, task_name, celery_call,
                 call_args=[
@@ -398,7 +387,7 @@ class Provider(rsbase.RackspaceProviderBase):
                     context.get_queued_task_dict(
                         deployment_id=deployment['id'],
                         resource_key=key,
-                        region=resource['region']),
+                        region=desired['region']),
                     operators.PathAttrib('resources/%s/instance/id' % key),
                 ])
             build_wait_task.connect(enable_caching_task)
@@ -412,7 +401,7 @@ class Provider(rsbase.RackspaceProviderBase):
             call_args=[
                 context.get_queued_task_dict(deployment_id=deployment['id'],
                                              resource_key=key,
-                                             region=resource['region']),
+                                             region=desired['region']),
                 operators.PathAttrib('resources/%s/instance/id' % key),
                 proto.upper(),
             ],
@@ -443,7 +432,7 @@ class Provider(rsbase.RackspaceProviderBase):
         lb_id = instance.get("id")
         dom_id = resource.get("instance", {}).get("domain_id")
         rec_id = resource.get("instance", {}).get("record_id")
-        region = resource.get("region")
+        region = resource.get("instance", {}).get("region")
         if isinstance(context, middleware.RequestContext):
             context = context.get_queued_task_dict(
                 deployment_id=deployment_id, resource_key=key, region=region)
@@ -503,6 +492,7 @@ class Provider(rsbase.RackspaceProviderBase):
         """
         source_key = resource['index']
         target_key = related_resource['index']
+        instance = resource['instance']
         delete_node_task = specs.Celery(
             wf_spec,
             "Disable Node %s in LB %s" % (target_key, source_key),
@@ -511,9 +501,9 @@ class Provider(rsbase.RackspaceProviderBase):
             call_args=[
                 context.get_queued_task_dict(deployment_id=deployment['id'],
                                              resource_key=source_key,
-                                             region=resource['region']),
+                                             region=instance['region']),
                 relation,
-                resource['instance'].get('id'),
+                instance.get('id'),
                 related_resource['instance'].get('private_ip'),
                 "DISABLED",
                 "OFFLINE",
@@ -537,6 +527,7 @@ class Provider(rsbase.RackspaceProviderBase):
         """
         source_key = resource['index']
         target_key = related_resource['index']
+        instance = resource['instance']
         enable_node_task = specs.Celery(
             wf_spec,
             "Enable Node %s in LB %s" % (target_key, source_key),
@@ -545,9 +536,9 @@ class Provider(rsbase.RackspaceProviderBase):
             call_args=[
                 context.get_queued_task_dict(deployment_id=deployment['id'],
                                              resource_key=source_key,
-                                             region=resource['region']),
+                                             region=instance['region']),
                 relation,
-                resource['instance'].get('id'),
+                instance.get('id'),
                 related_resource['instance'].get('private_ip'),
                 "ENABLED",
                 "ACTIVE",
@@ -561,6 +552,7 @@ class Provider(rsbase.RackspaceProviderBase):
                                     target_resource):
         source_key = source_resource['index']
         target_key = target_resource['index']
+        source_instance = source_resource['instance']
         delete_node_task = specs.Celery(
             wf_spec,
             "Remove Node %s from LB %s" % (target_key, source_key),
@@ -568,8 +560,7 @@ class Provider(rsbase.RackspaceProviderBase):
             call_args=[
                 context.get_queued_task_dict(deployment_id=deployment['id'],
                                              resource_key=source_key,
-                                             region=source_resource[
-                                                 'region']),
+                                             region=source_instance['region']),
                 operators.PathAttrib('resources/%s/instance/id' % source_key),
                 operators.PathAttrib(
                     'resources/%s/instance/private_ip' % target_key),
@@ -599,14 +590,7 @@ class Provider(rsbase.RackspaceProviderBase):
             comp = comp[0]  # there should be only one
             options = comp.get('options', {})
             protocol_option = options.get("protocol", {})
-            protocols = protocol_option.get("choice", [])
-            if interface not in protocols:
-                error_message = ("'%s' is an invalid relation interface for "
-                                 "provider '%s'. Valid options are: %s"
-                                 % (interface, self.key, protocols))
-                raise exceptions.CheckmateException(
-                    error_message,
-                    friendly_message=exceptions.BLUEPRINT_ERROR)
+            comp.check_input(interface, 'protocol', option=protocol_option)
 
         # Get all tasks we need to precede the LB Add Node task
         finals = wfspec.find_task_specs(resource=relation['target'],
@@ -620,6 +604,7 @@ class Provider(rsbase.RackspaceProviderBase):
         else:
             target = relation['target']
             # determine the port based on protocol
+        desired = resource['desired-state']
         #Create the add node task
         add_node_task = specs.Celery(
             wfspec,
@@ -628,7 +613,7 @@ class Provider(rsbase.RackspaceProviderBase):
             call_args=[
                 context.get_queued_task_dict(deployment_id=deployment['id'],
                                              resource_key=key,
-                                             region=resource['region']),
+                                             region=desired['region']),
                 operators.PathAttrib('resources/%s/instance/id' % key),
                 operators.PathAttrib(
                     'resources/%s/instance/private_ip' % target),
@@ -692,7 +677,9 @@ class Provider(rsbase.RackspaceProviderBase):
             options = {
                 'algorithm': {
                     'type': 'list',
-                    'choice': algorithms
+                    'constraints': [
+                        {'in': algorithms}
+                    ]
                 },
                 'create_dns': {
                     'type': 'boolean',
@@ -779,10 +766,11 @@ class Provider(rsbase.RackspaceProviderBase):
 
             resource = {
                 'status': clb.status,
-                'region': clb.manager.api.region_name,
                 'provider': 'load-balancer',
                 'dns-name': clb.name,
                 'instance': {
+                    'status': clb.status,
+                    'region': clb.manager.api.region_name,
                     'protocol': clb.protocol,
                     'interfaces': {
                         'vip': {

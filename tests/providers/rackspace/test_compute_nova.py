@@ -1182,9 +1182,9 @@ class TestNovaProxy(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['dns-name'], 'server_name')
         self.assertEqual(result[0]['status'], 'server_status')
-        self.assertEqual(result[0]['flavor'], 'server_flavor')
-        self.assertEqual(result[0]['image'], 'server_image')
-        self.assertEqual(result[0]['region'], 'region_name')
+        self.assertEqual(result[0]['instance']['flavor'], 'server_flavor')
+        self.assertEqual(result[0]['instance']['image'], 'server_image')
+        self.assertEqual(result[0]['instance']['region'], 'region_name')
 
     @mock.patch(
         'checkmate.providers.rackspace.compute.utils.get_ips_from_server')
@@ -1229,7 +1229,6 @@ class TestNovaProxy(unittest.TestCase):
     def test_get_resources_returns_servers_not_in_checkmate(self,
                                                             mock_pyrax,
                                                             mock_get_ips):
-
         request = mock.Mock()
         server = mock.Mock()
         server.image = {'id': 'gotit'}
@@ -1263,7 +1262,7 @@ class TestNovaProxy(unittest.TestCase):
 
         result = compute.Provider.get_resources(request, 'tenant')
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['image'], 'gotit')
+        self.assertEqual(result[0]['instance']['image'], 'gotit')
 
 
 if __name__ == '__main__':

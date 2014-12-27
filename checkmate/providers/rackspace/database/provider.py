@@ -555,12 +555,16 @@ class Provider(cmbase.ProviderBase):
                     'options': {
                         'disk': {
                             'type': 'integer',
-                            'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                            'constraints': [
+                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                            ],
                             'unit': 'Gb',
                         },
                         'memory': {
                             'type': 'integer',
-                            'choice': [512, 1024, 2048, 4096],
+                            'constraints': [
+                                {'in': [512, 1024, 2048, 4096]}
+                            ],
                             'unit': 'Mb',
                         },
                     }
@@ -572,12 +576,16 @@ class Provider(cmbase.ProviderBase):
                     'options': {
                         'disk': {
                             'type': 'integer',
-                            'choice': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                            'constraints': [
+                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                            ],
                             'unit': 'Gb',
                         },
                         'memory': {
                             'type': 'integer',
-                            'choice': [512, 1024, 2048, 4096],
+                            'constraints': [
+                                {'in': [512, 1024, 2048, 4096]}
+                            ],
                             'unit': 'Mb',
                         }
                     }
