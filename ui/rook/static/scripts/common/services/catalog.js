@@ -16,12 +16,13 @@ angular.module('checkmate.Catalog')
       // This sets the component map.
       angular.forEach(data, function(_components, _service) {
         angular.forEach(_components, function(_component) {
-          components[_component.id] = _component;
+          components[_component.id || _component.name] = _component;
         });
       });
 
       this.components = angular.extend(this.components, components);
       this.data = data;
+
       Catalog.broadcast();
     };
 
@@ -45,11 +46,14 @@ angular.module('checkmate.Catalog')
 
             jsyaml.safeLoadAll(data, function(doc) {
               var category = doc.is || 'other';
+
               if (!(category in parsed)) {
                 parsed[category] = {};
               }
+
               parsed[category][doc.id || doc.name] = doc;
             });
+
             Catalog.set(parsed);
           } catch(err) {
             console.log("YAML file for Blueprint documentation could not be parsed", err);
@@ -64,6 +68,6 @@ angular.module('checkmate.Catalog')
     };
 
     Catalog.fromUrl('/scripts/common/services/catalog.yml');
-    return Catalog;
 
+    return Catalog;
   });

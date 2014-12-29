@@ -380,7 +380,7 @@ angular.module('checkmate.Blueprint')
               .append('g')
               .attr('class', 'connection')
               .attr('transform', function(d, i) {
-                return 'translate(0,'+((i * -1) * sizes.indicator.spacing - 26)+')'; // ext sizes
+                return 'translate(0,'+((i * -1) * sizes.indicator.spacing - 24)+')'; // ext sizes
               });
 
           connections.append("text")
@@ -443,7 +443,7 @@ angular.module('checkmate.Blueprint')
 
               var data = {
                 service: d3.select(this.parentNode.parentNode).datum()._id,
-                component: d.id,
+                component: d.id || d.name,
                 index: index
               };
 
@@ -471,7 +471,8 @@ angular.module('checkmate.Blueprint')
 
           label.append('title')
             .text(function(d) {
-              return d.id;
+              var title = d.id || d.name;
+              return title;
             });
 
           label.append('tspan')
@@ -489,10 +490,10 @@ angular.module('checkmate.Blueprint')
               return sizes.service.margin.top + 28;
             })
             .text(function(d) {
-              var label = d.id;
+              var label = d.id || d.name;
 
-              if(d.length > 12) {
-                label = label.slice(0,9) + '...';
+              if(label.length > 12) {
+                label = label.substring(0,11) + '...';
               }
 
               return label;
@@ -546,7 +547,7 @@ angular.module('checkmate.Blueprint')
               if (state.linking) {
                 var source = Drag.source.get();
                 var target = {
-                  componentId: d.id,
+                  componentId: d.id || d.name,
                   serviceId: d3.select(this.parentNode).datum()._id,
                   interface: null
                 };
@@ -710,7 +711,7 @@ angular.module('checkmate.Blueprint')
 
           Drag.reset();
           Drag.source.set({
-            componentId: d.id,
+            componentId: d.id || d.name,
             serviceId: d3.select(this.parentNode.parentNode).datum()._id
           });
           d3.event.sourceEvent.stopPropagation();
@@ -725,7 +726,10 @@ angular.module('checkmate.Blueprint')
           var mouse = d3.mouse(zoomer[0][0]);
 
           component.classed('deactivated', function(d) {
-            target = {componentId: d.id, serviceId: d3.select(this.parentNode).datum()._id};
+            target = {
+              componentId: d.id || d.name,
+              serviceId: d3.select(this.parentNode).datum()._id
+            };
 
             if (source && target) {
               if (!Blueprint.canConnect(source, target)) {
