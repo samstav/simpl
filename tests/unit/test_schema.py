@@ -13,7 +13,11 @@
 #    under the License.
 
 """Tests for Schema module."""
+
+import os
 import unittest
+
+import yaml
 
 from checkmate.common import schema
 from checkmate import utils
@@ -151,6 +155,18 @@ class TestSchema(unittest.TestCase):
         results.sort()
         expected.sort()
         self.assertListEqual(results, expected)
+
+
+class TestUICatalog(unittest.TestCase):
+
+    def test_catalog(self):
+        rel_path = '../../ui/rook/static/scripts/common/services/catalog.yml'
+        path = os.path.join(os.path.dirname(__file__), rel_path)
+        with open(path) as fh:
+            components = fh.read()
+
+        for doc in yaml.safe_load_all(components):
+            schema.COMPONENT_SCHEMA(doc)
 
 
 if __name__ == '__main__':
