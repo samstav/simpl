@@ -39,14 +39,6 @@ from checkmate.providers.rackspace import base
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
-
-# Any names should become airport codes
-REGION_MAP = {
-    'dallas': 'DFW',
-    'chicago': 'ORD',
-    'london': 'LON',
-    'sydney': 'SYD',
-}
 API_FLAVOR_CACHE = {}
 REDIS = None
 if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
@@ -83,7 +75,7 @@ class Provider(cmbase.ProviderBase):
         )
         catalog = self.get_catalog(context)
 
-        if resource_type == 'compute':
+        if resource_type in ('compute', 'cache'):
             # Get flavor
             # Find same or next largest size and get flavor ID
             flavor = None
@@ -129,9 +121,9 @@ class Provider(cmbase.ProviderBase):
                                          friendly_message=BLUEPRINT_ERROR)
 
             for template in templates:
-                template['flavor'] = flavor
-                template['disk'] = volume
-                template['region'] = region
+                template['desired-state']['flavor'] = flavor
+                template['desired-state']['disk'] = volume
+                template['desired-state']['region'] = region
         elif resource_type == 'database':
             pass
         return templates
@@ -147,9 +139,9 @@ class Provider(cmbase.ProviderBase):
         instances_needed = 0
         volume_size_needed = 0
         for database in resources:
-            if database['type'] == 'compute':
+            if database['type'] in ('compute', 'cache'):
                 instances_needed += 1
-                volume_size_needed += database['disk']
+                volume_size_needed += database['desired-state']['disk']
 
         cdb = self.connect(context)
         instances = cdb.list()
@@ -309,7 +301,7 @@ class Provider(cmbase.ProviderBase):
             create_db_user.follow(create_database_task)
             root = wfspec.wait_for(create_database_task, wait_on)
             return dict(root=root, final=create_db_user)
-        elif component['is'] == 'compute':
+        elif component['is'] in ('compute', 'cache'):
             defines = dict(resource=key,
                            resource_type=resource_type,
                            interface=resource.get('interface'),
@@ -326,10 +318,10 @@ class Provider(cmbase.ProviderBase):
                         resource_key=key
                     ),
                     resource.get('dns-name'),
-                    resource['flavor'],
-                    resource['disk'],
+                    resource['desired-state']['flavor'],
+                    resource['desired-state']['disk'],
                     None,
-                    resource['region'],
+                    resource['desired-state']['region'],
                 ],
                 component=resource.get('component'),
                 merge_results=True,
@@ -346,10 +338,10 @@ class Provider(cmbase.ProviderBase):
                         deployment_id=deployment['id'],
                         resource_key=key,
                         resource=resource,
-                        region=resource['region'],
+                        region=resource['desired-state']['region'],
                         resource_type=resource_type
                     ),
-                    resource['region'],
+                    resource['desired-state']['region'],
                 ],
                 merge_results=True,
                 defines=dict(
@@ -363,7 +355,7 @@ class Provider(cmbase.ProviderBase):
             )
             wait_task.follow(create_instance_task)
             return dict(root=root, final=wait_task)
-        elif resource.get('component') != 'redis_instance':
+        elif resource.get('component') != 'redis_cache':
             error_message = ("Unsupported component type '%s' for  provider "
                              "%s" % (component['is'], self.key))
             raise CheckmateException(error_message)
@@ -510,11 +502,11 @@ class Provider(cmbase.ProviderBase):
                         },
                         'database/username': {
                             'type': 'string',
-                            'required': "true"
+                            'required': True
                         },
                         'database/password': {
                             'type': 'string',
-                            'required': "false"
+                            'required': False
                         }
                     }
                 },
@@ -522,25 +514,53 @@ class Provider(cmbase.ProviderBase):
                     'id': 'redis_database',
                     'is': 'database',
                     'provides': [{'database': 'redis'}],
-                    'requires': [{
-                        'compute': {
-                            'relation': 'host',
-                            'interface': 'redis',
-                            'resource_type': 'compute'
-                        }
-                    }],
                     'options': {
-                        'database/name': {
+                        'username': {
                             'type': 'string',
-                            'default': 'db1'
+                            'required': True
                         },
-                        'database/username': {
+                        'password': {
                             'type': 'string',
-                            'required': "true"
+                            'required': False
                         },
-                        'database/password': {
+                        'disk': {
+                            'type': 'integer',
+                            'constraints': [
+                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                            ],
+                            'unit': 'Gb',
+                        },
+                        'memory': {
+                            'type': 'integer',
+                            'constraints': [
+                                {'in': [512, 1024, 2048, 4096]}
+                            ],
+                            'unit': 'Mb',
+                        }
+                    }
+                }
+            }
+        if type_filter is None or type_filter == 'cache':
+            results['cache'] = {
+                'redis_cache': {
+                    'id': 'redis_cache',
+                    'is': 'cache',
+                    'provides': [{'cache': 'redis'}],
+                    'options': {
+                        'username': {
                             'type': 'string',
-                            'required': "false"
+                            'required': True
+                        },
+                        'password': {
+                            'type': 'string',
+                            'required': False
+                        },
+                        'memory': {
+                            'type': 'integer',
+                            'constraints': [
+                                {'in': [512, 1024, 2048, 4096]}
+                            ],
+                            'unit': 'Mb',
                         }
                     }
                 }
@@ -567,27 +587,6 @@ class Provider(cmbase.ProviderBase):
                             ],
                             'unit': 'Mb',
                         },
-                    }
-                },
-                'redis_instance': {
-                    'id': 'redis_instance',
-                    'is': 'compute',
-                    'provides': [{'compute': 'redis'}],
-                    'options': {
-                        'disk': {
-                            'type': 'integer',
-                            'constraints': [
-                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-                            ],
-                            'unit': 'Gb',
-                        },
-                        'memory': {
-                            'type': 'integer',
-                            'constraints': [
-                                {'in': [512, 1024, 2048, 4096]}
-                            ],
-                            'unit': 'Mb',
-                        }
                     }
                 }
             }
@@ -631,28 +630,47 @@ class Provider(cmbase.ProviderBase):
             db_hosts += api.list()
         results = []
         for db_host in db_hosts:
-            resource = {
-                'status': db_host.status,
-                'region': db_host.manager.api.region_name,
-                'provider': 'database',
-                'dns-name': db_host.name,
-                'instance': {
+            if int(db_host.flavor.id) >= 100:  # redis flavors
+                resource = {
                     'status': db_host.status,
-                    'name': db_host.name,
-                    'region': db_host.manager.api.region_name,
-                    'id': db_host.id,
-                    'interfaces': {
-                        'mysql': {
-                            'host': db_host.hostname
-                        }
+                    'provider': 'database',
+                    'dns-name': db_host.name,
+                    'instance': {
+                        'status': db_host.status,
+                        'name': db_host.name,
+                        'region': db_host.manager.api.region_name,
+                        'id': db_host.id,
+                        'interfaces': {
+                            'redis': {
+                                'host': db_host.hostname
+                            }
+                        },
+                        'flavor': db_host.flavor.id,
+                        'disk': db_host.volume.size,
                     },
-                    'flavor': db_host.flavor.id
-                },
-                'hosts': [],
-                'flavor': db_host.flavor.id,
-                'disk': db_host.volume.size,
-                'type': 'compute'
-            }
+                    'type': 'database'
+                }
+            else:
+                resource = {
+                    'status': db_host.status,
+                    'provider': 'database',
+                    'dns-name': db_host.name,
+                    'instance': {
+                        'status': db_host.status,
+                        'name': db_host.name,
+                        'region': db_host.manager.api.region_name,
+                        'id': db_host.id,
+                        'interfaces': {
+                            'mysql': {
+                                'host': db_host.hostname
+                            }
+                        },
+                        'flavor': db_host.flavor.id,
+                        'disk': db_host.volume.size,
+                    },
+                    'hosts': [],
+                    'type': 'compute'
+                }
             results.append(resource)
         return results
 
