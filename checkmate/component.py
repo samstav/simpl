@@ -96,7 +96,7 @@ class Component(ExtensibleDict):
 
     @property
     def provides(self):
-        """Return the 'provides' list in the expanded format"""
+        """Return the 'provides' list as an expanded dict."""
         results = self.get('provides') or []
         expanded_results = {}
         for entry in results:
@@ -115,11 +115,18 @@ class Component(ExtensibleDict):
             else:
                 raise CheckmateValidationException("Provides has invalid "
                                                    "format: %s" % entry)
+        for value in expanded_results.itervalues():
+            if 'type' in value:
+                if 'resource_type' in value:
+                    msg = ("Component has both type and resource_type "
+                           "specified in its 'provides' section")
+                    raise CheckmateValidationException(msg)
+                value['resource_type'] = value.pop('type')
         return expanded_results
 
     @property
     def requires(self):
-        """Return the 'requires' list in the expanded format"""
+        """Return the 'requires' list as an expanded dict."""
         results = self.get('requires') or []
         expanded_results = {}
         for entry in results:
@@ -136,7 +143,16 @@ class Component(ExtensibleDict):
                     expanded = dict(zip(keys, item))
                     expanded_results['%s:%s' % item] = expanded
             else:
-                raise CheckmateValidationException("Requires has invalid "
+                raise CheckmateValidationException("'Requires' has invalid "
+                                                   "format: " % entry)
+        for value in expanded_results.itervalues():
+            if 'type' in value:
+                if 'resource_type' in value:
+                    msg = ("Component has both type and resource_type "
+                           "specified in its 'requires' section")
+                    raise CheckmateValidationException(msg)
+                value['resource_type'] = value.pop('type')
+        return expanded_results
 
     @property
     def uses(self):
