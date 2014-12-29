@@ -39,7 +39,7 @@ class TestComponent(unittest.TestCase):
                 - database: mssql
             """)
         comp = cmcomp.Component(data)
-        self.assertDictEqual(comp._data, data)
+        self.assertEqual(comp._data, data)
 
     def test_schema_validation(self):
         self.assertRaises(cmexc.CheckmateValidationException,
@@ -62,6 +62,9 @@ class TestComponent(unittest.TestCase):
                 provides:
                 - database: mysql
                 - compute: linux
+                - longform:  # Check that name stays
+                    resource_type: cache
+                    interface: redis
             """)
         comp = cmcomp.Component(data)
         expected = utils.yaml_to_dict("""
@@ -71,40 +74,11 @@ class TestComponent(unittest.TestCase):
                     compute:linux:
                       resource_type: compute
                       interface: linux
+                    longform:
+                      resource_type: cache
+                      interface: redis
             """)
-        self.assertDictEqual(comp.provides, expected)
-
-    def test_provides_property_dict(self):
-        """Check that components parses provides as a dictionary correctly."""
-        data = utils.yaml_to_dict("""
-                id: component1
-                provides:
-                  "host":
-                    resource_type: compute
-                    relation: host
-                    interface: linux
-                  "data":
-                    resource_type: database
-                    interface: mysql
-                  "logs":
-                    resource_type: database
-                    interface: mysql
-            """)
-        comp = cmcomp.Component({})
-        comp._data = data  # bypass validation until we support this syntax
-        expected = utils.yaml_to_dict("""
-                  host:
-                    resource_type: compute
-                    relation: host
-                    interface: linux
-                  data:
-                    resource_type: database
-                    interface: mysql
-                  logs:
-                    resource_type: database
-                    interface: mysql
-            """)
-        self.assertDictEqual(comp.provides, expected)
+        self.assertEqual(comp.provides, expected)
 
     def test_requires_property_list(self):
         """Check that components parses requires list correctly."""
@@ -117,17 +91,17 @@ class TestComponent(unittest.TestCase):
             """)
         comp = cmcomp.Component(data)
         expected = utils.yaml_to_dict("""
-                    database:mysql:
-                      resource_type: database
-                      interface: mysql
-                    compute:linux:
-                      resource_type: compute
-                      interface: linux
-                    host:linux:
-                      interface: linux
-                      relation: host
+                database:mysql:
+                  resource_type: database
+                  interface: mysql
+                compute:linux:
+                  resource_type: compute
+                  interface: linux
+                host:linux:
+                  interface: linux
+                  relation: host
             """)
-        self.assertDictEqual(comp.requires, expected)
+        self.assertEqual(comp.requires, expected)
 
     def test_requires_property_host(self):
         """Check that components parses 'host' shorthand."""
@@ -138,11 +112,36 @@ class TestComponent(unittest.TestCase):
             """)
         comp = cmcomp.Component(data)
         expected = utils.yaml_to_dict("""
-                    host:linux:
-                      relation: host
-                      interface: linux
+                host:linux:
+                  relation: host
+                  interface: linux
             """)
-        self.assertDictEqual(comp.requires, expected)
+        self.assertEqual(comp.requires, expected)
+
+    def test_uses_property(self):
+        """Check that components parses uses list correctly."""
+        data = utils.yaml_to_dict("""
+                id: component1
+                uses:
+                - compute: linux               # shorthand
+                - backend:                     # long form
+                    resource_type: database
+                    interface: mysql
+                - host: linux                  # host relation
+            """)
+        comp = cmcomp.Component(data)
+        expected = utils.yaml_to_dict("""
+                backend:
+                  resource_type: database
+                  interface: mysql
+                compute:linux:
+                  resource_type: compute
+                  interface: linux
+                host:linux:
+                  interface: linux
+                  relation: host
+            """)
+        self.assertEqual(comp.uses, expected)
 
     def test_input_validation(self):
         """Check that components can test option constraints."""

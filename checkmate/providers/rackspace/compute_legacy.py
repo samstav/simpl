@@ -52,17 +52,22 @@ CATALOG_TEMPLATE = utils.yaml_to_dict("""compute:
         'os':
             source_field_name: image
             required: true
-            choice: []
+            constraints: []
+            display-hints:
+                choice: []
         'memory':
             default: 512
             required: true
             source_field_name: flavor
-            choice: []
+            constraints: []
+            display-hints:
+                choice: []
         'personality': &personality
             type: hash
             required: false
             description: File path and contents.
-            sample: |
+            display-hints:
+                sample: |
                     "personality: [
                         {
                             "path" : "/etc/banner.txt",
@@ -78,7 +83,8 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
             type: hash
             required: false
             description: Metadata key and value pairs.
-            sample: |
+            display-hints:
+                sample: |
                     "metadata" : {
                         "My Server Name" : "API Test Server 1"
                     }
@@ -96,12 +102,16 @@ iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
         'os':
             required: true
             source_field_name: image
-            choice: []
+            constraints: []
+            display-hints:
+                choice: []
         'memory':
             required: true
             default: 1024
             source_field_name: flavor
-            choice: []
+            constraints: []
+            display-hints:
+                choice: []
 """)
 
 
@@ -353,22 +363,42 @@ class Provider(RackspaceComputeProviderBase):
             windows = results['compute']['windows_instance']
             if not images:
                 images = self._images(api)
+            win_choices = []
+            win_allowed = []
+            lin_choices = []
+            lin_allowed = []
             for image in images.values():
                 choice = dict(name=image['name'], value=image['os'])
                 if 'Windows' in image['os']:
-                    windows['options']['os']['choice'].append(choice)
+                    win_choices.append(choice)
+                    win_allowed.append(image['os'])
                 else:
-                    linux['options']['os']['choice'].append(choice)
+                    lin_choices.append(choice)
+                    lin_allowed.append(image['os'])
+            windows['options']['os']['display-hints']['choice'] = win_choices
+            windows['options']['os']['constraints'].append({'in': win_allowed})
+            linux['options']['os']['display-hints']['choice'] = lin_choices
+            linux['options']['os']['constraints'].append({'in': lin_allowed})
 
             if not flavors:
                 flavors = self._flavors(api)
+            win_choices = []
+            win_allowed = []
+            lin_choices = []
+            lin_allowed = []
             for flavor in flavors.values():
                 choice = dict(value=int(flavor['memory']),
                               name="%s (%s Gb disk)" % (flavor['name'],
                                                         flavor['disk']))
-                linux['options']['memory']['choice'].append(choice)
+                lin_choices.append(choice)
+                lin_allowed.append(int(flavor['memory']))
                 if flavor['memory'] >= 1024:  # Windows needs min 1Gb
-                    windows['options']['memory']['choice'].append(choice)
+                    win_choices.append(choice)
+                    win_allowed.append(int(flavor['memory']))
+
+            linux['options']['memory']['display-hints']['choice'] = lin_choices
+            windows['options']['memory']['display-hints']['choice'] = \
+                win_choices
 
         if type_filter is None or type_filter == 'type':
             if not images:

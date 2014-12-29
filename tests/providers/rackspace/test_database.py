@@ -495,13 +495,15 @@ class TestCatalog(unittest.TestCase):
             'database': {
                 'redis_database': {
                     'is': 'database',
-                    'requires': [{
-                        'compute': {
-                            'interface': 'redis',
-                            'type': 'compute',
-                            'relation': 'host'
+                    'requires': [
+                        {
+                            'compute': {
+                                'interface': 'redis',
+                                'resource_type': 'compute',
+                                'relation': 'host'
+                            }
                         }
-                    }],
+                    ],
                     'id': 'redis_database',
                     'provides': [{'database': 'redis'}],
                     'options': {
@@ -521,13 +523,15 @@ class TestCatalog(unittest.TestCase):
                 },
                 'mysql_database': {
                     'is': 'database',
-                    'requires': [{
-                        'compute': {
-                            'interface': 'mysql',
-                            'type': 'compute',
-                            'relation': 'host'
+                    'requires': [
+                        {
+                            'compute': {
+                                'interface': 'mysql',
+                                'resource_type': 'compute',
+                                'relation': 'host'
+                            }
                         }
-                    }],
+                    ],
                     'id': 'mysql_database',
                     'provides': [{'database': 'mysql'}],
                     'options': {
@@ -598,7 +602,7 @@ environment:
             - database: mysql
             requires:
             - server:
-                type: compute
+                resource_type: compute
                 relation: host
                 interface: mysql
         lists:

@@ -37,14 +37,6 @@ from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
-# Any names should become airport codes
-REGION_MAP = {
-    'dallas': 'DFW',
-    'chicago': 'ORD',
-    'london': 'LON',
-    'sydney': 'SYD',
-}
-
 PROTOCOL_PAIRS = {
     'https': 'http',
     'sftp': 'ftp',
@@ -676,7 +668,7 @@ class Provider(rsbase.RackspaceProviderBase):
                                          api_endpoint)
             options = {
                 'algorithm': {
-                    'type': 'list',
+                    'type': 'string',
                     'constraints': [
                         {'in': algorithms}
                     ]
@@ -685,7 +677,7 @@ class Provider(rsbase.RackspaceProviderBase):
                     'type': 'boolean',
                     'default': False
                 },
-                'allow_insecure': {
+                'allow_unencrypted': {
                     'type': 'boolean',
                     'default': False,
                     'description': 'For secure protocols (https, pop3s, sftp, '
@@ -698,37 +690,33 @@ class Provider(rsbase.RackspaceProviderBase):
             if 'load-balancer' not in results:
                 results['load-balancer'] = {}
 
-            # provide list of available load balancer types
-
+            # provide list of available load balancer protocols
             protocols = _get_protocols(context, context.auth_token,
                                        api_endpoint)
             protocols = [p.lower() for p in protocols]
-            for protocol in protocols:
-                item = {'id': protocol, 'is': 'load-balancer',
-                        'provides': [{'load-balancer': protocol}],
-                        #FIXME: we don't need to call this the name of a valid,
-                        #resource type, but until we get the key'd requires
-                        #code in, this stops it failing validation.
-                        'requires': [{"application": {'interface': protocol}}],
-                        'options': copy.copy(options)}
-                results['load-balancer'][protocol] = item
-
-            # provide abstracted 'proxy' load-balancer type
-
-            # add our custom protocol for handling both http and https on same
-            # vip
-            # TODO(any): add support for arbitrary combinations of secure and
-            #       unsecure protocols (ftp/ftps for example)
-            if "http_and_https" not in protocols:
-                protocols.extend(["http_and_https"])
-            protocol_option = {'protocol': {'type': 'list',
-                                            'choice': protocols}}
+            protocol_option = {
+                'protocol': {
+                    'type': 'string',
+                    'display-hints': {'choice': protocols},
+                }
+            }
             options.update(protocol_option)
+
+            uses = []
+            for protocol in protocols:
+                uses.append({'*': protocol})
+
             results['load-balancer']['rsCloudLB'] = {
                 'id': 'rsCloudLB',
                 'is': 'load-balancer',
-                'provides': [{'load-balancer': 'proxy'}],
-                'options': options}
+                'provides': [
+                    {'load-balancer': 'proxy'},
+                    {'load-balancer': 'vip'},
+                    {'load-balancer': {'from': protocols}}
+                ],
+                'uses': uses,
+                'options': options
+            }
 
         self.validate_catalog(results)
         if type_filter is None:

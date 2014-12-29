@@ -118,7 +118,7 @@ blueprint: &wp
       config: *wordpress1 #Reference in local file
       exposed: true
       open-ports: [80/tcp]
-      relations: {db: database}  # resource-type: service
+      relations: {db: database}  # resource_type: service
     database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
       config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
 
@@ -140,7 +140,7 @@ blueprint: &wp-multi
       relations: {url: wordpress}
     wordpress:
       config: *wordpress1 #Reference in local file
-      relations: {db: database}  # resource-type: service
+      relations: {db: database}  # resource_type: service
     database: #TODO: remove hard coding against this name. Thinak about what these names mean. These are basically tiers...
       config: *mysql  #TODO: support local (same server) and remote links like local://components/mysql
 
