@@ -386,6 +386,7 @@ COMPONENT_STRICT_SCHEMA_DICT = {
     'version': str,
     'roles': [str],
     'properties': dict,
+    'meta-data': dict,
 }
 COMPONENT_SCHEMA = All(
     Schema(COMPONENT_STRICT_SCHEMA_DICT),

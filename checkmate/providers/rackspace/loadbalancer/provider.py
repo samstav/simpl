@@ -14,7 +14,6 @@
 
 """Provider module for Rackspace Loadbalancers."""
 
-import copy
 import logging
 import os
 import sys
@@ -684,6 +683,9 @@ class Provider(rsbase.RackspaceProviderBase):
                                    'ldaps, pop3s) turning this on will also '
                                    'allow the unencrypted version of the '
                                    'protocol.'
+                },
+                'protocol': {
+                    'type': 'string'
                 }
             }
 
@@ -694,13 +696,7 @@ class Provider(rsbase.RackspaceProviderBase):
             protocols = _get_protocols(context, context.auth_token,
                                        api_endpoint)
             protocols = [p.lower() for p in protocols]
-            protocol_option = {
-                'protocol': {
-                    'type': 'string',
-                    'display-hints': {'choice': protocols},
-                }
-            }
-            options.update(protocol_option)
+            options['protocol']['display-hints'] = {'choice': protocols}
 
             uses = []
             for protocol in protocols:
