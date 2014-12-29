@@ -150,6 +150,31 @@ class TestComponent(unittest.TestCase):
             """)
         self.assertDictEqual(comp.requires, expected)
 
+    def test_uses_property(self):
+        """Check that components parses uses list correctly."""
+        data = utils.yaml_to_dict("""
+                id: component1
+                uses:
+                - compute: linux               # shorthand
+                - backend:                     # long form
+                    resource_type: database
+                    interface: mysql
+                - host: linux                  # host relation
+            """)
+        comp = cmcomp.Component(data)
+        expected = utils.yaml_to_dict("""
+                backend:
+                  resource_type: database
+                  interface: mysql
+                compute:linux:
+                  resource_type: compute
+                  interface: linux
+                host:linux:
+                  interface: linux
+                  relation: host
+            """)
+        self.assertEqual(comp.uses, expected)
+
     def test_input_validation(self):
         """Check that components can test option constraints."""
         data = utils.yaml_to_dict("""

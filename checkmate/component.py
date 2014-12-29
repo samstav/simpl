@@ -137,5 +137,33 @@ class Component(ExtensibleDict):
                     expanded_results['%s:%s' % item] = expanded
             else:
                 raise CheckmateValidationException("Requires has invalid "
+
+    @property
+    def uses(self):
+        """Return the 'uses' list as an expanded dict."""
+        results = self.get('uses') or []
+        expanded_results = {}
+        for entry in results:
+            if len(entry) == 1:
+                value = entry.values()[0]
+                if isinstance(value, dict):
+                    expanded_results[entry.keys()[0]] = value
+                else:
+                    item = entry.items()[0]
+                    if entry.keys()[0] == 'host':
+                        keys = ('relation', 'interface')
+                    else:
+                        keys = ('resource_type', 'interface')
+                    expanded = dict(zip(keys, item))
+                    expanded_results['%s:%s' % item] = expanded
+            else:
+                raise CheckmateValidationException("'Uses' has invalid "
                                                    "format: " % entry)
+        for value in expanded_results.itervalues():
+            if 'type' in value:
+                if 'resource_type' in value:
+                    msg = ("Component has both type and resource_type "
+                           "specified in its 'uses' section")
+                    raise CheckmateValidationException(msg)
+                value['resource_type'] = value.pop('type')
         return expanded_results
