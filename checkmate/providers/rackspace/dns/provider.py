@@ -12,22 +12,19 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""
-Rackspace Cloud DNS provider module.
-"""
+"""Rackspace Cloud DNS provider module."""
+
 import logging
 import os
 import sys
-import tldextract
 
 import eventlet.greenpool
 import pyrax
 import SpiffWorkflow.operators
 from SpiffWorkflow.specs import Celery
+import tldextract
 
 from checkmate.common import caching
-import checkmate.middleware
-import checkmate.providers
 from checkmate.providers import base
 from checkmate.providers.rackspace import base as rsbase
 
@@ -36,7 +33,9 @@ DNS_API_CACHE = {}
 
 
 class Provider(rsbase.RackspaceProviderBase):
+
     """Rackspace Cloud DNS provider class."""
+
     name = 'dns'
     vendor = 'rackspace'
     method = 'cloud_dns'

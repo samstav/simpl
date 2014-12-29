@@ -18,6 +18,7 @@ REGION_MAP = {
     'virginia': 'IAD',
     'london': 'LON',
     'sydney': 'SYD',
+    'hongkong': 'HKG',
 }
 
 

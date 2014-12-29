@@ -21,7 +21,7 @@ import bottle
 
 from checkmate import db
 from checkmate import environment as cm_env
-from checkmate import providers as cm_prov
+from checkmate.providers import base as providers_base
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -216,7 +216,7 @@ def get_environment_component(environment_id, provider_id, component_id,
 def get_providers(tenant_id=None):
     """Return a list of providers."""
     results = {}
-    for key, provider in cm_prov.PROVIDER_CLASSES.iteritems():
+    for key, provider in providers_base.PROVIDER_CLASSES.iteritems():
         results[key] = (dict(
             vendor=provider.vendor,
             name=provider.name,
