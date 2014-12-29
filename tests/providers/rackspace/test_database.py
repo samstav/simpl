@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Rackspace Database provider."""
+
 import logging
 import unittest
 
@@ -30,6 +31,8 @@ from checkmate.providers.rackspace.database import provider
 from checkmate.providers.rackspace.database import tasks as dbtasks
 from checkmate import test
 from checkmate import utils
+from checkmate import workflow as cm_wf
+from checkmate import workflow_spec
 
 LOG = logging.getLogger(__name__)
 
@@ -285,10 +288,11 @@ class TestDatabase(test.ProviderTester):
             'type': 'compute',
             'provider': dbprovider.key,
             'service': 'master',
-            'region': 'North',
-            'disk': 2,
-            'flavor': '2',
-            'desired-state': {},
+            'desired-state': {
+                'region': 'North',
+                'disk': 2,
+                'flavor': '2',
+            },
         }]
 
         self.mox.ReplayAll()
@@ -344,18 +348,19 @@ class TestDatabase(test.ProviderTester):
             },
             {
                 'component': 'mysql_instance',
-                'disk': 1,
                 'dns-name': 'backend01.wordpress.cldsrvr.com',
-                'flavor': '1',
                 'hosts': ['5'],
                 'index': '6',
                 'instance': {},
                 'provider': 'database',
-                'region': 'ORD',
                 'service': 'backend',
                 'status': 'NEW',
                 'type': 'compute',
-                'desired-state': {},
+                'desired-state': {
+                    'disk': 1,
+                    'region': 'ORD',
+                    'flavor': '1',
+                },
             }
         ]
         instance1 = self.mox.CreateMockAnything()
@@ -437,27 +442,6 @@ class TestCatalog(unittest.TestCase):
         context.region = None
         expected = {
             'compute': {
-                'redis_instance': {
-                    'is': 'compute',
-                    'id': 'redis_instance',
-                    'provides': [{'compute': 'redis'}],
-                    'options': {
-                        'disk': {
-                            'type': 'integer',
-                            'unit': 'Gb',
-                            'constraints': [
-                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-                            ]
-                        },
-                        'memory': {
-                            'type': 'integer',
-                            'unit': 'Mb',
-                            'constraints': [
-                                {'in': [512, 1024, 2048, 4096]}
-                            ]
-                        }
-                    }
-                },
                 'mysql_instance': {
                     'is': 'compute',
                     'id': 'mysql_instance',
@@ -495,29 +479,30 @@ class TestCatalog(unittest.TestCase):
             'database': {
                 'redis_database': {
                     'is': 'database',
-                    'requires': [
-                        {
-                            'compute': {
-                                'interface': 'redis',
-                                'resource_type': 'compute',
-                                'relation': 'host'
-                            }
-                        }
-                    ],
                     'id': 'redis_database',
                     'provides': [{'database': 'redis'}],
                     'options': {
-                        'database/password': {
-                            'required': 'false',
+                        'password': {
+                            'required': False,
                             'type': 'string'
                         },
-                        'database/name': {
-                            'default': 'db1',
+                        'username': {
+                            'required': True,
                             'type': 'string'
                         },
-                        'database/username': {
-                            'required': 'true',
-                            'type': 'string'
+                        'disk': {
+                            'type': 'integer',
+                            'unit': 'Gb',
+                            'constraints': [
+                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+                            ]
+                        },
+                        'memory': {
+                            'type': 'integer',
+                            'unit': 'Mb',
+                            'constraints': [
+                                {'in': [512, 1024, 2048, 4096]}
+                            ]
                         }
                     }
                 },
@@ -536,7 +521,7 @@ class TestCatalog(unittest.TestCase):
                     'provides': [{'database': 'mysql'}],
                     'options': {
                         'database/password': {
-                            'required': 'false',
+                            'required': False,
                             'type': 'string'
                         },
                         'database/name': {
@@ -544,8 +529,32 @@ class TestCatalog(unittest.TestCase):
                             'type': 'string'
                         },
                         'database/username': {
-                            'required': 'true',
+                            'required': True,
                             'type': 'string'
+                        }
+                    }
+                }
+            },
+            'cache': {
+                'redis_cache': {
+                    'is': 'cache',
+                    'id': 'redis_cache',
+                    'provides': [{'cache': 'redis'}],
+                    'options': {
+                        'password': {
+                            'required': False,
+                            'type': 'string'
+                        },
+                        'username': {
+                            'required': True,
+                            'type': 'string'
+                        },
+                        'memory': {
+                            'type': 'integer',
+                            'unit': 'Mb',
+                            'constraints': [
+                                {'in': [512, 1024, 2048, 4096]}
+                            ]
                         }
                     }
                 }
@@ -558,7 +567,7 @@ class TestCatalog(unittest.TestCase):
 
         self.mox.ReplayAll()
         results = dbprovider.get_catalog(context)
-        self.assertDictEqual(expected, results, results)
+        self.assertEqual(expected, results, results)
         self.mox.VerifyAll()
 
 
@@ -566,8 +575,7 @@ class TestDBWorkflow(test.StubbedWorkflowBase):
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
-        base.register_providers(
-            [provider.Provider, test.TestProvider])
+        base.register_providers([provider.Provider, test.TestProvider])
         self.deployment = deployment.Deployment(utils.yaml_to_dict("""
 id: 'DEP-ID-1000'
 blueprint:
@@ -636,6 +644,102 @@ environment:
         self.deployment['tenantId'] = 'tenantId'
         self.workflow = self._get_stubbed_out_workflow()
 
+    def test_workflow_task_generation(self):
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(context,
+                                                               self.deployment)
+        workflow = cm_wf.init_spiff_workflow(
+            wf_spec, self.deployment, context, "w_id", "BUILD")
+
+        task_list = workflow.spec.task_specs.keys()
+        expected = [
+            'Root',
+            'Start',
+            'Create Database Server',
+            'Wait on Database Instance 0',
+        ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
+
+    def test_workflow_completion(self):
+        self.mox.ReplayAll()
+        self.workflow.complete_all()
+        self.assertTrue(self.workflow.is_completed(), "Workflow did not "
+                        "complete")
+
+
+class TestRedisWorkflow(test.StubbedWorkflowBase):
+    def setUp(self):
+        test.StubbedWorkflowBase.setUp(self)
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([provider.Provider])
+        self.deployment = deployment.Deployment(utils.yaml_to_dict("""
+id: 'DEP-ID-1000'
+blueprint:
+  name: test db
+  services:
+    db:
+      component:
+        resource_type: cache
+        interface: redis
+environment:
+  name: test
+  providers:
+    database:
+      vendor: rackspace
+      provides:
+      - cache: redis
+      constraints:
+      - region: DFW
+      catalog:  # override so we don't need a token to connect
+        cache:
+          redis_cache:
+            id: redis_cache
+            is: cache
+            provides:
+            - cache: redis
+        lists:
+          regions:
+            DFW: https://dfw.databases.api.rackspacecloud.com/v1.0/T1000
+            ORD: https://ord.databases.api.rackspacecloud.com/v1.0/T1000
+          sizes:
+            '1':
+              memory: 512
+              name: m1.tiny
+            '2':
+              memory: 1024
+              name: m1.small
+            '3':
+              memory: 2048
+              name: m1.medium
+            '4':
+              memory: 4096
+              name: m1.large
+"""))
+        self.deployment['tenantId'] = 'tenantId'
+        self.workflow = self._get_stubbed_out_workflow()
+
+    def test_workflow_task_generation(self):
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(context,
+                                                               self.deployment)
+        workflow = cm_wf.init_spiff_workflow(
+            wf_spec, self.deployment, context, "w_id", "BUILD")
+
+        task_list = workflow.spec.task_specs.keys()
+        expected = [
+            'Root',
+            'Start',
+            'Create Database Server',
+            'Wait on Database Instance 0',
+        ]
+        task_list.sort()
+        expected.sort()
+        self.assertListEqual(task_list, expected, msg=task_list)
+
     def test_workflow_completion(self):
         self.mox.ReplayAll()
         self.workflow.complete_all()
@@ -657,7 +761,7 @@ class TestDatabaseGetResources(unittest.TestCase):
         db_host.name = 'name'
         db_host.id = 'id'
         db_host.hostname = 'hostname'
-        db_host.flavor.id = 'flavor'
+        db_host.flavor.id = 8
         db_host.volume.size = 'size'
         db_host.manager.api.region_name = 'region'
 
@@ -673,10 +777,42 @@ class TestDatabaseGetResources(unittest.TestCase):
         self.assertEqual(resource['instance']['id'], 'id')
         self.assertEqual(resource['instance']['interfaces']['mysql']['host'],
                          'hostname')
-        self.assertEqual(resource['flavor'], 'flavor')
-        self.assertEqual(resource['disk'], 'size')
-        self.assertEqual(resource['region'], 'region')
+        self.assertEqual(resource['instance']['flavor'], 8)
+        self.assertEqual(resource['instance']['disk'], 'size')
+        self.assertEqual(resource['instance']['region'], 'region')
 
+    @mock.patch.object(provider, 'pyrax')
+    @mock.patch.object(provider.Provider, 'connect')
+    def test_get_resources_returns_redis_instances(self, mock_connect,
+                                                   mock_pyrax):
+        request = mock.Mock()
+        mock_pyrax.identity.authenticated = True
+        mock_pyrax.regions = ["ORD"]
+
+        db_host = mock.Mock()
+        db_host.status = 'status'
+        db_host.name = 'name'
+        db_host.id = 'id'
+        db_host.hostname = 'hostname'
+        db_host.flavor.id = 106
+        db_host.volume.size = 'size'
+        db_host.manager.api.region_name = 'region'
+
+        api = mock.Mock()
+        api.list.return_value = [db_host]
+
+        mock_connect.return_value = api
+        results = provider.Provider.get_resources(request, 'tenant')
+        resource = results[0]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(resource['status'], 'status')
+        self.assertEqual(resource['dns-name'], 'name')
+        self.assertEqual(resource['instance']['id'], 'id')
+        self.assertEqual(resource['instance']['interfaces']['redis']['host'],
+                         'hostname')
+        self.assertEqual(resource['instance']['flavor'], 106)
+        self.assertEqual(resource['instance']['disk'], 'size')
+        self.assertEqual(resource['instance']['region'], 'region')
 
 if __name__ == '__main__':
     import sys

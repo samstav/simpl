@@ -73,5 +73,4 @@ class TestResourcesRouterGetResources(unittest.TestCase):
 
 if __name__ == '__main__':
     import sys
-    from checkmate import test
     test.run_with_params(sys.argv[:])

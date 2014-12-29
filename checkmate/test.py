@@ -699,7 +699,9 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'result': None,
                     'resource': key,
                 })
-            elif resource.get('type') == 'compute' and 'disk' in resource:
+            elif (resource.get('provider') == 'database' and
+                    resource.get('type') in ('compute', 'cache') and
+                    'disk' in resource['desired-state']):
                 expected_calls.extend([{
                     # Create Instance
                     'call': 'checkmate.providers.rackspace.database.tasks.'
@@ -712,7 +714,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                         None,
                         self.deployment.get_setting(
                             'region',
-                            resource_type='compute',
+                            resource_type=resource.get('type'),
                             service_name=resource['service'],
                             provider_key=resource['provider'],
                             default='testonia'
