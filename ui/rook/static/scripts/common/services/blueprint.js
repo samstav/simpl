@@ -356,24 +356,39 @@ angular.module('checkmate.Blueprint')
         }
       },
       componentInService: function(component, serviceName) {
-        return this.getComponent(serviceName, component.id) ? true : false;
+        var _id = component.id || component.name;
+        return this.getComponent(serviceName, _id) ? true : false;
       },
       getComponent: function(serviceId, componentId) {
         var components = ((this.data.services || {})[serviceId] || {}).components || [];
+
         var component = _.find(components, function(_component) {
-          return _component.id == componentId;
+          return _component.id == componentId || _component.name == componentId;
         });
+
         return component;
       },
       getComponentConstraints: function(serviceId, componentId) {
         return this.getComponent(serviceId, componentId).constraints || [];
       },
       saveComponentConstraints: function(data) {
-        this.getComponent(data.serviceId, data.component.id).constraints = data.constraints;
+        var _id = data.component.id || data.component.name;
+
+        this.getComponent(data.serviceId, _id).constraints = data.constraints;
         this.broadcast();
       },
       addComponentToService: function(component, serviceName) {
-        this.data.services[serviceName].components.push({id: component.id});
+        var _component = {};
+
+        if('id' in component) {
+          _component.id = component.id;
+        } else if('name' in component) {
+          _component.name = component.name;
+        } else {
+          throw new Error('Components require an id or name property to be added to a blueprint.');
+        }
+
+        this.data.services[serviceName].components.push(_component);
       },
       addService: function(serviceName, firstComponent) {
         this.data.services[serviceName] = {components: []};
