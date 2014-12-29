@@ -574,7 +574,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: bar
                       constraints:
-                        - count: 1
+                      - count: 1
                 inputs: {}
             """))
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase

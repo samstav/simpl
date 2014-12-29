@@ -31,7 +31,9 @@ except ImportError as exc:
 
 
 class Shim(object):
+
     """Abstraction layer for MongoDB testing using MongoBox."""
+
     def __init__(self):
         """Fire up a sandboxed mongodb instance."""
         try:
