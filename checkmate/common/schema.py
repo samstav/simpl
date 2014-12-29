@@ -108,7 +108,7 @@ FUNCTION_SCHEMA = Schema({
 })
 
 ENDPOINT_SCHEMA = Schema({
-    'type': Any(*RESOURCE_TYPES),
+    'resource_type': Any(*RESOURCE_TYPES),
     'interface': Any(str, dict),
     'relation': Any('reference', 'host'),
     'constraints': [dict],
@@ -136,11 +136,11 @@ def Shorthand(msg=None):
                     return dict(id=key, **value)
                 elif check_schema(FUNCTION_SCHEMA, value):
                     # shorthand with function
-                    return {'type': key, 'interface': value}
+                    return {'resource_type': key, 'interface': value}
                 else:
                     raise Invalid('not a valid endpoint')
             # shorthand (type: interface)
-            return {'type': key, 'interface': value}
+            return {'resource_type': key, 'interface': value}
         return entry
     return check
 

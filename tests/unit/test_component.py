@@ -62,6 +62,9 @@ class TestComponent(unittest.TestCase):
                 provides:
                 - database: mysql
                 - compute: linux
+                - longform:  # Check that name stays
+                    resource_type: cache
+                    interface: redis
             """)
         comp = cmcomp.Component(data)
         expected = utils.yaml_to_dict("""
@@ -71,6 +74,9 @@ class TestComponent(unittest.TestCase):
                     compute:linux:
                       resource_type: compute
                       interface: linux
+                    longform:
+                      resource_type: cache
+                      interface: redis
             """)
         self.assertDictEqual(comp.provides, expected)
 
@@ -117,17 +123,17 @@ class TestComponent(unittest.TestCase):
             """)
         comp = cmcomp.Component(data)
         expected = utils.yaml_to_dict("""
-                    database:mysql:
-                      resource_type: database
-                      interface: mysql
-                    compute:linux:
-                      resource_type: compute
-                      interface: linux
-                    host:linux:
-                      interface: linux
-                      relation: host
+                database:mysql:
+                  resource_type: database
+                  interface: mysql
+                compute:linux:
+                  resource_type: compute
+                  interface: linux
+                host:linux:
+                  interface: linux
+                  relation: host
             """)
-        self.assertDictEqual(comp.requires, expected)
+        self.assertEqual(comp.requires, expected)
 
     def test_requires_property_host(self):
         """Check that components parses 'host' shorthand."""
@@ -138,9 +144,9 @@ class TestComponent(unittest.TestCase):
             """)
         comp = cmcomp.Component(data)
         expected = utils.yaml_to_dict("""
-                    host:linux:
-                      relation: host
-                      interface: linux
+                host:linux:
+                  relation: host
+                  interface: linux
             """)
         self.assertDictEqual(comp.requires, expected)
 

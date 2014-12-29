@@ -500,7 +500,7 @@ class Provider(cmbase.ProviderBase):
                         'compute': {
                             'relation': 'host',
                             'interface': 'mysql',
-                            'type': 'compute'
+                            'resource_type': 'compute'
                         }
                     }],
                     'options': {
@@ -526,7 +526,7 @@ class Provider(cmbase.ProviderBase):
                         'compute': {
                             'relation': 'host',
                             'interface': 'redis',
-                            'type': 'compute'
+                            'resource_type': 'compute'
                         }
                     }],
                     'options': {
