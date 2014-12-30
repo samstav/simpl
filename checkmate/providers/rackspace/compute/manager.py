@@ -33,7 +33,8 @@ class Manager(object):
 
     @staticmethod
     def create_server(context, name, update_state, api=None, flavor="2",
-                      files=None, image=None, tags=None):
+                      files=None, image=None, tags=None, config_drive=None,
+                      userdata=None):
         #pylint: disable=R0914
         """Create a Rackspace Cloud server using novaclient.
 
@@ -47,6 +48,8 @@ class Manager(object):
         :param api: existing, authenticated connection to API
         :param image: the image ID to use when building the server (which OS)
         :param flavor: the size of the server (a string ID)
+        :param userdata:
+        :param config_drive: If True, enable config drive on the server.
         :param files: a list of files to inject
         :type files: dict
         :Example:
@@ -101,7 +104,9 @@ class Manager(object):
         meta = tags or context.get("metadata", None)
         try:
             server = api.servers.create(name, image_object, flavor_object,
-                                        meta=meta, files=files)
+                                        meta=meta, files=files,
+                                        config_drive=config_drive,
+                                        userdata=userdata)
         except ncexc.OverLimit as exc:
             raise cmexec.CheckmateException(
                 message=str(exc),
