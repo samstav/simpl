@@ -65,7 +65,6 @@ class TestDatabaseTasks(unittest.TestCase):
                         'flavor': 1,
                         'disk': 1,
                         'region': 'DFW',
-                        'databases': {},
                         'interfaces': {'mysql': {'host': 'db1.rax.net'}},
                         'id': 'DBS0'
                     },
@@ -175,7 +174,6 @@ class TestDatabaseTasks(unittest.TestCase):
                         'name': 'test_instance',
                         'region': 'DFW',
                         'id': 1234,
-                        'databases': {},
                         'flavor': 1,
                         'disk': 1,
                         'interfaces': {

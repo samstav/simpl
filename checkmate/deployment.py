@@ -22,11 +22,10 @@ import os
 import urlparse
 
 import bottle
-import morpheus
 import simplefsm as fsm
 from simplefsm import exceptions as fsmexc
 
-from checkmate import blueprints
+from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate import constraints as cm_constraints
 from checkmate import db
@@ -256,8 +255,10 @@ def generate_keys(deployment):
 
     return copy.copy(dep_keys)
 
+DEPLOYMENT_SCHEMA = schema.get_schema(__name__)
 
-class Deployment(morpheus.MorpheusDict):
+
+class Deployment(ExtensibleDict):
 
     """A checkmate deployment.
 
@@ -267,16 +268,7 @@ class Deployment(morpheus.MorpheusDict):
     and creation of a workflow
     """
 
-    __schema__ = [
-        'id', 'name', 'blueprint', 'environment', 'inputs', 'display-outputs',
-        'resources', 'workflow', 'status', 'created', 'tenantId', 'operation',
-        'error-messages', 'live', 'plan', 'operations-history', 'created-by',
-        'secrets',
-        'meta-data',  # Used to store, display miscellaneous data on the
-                      #deployment
-        'check-limit-results', 'check-access-results',
-        'includes',  # used to place YAML-referenced parts but then removed
-    ]
+    __schema__ = staticmethod(DEPLOYMENT_SCHEMA)
 
     FSM_TRANSITIONS = {
         'NEW': {'PLANNED', 'FAILED', 'DELETED'},
@@ -330,9 +322,6 @@ class Deployment(morpheus.MorpheusDict):
             if error:
                 errors.append(error)
         errors.extend(schema.validate_inputs(obj))
-        if 'blueprint' in obj:
-            if not blueprints.Blueprint.is_supported_syntax(obj['blueprint']):
-                errors.extend(blueprints.Blueprint.inspect(obj['blueprint']))
         return errors
 
     def get_resources_for_service(self, service_name):

@@ -146,6 +146,10 @@ class Manager(object):
                  "Databases = %s", instance.name, instance.id, size,
                  flavor, databases)
 
+        if int(flavor) >= 100:
+            interface = 'redis'
+        else:
+            interface = 'mysql'
         # Return instance and its interfaces
         results = {
             'id': instance.id,
@@ -155,16 +159,15 @@ class Manager(object):
             'flavor': flavor,
             'disk': instance.volume.size,
             'interfaces': {
-                'mysql': {
+                interface: {
                     'host': instance.hostname
                 }
-            },
-            'databases': {}
+            }
         }
 
         # Return created databases and their interfaces
         if databases:
-            db_results = results['databases']
+            db_results = results.setdefault('databases', {})
             for database in databases:
                 data = copy.copy(database)
                 data['interfaces'] = {

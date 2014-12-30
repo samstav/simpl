@@ -38,7 +38,7 @@ class Component(ExtensibleDict):
 
     """TODO: docstring."""
 
-    __schema__ = COMPONENT_SCHEMA
+    __schema__ = staticmethod(COMPONENT_SCHEMA)
 
     def __init__(self, *args, **kwargs):
         self._provider = kwargs.pop('provider', None)
@@ -92,7 +92,7 @@ class Component(ExtensibleDict):
 
     @classmethod
     def inspect(cls, obj):
-        return schema.validate(obj, schema.COMPONENT_SCHEMA)
+        return schema.validate(obj, cls.__schema__)
 
     @property
     def provides(self):

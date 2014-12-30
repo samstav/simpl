@@ -24,6 +24,16 @@ from checkmate import exceptions as cmexc
 from checkmate import utils
 
 
+class TestSchema(unittest.TestCase):
+
+    def test_minimal(self):
+        cmdep.Deployment({})
+
+    def test_extra(self):
+        with self.assertRaises(cmexc.CheckmateValidationException):
+            cmdep.Deployment({'foo': 1})
+
+
 class TestDeploymentStateTransitions(unittest.TestCase):
     def test_deployment_states_fail_to_plan(self):
         deployment = cmdep.Deployment({'id': 'test'})
