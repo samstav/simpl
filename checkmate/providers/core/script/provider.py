@@ -157,25 +157,3 @@ class Provider(base.ProviderBase):
         """
         # TODO(zns): remove region (i.e. *args)
         return ssh
-
-    def get_context_parameters(self, **kwargs):
-        """Get settings.
-
-        Includes the real data in the context.
-        """
-        # Add defaults if there is a component and no defaults specified
-        if kwargs and 'defaults' not in kwargs and 'component' in kwargs:
-            component = kwargs['component']
-            # used by setting() in Jinja context to return defaults
-            defaults = {}
-            for key, option in component.get('options', {}).iteritems():
-                if 'default' in option:
-                    default = option['default']
-                    try:
-                        if default.startswith('=generate'):
-                            default = self.evaluate(default[1:])
-                    except AttributeError:
-                        pass  # default probably not a string type
-                    defaults[key] = default
-            kwargs['defaults'] = defaults
-        return kwargs
