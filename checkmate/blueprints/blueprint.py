@@ -23,6 +23,7 @@ from checkmate.common import schema
 from checkmate.exceptions import CheckmateValidationException
 
 LOG = logging.getLogger(__name__)
+BLUEPRINT_SCHEMA = schema.get_schema(__name__)
 
 
 class Blueprint(ExtensibleDict):
@@ -32,6 +33,8 @@ class Blueprint(ExtensibleDict):
     Acts like a dict. Includes validation, setting logic and other useful
     methods.
     """
+
+    __schema__ = staticmethod(BLUEPRINT_SCHEMA)
 
     def __init__(self, *args, **kwargs):
         obj = dict(*args, **kwargs)
@@ -155,7 +158,7 @@ class Blueprint(ExtensibleDict):
 
     @classmethod
     def inspect(cls, obj):
-        errors = schema.validate(obj, schema.BLUEPRINT_SCHEMA)
+        errors = schema.validate(obj, cls.__schema__)
         errors.extend(schema.validate_inputs(obj))
         if obj:
             errors.extend(schema.validate_options(obj.get('options')))

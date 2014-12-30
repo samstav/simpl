@@ -87,4 +87,4 @@ class ExtensibleDict(collections.MutableMapping):
 
         returns: list of errors
         """
-        return schema.validate(obj, None)
+        return schema.validate(obj, getattr(cls, '__schema__', None))

@@ -308,19 +308,6 @@ INTERFACE_SCHEMA = yaml_to_dict("""
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()
 
-BLUEPRINT_SCHEMA = [
-    'id',
-    'name',
-    'services',
-    'options',
-    'resources',
-    'meta-data',
-    'description',
-    'display-outputs',
-    'documentation',
-    'version',
-    'source',
-]
 
 OPTION_SCHEMA = [
     'constrains',
@@ -404,6 +391,26 @@ COMPONENT_LOOSE_SCHEMA_DICT.update({
 })
 COMPONENT_LOOSE_SCHEMA = Schema(COMPONENT_LOOSE_SCHEMA_DICT)
 
+SERVICE_SCHEMA = Schema({
+    'component': COMPONENT_SCHEMA,
+    'relations': [Shorthand()],
+    'constraints': list,
+})
+
+BLUEPRINT_SCHEMA = Schema({
+    'id': object,
+    'name': object,
+    'services': dict,  # DictOf(SERVICE_SCHEMA),
+    'options': object,
+    'resources': object,
+    'meta-data': object,
+    'description': object,
+    'display-outputs': object,
+    'documentation': object,
+    'version': object,
+    'source': object,
+})
+
 WORKFLOW_SCHEMA = [
     'attributes',
     'id',
@@ -415,8 +422,38 @@ WORKFLOW_SCHEMA = [
     'workflow',
 ]
 
+DEPLOYMENT_SCHEMA_DICT = {
+    'id': object,
+    'name': object,
+    'blueprint': Any(BLUEPRINT_SCHEMA, None),
+    'resources': object,
+    'inputs': object,
+    'environment': object,
+    'operation': object,
+
+    'display-outputs': object,
+    'workflow': object,
+    'status': object,
+    'created': object,
+    'tenantId': object,
+    'error-messages': object,
+    'live': object,
+    'plan': object,
+    'operations-history': object,
+    'created-by': object,
+    'secrets': object,
+    'meta-data': object,  # Used to store/show miscellaneous data
+    'check-limit-results': object,
+    'check-access-results': object,
+    'includes': object,  # temp store for YAML-referenced parts (then removed)
+}
+DEPLOYMENT_SCHEMA = Schema(DEPLOYMENT_SCHEMA_DICT, required=False)
+
+
 SCHEMA_MAPS = {
-    'component': COMPONENT_SCHEMA,
+    'checkmate.component': COMPONENT_SCHEMA,
+    'checkmate.blueprints.blueprint': BLUEPRINT_SCHEMA,
+    'checkmate.deployment': DEPLOYMENT_SCHEMA,
 }
 
 

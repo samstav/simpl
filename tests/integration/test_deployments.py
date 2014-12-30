@@ -130,7 +130,7 @@ class TestDeploymentParser(unittest.TestCase):
                                      cmmid.RequestContext())
         del parsed['status']  # we expect this to get added
         del parsed['created']  # we expect this to get added
-        self.assertDictEqual(original, parsed)
+        self.assertEqual(original, parsed)
 
     def test_constrain_format_handling(self):
         cases = {

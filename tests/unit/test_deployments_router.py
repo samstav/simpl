@@ -649,7 +649,7 @@ class TestTimestampDeployments(TestDeploymentRouter):
             'id': '1',
             'created': result['created'],
         }
-        self.assertDictEqual(result, expected)
+        self.assertEqual(result, expected)
         mock_read.assert_called_once_with(req)
 
     @mock.patch.object(utils, 'read_body')
