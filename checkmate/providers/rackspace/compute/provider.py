@@ -33,6 +33,7 @@ from SpiffWorkflow import specs
 
 from checkmate.common import caching
 from checkmate.common import config
+from checkmate.common import templating
 from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
@@ -299,13 +300,18 @@ class Provider(RackspaceComputeProviderBase):
         if not flavor:
             raise cmexc.CheckmateNoMapping(
                 "No flavor mapping for '%s' in '%s'" % (memory, self.key))
-
+        userdata = deployment.get_setting('userdata', resource_type=resource_type,
+                                        service_name=service,
+                                        provider_key=self.key)
         for template in templates:
             template['desired-state']['flavor'] = flavor
             template['desired-state']['image'] = image
             template['desired-state']['region'] = region
             template['desired-state']['os-type'] = image_types[image]['type']
             template['desired-state']['os'] = image_types[image]['os']
+            if userdata:
+                template['desired-state']['userdata'] = userdata
+                template['desired-state']['config_drive'] = True
         return templates
 
     def verify_limits(self, context, resources):
@@ -382,9 +388,21 @@ class Provider(RackspaceComputeProviderBase):
         :returns: returns the root task in the chain of tasks
         TODO(any): use environment keys instead of private key
         """
-
+        wait_on, _, component = self._add_resource_tasks_helper(
+            resource, key, wfspec, deployment, context, wait_on)
         desired = resource['desired-state']
         files = self._kwargs.get('files')
+        userdata = desired.get('userdata')
+        if userdata:
+            kwargs = self.get_context_parameters(deployment=deployment,
+                                                 resource=resource,
+                                                 component=component)
+            kwargs['inputs'] = deployment.get('inputs') or {}
+            kwargs['blueprint'] = blueprint = deployment.get('blueprint') or {}
+            kwargs['options'] = blueprint.get('options') or {}
+            kwargs['services'] = blueprint.get('services') or {}
+            kwargs['resources'] = deployment.get('resources') or {}
+            userdata = templating.parse(userdata, **kwargs)
 
         if desired['os-type'] == 'windows':
             # Inject firewall puncher in WINDOWS
@@ -413,6 +431,8 @@ class Provider(RackspaceComputeProviderBase):
             image=desired.get('image'),
             flavor=desired.get('flavor', "2"),
             files=files,
+            userdata=userdata,
+            config_drive=desired.get('config_drive'),
             tags=self.generate_resource_tag(
                 context.base_url, context.tenant, deployment['id'],
                 resource['index']

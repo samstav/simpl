@@ -197,7 +197,8 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.flavors.find.assert_called_once_with(id=flavor.id)
         openstack_api_mock.images.find.assert_called_once_with(id=image.id)
         openstack_api_mock.servers.create.assert_called_once_with(
-            'fake_server', image, flavor, files=None,
+            'fake_server', image, flavor, files=None, config_drive=None,
+            userdata=None,
             meta={
                 'RAX-CHECKMATE':
                 'http://MOCK/TMOCK/deployments/DEP/resources/1'
@@ -1075,6 +1076,10 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                                     service_name='master',
                                     provider_key=provider.key, default=512) \
             .AndReturn('512')
+        self.deployment.get_setting('userdata', resource_type='compute',
+                                    service_name='master',
+                                    provider_key=provider.key) \
+            .AndReturn(None)
 
         expected = [{
             'instance': {},
@@ -1145,6 +1150,11 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                                     service_name='master',
                                     provider_key=provider.key, default=512) \
             .AndReturn('512')
+
+        self.deployment.get_setting('userdata', resource_type='compute',
+                                    service_name='master',
+                                    provider_key=provider.key) \
+            .AndReturn(None)
 
         copy.deepcopy(context).AndReturn(context2)
         provider.get_catalog(context2).AndReturn(catalog)

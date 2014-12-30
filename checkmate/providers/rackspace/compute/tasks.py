@@ -30,7 +30,8 @@ LOG = logging.getLogger(__name__)
             max_retries=40, provider=provider.Provider)
 @statsd.collect
 def create_server(context, name, region=None, api=None, flavor="2",
-                  files=None, image=None, tags=None):
+                  files=None, image=None, tags=None, userdata=None,
+                  config_drive=None):
     # pylint: disable=W0613
     """Create a Rackspace Cloud server using novaclient.
 
@@ -72,7 +73,9 @@ def create_server(context, name, region=None, api=None, flavor="2",
                                          create_server.update_state,
                                          api=create_server.api,
                                          flavor=flavor, files=files,
-                                         image=image, tags=tags)
+                                         image=image, tags=tags,
+                                         userdata=userdata,
+                                         config_drive=config_drive)
     return data
 
 

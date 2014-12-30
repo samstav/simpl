@@ -83,7 +83,9 @@ class TestCreateServer(unittest.TestCase):
         mock_api.servers.create.assert_called_once_with("Name", mock_image,
                                                         mock_flavor,
                                                         meta="SERVER_TAG",
-                                                        files=None)
+                                                        files=None,
+                                                        userdata=None,
+                                                        config_drive=None)
 
     def test_create_server_overlimit_error(self):
         context = {
@@ -124,7 +126,9 @@ class TestCreateServer(unittest.TestCase):
         mock_api.servers.create.assert_called_once_with("Name", mock_image,
                                                         mock_flavor,
                                                         meta="SERVER_TAG",
-                                                        files=None)
+                                                        files=None,
+                                                        userdata=None,
+                                                        config_drive=None)
 
     def test_create_server_connection_error(self):
         context = {
@@ -163,7 +167,9 @@ class TestCreateServer(unittest.TestCase):
         mock_api.servers.create.assert_called_once_with("Name", mock_image,
                                                         mock_flavor,
                                                         meta="SERVER_TAG",
-                                                        files=None)
+                                                        files=None,
+                                                        userdata=None,
+                                                        config_drive=None)
 
 
 class TestWaitOnBuild(unittest.TestCase):
