@@ -65,20 +65,17 @@ class TestWorkflowSpec(unittest.TestCase):
         lb_provider = self._mox.CreateMockAnything()
         chef_solo_provider = self._mox.CreateMockAnything()
         nova_provider = self._mox.CreateMockAnything()
-        self._mox.StubOutWithMock(self.deployment, "environment")
-        self.deployment.environment().AndReturn(mock_environment)
+        self.deployment._environment = mock_environment
         mock_environment.get_provider("rsCloudLb").AndReturn(lb_provider)
         lb_provider.add_delete_connection_tasks(mox.IgnoreArg(),
                                                 context,
                                                 self.deployment,
                                                 self.resource3,
                                                 self.resource1)
-        self.deployment.environment().AndReturn(mock_environment)
         mock_environment.get_provider("chef-solo").AndReturn(
             chef_solo_provider)
         chef_solo_provider.delete_resource_tasks(mox.IgnoreArg(), context,
                                                  "TEST", self.resource1, "1")
-        self.deployment.environment().AndReturn(mock_environment)
         mock_environment.get_provider("nova").AndReturn(nova_provider)
         nova_provider.delete_resource_tasks(mox.IgnoreArg(), context, "TEST",
                                             self.resource2, "2")
