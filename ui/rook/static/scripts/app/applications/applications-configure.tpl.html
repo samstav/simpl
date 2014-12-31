@@ -51,16 +51,17 @@
           Options
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
         <div class="rs-app-launch-title">
-          {{ selection.data.service }}\{{ selection.data.component.id }}
+          {{ selection.data.service }}\{{ selection.data.component.display_name || selection.data.component.id || selection.data.component.name }}
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
         <div class="rs-app-launch-control">
           <i class="fa fa-close fa-inverse" ng-click="selection.isVisible = false"></i>
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
       </header> <!-- /.rs-app-launch-header -->
       <section class="rs-app-launch-list-section">
-        <component-options service-id="selection.data.service"
+        <component-options ng-if="selection.data.component"
+                           service-id="selection.data.service"
                            component="selection.data.component"
-                           options="catalog.component(selection.data.component.id).options">
+                           options="catalog.component(selection.data.component.id || selection.data.component.name).options">
         </component-options>
       </section> <!-- /.rs-app-launch-list-section -->
     </div> <!-- /.rs-app-launch-sidebar -->

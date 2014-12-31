@@ -28,7 +28,11 @@ angular.module('checkmate.applications-configure')
 
     // This could toggle an extra sidebar to reveal details about a service.
     $scope.selection = {
-      data: {},
+      data: {
+        service: '',
+        component: {},
+        relation: null
+      },
       isVisible: false,
       hasSelection: function() {
         return Blueprint.componentInService($scope.selection.data.component, $scope.selection.data.service);
@@ -131,18 +135,17 @@ angular.module('checkmate.applications-configure')
     };
 
     $scope.$on('topology:select', function(event, selection) {
-      $scope.selection.data = selection;
       if (selection) {
+        $scope.selection.data = selection;
         $scope.selection.parseOptions();
         $scope.selection.isVisible = true;
       } else {
         $scope.selection.isVisible = false;
-        $scope.$apply(); // No idea why, but this is needed to hide the properties drawer
+        $scope.$apply();
       }
     });
 
     $scope.$on('topology:deselect', function(event, selection) {
-      $scope.selection.data = selection;
       $scope.selection.isVisible = false;
     });
 
