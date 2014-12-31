@@ -3653,6 +3653,7 @@ checkmate.controller('DeploymentController', DeploymentController);
 checkmate.controller('DeploymentListController', DeploymentListController);
 checkmate.controller('BlueprintRemoteListController', BlueprintRemoteListController);
 checkmate.controller('BlueprintNewController', BlueprintNewController);
+checkmate.controller('DeploymentNewController', DeploymentNewController);
 checkmate.controller('DeploymentNewRemoteController', DeploymentNewRemoteController);
 checkmate.controller('StaticController', StaticController);
 checkmate.controller('RawController', RawController);
