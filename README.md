@@ -1,5 +1,5 @@
 # Checkmate
-![Checkmate](https://github.rackspace.com/checkmate/rook/raw/master/rook/static/img/checkmate.png)
+![Checkmate](https://github.com/checkmate/rook/raw/master/rook/static/img/checkmate.png)
 
 ## Overview
 Checkmate stores and controls your cloud configurations. Use it to deploy and manage complete application stacks.
