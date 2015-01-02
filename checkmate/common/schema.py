@@ -111,7 +111,7 @@ FUNCTION_SCHEMA = Schema({
 })
 
 ENDPOINT_SCHEMA = Schema({
-    'resource_type': Any(*RESOURCE_TYPES),
+    'resource_type': Any('*', *RESOURCE_TYPES),
     'interface': Any(str, dict),
     'relation': Any('reference', 'host'),
     'constraints': [dict],
@@ -485,8 +485,8 @@ COMPONENT_LOOSE_SCHEMA_DICT = COMPONENT_STRICT_SCHEMA_DICT.copy()
 COMPONENT_LOOSE_SCHEMA_DICT.update({
     'role': str,
     'source_name': str,
-    'type': Any(*RESOURCE_TYPES),
-    'resource_type': Any(*RESOURCE_TYPES),
+    'type': Any('*', *RESOURCE_TYPES),
+    'resource_type': Any('*', *RESOURCE_TYPES),
     Extra: object,  # To support provider-specific values
 })
 COMPONENT_LOOSE_SCHEMA = Schema(COMPONENT_LOOSE_SCHEMA_DICT)

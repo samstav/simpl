@@ -417,6 +417,9 @@ display_name: Load Balancer (Generic)
 provides:
 - load-balancer: vip
 - load-balancer: proxy
+- load-balancer: '*'
+supports:
+- '*': '*'
 options:
   algorithm:
     type: string
@@ -494,27 +497,29 @@ provides:
 requires:
 - application: http
 supports:
-- '*': dns_tcp
-- '*': dns_udp
-- '*': ftp
-- '*': http
-- '*': https
-- '*': imaps
-- '*': imapv2
-- '*': imapv3
-- '*': imapv4
-- '*': ldap
-- '*': ldaps
-- '*': mysql
-- '*': pop3
-- '*': pop3s
-- '*': sftp
-- '*': smtp
-- '*': tcp
-- '*': tcp_client_first
-- '*': tcp_stream
-- '*': udp
-- '*': udp_stream
+- '*':
+    from:
+    - dns_tcp
+    - dns_udp
+    - ftp
+    - http
+    - https
+    - imaps
+    - imapv2
+    - imapv3
+    - imapv4
+    - ldap
+    - ldaps
+    - mysql
+    - pop3
+    - pop3s
+    - sftp
+    - smtp
+    - tcp
+    - tcp_client_first
+    - tcp_stream
+    - udp
+    - udp_stream
 options:
   algorithm:
     type: string
