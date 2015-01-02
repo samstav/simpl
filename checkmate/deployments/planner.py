@@ -177,9 +177,7 @@ class Planner(classes.ExtensibleDict):
         cm_dep.validate_blueprint_options(self.deployment)
         cm_dep.validate_input_constraints(self.deployment)
 
-        # Fill the list of services
-        service_names = self.deployment['blueprint'].get('services', {}).keys()
-        self['services'] = {name: {'component': {}} for name in service_names}
+        self.init_service_plans_dict()
 
         # Perform analysis steps
         self.evaluate_defaults()
@@ -202,6 +200,11 @@ class Planner(classes.ExtensibleDict):
         LOG.debug("ANALYSIS\n%s", utils.dict_to_yaml(self._data))
         LOG.debug("RESOURCES\n%s", utils.dict_to_yaml(self.resources))
         return self.resources
+
+    def init_service_plans_dict(self):
+        """Populate services key."""
+        service_names = self.deployment['blueprint'].get('services', {}).keys()
+        self['services'] = {name: {'component': {}} for name in service_names}
 
     def _unique_providers(self):
         """Return a list of provider instances, one per provider type."""

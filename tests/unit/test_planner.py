@@ -13,6 +13,7 @@
 #    under the License.
 
 """Tests for Planner."""
+
 import mock
 import unittest
 
@@ -21,9 +22,12 @@ from checkmate import deployments as cmdeps
 from checkmate.providers import base
 from checkmate.providers.opscode.solo import provider as solo_provider
 from checkmate.providers.rackspace import loadbalancer
+from checkmate import test
+from checkmate import utils
 
 
 class TestPlanner(unittest.TestCase):
+
     def test_add_resource(self):
         plan = cmdeps.Planner(
             cmdep.Deployment({'blueprint': {'services': {}}}))
@@ -152,6 +156,70 @@ class TestPlanner(unittest.TestCase):
             self.assertEqual(
                 definition['connections']['web']['outbound-from'], '0')
 
+
+class TestRelationPlanning(unittest.TestCase):
+
+    def setUp(self):
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([loadbalancer.Provider, test.TestProvider])
+        self.deployment = cmdep.Deployment(utils.yaml_to_dict("""
+            id: test
+            blueprint:
+              services:
+                lb:
+                  component:
+                    resource_type: load-balancer
+                    interface: vip
+                  constraints:
+                  - allow_unencrypted: true
+                  relations:
+                  - web: http
+                web:
+                  component:
+                    interface: http
+                    resource_type: application
+            environment:
+              providers:
+                load-balancer:
+                  vendor: rackspace
+                  catalog:
+                    load-balancer:
+                      rsCloudLB:
+                        provides:
+                        - load-balancer: http
+                        - load-balancer: https
+                        - load-balancer: vip
+                        supports:
+                        - application: http
+                        options:
+                          protocol:
+                            type: list
+                            constraints:
+                            - in: [http]
+                base:
+                  vendor: test
+                  catalog:
+                    application:
+                      app_instance:
+                        provides:
+                        - application: http
+                        requires:
+                        - compute: linux
+                    compute:
+                      linux_instance:
+                        provides:
+                        - compute: linux
+            inputs:
+              blueprint:
+                region: North
+        """))
+
+    def test_component_resolution_initial(self):
+        planner = cmdeps.Planner(self.deployment)
+        planner.init_service_plans_dict()
+        planner.resolve_components({'region': 'North'})
+        resolved = [r['component']['id'] for r in planner['services'].values()]
+        self.assertEqual(resolved, ['app_instance', 'rsCloudLB'])
 
 if __name__ == '__main__':
     import sys
