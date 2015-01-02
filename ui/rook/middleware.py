@@ -324,7 +324,8 @@ def authproxy(path=None):
                 if role:
                     if any(r for r in content['access']['user'].get('roles')
                            if r['name'] == role):
-                        LOG.debug("Admin authenticated: %s", )
+                        who = content['access']['user'].get('id', 'unknown')
+                        LOG.debug("Admin authenticated: %s", who)
                         bottle.response.add_header('X-AuthZ-Admin', 'True')
     except StandardError as exc:
         LOG.debug("Ignored error checking roles: %s", exc)
