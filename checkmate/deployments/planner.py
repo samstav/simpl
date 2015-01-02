@@ -614,7 +614,8 @@ class Planner(classes.ExtensibleDict):
             LOG.debug("Identifying component '%s' for service '%s'",
                       definition, service_name)
             try:
-                component = self.identify_component(definition, context)
+                component = self.identify_component(
+                    definition, self.environment, context)
             except Exception as exc:
                 LOG.info("Error resolving component: %s", exc)
                 raise CheckmateException(
@@ -802,7 +803,8 @@ class Planner(classes.ExtensibleDict):
                 LOG.debug("Identifying component '%s' to satisfy requirement "
                           "'%s' in service '%s'", definition, key,
                           service_name)
-                component = self.identify_component(definition, context)
+                component = self.identify_component(
+                    definition, self.environment, context)
                 if not component:
                     error_message = (
                         "Could not resolve component '%s'" % definition)
@@ -879,7 +881,8 @@ class Planner(classes.ExtensibleDict):
                       "'%s' in service '%s' for extra component '%s'",
                       definition, requirement_key, service_name,
                       component_key)
-            found = self.identify_component(definition, context)
+            found = self.identify_component(
+                definition, self.environment, context)
             if not found:
                 error_message = "Could not resolve component '%s'" % definition
                 raise CheckmateException(error_message,
@@ -970,10 +973,11 @@ class Planner(classes.ExtensibleDict):
             info['relation-key'] = relation_key
         requirement['satisfied-by'] = info
 
-    def identify_component(self, definition, context):
+    @staticmethod
+    def identify_component(definition, environment, context):
         """Identify a component based on blueprint-type keys."""
         assert not isinstance(definition, list)  # deprecated syntax
-        found = self.environment.find_component(definition, context)
+        found = environment.find_component(definition, context)
         if not found:
             error_message = "Could not resolve component '%s'" % definition
             raise CheckmateException(error_message,
