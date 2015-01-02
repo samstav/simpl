@@ -112,7 +112,17 @@ ENDPOINT_SCHEMA = Schema({
     'interface': Any(str, dict),
     'relation': Any('reference', 'host'),
     'constraints': [dict],
-    'id': str
+    'name': str,
+})
+
+RELATION_SCHEMA = Schema({
+    Required('service'): str,
+    'interface': Any(str, dict),
+    'relation': Any('reference', 'host', 'containment'),
+    'attributes': dict,
+    'constraints': list,
+    'connect-from': str,
+    'connect-to': str,
 })
 
 
@@ -125,23 +135,111 @@ def check_schema(schema, value):
         return False
 
 
-def Shorthand(msg=None):
-    """Coerce a shorthand connection point value to longhand."""
+def coerce_dict(existing, changed):
+    """Coerce existing dict with new values without loosing the reference."""
+    existing.clear()
+    existing.update(changed)
+
+
+def ConnectionPoint(msg=None, coerce=False):
+    """Validate/Coerce a connection point (corce shorthand to long form).
+
+    Supported formats:
+
+    -   {type: interface}
+    -   {type: interface#tag}
+    -   {
+            'resource_type': type,
+            'interface': interface,
+            'name': string,
+            'constraints': list
+        }
+
+    """
     def check(entry):
-        if isinstance(entry, dict) and len(entry) == 1:
+        if not isinstance(entry, dict):
+            raise Invalid('not a valid endpoint')
+        if len(entry) == 1:
             key, value = entry.items()[0]
             if isinstance(value, dict):
                 if check_schema(ENDPOINT_SCHEMA, value):
                     # index + endpoint (long form)
-                    return dict(id=key, **value)
+                    if coerce:
+                        coerce_dict(entry, dict(name=key, **value))
+                    return entry
                 elif check_schema(FUNCTION_SCHEMA, value):
                     # shorthand with function
-                    return {'resource_type': key, 'interface': value}
+                    if coerce:
+                        changed = {'resource_type': key, 'interface': value}
+                        coerce_dict(entry, changed)
+                    return entry
                 else:
                     raise Invalid('not a valid endpoint')
-            # shorthand (type: interface)
-            return {'resource_type': key, 'interface': value}
-        return entry
+            # shorthand (type: interface and optional name)
+            if '#' in value:
+                interface, hashtag = value.split('#')[0:2]
+                changed = {
+                    'resource_type': key,
+                    'interface': interface,
+                    'name': hashtag,
+                }
+            else:
+                changed = {'resource_type': key, 'interface': value}
+            if coerce:
+                coerce_dict(entry, changed)
+            else:
+                entry = changed
+        return ENDPOINT_SCHEMA(entry)
+    return check
+
+
+def Relation(msg=None, coerce=False):
+    """Validate a relation (coerce shorthand to long form).
+
+    Supported formats:
+
+    -   {service: interface}
+    -   {service: interface#tag}
+    -   {
+            'service': string,
+            'interface': interface,
+            'connect-from': string,
+            'connect-to': string,
+            'constraints': list,
+            'attributes': dict
+        }
+
+    """
+    def check(entry):
+        if not isinstance(entry, dict):
+            raise Invalid('not a valid relation entry')
+        if len(entry) == 1:
+            key, value = entry.items()[0]
+            if isinstance(value, dict):
+                if check_schema(FUNCTION_SCHEMA, value):
+                    # shorthand with function
+                    if coerce:
+                        changed = {'service': key, 'interface': value}
+                        coerce_dict(entry, changed)
+                    return entry
+                else:
+                    raise Invalid('not a valid relation value')
+
+            # shorthand (type: interface and optional connection source)
+            if '#' in value:
+                interface, hashtag = value.split('#')[0:2]
+                changed = {
+                    'service': key,
+                    'interface': interface,
+                    'connect-from': hashtag,
+                }
+            else:
+                changed = {'service': key, 'interface': value}
+            if coerce:
+                coerce_dict(entry, changed)
+            else:
+                entry = changed
+        return RELATION_SCHEMA(entry)
     return check
 
 
@@ -357,17 +455,16 @@ def schema_from_list(keys_list):
     """Generates a schema from a list of keys."""
     return Schema(dict((key, object) for key in keys_list))
 
-
-ENDPOINTS_SCHEMA = [Shorthand()]
+CONNECTION_POINT_SCHEMA = ConnectionPoint()
 COMPONENT_STRICT_SCHEMA_DICT = {
     'id': All(str, Length(min=3, max=32)),
     'name': str,
     'is': Any(*RESOURCE_TYPES),
     'provider': str,
     'options': DictOf(schema_from_list(OPTION_SCHEMA)),
-    'requires': ENDPOINTS_SCHEMA,
-    'provides': ENDPOINTS_SCHEMA,
-    'uses': ENDPOINTS_SCHEMA,
+    'requires': [CONNECTION_POINT_SCHEMA],
+    'provides': [CONNECTION_POINT_SCHEMA],
+    'supports': [CONNECTION_POINT_SCHEMA],
     'summary': str,
     'display_name': str,
     'version': str,
@@ -393,7 +490,7 @@ COMPONENT_LOOSE_SCHEMA = Schema(COMPONENT_LOOSE_SCHEMA_DICT)
 
 SERVICE_SCHEMA = Schema({
     'component': COMPONENT_SCHEMA,
-    'relations': [Shorthand()],
+    'relations': [Relation()],
     'constraints': list,
 })
 

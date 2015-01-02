@@ -155,9 +155,9 @@ class Component(ExtensibleDict):
         return expanded_results
 
     @property
-    def uses(self):
-        """Return the 'uses' list as an expanded dict."""
-        results = self.get('uses') or []
+    def supports(self):
+        """Return the 'supports' list as an expanded dict."""
+        results = self.get('supports') or []
         expanded_results = {}
         for entry in results:
             if len(entry) == 1:
@@ -179,7 +179,7 @@ class Component(ExtensibleDict):
             if 'type' in value:
                 if 'resource_type' in value:
                     msg = ("Component has both type and resource_type "
-                           "specified in its 'uses' section")
+                           "specified in its 'supports' section")
                     raise CheckmateValidationException(msg)
                 value['resource_type'] = value.pop('type')
         return expanded_results
