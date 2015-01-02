@@ -737,7 +737,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         resource_type: load-balancer
                         interface: vip
                         constraints:
-                          - region: North
+                        - region: North
                       relations:
                       - service: master
                         interface: https
@@ -776,7 +776,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: https
                             options:
                               protocol:
-                                type: list
+                                type: string
                                 constraints:
                                 - in: [http, https]
                     base:
@@ -791,6 +791,9 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: http
                             - application: https
                             - compute: linux
+                            - compute: ssh
+                            supports:
+                            - compute: ssh
             """))
         vip_deployment['tenantId'] = "tenantId"
         deployments.Manager.plan(vip_deployment, self.context)
@@ -811,11 +814,12 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Create HTTP Loadbalancer (1)',
             'Wait for Loadbalancer 1 (lb) build',
             'Add monitor to Loadbalancer 1 (lb) build',
-            'Wait before adding 3 to LB 0',
-            'Add Node 3 to LB 0',
-            'Wait before adding 2 to LB 1',
-            'Add Node 2 to LB 1'
+            'Wait before adding 3 to LB 1',
+            'Add Node 3 to LB 1',
+            'Wait before adding 2 to LB 0',
+            'Add Node 2 to LB 0'
         ]
+
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
@@ -861,7 +865,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                           rsCloudLB:
                             provides:
                             - load-balancer: http
-                            requires:
+                            supports:
                             - application: http
                             options:
                               protocol:
@@ -906,8 +910,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Add Node 3 to LB 1',
             'Wait before adding 2 to LB 1',
             'Wait before adding 3 to LB 1',
-            'Add Node 2 to LB 1',
             'Add Node 2 to LB 0',
+            'Add Node 2 to LB 1',
         ]
         task_list.sort()
         expected.sort()

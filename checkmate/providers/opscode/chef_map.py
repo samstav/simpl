@@ -185,13 +185,35 @@ class ChefMap(object):
                                 path = '%s/instance' % path
                             mapping['path'] = path
                     result.append(mapping)
+                elif url['scheme'] == 'supported':
+                    key = url['netloc']
+                    relations = [
+                        r for r in resource['relations'].values()
+                        if (r.get('supports-key') == key and 'target' in r)
+                    ]
+                    if relations:
+                        target = relations[0]['target']
+                        #  account for host
+                        #  FIXME: This representation needs to be consistent!
+                        if relations[0].get('relation', '') != 'host':
+                            mapping['path'] = ('resources/%s/instance/'
+                                               'interfaces/%s'
+                                               % (target,
+                                                  relations[0]['interface']))
+                        else:
+                            path = 'resources/%s' % target
+                            if not url['path'].startswith('instance'):
+                                path = '%s/instance' % path
+                            mapping['path'] = path
+                    result.append(mapping)
                 elif url['scheme'] == 'clients':
                     key = url['netloc']
                     for client in deployment['resources'].values():
                         if 'relations' not in client:
                             continue
                         relations = [r for r in client['relations'].values()
-                                     if (r.get('requires-key') == key and
+                                     if ((r.get('requires-key') == key or
+                                          r.get('supports-key') == key) and
                                          r.get('target') == resource['index'])
                                      ]
                         if relations:
@@ -242,6 +264,19 @@ class ChefMap(object):
                     url = self.parse_map_uri(_map.get('source'))
                     if url['scheme'] == 'requirements':
                         if url['netloc'] == requirement_key:
+                            return True
+        return False
+
+    def has_supported_mapping(self, component_id, supported_key):
+        """Does the map file have any 'supported' mappings for this
+        component's supported_key 'supports' entry.
+        """
+        for component in self.components:
+            if component_id == component['id']:
+                for _map in component.get('maps', []):
+                    url = self.parse_map_uri(_map.get('source'))
+                    if url['scheme'] == 'supported':
+                        if url['netloc'] == supported_key:
                             return True
         return False
 
@@ -308,6 +343,7 @@ class ChefMap(object):
 
         Those would be items like:
         - requirement sources where the required resource does not exist yet
+        - supports sources where the supported resource does not exist yet
 
         :returns: boolean
         """
@@ -315,7 +351,8 @@ class ChefMap(object):
             if component_id == component['id']:
                 maps = (m for m in component.get('maps', [])
                         if (self.parse_map_uri(
-                            m.get('source'))['scheme'] in ['requirements']))
+                            m.get('source'))['scheme'] in ['requirements',
+                                                           'supported']))
                 if any(maps):
                     return True
         return False
@@ -410,7 +447,7 @@ class ChefMap(object):
         value = None
         if 'source' in mapping:
             url = ChefMap.parse_map_uri(mapping['source'])
-            if url['scheme'] in ['requirements', 'clients']:
+            if url['scheme'] in ['requirements', 'supported', 'clients']:
                 path = mapping.get('path', url['netloc'])
                 try:
                     value = utils.read_path(data, os.path.join(path,

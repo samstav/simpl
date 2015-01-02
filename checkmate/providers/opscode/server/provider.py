@@ -251,13 +251,23 @@ class Provider(base.BaseOpscodeProvider):
         environment = deployment.environment()
         provider = environment.get_provider(resource['provider'])
         component = provider.get_component(context, resource['component'])
-        map_with_context = self.map_file.get_map_with_context(
+        context_map = self.map_file.get_map_with_context(
             deployment=deployment, resource=resource, component=component)
 
         # Is this relation in one of our maps? If so, let's handle that
         tasks = []
-        if map_with_context.has_requirement_mapping(resource['component'],
-                                                    relation['requires-key']):
+        if ('requires-key' in relation and
+                context_map.has_requirement_mapping(resource['component'],
+                                                    relation['requires-key'])):
+            LOG.debug("Relation '%s' for resource '%s' has a mapping",
+                      relation_key, key)
+            # Set up a wait for the relation target to be ready
+            tasks = wfspec.find_task_specs(resource=relation['target'],
+                                           tag='final')
+
+        elif ('supports-key' in relation and
+                context_map.has_supported_mapping(resource['component'],
+                                                  relation['supports-key'])):
             LOG.debug("Relation '%s' for resource '%s' has a mapping",
                       relation_key, key)
             # Set up a wait for the relation target to be ready
@@ -279,10 +289,10 @@ class Provider(base.BaseOpscodeProvider):
             if not wait_on:
                 raise exceptions.CheckmateException(
                     "No host resource found for relation '%s'" % relation_key)
-            attributes = map_with_context.get_attributes(resource['component'],
-                                                         deployment)
+            attributes = context_map.get_attributes(resource['component'],
+                                                    deployment)
             service_name = resource['service']
-            kwargs = map_with_context.get_component_run_list(component)
+            kwargs = context_map.get_component_run_list(component)
 
             # Create chef setup tasks
             register_node_task = specs.Celery(
@@ -330,8 +340,13 @@ class Provider(base.BaseOpscodeProvider):
         resources = deployment['resources']
         target = resources[relation['target']]
         if target['provider'] == self.key:
-            if map_with_context.has_client_mapping(target['component'],
-                                                   relation['requires-key']):
+            mapping = None
+            if 'requires-key' in relation:
+                mapping = relation['requires-key']
+            elif 'supports-key' in relation:
+                mapping = relation.get('supports-key')
+            if mapping and context_map.has_client_mapping(target['component'],
+                                                          mapping):
                 server = target  # our view is from the source of the relation
                 client = resource  # this is the client that is just finishing
                 environment = deployment.environment()

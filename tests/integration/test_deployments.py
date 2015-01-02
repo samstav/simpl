@@ -61,6 +61,43 @@ class TestDeployments(unittest.TestCase):
               resources: {}
             """))
         cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+
+    def test_minimal_deployment(self):
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+              id: foo
+              blueprint:
+                name: blank
+                services:
+                  front:
+                    component:
+                      id: foo
+                      requires:
+                      - application: tcp
+                    relations:
+                    - back: tcp
+                  back:
+                    component:
+                      id: bar
+                      provides:
+                      - application: tcp
+              environment:
+                providers:
+                  base:
+                    vendor: test
+                    catalog:
+                      application:
+                        foo:
+                          requires:
+                          - application: tcp
+                        bar:
+                          provides:
+                          - application: tcp
+              resources: {}
+            """))
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+
+
 class TestDeploymentKeyGeneration(unittest.TestCase):
     def test_key_generation_all(self):
         deployment = cmdep.Deployment({
@@ -656,6 +693,9 @@ class TestDeploymentSettings(unittest.TestCase):
                             is: compute
                             provides:
                             - compute: foo
+                            - compute: ssh
+                            supports:
+                            - compute: ssh
                       constraints:
                       - type: widget
                         setting: size
