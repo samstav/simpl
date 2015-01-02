@@ -55,7 +55,7 @@ angular.module('checkmate.Blueprint')
           return 25;
         },
         width: function() {
-          return 80;
+          return 130;
         }
       }
     };
