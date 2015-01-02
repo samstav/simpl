@@ -157,7 +157,18 @@ class TestPlanner(unittest.TestCase):
                 definition['connections']['web']['outbound-from'], '0')
 
 
-class TestRelationPlanning(unittest.TestCase):
+class TestPlanningAspects(unittest.TestCase):
+
+    """Test main features of planning.
+
+    Test:
+    - component finding
+    - component dependency resoution (two levels)
+    - 'host' relation
+    - allow_unencrypted for load-blancer (gens two resources)
+    - vip interface (proxy)
+    - supports and requires and prov
+    """
 
     def setUp(self):
         base.PROVIDER_CLASSES = {}
@@ -204,22 +215,66 @@ class TestRelationPlanning(unittest.TestCase):
                         provides:
                         - application: http
                         requires:
-                        - compute: linux
+                        - host: linux
                     compute:
                       linux_instance:
                         provides:
                         - compute: linux
+                        requires:
+                        - compute: hardware
+                      server_instance:
+                        provides:
+                        - compute: hardware
             inputs:
               blueprint:
                 region: North
         """))
+        self.context = {'region': 'North'}
 
     def test_component_resolution_initial(self):
+        """Test that main components are identified."""
         planner = cmdeps.Planner(self.deployment)
         planner.init_service_plans_dict()
-        planner.resolve_components({'region': 'North'})
+        planner.resolve_components(self.context)
         resolved = [r['component']['id'] for r in planner['services'].values()]
         self.assertEqual(resolved, ['app_instance', 'rsCloudLB'])
+
+    def test_dependency_resolution(self):
+        """Test that two levels of dependencies are resolved."""
+        planner = cmdeps.Planner(self.deployment)
+        planner.init_service_plans_dict()
+        planner.resolve_components(self.context)
+        # Get all main and extra component IDs in a list
+        just_resources = []
+        for plan in planner['services'].values():
+            just_resources.append(plan['component']['id'])
+            if 'extra-components' in plan:
+                for extra in plan['extra-components'].values():
+                    just_resources.append(extra['id'])
+
+        # First level of dependencies
+        planner.resolve_remaining_requirements(self.context)
+        with_dependencies = []
+        for plan in planner['services'].values():
+            with_dependencies.append(plan['component']['id'])
+            if 'extra-components' in plan:
+                for extra in plan['extra-components'].values():
+                    with_dependencies.append(extra['id'])
+
+        # Dependencies of dependencies
+        planner.resolve_recursive_requirements(self.context, history=[])
+        with_recursive = []
+        for plan in planner['services'].values():
+            with_recursive.append(plan['component']['id'])
+            if 'extra-components' in plan:
+                for extra in plan['extra-components'].values():
+                    with_recursive.append(extra['id'])
+
+        self.assertItemsEqual(just_resources, ['app_instance', 'rsCloudLB'])
+        self.assertItemsEqual(
+            with_dependencies, just_resources + ['linux_instance'])
+        self.assertItemsEqual(
+            with_recursive, with_dependencies + ['server_instance'])
 
 if __name__ == '__main__':
     import sys
