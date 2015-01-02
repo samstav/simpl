@@ -53,28 +53,28 @@
     		                "type":"loadbalancer",
     		                "interface":"http"
     		            },
-    		            "relations":{
-    		                "web":"http",
-    		                "master":"http"
-    		            }
+    		            "relations":[
+    		                {"web":"http"},
+    		                {"master":"http"}
+    		            ]
     		        },
     		        "web":{
     		            "component":{
     		                "type":"wordpress",
     		                "interface":"http"
     		            },
-    		            "relations":{
-    		             	"master":"http"   
-    		            }
+    		            "relations":[
+    		             	{"master":"http"}
+    		            ]
     		        },
     		        "master":{
     		            "component":{
     		                "type":"wordpress-master",
     		                "inferface":"http"
     		            },
-    		            "relations":{
-    		             	"web":"http"   
-    		            }
+    		            "relations":[{
+    		             	"web":"http"
+    		            }]
     		        }
     		    }
     		},

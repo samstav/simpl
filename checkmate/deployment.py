@@ -738,7 +738,8 @@ class Deployment(ExtensibleDict):
             if service:
                 if 'relations' in service:
                     relations = service['relations']
-                    for relation_key, relation in relations.iteritems():
+                    for relation in relations:
+                        relation_key = relation['key']
                         if (relation_key == relation_to or
                                 relation.get('service', None) == relation_to):
                             attributes = relation.get('attributes', None)

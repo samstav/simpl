@@ -50,6 +50,55 @@ os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
 
 
 class TestDeployments(unittest.TestCase):
+
+    def test_minimal_planning(self):
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+              id: foo
+              blueprint:
+                name: blank
+              environment:
+                providers: {}
+              resources: {}
+            """))
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+
+    def test_minimal_deployment(self):
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+              id: foo
+              blueprint:
+                name: blank
+                services:
+                  front:
+                    component:
+                      id: foo
+                      requires:
+                      - application: tcp
+                    relations:
+                    - back: tcp
+                  back:
+                    component:
+                      id: bar
+                      provides:
+                      - application: tcp
+              environment:
+                providers:
+                  base:
+                    vendor: test
+                    catalog:
+                      application:
+                        foo:
+                          requires:
+                          - application: tcp
+                        bar:
+                          provides:
+                          - application: tcp
+              resources: {}
+            """))
+        base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+
+
+class TestDeploymentKeyGeneration(unittest.TestCase):
     def test_key_generation_all(self):
         deployment = cmdep.Deployment({
             'id': 'test',
@@ -245,12 +294,12 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                       component:
                         id: start_widget
                       relations:
-                        middle: foo
+                      - middle: foo
                     middle:
                       component:
                         id: link_widget
                       relations:
-                        back: bar
+                      - back: bar
                     back:
                       component:
                         id: big_widget
@@ -424,7 +473,7 @@ class TestDeploymentRelationParser(unittest.TestCase):
                       component:
                         id: balancer_widget
                       relations:
-                        front: foo  # short syntax
+                      - front: foo  # short syntax
                     front:
                       component:
                         resource_type: widget
@@ -432,9 +481,9 @@ class TestDeploymentRelationParser(unittest.TestCase):
                         constraints:
                         - count: 2
                       relations:
-                        "allyourbase":  # long syntax
-                          service: back
-                          interface: bar
+                      - connect-from: allyourbase
+                        service: back
+                        interface: bar
                     back:
                       component:
                         type: widget
@@ -466,8 +515,8 @@ class TestDeploymentRelationParser(unittest.TestCase):
 
         parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         expected_connections = {
-            ('balanced-front', 'foo'),
-            ('allyourbase', 'bar'),
+            ('front#allyourbase-back-bar', 'bar'),
+            ('balanced-front-foo', 'foo'),
         }
         connections = set()
         for resource in parsed['resources'].values():
@@ -644,6 +693,9 @@ class TestDeploymentSettings(unittest.TestCase):
                             is: compute
                             provides:
                             - compute: foo
+                            - compute: ssh
+                            supports:
+                            - compute: ssh
                       constraints:
                       - type: widget
                         setting: size
@@ -667,10 +719,10 @@ class TestDeploymentSettings(unittest.TestCase):
                         - "wordpress/version": 3.1.4
                         - "wordpress/create": true
                       relations:
-                        web:
-                          service: web
-                          attributes:
-                            algorithm: round-robin
+                      - interface: ssh
+                        service: web
+                        attributes:
+                          algorithm: round-robin
                   options:
                     my_server_type:
                       constrains:
@@ -1004,7 +1056,7 @@ class TestDeploymentSettings(unittest.TestCase):
                     base
                 blueprint:
                   services:
-                    web:
+                    web: {}
                   options:
                     my_server_type:
                       constrains:

@@ -180,7 +180,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: main_widget
                       relations:
-                        explicit: foo
+                      - explicit: foo
                     explicit:
                       component:
                         id: foo_widget
@@ -212,8 +212,8 @@ class TestDeploymentPlanning(unittest.TestCase):
             'interface': 'foo',
             'resource_type': 'widget',
             'satisfied-by': {
-                'name': 'main-explicit',
-                'relation-key': 'main-explicit',
+                'name': 'main-explicit-foo',
+                'relation-key': 'main-explicit-foo',
                 'service': 'explicit',
                 'component': 'foo_widget',
                 'provides-key': 'widget:foo',
@@ -221,8 +221,6 @@ class TestDeploymentPlanning(unittest.TestCase):
         }
         self.assertDictEqual(widget_foo, expected)
 
-    #FIXME: re-enable this when done with v0.2
-    @unittest.skip("Not compatible with v0.2 relations")
     def test_resolve_relations_negative(self):
         """Test the Plan() class detects unused/duplicate relations."""
         deployment = cmdep.Deployment(utils.yaml_to_dict("""
@@ -234,10 +232,9 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: main_widget
                       relations:
-                        explicit: foo
-                        "duplicate-provides":
-                          service: named
-                          interface: foo
+                      - explicit: foo
+                      - named: foo
+                      - named: foo
                     explicit:
                       component:
                         id: foo_widget
@@ -277,8 +274,8 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: balancer_widget
                       relations:
-                        master: foo
-                        slave: foo
+                      - master: foo
+                      - slave: foo
                     master:
                       component:
                         resource_type: widget
@@ -290,9 +287,9 @@ class TestDeploymentPlanning(unittest.TestCase):
                         constraints:
                         - count: 2
                       relations:
-                        "allyourbase":
-                          service: back
-                          interface: bar
+                      - connect-from: "allyourbase"
+                        service: back
+                        interface: bar
                     back:
                       component:
                         type: widget
@@ -306,7 +303,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                         widget:
                           balancer_widget:
                             is: widget
-                            requires:
+                            supports:
                             - widget: foo
                           web_widget:
                             is: widget
@@ -357,10 +354,10 @@ class TestDeploymentPlanning(unittest.TestCase):
 
         expect = "Expecting connections from all 'front' resources to 'back'"
         self.assertIn('relations', back)
-        self.assertIn('allyourbase-%s' % slave1['index'], back['relations'],
-                      msg=expect)
-        self.assertIn('allyourbase-%s' % slave2['index'], back['relations'],
-                      msg=expect)
+        self.assertIn('slave#allyourbase-back-bar-%s' % slave1['index'],
+                      back['relations'], msg=expect)
+        self.assertIn('slave#allyourbase-back-bar-%s' % slave2['index'],
+                      back['relations'], msg=expect)
 
     def test_resolve_requirements(self):
         """Test the Plan() class can resolve all requirements."""
@@ -373,7 +370,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: main_widget
                       relations:
-                        explicit: foo
+                      - explicit: foo
                     explicit:
                       component:
                         id: foo_widget
@@ -423,8 +420,8 @@ class TestDeploymentPlanning(unittest.TestCase):
             'interface': 'foo',
             'resource_type': 'widget',
             'satisfied-by': {
-                'name': 'main-explicit',
-                'relation-key': 'main-explicit',
+                'name': 'main-explicit-foo',
+                'relation-key': 'main-explicit-foo',
                 'service': 'explicit',
                 'component': 'foo_widget',
                 'provides-key': 'widget:foo',
@@ -474,14 +471,14 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: start_widget
                       relations:
-                        middle: foo  # shorthand
+                      - middle: foo  # shorthand
                     middle:
                       component:
                         id: link_widget
                       relations:
-                        "john":  # long form
-                          service: back
-                          interface: bar
+                      - connect-from: "john"  # long form
+                        service: back
+                        interface: bar
                     back:
                       component:
                         id: big_widget  # implicit requirement for gadget:mysql
@@ -526,13 +523,15 @@ class TestDeploymentPlanning(unittest.TestCase):
         resources = deployment['resources']
 
         connections = [v['name'] for v in resources['0']['relations'].values()]
-        self.assertItemsEqual(connections, ['front-middle'])
+        self.assertItemsEqual(connections, ['front-middle-foo'])
 
         connections = [v['name'] for v in resources['1']['relations'].values()]
-        self.assertItemsEqual(connections, ['front-middle', 'john'])
+        self.assertItemsEqual(connections, ['front-middle-foo',
+                                            'middle#john-back-bar'])
 
         connections = [v['name'] for v in resources['2']['relations'].values()]
-        self.assertItemsEqual(connections, ['gadget:mysql', 'john'])
+        self.assertItemsEqual(connections, ['gadget:mysql',
+                                            'middle#john-back-bar'])
 
     def test_resource_name(self):
         """Test the Plan() class handles resource naming correctly."""

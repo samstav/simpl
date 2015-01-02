@@ -522,8 +522,8 @@ class TestCalculateOutputs(unittest.TestCase):
                   component:
                     interface: vip
                     type: load-balancer
-                relations:
-                  web: http
+                  relations:
+                  - web: http
                 web:
                   component:
                     type: application

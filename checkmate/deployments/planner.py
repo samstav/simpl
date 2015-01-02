@@ -22,6 +22,7 @@ import string
 import eventlet
 
 from checkmate import classes
+from checkmate.common import schema
 from checkmate import deployment as cm_dep
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
@@ -176,9 +177,7 @@ class Planner(classes.ExtensibleDict):
         cm_dep.validate_blueprint_options(self.deployment)
         cm_dep.validate_input_constraints(self.deployment)
 
-        # Fill the list of services
-        service_names = self.deployment['blueprint'].get('services', {}).keys()
-        self['services'] = {name: {'component': {}} for name in service_names}
+        self.init_service_plans_dict()
 
         # Perform analysis steps
         self.evaluate_defaults()
@@ -190,6 +189,8 @@ class Planner(classes.ExtensibleDict):
             if region:
                 context.region = region
         self.resolve_components(context)
+        # Run resolve_relations before resolving requirements because
+        # we use explicitely specified relations to satisfy some requirements
         self.resolve_relations()
         self.resolve_remaining_requirements(context)
         self.resolve_recursive_requirements(context, history=[])
@@ -201,6 +202,11 @@ class Planner(classes.ExtensibleDict):
         LOG.debug("ANALYSIS\n%s", utils.dict_to_yaml(self._data))
         LOG.debug("RESOURCES\n%s", utils.dict_to_yaml(self.resources))
         return self.resources
+
+    def init_service_plans_dict(self):
+        """Populate services key."""
+        service_names = self.deployment['blueprint'].get('services', {}).keys()
+        self['services'] = {name: {'component': {}} for name in service_names}
 
     def _unique_providers(self):
         """Return a list of provider instances, one per provider type."""
@@ -254,7 +260,7 @@ class Planner(classes.ExtensibleDict):
         Replaces defaults if they are a function with a final value so that the
         defaults are not evaluated once per workflow or once per component.
         """
-        for _, option in self.blueprint.get('options', {}).iteritems():
+        for option in self.blueprint.get('options', {}).itervalues():
             if 'default' in option:
                 default = option['default']
                 if (isinstance(default, basestring,) and
@@ -286,7 +292,7 @@ class Planner(classes.ExtensibleDict):
 
         # Prepare resources and connections to create
         LOG.debug("Add resources")
-        for service_name, _ in services.iteritems():
+        for service_name in services:
             LOG.debug("  For service '%s'", service_name)
             service_analysis = self['services'][service_name]
             definition = service_analysis['component']
@@ -555,7 +561,10 @@ class Planner(classes.ExtensibleDict):
             result['source'] = target['index']
         elif connection['direction'] == 'outbound':
             result['target'] = target['index']
-            result['requires-key'] = connection['requires-key']
+            if 'requires-key' in connection:
+                result['requires-key'] = connection['requires-key']
+            if 'supports-key' in connection:
+                result['supports-key'] = connection['supports-key']
 
         #FIXME: remove v0.2 feature
         if 'attribute' in connection:
@@ -614,7 +623,8 @@ class Planner(classes.ExtensibleDict):
             LOG.debug("Identifying component '%s' for service '%s'",
                       definition, service_name)
             try:
-                component = self.identify_component(definition, context)
+                component = self.identify_component(
+                    definition, self.environment, context)
             except Exception as exc:
                 LOG.info("Error resolving component: %s", exc)
                 raise CheckmateException(
@@ -627,19 +637,28 @@ class Planner(classes.ExtensibleDict):
             self['services'][service_name]['component'] = component
 
     def resolve_relations(self):
-        """Identify source and target provides/requires keys for all relations.
+        """Identify source and target provides/requires/supports keys for all
+        relations.
 
         Assumes that find_components() has already run and identified all the
         components in the deployment. If not, this will effectively be a noop
         """
         LOG.debug("Analyzing relations")
         services = self.deployment['blueprint'].get('services', {})
+        coercer = schema.Schema([schema.Relation(coerce=True)])
         for service_name, service in services.iteritems():
             if 'relations' not in service:
                 continue
-            for key, relation in service['relations'].iteritems():
-                rel_key, rel = self._format_relation(key, relation,
-                                                     service_name)
+            relations = service['relations']
+            coercer(relations)  # standardize the format
+            relation_keys = set()
+            for relation in relations:
+                rel_key, rel = self.generate_relation_key(
+                    relation, service_name)
+                if rel_key in relation_keys:
+                    msg = "Duplicate relations detected: %s" % rel_key
+                    raise CheckmateValidationException(msg)
+                relation_keys.add(rel_key)
                 if rel['service'] not in services:
                     msg = ("Cannot find service '%s' for '%s' to connect to "
                            "in deployment %s" % (rel['service'], service_name,
@@ -650,37 +669,43 @@ class Planner(classes.ExtensibleDict):
                 source = self['services'][service_name]['component']
                 requires_match = self._find_requires_key(rel, source)
                 if not requires_match:
-                    LOG.warning("Bypassing validation for v0.2 compatibility")
-                    continue  # FIXME: This is here for v0.2 features only
-                    raise CheckmateValidationException("Could not identify "
-                                                       "source for relation "
-                                                       "'%s'" % rel_key)
+                    supports_match = self._find_supports_key(rel, source)
+                    if not supports_match:
+                        raise CheckmateValidationException(
+                            "Could not identify valid connection point for "
+                            "relation '%s'" % rel_key)
 
-                LOG.debug("  Matched relation '%s' to requirement '%s'",
-                          rel_key, requires_match)
-                target = self['services'][rel['service']]['component']
-                requirement = source['requires'][requires_match]
-                if 'satisfied-by' not in requirement:
-                    self._satisfy_requirement(requirement, rel_key, target,
-                                              rel['service'], name=rel_key,
-                                              relation_key=rel_key)
-                    provides_match = requirement['satisfied-by'][
-                        'provides-key']
-                    #FIXME: part of v0.2 features to be removed
-                    if 'attribute' in relation:
-                        LOG.warning("Using v0.2 feature")
-                        requirement['satisfied-by']['attribute'] = \
-                            relation['attribute']
-                else:
+                    LOG.debug("  Matched relation '%s' to supported '%s'",
+                              rel_key, supports_match)
+                    endpoint_type = 'supports'
+                    target = self['services'][rel['service']]['component']
                     provides_match = self._find_provides_key(rel, target)
+                else:
+                    endpoint_type = 'requires'
+                    LOG.debug("  Matched relation '%s' to requirement '%s'",
+                              rel_key, requires_match)
+                    target = self['services'][rel['service']]['component']
+                    requirement = source['requires'][requires_match]
+                    if 'satisfied-by' not in requirement:
+                        self._satisfy_requirement(requirement, rel_key, target,
+                                                  rel['service'], name=rel_key,
+                                                  relation_key=rel_key)
+                        provides_match = requirement['satisfied-by'][
+                            'provides-key']
+                        if 'attribute' in relation:
+                            LOG.warning("Using v0.2 feature")
+                            requirement['satisfied-by']['attribute'] = \
+                                relation['attribute']
+                    else:
+                        provides_match = self._find_provides_key(rel, target)
 
                 # Connect the two components (write connection info in each)
-
                 source_def = self['services'][service_name]['component']
                 source_map = {
                     'component': source_def,
                     'service': service_name,
-                    'endpoint': requires_match,
+                    'endpoint': requires_match or supports_match,
+                    'endpoint-type': endpoint_type,
                 }
                 target_map = {
                     'component': target,
@@ -688,10 +713,10 @@ class Planner(classes.ExtensibleDict):
                     'endpoint': provides_match,
                 }
                 relation_type = rel.get('relation', 'reference')
-                attribute = rel.get('attribute')  # FIXME: v0.2 feature
+                attribute = rel.get('attribute')
                 self.connect(source_map, target_map, rel['interface'],
                              rel_key, relation_type=relation_type,
-                             relation_key=key, attribute=attribute)
+                             relation_key=rel_key, attribute=attribute)
 
         LOG.debug("All relations successfully matched with target services")
 
@@ -716,14 +741,15 @@ class Planner(classes.ExtensibleDict):
             'component': dict of the component,
             'service': string of the service name
             'extra-key': key of the component if it is an extra component
-            'endpoint': the key of the 'requires' or 'provides' entry
+            'endpoint': the key of the 'requires', 'supports' or 'provides'
+                        entry
         }
 
         Write connection like this:
         {key}:
             direction: 'inbound' | 'outbound'
             interface: ...
-            requires-key: from the source
+            requires-key (or `supports-key`): from the source
             provides-key: from the target
             relation: 'reference' | 'host'
             relation-key: if the connection was created by a relation
@@ -742,9 +768,12 @@ class Planner(classes.ExtensibleDict):
                 'service': target['service'],
                 'provides-key': target['endpoint'],
                 'interface': interface,
-                'requires-key': source['endpoint'],
                 'relation': relation_type,
             }
+            if source['endpoint-type'] == 'requires':
+                info['requires-key'] = source['endpoint']
+            elif source['endpoint-type'] == 'supports':
+                info['supports-key'] = source['endpoint']
             if relation_key:
                 info['relation-key'] = relation_key
             if 'extra-key' in target:
@@ -802,7 +831,8 @@ class Planner(classes.ExtensibleDict):
                 LOG.debug("Identifying component '%s' to satisfy requirement "
                           "'%s' in service '%s'", definition, key,
                           service_name)
-                component = self.identify_component(definition, context)
+                component = self.identify_component(
+                    definition, self.environment, context)
                 if not component:
                     error_message = (
                         "Could not resolve component '%s'" % definition)
@@ -834,6 +864,7 @@ class Planner(classes.ExtensibleDict):
                     'component': service['component'],
                     'service': service_name,
                     'endpoint': key,
+                    'endpoint-type': 'requires',
                 }
                 target_map = {
                     'component': component,
@@ -879,7 +910,8 @@ class Planner(classes.ExtensibleDict):
                       "'%s' in service '%s' for extra component '%s'",
                       definition, requirement_key, service_name,
                       component_key)
-            found = self.identify_component(definition, context)
+            found = self.identify_component(
+                definition, self.environment, context)
             if not found:
                 error_message = "Could not resolve component '%s'" % definition
                 raise CheckmateException(error_message,
@@ -908,6 +940,7 @@ class Planner(classes.ExtensibleDict):
                 'component': component,
                 'service': service_name,
                 'endpoint': requirement_key,
+                'endpoint-type': 'requires',
                 'extra-key': component_key,
             }
             provides_key = requirement['satisfied-by']['provides-key']
@@ -970,10 +1003,11 @@ class Planner(classes.ExtensibleDict):
             info['relation-key'] = relation_key
         requirement['satisfied-by'] = info
 
-    def identify_component(self, definition, context):
+    @staticmethod
+    def identify_component(definition, environment, context):
         """Identify a component based on blueprint-type keys."""
         assert not isinstance(definition, list)  # deprecated syntax
-        found = self.environment.find_component(definition, context)
+        found = environment.find_component(definition, context)
         if not found:
             error_message = "Could not resolve component '%s'" % definition
             raise CheckmateException(error_message,
@@ -985,63 +1019,42 @@ class Planner(classes.ExtensibleDict):
         component['provider'] = "%s.%s" % (provider.vendor, provider.name)
         component['provides'] = found.provides or {}
         component['requires'] = found.requires or {}
+        component['supports'] = found.supports or {}
         return component
 
     @staticmethod
-    def _format_relation(key, value, service):
-        """Parse relation and return expanded relation as key and map tuple.
+    def generate_relation_key(relation, service):
+        """Generate ID and other values and return id, relation tuple.
 
-        A Relation's syntax is one of:
-        1 - service: interface
-        2 - key:
-              map (or set of keys and values)
-        3 - host: interface (a special case of #1 where 'host' is a keyword)
-
-        If #1 or #3 are passed in, they are converted to the format of #2
-
-        :param key: the key of the relation or first value of a key/value pair
-        :param value: the value after the key
+        :param relation: a valid relation dict
         :param service: the name of the current service being evaluated
 
-        :returns: key, value as formatted by #2
+        :returns: key, relation
 
         The key returned also handles relationship naming optimized for user
-        readability. COnnections between services are named 'from-to',
+        readability. Connections between services are named 'from-to-protocol',
         connections generated by a named relation are named per the relation
         name, and other relations are named service:interface.
         """
-        final_key = key
-        final_map = {}
-        if isinstance(value, dict):
-            # Format #2
-            final_key = key
-            final_map = value
-        else:
-            if key == 'host' or key.startswith('host:'):
-                # Format #3
-                final_key = '%s:%s' % (key, value)
-                final_map['relation'] = 'host'
-                # host will be created in current service
-                final_map['service'] = service
-                final_map['interface'] = value
-            else:
-                # Format #1
-                final_key = '%s-%s' % (service, key)
-                final_map['service'] = key
-                final_map['interface'] = value
-            LOG.debug("  _format_relation translated (%s, %s) to (%s, %s)",
-                      key, value, final_key, final_map)
-        # FIXME: this is for v0.2 only
-        if 'service' not in final_map:
-            LOG.warning("Skipping validation for v0.2 compatibility")
-            final_map['service'] = service
+        key = relation.get('key')
+        if key:
+            return key, relation
+        interface = relation['interface']
+        target = relation['service']
+        if 'connect-from' in relation:
+            service = '%s#%s' % (service, relation['connect-from'])
+        if 'connect-to' in relation:
+            target = '%s#%s' % (target, relation['connect-from'])
+        key = '%s-%s-%s' % (service, target, interface)
+        relation['key'] = key
+        return key, relation
 
-        if 'service' not in final_map:  # post v0.2, let's raise this
-            error_message = (
-                "No service specified for relation '%s'" % final_key)
-            raise CheckmateException(error_message,
-                                     friendly_message=BLUEPRINT_ERROR)
-        return final_key, final_map
+    @staticmethod
+    def is_connection_point_match(connection_point, relation):
+        """Match a connection point to a relation."""
+        if connection_point['interface'] == relation['interface']:
+            return True
+        return False
 
     @staticmethod
     def _find_requires_key(relation, component):
@@ -1053,20 +1066,10 @@ class Planner(classes.ExtensibleDict):
         :param component: a dict of the component as parsed by the analyzer
         :returns: 'requires' key
         """
-        backup = None
         for key, requirement in component.get('requires', {}).iteritems():
-            if requirement['interface'] == relation['interface']:
+            if Planner.is_connection_point_match(requirement, relation):
                 if 'satisfied-by' not in requirement:
                     return key
-                else:
-                    #FIXME: this is needed for v0.2 compatibility
-                    # Use this key as a backup if we don't find one that is
-                    # still unsatisfied
-                    backup = key
-        if backup:
-            LOG.warning("Returning satisfied requirement for v0.2 "
-                        "compatibility")
-        return backup
 
     @staticmethod
     def _find_provides_key(relation, component):
@@ -1080,5 +1083,18 @@ class Planner(classes.ExtensibleDict):
         :returns: 'provides' key
         """
         for key, provided in component.get('provides', {}).iteritems():
-            if provided.get('interface') == relation['interface']:
+            if Planner.is_connection_point_match(provided, relation):
                 return key
+
+    @staticmethod
+    def _find_supports_key(relation, component):
+        """Match a connection point on the source component based on relation.
+
+        :param relation: dict of the relation
+        :param component: a dict of the component as parsed by the analyzer
+        :returns: 'supports' key
+        """
+        for key, connection_point in component.get('supports', {}).iteritems():
+            if Planner.is_connection_point_match(connection_point, relation):
+                if 'satisfied-by' not in connection_point:
+                    return key

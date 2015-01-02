@@ -331,7 +331,7 @@ provides:
 requires:
 - host: linux
 - database: mysql
-uses:
+supports:
 - cache: 'redis#FPC'
 - cache: 'redis#sessions'
 - objects:
@@ -349,7 +349,7 @@ provides:
 requires:
 - host: linux
 - database: mysql
-uses:
+supports:
 - FPC:
     resource_type: cache
     interface: {from: [redis, memcache]}
@@ -411,8 +411,63 @@ meta-data:
     icon-20x20: "/images/wordpress-icon-20x20.png"
     tattoo: "/images/wordpress-tattoo.png"
 ---
+name: load-balancer
+is: load-balancer
+display_name: Load Balancer (Generic)
+provides:
+- load-balancer: vip
+- load-balancer: proxy
+- load-balancer: '*'
+supports:
+- '*': '*'
+options:
+  algorithm:
+    type: string
+    constraints:
+    - in:
+      - LEAST_CONNECTIONS
+      - RANDOM
+      - ROUND_ROBIN
+      - WEIGHTED_LEAST_CONNECTIONS
+      - WEIGHTED_ROUND_ROBIN
+  allow_unencrypted:
+    type: "boolean"
+    default: false
+  protocol:
+    type: string
+    constraints:
+    - in:
+      - dns_tcp
+      - dns_udp
+      - ftp
+      - http
+      - https
+      - imaps
+      - imapv2
+      - imapv3
+      - imapv4
+      - ldap
+      - ldaps
+      - mysql
+      - pop3
+      - pop3s
+      - sftp
+      - smtp
+      - tcp
+      - tcp_client_first
+      - tcp_stream
+      - udp
+      - udp_stream
+      - proxy
+      - vip
+meta-data:
+  display-hints:
+    icon-20x20: "/images/icon-load-balancing.png"
+    tattoo: "/images/icon-load-balancing.png"
+---
 id: "rsCloudLB"
-is: "load-balancer"
+name: load-balancer
+is: load-balancer
 provides:
 - load-balancer: vip
 - load-balancer: proxy
@@ -441,28 +496,30 @@ provides:
     - udp_stream
 requires:
 - application: http
-uses:
-- '*': dns_tcp
-- '*': dns_udp
-- '*': ftp
-- '*': http
-- '*': https
-- '*': imaps
-- '*': imapv2
-- '*': imapv3
-- '*': imapv4
-- '*': ldap
-- '*': ldaps
-- '*': mysql
-- '*': pop3
-- '*': pop3s
-- '*': sftp
-- '*': smtp
-- '*': tcp
-- '*': tcp_client_first
-- '*': tcp_stream
-- '*': udp
-- '*': udp_stream
+supports:
+- '*':
+    from:
+    - dns_tcp
+    - dns_udp
+    - ftp
+    - http
+    - https
+    - imaps
+    - imapv2
+    - imapv3
+    - imapv4
+    - ldap
+    - ldaps
+    - mysql
+    - pop3
+    - pop3s
+    - sftp
+    - smtp
+    - tcp
+    - tcp_client_first
+    - tcp_stream
+    - udp
+    - udp_stream
 options:
   algorithm:
     type: string

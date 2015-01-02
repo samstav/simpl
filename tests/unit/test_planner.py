@@ -13,6 +13,7 @@
 #    under the License.
 
 """Tests for Planner."""
+
 import mock
 import unittest
 
@@ -21,9 +22,12 @@ from checkmate import deployments as cmdeps
 from checkmate.providers import base
 from checkmate.providers.opscode.solo import provider as solo_provider
 from checkmate.providers.rackspace import loadbalancer
+from checkmate import test
+from checkmate import utils
 
 
 class TestPlanner(unittest.TestCase):
+
     def test_add_resource(self):
         plan = cmdeps.Planner(
             cmdep.Deployment({'blueprint': {'services': {}}}))
@@ -152,6 +156,125 @@ class TestPlanner(unittest.TestCase):
             self.assertEqual(
                 definition['connections']['web']['outbound-from'], '0')
 
+
+class TestPlanningAspects(unittest.TestCase):
+
+    """Test main features of planning.
+
+    Test:
+    - component finding
+    - component dependency resoution (two levels)
+    - 'host' relation
+    - allow_unencrypted for load-blancer (gens two resources)
+    - vip interface (proxy)
+    - supports and requires and prov
+    """
+
+    def setUp(self):
+        base.PROVIDER_CLASSES = {}
+        base.register_providers([loadbalancer.Provider, test.TestProvider])
+        self.deployment = cmdep.Deployment(utils.yaml_to_dict("""
+            id: test
+            blueprint:
+              services:
+                lb:
+                  component:
+                    resource_type: load-balancer
+                    interface: vip
+                  constraints:
+                  - allow_unencrypted: true
+                  relations:
+                  - web: http
+                web:
+                  component:
+                    interface: http
+                    resource_type: application
+            environment:
+              providers:
+                load-balancer:
+                  vendor: rackspace
+                  catalog:
+                    load-balancer:
+                      rsCloudLB:
+                        provides:
+                        - load-balancer: http
+                        - load-balancer: https
+                        - load-balancer: vip
+                        supports:
+                        - application: http
+                        options:
+                          protocol:
+                            type: list
+                            constraints:
+                            - in: [http]
+                base:
+                  vendor: test
+                  catalog:
+                    application:
+                      app_instance:
+                        provides:
+                        - application: http
+                        requires:
+                        - host: linux
+                    compute:
+                      linux_instance:
+                        provides:
+                        - compute: linux
+                        requires:
+                        - compute: hardware
+                      server_instance:
+                        provides:
+                        - compute: hardware
+            inputs:
+              blueprint:
+                region: North
+        """))
+        self.context = {'region': 'North'}
+
+    def test_component_resolution_initial(self):
+        """Test that main components are identified."""
+        planner = cmdeps.Planner(self.deployment)
+        planner.init_service_plans_dict()
+        planner.resolve_components(self.context)
+        resolved = [r['component']['id'] for r in planner['services'].values()]
+        self.assertEqual(resolved, ['app_instance', 'rsCloudLB'])
+
+    def test_dependency_resolution(self):
+        """Test that two levels of dependencies are resolved."""
+        planner = cmdeps.Planner(self.deployment)
+        planner.init_service_plans_dict()
+        planner.resolve_components(self.context)
+        # Get all main and extra component IDs in a list
+        just_resources = []
+        for plan in planner['services'].values():
+            just_resources.append(plan['component']['id'])
+            if 'extra-components' in plan:
+                for extra in plan['extra-components'].values():
+                    just_resources.append(extra['id'])
+
+        # First level of dependencies
+        planner.resolve_remaining_requirements(self.context)
+        with_dependencies = []
+        for plan in planner['services'].values():
+            with_dependencies.append(plan['component']['id'])
+            if 'extra-components' in plan:
+                for extra in plan['extra-components'].values():
+                    with_dependencies.append(extra['id'])
+
+        # Dependencies of dependencies
+        planner.resolve_recursive_requirements(self.context, history=[])
+        with_recursive = []
+        for plan in planner['services'].values():
+            with_recursive.append(plan['component']['id'])
+            if 'extra-components' in plan:
+                for extra in plan['extra-components'].values():
+                    with_recursive.append(extra['id'])
+
+        self.assertItemsEqual(just_resources, ['app_instance', 'rsCloudLB'])
+        self.assertItemsEqual(
+            with_dependencies, just_resources + ['linux_instance'])
+        self.assertItemsEqual(
+            with_recursive, with_dependencies + ['server_instance'])
 
 if __name__ == '__main__':
     import sys

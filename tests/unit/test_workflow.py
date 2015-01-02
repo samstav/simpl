@@ -393,7 +393,7 @@ class TestWorkflow(unittest.TestCase):
                         constraints:
                           - region: North
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute
@@ -455,7 +455,7 @@ class TestWorkflow(unittest.TestCase):
                         constraints:
                           - region: North
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute
@@ -525,7 +525,7 @@ class TestWorkflow(unittest.TestCase):
                         constraints:
                           - region: North
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute
@@ -689,7 +689,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         constraints:
                           - region: North
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute
@@ -737,20 +737,18 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         resource_type: load-balancer
                         interface: vip
                         constraints:
-                          - region: North
+                        - region: North
                       relations:
-                        master:
-                          service: master
-                          interface: https
-                          attributes:
-                            inbound: http/80
-                            algorithm: round-robin
-                        web:
-                          service: web
-                          interface: http
-                          attributes:
-                            inbound: http/80
-                            algorithm: random
+                      - service: master
+                        interface: https
+                        attributes:
+                          inbound: http/80
+                          algorithm: round-robin
+                      - service: web
+                        interface: http
+                        attributes:
+                          inbound: http/80
+                          algorithm: random
                     master:
                       component:
                         type: application
@@ -762,7 +760,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         role: web
                         name: wordpress
                       relations:
-                        master: ssh
+                      - master: ssh
                 environment:
                   name: test
                   providers:
@@ -778,7 +776,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: https
                             options:
                               protocol:
-                                type: list
+                                type: string
                                 constraints:
                                 - in: [http, https]
                     base:
@@ -793,6 +791,9 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                             - application: http
                             - application: https
                             - compute: linux
+                            - compute: ssh
+                            supports:
+                            - compute: ssh
             """))
         vip_deployment['tenantId'] = "tenantId"
         deployments.Manager.plan(vip_deployment, self.context)
@@ -813,11 +814,12 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Create HTTP Loadbalancer (1)',
             'Wait for Loadbalancer 1 (lb) build',
             'Add monitor to Loadbalancer 1 (lb) build',
-            'Wait before adding 3 to LB 0',
-            'Add Node 3 to LB 0',
-            'Wait before adding 2 to LB 1',
-            'Add Node 2 to LB 1'
+            'Wait before adding 3 to LB 1',
+            'Add Node 3 to LB 1',
+            'Wait before adding 2 to LB 0',
+            'Add Node 2 to LB 0'
         ]
+
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
@@ -837,8 +839,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                           - region: North
                           - algorithm: round-robin
                       relations:
-                        master: http
-                        web: http
+                      - master: http
+                      - web: http
                     master:
                       component:
                         type: application
@@ -863,7 +865,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                           rsCloudLB:
                             provides:
                             - load-balancer: http
-                            requires:
+                            supports:
                             - application: http
                             options:
                               protocol:
@@ -908,8 +910,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Add Node 3 to LB 1',
             'Wait before adding 2 to LB 1',
             'Wait before adding 3 to LB 1',
-            'Add Node 2 to LB 1',
             'Add Node 2 to LB 0',
+            'Add Node 2 to LB 1',
         ]
         task_list.sort()
         expected.sort()
@@ -930,7 +932,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                           - region: North
                           - caching: true
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute

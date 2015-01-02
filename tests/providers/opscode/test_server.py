@@ -58,7 +58,7 @@ class TestChefServerProvider(test.ProviderTester):
                       constraints:
                       - count: 2
                       relations:
-                        backend: mysql
+                      - backend: mysql
                     backend:
                       component:
                         id: bar
@@ -469,7 +469,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                       component:
                         id: foo
                       relations:
-                        backend: mysql
+                      - backend: mysql
                     backend:
                       component:
                         id: bar
@@ -890,7 +890,7 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                       component:
                         id: foo
                       relations:
-                        backend: mysql
+                      - backend: mysql
                     backend:
                       component:
                         id: bar

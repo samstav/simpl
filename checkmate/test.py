@@ -944,7 +944,7 @@ class TestProvider(base.ProviderBase):
                 raise exceptions.CheckmateException("No host")
 
         # Get the definition of the interface
-        interface_schema = schema.INTERFACE_SCHEMA.get(interface, {})
+        interface_schema = schema.INTERFACE_SCHEMA.get(interface) or {}
         # Get the fields this interface defines
         fields = interface_schema.get('options', {}).keys()
         if not fields:

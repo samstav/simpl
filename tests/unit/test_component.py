@@ -34,7 +34,7 @@ class TestComponent(unittest.TestCase):
                 requires:
                 - database: mysql
                 - database: mssql
-                uses:
+                supports:
                 - database: mysql
                 - database: mssql
             """)
@@ -118,11 +118,11 @@ class TestComponent(unittest.TestCase):
             """)
         self.assertEqual(comp.requires, expected)
 
-    def test_uses_property(self):
-        """Check that components parses uses list correctly."""
+    def test_supports_property(self):
+        """Check that components parses supports list correctly."""
         data = utils.yaml_to_dict("""
                 id: component1
-                uses:
+                supports:
                 - compute: linux               # shorthand
                 - backend:                     # long form
                     resource_type: database
@@ -141,7 +141,7 @@ class TestComponent(unittest.TestCase):
                   interface: linux
                   relation: host
             """)
-        self.assertEqual(comp.uses, expected)
+        self.assertEqual(comp.supports, expected)
 
     def test_input_validation(self):
         """Check that components can test option constraints."""
