@@ -29,6 +29,7 @@ from voluptuous import (
     Invalid,
     Length,
     MultipleInvalid,
+    Required,
     Schema,
 )
 
@@ -79,20 +80,22 @@ def RequireOne(keys):
 
 def DictOf(schema):
     """Validate that all values in a dict adhere to the supplied schema."""
-    def check(val):
-        if not isinstance(val, dict):
+    def check(entry):
+        if not isinstance(entry, dict):
             raise Invalid('value not a dict')
         errors = []
-        for value in val.itervalues():
+        for key, value in entry.items():
             try:
-                schema(value)
+                changed = schema(value)
+                if changed and changed != value:
+                    entry[key] = changed
             except MultipleInvalid as exc:
                 errors.extend(exc.errors)
             except Invalid as exc:
                 errors.append(exc)
         if errors:
             raise MultipleInvalid(errors)
-
+        return entry
     return check
 
 

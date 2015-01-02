@@ -245,12 +245,12 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                       component:
                         id: start_widget
                       relations:
-                        middle: foo
+                      - middle: foo
                     middle:
                       component:
                         id: link_widget
                       relations:
-                        back: bar
+                      - back: bar
                     back:
                       component:
                         id: big_widget
@@ -424,7 +424,7 @@ class TestDeploymentRelationParser(unittest.TestCase):
                       component:
                         id: balancer_widget
                       relations:
-                        front: foo  # short syntax
+                      - front: foo  # short syntax
                     front:
                       component:
                         resource_type: widget
@@ -432,9 +432,9 @@ class TestDeploymentRelationParser(unittest.TestCase):
                         constraints:
                         - count: 2
                       relations:
-                        "allyourbase":  # long syntax
-                          service: back
-                          interface: bar
+                      - connect-from: allyourbase
+                        service: back
+                        interface: bar
                     back:
                       component:
                         type: widget
@@ -466,8 +466,8 @@ class TestDeploymentRelationParser(unittest.TestCase):
 
         parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         expected_connections = {
-            ('balanced-front', 'foo'),
-            ('allyourbase', 'bar'),
+            ('front#allyourbase-back-bar', 'bar'),
+            ('balanced-front-foo', 'foo'),
         }
         connections = set()
         for resource in parsed['resources'].values():
@@ -667,10 +667,10 @@ class TestDeploymentSettings(unittest.TestCase):
                         - "wordpress/version": 3.1.4
                         - "wordpress/create": true
                       relations:
-                        web:
-                          service: web
-                          attributes:
-                            algorithm: round-robin
+                      - interface: ssh
+                        service: web
+                        attributes:
+                          algorithm: round-robin
                   options:
                     my_server_type:
                       constrains:

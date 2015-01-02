@@ -393,7 +393,7 @@ class TestWorkflow(unittest.TestCase):
                         constraints:
                           - region: North
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute
@@ -455,7 +455,7 @@ class TestWorkflow(unittest.TestCase):
                         constraints:
                           - region: North
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute
@@ -525,7 +525,7 @@ class TestWorkflow(unittest.TestCase):
                         constraints:
                           - region: North
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute
@@ -689,7 +689,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         constraints:
                           - region: North
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute
@@ -739,18 +739,16 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         constraints:
                           - region: North
                       relations:
-                        master:
-                          service: master
-                          interface: https
-                          attributes:
-                            inbound: http/80
-                            algorithm: round-robin
-                        web:
-                          service: web
-                          interface: http
-                          attributes:
-                            inbound: http/80
-                            algorithm: random
+                      - service: master
+                        interface: https
+                        attributes:
+                          inbound: http/80
+                          algorithm: round-robin
+                      - service: web
+                        interface: http
+                        attributes:
+                          inbound: http/80
+                          algorithm: random
                     master:
                       component:
                         type: application
@@ -762,7 +760,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         role: web
                         name: wordpress
                       relations:
-                        master: ssh
+                      - master: ssh
                 environment:
                   name: test
                   providers:
@@ -837,8 +835,8 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                           - region: North
                           - algorithm: round-robin
                       relations:
-                        master: http
-                        web: http
+                      - master: http
+                      - web: http
                     master:
                       component:
                         type: application
@@ -930,7 +928,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                           - region: North
                           - caching: true
                       relations:
-                        server: http
+                      - server: http
                     server:
                       component:
                         resource_type: compute

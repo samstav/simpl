@@ -180,7 +180,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: main_widget
                       relations:
-                        explicit: foo
+                      - explicit: foo
                     explicit:
                       component:
                         id: foo_widget
@@ -234,10 +234,9 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: main_widget
                       relations:
-                        explicit: foo
-                        "duplicate-provides":
-                          service: named
-                          interface: foo
+                      - explicit: foo
+                      - named: foo
+                      - named: foo
                     explicit:
                       component:
                         id: foo_widget
@@ -277,8 +276,8 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: balancer_widget
                       relations:
-                        master: foo
-                        slave: foo
+                      - master: foo
+                      - slave: foo
                     master:
                       component:
                         resource_type: widget
@@ -290,9 +289,9 @@ class TestDeploymentPlanning(unittest.TestCase):
                         constraints:
                         - count: 2
                       relations:
-                        "allyourbase":
-                          service: back
-                          interface: bar
+                      - connect-from: "allyourbase"
+                        service: back
+                        interface: bar
                     back:
                       component:
                         type: widget
@@ -373,7 +372,7 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: main_widget
                       relations:
-                        explicit: foo
+                      - explicit: foo
                     explicit:
                       component:
                         id: foo_widget
@@ -474,14 +473,14 @@ class TestDeploymentPlanning(unittest.TestCase):
                       component:
                         id: start_widget
                       relations:
-                        middle: foo  # shorthand
+                      - middle: foo  # shorthand
                     middle:
                       component:
                         id: link_widget
                       relations:
-                        "john":  # long form
-                          service: back
-                          interface: bar
+                      - connect-from: "john"  # long form
+                        service: back
+                        interface: bar
                     back:
                       component:
                         id: big_widget  # implicit requirement for gadget:mysql

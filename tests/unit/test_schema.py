@@ -18,12 +18,14 @@ import os
 import unittest
 
 import yaml
+import voluptuous
 
 from checkmate.common import schema
 from checkmate import utils
 
 
 class TestSchema(unittest.TestCase):
+
     """Test various schema related functions."""
 
     def test_translation_apache(self):
@@ -57,33 +59,6 @@ class TestSchema(unittest.TestCase):
             },
             schema.OPTION_SCHEMA)
         self.assertEqual(len(errors), 1)
-
-    def test_validate_option(self):
-        errors = schema.validate_option("any",
-                                        {
-                                            "label": "foo",
-                                            "type": "string",
-                                            "default": "None",
-                                            "display-hints": {
-                                                "group": "test group",
-                                                "weight": 5,
-                                                'choice': [],
-                                            },
-                                            'help': "Here's how...",
-                                            'description': "Yada yada",
-                                            'required': False,
-                                            'constrains': [],
-                                            'constraints': [],
-                                        })
-        self.assertEqual([], errors)
-
-    def test_validate_option_negative(self):
-        errors = schema.validate_option("key",
-                                        {
-                                            "name": "deprecated",
-                                            "type": "foo",
-                                        })
-        self.assertEqual(len(errors), 2, msg=errors)
 
     def test_translation_path(self):
         self.assertEqual(schema.translate('db/hostname'), 'database/host')
@@ -157,6 +132,186 @@ class TestSchema(unittest.TestCase):
         self.assertListEqual(results, expected)
 
 
+class TestSchemaValidation(unittest.TestCase):
+
+    """Test object schema."""
+
+    def test_validate_option(self):
+        errors = schema.validate_option(
+            "any",
+            {
+                "label": "foo",
+                "type": "string",
+                "default": "None",
+                "display-hints": {
+                    "group": "test group",
+                    "weight": 5,
+                    'choice': [],
+                },
+                'help': "Here's how...",
+                'description': "Yada yada",
+                'required': False,
+                'constrains': [],
+                'constraints': [],
+            })
+        self.assertEqual([], errors)
+
+    def test_validate_option_negative(self):
+        errors = schema.validate_option(
+            "key",
+            {
+                "name": "deprecated",
+                "type": "foo",
+            })
+        self.assertEqual(len(errors), 2, msg=errors)
+
+
+class TestComponentSchema(unittest.TestCase):
+
+    """Test Component schema."""
+
+    def test_component_requires(self):
+        obj = utils.yaml_to_dict("""
+        requires:
+        - cache: redis
+        - cache: redis#objects
+        - resource_type: cache
+          interface: redis
+          name: sessions
+        - pages:
+            resource_type: cache
+            interface: memcache
+        """)
+        unchanged = [o.copy() for o in obj['requires']]
+        _schema = voluptuous.Schema([schema.CONNECTION_POINT_SCHEMA])
+        errors = schema.validate(obj['requires'], _schema)
+        self.assertFalse(errors)
+        # Check that coercion did not get applied
+        self.assertEqual(unchanged, obj['requires'])
+
+    def test_component_requires_coerce(self):
+        obj = utils.yaml_to_dict("""
+        requires:
+        - cache: redis
+        - cache: redis#objects
+        - resource_type: cache
+          interface: redis
+          name: sessions
+        - pages:
+            resource_type: cache
+            interface: memcache
+        """)
+        _schema = voluptuous.Schema([schema.ConnectionPoint(coerce=True)])
+        schema.validate(obj['requires'], _schema)
+        expected = {
+            'requires': [
+                {
+                    'resource_type': 'cache',
+                    'interface': 'redis',
+                }, {
+                    'resource_type': 'cache',
+                    'interface': 'redis',
+                    'name': 'objects',
+                }, {
+                    'resource_type': 'cache',
+                    'interface': 'redis',
+                    'name': 'sessions',
+                }, {
+                    'resource_type': 'cache',
+                    'interface': 'memcache',
+                    'name': 'pages',
+                }
+            ]
+        }
+        self.assertEqual(obj, expected)
+
+
+class TestRelationSchema(unittest.TestCase):
+
+    """Test Relation schema."""
+
+    def test_relations(self):
+        obj = utils.yaml_to_dict("""
+        relations:
+        - db: mysql
+        - cache: redis#objects
+        - service: foo
+          interface: varnish
+          connect-from: sessions
+          connect-to: persistent
+          attributes:
+            timeout: 300
+        """)
+        unchanged = [o.copy() for o in obj['relations']]
+        _schema = voluptuous.Schema([schema.Relation()])
+        errors = schema.validate(obj['relations'], _schema)
+        self.assertFalse(errors)
+        # Check that coercion did not get applied
+        self.assertEqual(unchanged, obj['relations'])
+
+    def test_relations_coerce(self):
+        obj = utils.yaml_to_dict("""
+        relations:
+        - db: mysql
+        - cache: redis#objects
+        - service: foo
+          interface: varnish
+          connect-from: sessions
+          connect-to: persistent
+          attributes:
+            timeout: 300
+        """)
+        _schema = voluptuous.Schema([schema.Relation(coerce=True)])
+        schema.validate(obj['relations'], _schema)
+        expected = {
+            'relations': [
+                {
+                    'service': 'db',
+                    'interface': 'mysql',
+                }, {
+                    'service': 'cache',
+                    'interface': 'redis',
+                    'connect-from': 'objects',
+                }, {
+                    'service': 'foo',
+                    'interface': 'varnish',
+                    'connect-from': 'sessions',
+                    'connect-to': 'persistent',
+                    'attributes': {
+                        'timeout': 300
+                    },
+                },
+            ]
+        }
+        self.assertEqual(obj, expected)
+
+    def test_relations_negative_dict(self):
+        """Ensure dict format is not allowed."""
+        obj = utils.yaml_to_dict("""
+        relations:
+        - pages:
+            service: cache
+            interface: memcache
+        """)
+        _schema = voluptuous.Schema([schema.Relation()])
+        errors = schema.validate(obj['relations'], _schema)
+        self.assertEqual(errors, ["invalid list value @ data[0]"])
+
+    def test_relations_negative_service(self):
+        """Ensure 'service' is required."""
+        obj = utils.yaml_to_dict("""
+        relations:
+        - connect-to: test
+          interface: mysql  # No service
+        """)
+        _schema = voluptuous.Schema([schema.Relation()])
+        errors = schema.validate(obj['relations'], _schema)
+        expected = [
+            "required key not provided @ data[0]['service']",
+        ]
+        self.assertEqual(errors, expected)
+
+
 class TestUICatalog(unittest.TestCase):
 
     def test_catalog(self):
@@ -166,7 +321,10 @@ class TestUICatalog(unittest.TestCase):
             components = fh.read()
 
         for doc in yaml.safe_load_all(components):
-            schema.COMPONENT_SCHEMA(doc)
+            try:
+                schema.COMPONENT_SCHEMA(doc)
+            except voluptuous.MultipleInvalid as exc:
+                raise Exception('%s in %s' % (exc, doc))
 
 
 if __name__ == '__main__':

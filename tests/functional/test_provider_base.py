@@ -235,7 +235,7 @@ class TestProviderBaseWorkflow(cmtest.StubbedWorkflowBase):
                       component:
                         id: web_app
                       relations:
-                        db: mysql
+                      - db: mysql
                     db:
                       component:
                         id: database_instance
