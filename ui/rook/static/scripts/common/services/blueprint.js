@@ -291,20 +291,76 @@ angular.module('checkmate.Blueprint')
         this.broadcast();
       },
       canConnect: function(source, target, protocol, optionalTag) {
-        if(!source || !target) {
+        if(!source || !target || (source.componentId == target.componentId)) {
           return false;
         }
+
+        var _connection;
+        var _req;
+        var _prov;
+        var valid;
+        var _interfaceIndex;
         var components = Catalog.getComponents();
         var connections = [];
+        var requires = components[source.componentId].requires || [];
+        var uses = components[source.componentId].supports || [];
+        var interfaces = requires.concat(uses);
 
         // Find interface match in source requires and target provides
-        _.each(components[source.componentId].requires, function(_requirement, index) {
+        _.each(interfaces, function(_requirement, index) {
+          _req = {
+            type: _.keys(_requirement)[0],
+            interface: null
+          };
+
+          _connection = {
+            type: _req.type,
+            interface: null
+          };
+
+          if(_.isObject(_.values(_requirement)[0])) {
+            if(_req.type == '*') {
+              _req.interface = _.values(_requirement)[0];
+            } else {
+              _.extend(_req, _.values(_requirement)[0]);
+            }
+          } else {
+            _req.interface = _.values(_requirement)[0];
+            _connection.interface = _req.interface;
+          }
+
           _.each(components[target.componentId].provides, function(_provided, index) {
-            if(JSON.stringify(_requirement) ==  JSON.stringify(_provided)) {
-              connections.push({
-                'type': _.keys(_requirement)[0],
-                'interface': _.values(_requirement)[0]
-              });
+            valid = false;
+
+            _prov = {
+              type: _.keys(_provided)[0],
+              interface: null
+            };
+
+            if(_.isObject(_.values(_provided)[0])) {
+              _.extend(_prov, _.values(_provided)[0]);
+            } else {
+              _prov.interface = _.values(_provided)[0];
+            }
+
+            if(_.isObject(_req.interface) && 'from' in _req.interface) {
+              _interfaceIndex = _req.interface.from.indexOf(_prov.interface);
+
+              if(_interfaceIndex > -1) {
+                _connection.interface = _req.interface.from[_interfaceIndex];
+                if(_req.connection_type) {
+                  _connection['connect-from'] = _req.type;
+                }
+                valid = true;
+              }
+            }
+
+            if(_req.interface == _prov.interface) {
+              valid = true;
+            }
+
+            if(valid) {
+              connections.push(_connection);
             }
           });
         });

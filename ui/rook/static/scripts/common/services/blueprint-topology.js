@@ -28,7 +28,7 @@ angular.module('checkmate.Blueprint')
           var source = Drag.source.get() || {};
           var target = Drag.target.get() || {};
 
-          Blueprint.connect(source.serviceId, target.serviceId, target.interface);
+          Blueprint.connect(source.serviceId, target.serviceId, target.interface, target['connect-from']);
         };
 
         $scope.$on('blueprint:update', function(event, data) {
@@ -606,7 +606,7 @@ angular.module('checkmate.Blueprint')
             .attr('height', function() {
               return connections.length * 25;
             })
-            .attr('width', 80)
+            .attr('width', sizes.interfaces.width())
             .attr('x', 0)
             .attr('y', 0);
 
@@ -622,7 +622,7 @@ angular.module('checkmate.Blueprint')
                 return;
               }
               d3.event.stopPropagation();
-              setProtocol(d.interface);
+              setProtocol(d.interface, d.type);
             });
 
           options.append('rect')
@@ -638,25 +638,32 @@ angular.module('checkmate.Blueprint')
 
           option.append('title')
             .text(function(d) {
-              return d.interface.substring(0,12);
+              return d.type + ' ' + d.interface.substring(0,12);
             });
 
           option.append('tspan')
-            .attr('text-anchor', 'middle')
+            .attr('text-anchor', 'left')
             .attr('x', function(d) {
-              return sizes.interfaces.width() / 2;
+              return 10;
             })
             .attr('y', function(d, index) {
               return ((sizes.interfaces.height() - 2) * (index + 1)) - 5;
             })
-            .text(function(d){
-              return d.interface.substring(0,12);
+            .text(function(d) {
+              var text = d.type + ' ' + d.interface.substring(0,12);
+
+              if(d.interface.length > 12) {
+                text += '...';
+              }
+
+              return text;
             });
         }
 
-        function setProtocol(interface) {
+        function setProtocol(interface, connectFrom) {
           var target = Drag.target.get();
           target.interface = interface;
+          target['connect-from'] = connectFrom;
           Drag.target.set(target);
 
           scope.connect();
@@ -742,6 +749,7 @@ angular.module('checkmate.Blueprint')
         }
 
         function linkended(d) {
+          //Drag.reset();
           d3.event.sourceEvent.stopPropagation();
           d3.select(this).classed("dragging", false);
           component.classed('deactivated', false);
