@@ -50,6 +50,18 @@ os.environ['CHECKMATE_DOMAIN'] = 'checkmate.local'
 
 
 class TestDeployments(unittest.TestCase):
+
+    def test_minimal_planning(self):
+        deployment = cmdep.Deployment(utils.yaml_to_dict("""
+              id: foo
+              blueprint:
+                name: blank
+              environment:
+                providers: {}
+              resources: {}
+            """))
+        cmdeps.Manager.plan(deployment, cmmid.RequestContext())
+class TestDeploymentKeyGeneration(unittest.TestCase):
     def test_key_generation_all(self):
         deployment = cmdep.Deployment({
             'id': 'test',
@@ -1004,7 +1016,7 @@ class TestDeploymentSettings(unittest.TestCase):
                     base
                 blueprint:
                   services:
-                    web:
+                    web: {}
                   options:
                     my_server_type:
                       constrains:

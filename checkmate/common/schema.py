@@ -492,15 +492,16 @@ COMPONENT_LOOSE_SCHEMA_DICT.update({
 COMPONENT_LOOSE_SCHEMA = Schema(COMPONENT_LOOSE_SCHEMA_DICT)
 
 SERVICE_SCHEMA = Schema({
-    'component': COMPONENT_SCHEMA,
+    'component': COMPONENT_LOOSE_SCHEMA,
     'relations': [Relation()],
     'constraints': list,
+    'display-outputs': dict,
 })
 
 BLUEPRINT_SCHEMA = Schema({
     'id': object,
     'name': object,
-    'services': dict,  # DictOf(SERVICE_SCHEMA),
+    'services': DictOf(SERVICE_SCHEMA),
     'options': object,
     'resources': object,
     'meta-data': object,
