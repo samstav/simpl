@@ -32,9 +32,7 @@ LOG = logging.getLogger(__name__)
 
 
 def register_scheme(scheme):
-    """Use this to register a new scheme with urlparse and have it be
-    parsed in the same way as http is parsed
-    """
+    """Register a new scheme with urlparse and parsed it like 'http' is."""
     for method in [s for s in dir(urlparse) if s.startswith('uses_')]:
         getattr(urlparse, method).append(scheme)
 
@@ -42,11 +40,12 @@ register_scheme('git')  # without this, urlparse won't handle git:// correctly
 
 
 class SoloProviderNotReady(exceptions.CheckmateException):
+
     """Expected data are not yet available."""
-    pass
 
 
 class ChefMap(object):
+
     """Retrieves and parses Chefmap files."""
 
     def __init__(self, url=None, raw=None, parsed=None):
@@ -63,7 +62,6 @@ class ChefMap(object):
         :param parsed: provide parsed content of the map file
 
         :return: opscode.ChefMap
-
         """
         self.url = url
         self._raw = raw

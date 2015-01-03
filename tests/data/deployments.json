@@ -2,7 +2,7 @@
     "_links": {},
     "collection-count": 4,
     "results": {
-    	"1abc": { 
+    	"1abc": {
     	    "id": "1abc",
     	    "tenant_id":"12345",
     		"name": "test deployment 1",
@@ -38,7 +38,7 @@
       			}
       		}
     	},
-    	"2def": { 
+    	"2def": {
     	    "id": "2def",
     	    "tenant_id":"12345",
     		"name": "test deployment 2",
@@ -108,7 +108,7 @@
       			}
       		}
     	},
-    	"3fgh": { 
+    	"3fgh": {
     	    "id": "3fgh",
     		"name": "test deployment 3",
     		"tenant_id":"854673",
@@ -144,7 +144,7 @@
       			}
       		}
     	},
-        "4ijk": { 
+        "4ijk": {
     	    "id": "4ijk",
     	    "tenant_id":"987654",
     		"name": "test deployment 1",

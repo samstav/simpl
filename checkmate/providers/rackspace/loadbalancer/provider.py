@@ -142,7 +142,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 templates.append(template)
 
         if support_unencrypted:
-            templates[len(templates) - 1]['desired-state']['protocol'] = \
+            templates[-1]['desired-state']['protocol'] = \
                 PROTOCOL_PAIRS[protocol]
         if self._handle_dns(deployment, service, resource_type=resource_type):
             templates[0]['desired-state']['dns-A-name'] = \
@@ -698,10 +698,6 @@ class Provider(rsbase.RackspaceProviderBase):
             protocols = [p.lower() for p in protocols]
             options['protocol']['display-hints'] = {'choice': protocols}
 
-            uses = []
-            for protocol in protocols:
-                uses.append({'*': protocol})
-
             results['load-balancer']['rsCloudLB'] = {
                 'id': 'rsCloudLB',
                 'is': 'load-balancer',
@@ -710,7 +706,7 @@ class Provider(rsbase.RackspaceProviderBase):
                     {'load-balancer': 'vip'},
                     {'load-balancer': {'from': protocols}}
                 ],
-                'uses': uses,
+                'supports': [{'*': {'from': protocols}}],
                 'options': options
             }
 

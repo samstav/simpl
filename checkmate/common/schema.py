@@ -304,9 +304,10 @@ INTERFACE_SCHEMA = yaml_to_dict("""
           protocol:
             default: shell
             type: string
-            options:
-            - shell
-            - ssh
+            constraints:
+            - in:
+              - shell
+              - ssh
       # community cares about this. The software is memcached, but I speak
       # memcache
       memcache:
@@ -315,10 +316,10 @@ INTERFACE_SCHEMA = yaml_to_dict("""
         options:
           username:
             type: string
-            required: true
+            required: false
           password:
             type: string
-            required: true
+            required: false
           host:
             type: string
             required: true
@@ -327,6 +328,9 @@ INTERFACE_SCHEMA = yaml_to_dict("""
             required: true
             default: 3306
           database_name:
+            type: string
+            required: false
+          server_root_password:
             type: string
             required: false
       mssql:
@@ -402,9 +406,10 @@ INTERFACE_SCHEMA = yaml_to_dict("""
           protocol:
             default: wmi
             type: string
-            options:
-            - shell
-            - wmi
+            constraints:
+            - in:
+              - shell
+              - wmi
     """)
 
 INTERFACE_TYPES = INTERFACE_SCHEMA.keys()

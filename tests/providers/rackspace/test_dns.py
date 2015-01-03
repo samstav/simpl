@@ -130,10 +130,8 @@ class TestParseDomain(unittest.TestCase):
             ('ftp.regaion1.sample.net', 'sample.net'),
             ('ftp.regaion1.sample.co.uk', 'sample.co.uk')
         ]
-        self.mox = mox.Mox()
 
     def tearDown(self):
-        self.mox.UnsetStubs()
         if os.path.exists(self.custom_tld_cache_file):
             os.remove(self.custom_tld_cache_file)
 

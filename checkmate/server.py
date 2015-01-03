@@ -451,7 +451,9 @@ def main():
 
 
 class CustomEventletServer(bottle.ServerAdapter):
+
     """Handles added backlog."""
+
     def run(self, handler):
         """Fire up the custom Eventlet server."""
         try:
@@ -472,7 +474,9 @@ class CustomEventletServer(bottle.ServerAdapter):
 
 
 class EventletLogFilter(object):
+
     """Receives eventlet log.write() calls and routes them."""
+
     @staticmethod
     def write(text):
         """Write to appropriate target."""
