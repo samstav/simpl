@@ -200,6 +200,11 @@ class TestComponentSchema(unittest.TestCase):
         - pages:
             resource_type: cache
             interface: memcache
+        - host: linux
+        - edges:
+            type: '*'
+            relation: reference
+            interface: '*'
         """)
         _schema = voluptuous.Schema([schema.ConnectionPoint(coerce=True)])
         schema.validate(obj['requires'], _schema)
@@ -220,10 +225,18 @@ class TestComponentSchema(unittest.TestCase):
                     'resource_type': 'cache',
                     'interface': 'memcache',
                     'name': 'pages',
+                }, {
+                    'interface': 'linux',
+                    'relation': 'host',
+                }, {
+                    'resource_type': '*',
+                    'interface': '*',
+                    'relation': 'reference',
+                    'name': 'edges',
                 }
             ]
         }
-        self.assertEqual(obj, expected)
+        self.assertEqual(obj, expected, obj)
 
 
 class TestRelationSchema(unittest.TestCase):

@@ -18,7 +18,6 @@
 import logging
 
 from celery.task import task
-from celery.task.sets import subtask
 from eventlet.green import socket
 
 from checkmate.common import statsd
@@ -29,12 +28,11 @@ LOG = logging.getLogger(__name__)
 
 @task(default_retry_delay=10, max_retries=36)
 @statsd.collect
-def test_connection(context, host, port=3389, timeout=10, callback=None):
+def test_connection(context, host, port=3389, timeout=10):
     """Connect to a RDP server and verify that it responds.
 
     :param host:             the ip address or host name of the server
     :param port:           TCP IP port to use (RDP default is 3389)
-    :param callback:       a callback task to call on success
     """
     match_celery_logging(LOG)
     LOG.debug("Checking for a response from rdp://%s:%d.", host, port)
@@ -51,6 +49,4 @@ def test_connection(context, host, port=3389, timeout=10, callback=None):
 
     sock.close()
     LOG.debug("rdp://%s:%d is up.", host, port)
-    if callback:
-        subtask(callback).delay()
     return True

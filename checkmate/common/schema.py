@@ -108,9 +108,11 @@ FUNCTION_SCHEMA = Schema({
 ENDPOINT_SCHEMA = Schema({
     'resource_type': Any('*', *RESOURCE_TYPES),
     'relation': Any('reference', 'host'),
+    'type': Any('*', *RESOURCE_TYPES),  # gets converted to resource_type
     'interface': Any(basestring, dict),
     'constraints': [dict],
     'name': basestring,
+    'satisfied-by': dict,
 })
 
 RELATION_SCHEMA = Schema({
@@ -163,27 +165,45 @@ def ConnectionPoint(msg=None, coerce=False):
             if isinstance(value, dict):
                 if check_schema(ENDPOINT_SCHEMA, value):
                     # index + endpoint (long form)
+                    changed = dict(name=key, **value)
+                    if 'type' in changed:
+                        changed.setdefault('resource_type',
+                                           changed.pop('type'))
                     if coerce:
-                        coerce_dict(entry, dict(name=key, **value))
+                        coerce_dict(entry, changed)
                     return entry
                 elif check_schema(FUNCTION_SCHEMA, value):
                     # shorthand with function
                     if coerce:
-                        changed = {'resource_type': key, 'interface': value}
+                        if key == 'host':
+                            changed = {
+                                'relation': 'host',
+                                'interface': value,
+                            }
+                        else:
+                            changed = {
+                                'resource_type': key,
+                                'interface': value,
+                            }
                         coerce_dict(entry, changed)
                     return entry
                 else:
                     raise Invalid('not a valid endpoint')
             # shorthand (type: interface and optional name)
-            if '#' in value:
-                interface, hashtag = value.split('#')[0:2]
+            if key == 'host':
                 changed = {
-                    'resource_type': key,
-                    'interface': interface,
-                    'name': hashtag,
+                    'relation': 'host',
+                    'interface': value,
                 }
             else:
-                changed = {'resource_type': key, 'interface': value}
+                changed = {
+                    'resource_type': key,
+                    'interface': value,
+                }
+            if '#' in value:
+                interface, hashtag = value.split('#')[0:2]
+                changed['interface'] = interface
+                changed['name'] = hashtag
             if coerce:
                 coerce_dict(entry, changed)
             else:

@@ -77,6 +77,7 @@ class TestComponent(unittest.TestCase):
                     longform:
                       resource_type: cache
                       interface: redis
+                      name: longform
             """)
         self.assertEqual(comp.provides, expected)
 
@@ -134,6 +135,7 @@ class TestComponent(unittest.TestCase):
                 backend:
                   resource_type: database
                   interface: mysql
+                  name: backend
                 compute:linux:
                   resource_type: compute
                   interface: linux

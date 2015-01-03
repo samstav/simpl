@@ -32,6 +32,7 @@ from checkmate import utils
 LOG = logging.getLogger(__name__)
 
 COMPONENT_SCHEMA = schema.get_schema(__name__)
+COERCER = schema.Schema([schema.ConnectionPoint(coerce=True)])
 
 
 class Component(ExtensibleDict):
@@ -98,88 +99,64 @@ class Component(ExtensibleDict):
     def provides(self):
         """Return the 'provides' list as an expanded dict."""
         results = self.get('provides') or []
+        COERCER(results)
         expanded_results = {}
         for entry in results:
-            if len(entry) == 1:
-                value = entry.values()[0]
-                if isinstance(value, dict):
-                    expanded_results[entry.keys()[0]] = value
-                else:
-                    item = entry.items()[0]
-                    if entry.keys()[0] == 'host':
-                        keys = ('relation', 'interface')
-                    else:
-                        keys = ('resource_type', 'interface')
-                    expanded = dict(zip(keys, item))
-                    expanded_results['%s:%s' % item] = expanded
+            if 'name' in entry:
+                name = entry['name']
+            elif 'resource_type' in entry and 'interface' in entry:
+                name = '%s:%s' % (entry['resource_type'], entry['interface'])
+            elif entry.get('relation') == 'host' and 'interface' in entry:
+                name = 'host:%s' % entry['interface']
             else:
-                raise CheckmateValidationException("Provides has invalid "
-                                                   "format: %s" % entry)
-        for value in expanded_results.itervalues():
-            if 'type' in value:
-                if 'resource_type' in value:
-                    msg = ("Component has both type and resource_type "
-                           "specified in its 'provides' section")
-                    raise CheckmateValidationException(msg)
-                value['resource_type'] = value.pop('type')
+                raise CheckmateValidationException(
+                    "'provides' has an ambiguous entry: %s" % entry)
+            if name in expanded_results:
+                raise CheckmateValidationException(
+                    "'provides' has conflicting entries: %s" % name)
+            expanded_results[name] = entry
         return expanded_results
 
     @property
     def requires(self):
         """Return the 'requires' list as an expanded dict."""
         results = self.get('requires') or []
+        COERCER(results)
         expanded_results = {}
         for entry in results:
-            if len(entry) == 1:
-                value = entry.values()[0]
-                if isinstance(value, dict):
-                    expanded_results[entry.keys()[0]] = value
-                else:
-                    item = entry.items()[0]
-                    if entry.keys()[0] == 'host':
-                        keys = ('relation', 'interface')
-                    else:
-                        keys = ('resource_type', 'interface')
-                    expanded = dict(zip(keys, item))
-                    expanded_results['%s:%s' % item] = expanded
+            if 'name' in entry:
+                name = entry['name']
+            elif 'resource_type' in entry and 'interface' in entry:
+                name = '%s:%s' % (entry['resource_type'], entry['interface'])
+            elif entry.get('relation') == 'host' and 'interface' in entry:
+                name = 'host:%s' % entry['interface']
             else:
-                raise CheckmateValidationException("'Requires' has invalid "
-                                                   "format: " % entry)
-        for value in expanded_results.itervalues():
-            if 'type' in value:
-                if 'resource_type' in value:
-                    msg = ("Component has both type and resource_type "
-                           "specified in its 'requires' section")
-                    raise CheckmateValidationException(msg)
-                value['resource_type'] = value.pop('type')
+                raise CheckmateValidationException(
+                    "'requires' has an ambiguous entry: %s" % entry)
+            if name in expanded_results:
+                raise CheckmateValidationException(
+                    "'requires' has conflicting entries: %s" % name)
+            expanded_results[name] = entry
         return expanded_results
 
     @property
     def supports(self):
         """Return the 'supports' list as an expanded dict."""
         results = self.get('supports') or []
+        COERCER(results)
         expanded_results = {}
         for entry in results:
-            if len(entry) == 1:
-                value = entry.values()[0]
-                if isinstance(value, dict):
-                    expanded_results[entry.keys()[0]] = value
-                else:
-                    item = entry.items()[0]
-                    if entry.keys()[0] == 'host':
-                        keys = ('relation', 'interface')
-                    else:
-                        keys = ('resource_type', 'interface')
-                    expanded = dict(zip(keys, item))
-                    expanded_results['%s:%s' % item] = expanded
+            if 'name' in entry:
+                name = entry['name']
+            elif 'resource_type' in entry and 'interface' in entry:
+                name = '%s:%s' % (entry['resource_type'], entry['interface'])
+            elif entry.get('relation') == 'host' and 'interface' in entry:
+                name = 'host:%s' % entry['interface']
             else:
-                raise CheckmateValidationException("'Uses' has invalid "
-                                                   "format: " % entry)
-        for value in expanded_results.itervalues():
-            if 'type' in value:
-                if 'resource_type' in value:
-                    msg = ("Component has both type and resource_type "
-                           "specified in its 'supports' section")
-                    raise CheckmateValidationException(msg)
-                value['resource_type'] = value.pop('type')
+                raise CheckmateValidationException(
+                    "'supports' has an ambiguous entry: %s" % entry)
+            if name in expanded_results:
+                raise CheckmateValidationException(
+                    "'supports' has conflicting entries: %s" % name)
+            expanded_results[name] = entry
         return expanded_results
