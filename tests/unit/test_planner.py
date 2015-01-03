@@ -14,8 +14,9 @@
 
 """Tests for Planner."""
 
-import mock
 import unittest
+
+import mock
 
 from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps

@@ -29,6 +29,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(object):
+
     """Contains logic for Compute provider logic."""
 
     @staticmethod

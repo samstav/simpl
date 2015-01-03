@@ -14,8 +14,9 @@
 
 """Environment."""
 
-import eventlet
 import logging
+
+import eventlet
 
 from checkmate.component import Component
 from checkmate import exceptions

@@ -142,7 +142,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 templates.append(template)
 
         if support_unencrypted:
-            templates[len(templates) - 1]['desired-state']['protocol'] = \
+            templates[-1]['desired-state']['protocol'] = \
                 PROTOCOL_PAIRS[protocol]
         if self._handle_dns(deployment, service, resource_type=resource_type):
             templates[0]['desired-state']['dns-A-name'] = \
