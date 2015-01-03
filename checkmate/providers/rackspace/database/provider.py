@@ -248,7 +248,7 @@ class Provider(cmbase.ProviderBase):
             # Create resource tasks
             create_database_task = specs.Celery(
                 wfspec,
-                'Create Database',
+                'Create Database %s' % db_name,
                 'checkmate.providers.rackspace.database.tasks.create_database',
                 call_args=[
                     context.get_queued_task_dict(
@@ -308,9 +308,13 @@ class Provider(cmbase.ProviderBase):
                            provider=self.key,
                            task_tags=['create', 'root'])
             LOG.info('Resource: %s', resource)
+            if component['is'] == 'cache':
+                name = 'cache'
+            else:
+                name = resource.get('interface') or 'database'
             create_instance_task = specs.Celery(
                 wfspec,
-                'Create Database Server',
+                'Create %s Server %s' % (name.capitalize(), key),
                 'checkmate.providers.rackspace.database.tasks.create_instance',
                 call_args=[
                     context.get_queued_task_dict(
@@ -331,7 +335,7 @@ class Provider(cmbase.ProviderBase):
             root = wfspec.wait_for(create_instance_task, wait_on)
             wait_task = specs.Celery(
                 wfspec,
-                'Wait on Database Instance %s' % key,
+                'Wait on %s Instance %s' % (name.capitalize(), key),
                 'checkmate.providers.rackspace.database.tasks.wait_on_build',
                 call_args=[
                     context.get_queued_task_dict(

@@ -654,7 +654,7 @@ environment:
         expected = [
             'Root',
             'Start',
-            'Create Database Server',
+            'Create Database Server 0',
             'Wait on Database Instance 0',
         ]
         task_list.sort()
@@ -731,7 +731,7 @@ environment:
         expected = [
             'Root',
             'Start',
-            'Create Database Server',
+            'Create Database Server 0',
             'Wait on Database Instance 0',
         ]
         task_list.sort()
