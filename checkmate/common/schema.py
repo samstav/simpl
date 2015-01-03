@@ -17,7 +17,7 @@
 
 Initial implementation. Currently used for debugging and so is limited to known
 resource types, interfaces, and such. The intent is to broaden it once we have
-stabilized theschema.
+stabilized the schema.
 """
 
 import logging
@@ -52,11 +52,6 @@ RESOURCE_TYPES = [
     'web',
     'monitoring',
     'storage',
-
-    # TODO(zns): All below to be removed (including testing ones)
-    'wordpress',
-    'php5',
-    'endpoint',  # not sure what this was used for
 
     # for testing
     'widget',
