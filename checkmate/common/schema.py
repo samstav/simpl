@@ -102,25 +102,25 @@ FUNCTION_SCHEMA = Schema({
     'and': list,
     'exists': dict,
     'not-exists': dict,
-    'value': Any(str, dict)
+    'value': Any(basestring, dict)
 })
 
 ENDPOINT_SCHEMA = Schema({
     'resource_type': Any('*', *RESOURCE_TYPES),
-    'interface': Any(str, dict),
     'relation': Any('reference', 'host'),
+    'interface': Any(basestring, dict),
     'constraints': [dict],
-    'name': str,
+    'name': basestring,
 })
 
 RELATION_SCHEMA = Schema({
-    Required('service'): str,
-    'interface': Any(str, dict),
+    Required('service'): basestring,
+    'interface': Any(basestring, dict),
     'relation': Any('reference', 'host', 'containment'),
     'attributes': dict,
     'constraints': list,
-    'connect-from': str,
-    'connect-to': str,
+    'connect-from': basestring,
+    'connect-to': basestring,
 })
 
 
@@ -460,18 +460,18 @@ def schema_from_list(keys_list):
 
 CONNECTION_POINT_SCHEMA = ConnectionPoint()
 COMPONENT_STRICT_SCHEMA_DICT = {
-    'id': All(str, Length(min=3, max=32)),
-    'name': str,
+    'id': All(basestring, Length(min=3, max=32)),
+    'name': basestring,
     'is': Any(*RESOURCE_TYPES),
-    'provider': str,
+    'provider': basestring,
     'options': DictOf(schema_from_list(OPTION_SCHEMA)),
     'requires': [CONNECTION_POINT_SCHEMA],
     'provides': [CONNECTION_POINT_SCHEMA],
     'supports': [CONNECTION_POINT_SCHEMA],
-    'summary': str,
-    'display_name': str,
-    'version': str,
-    'roles': [str],
+    'summary': basestring,
+    'display_name': basestring,
+    'version': basestring,
+    'roles': [basestring],
     'properties': dict,
     'meta-data': dict,
 }
@@ -483,8 +483,8 @@ COMPONENT_SCHEMA = All(
 # Loose schema for compatibility and loose validation
 COMPONENT_LOOSE_SCHEMA_DICT = COMPONENT_STRICT_SCHEMA_DICT.copy()
 COMPONENT_LOOSE_SCHEMA_DICT.update({
-    'role': str,
-    'source_name': str,
+    'role': basestring,
+    'source_name': basestring,
     'type': Any('*', *RESOURCE_TYPES),
     'resource_type': Any('*', *RESOURCE_TYPES),
     Extra: object,  # To support provider-specific values
