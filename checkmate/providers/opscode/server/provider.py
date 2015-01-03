@@ -144,7 +144,7 @@ class Provider(base.BaseOpscodeProvider):
         # Get component/role or recipe name
         component_id = component['id']
         LOG.debug("Determining component from dict: %s", component_id,
-                  extra=component)
+                  extra={'data': component})
 
         bootstrap_version = deployment.get_setting(
             'bootstrap-version', provider_key=self.key,
