@@ -355,7 +355,11 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
 
         filtered = []
         for entry in results:
-            item_type, item_interface = entry.items()[0]
+            if len(entry) == 1:  # shorthand
+                item_type, item_interface = entry.items()[0]
+            else:
+                item_type = entry.get('resource_type') or entry.get('type')
+                item_interface = entry.get('interface')
             if (resource_type is None or resource_type == item_type) and\
                     (interface is None or interface == item_interface):
                 filtered.append(entry)

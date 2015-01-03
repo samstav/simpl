@@ -489,11 +489,9 @@ class Provider(cmbase.ProviderBase):
                     'is': 'database',
                     'provides': [{'database': 'mysql'}],
                     'requires': [{
-                        'compute': {
-                            'relation': 'host',
-                            'interface': 'mysql',
-                            'resource_type': 'compute'
-                        }
+                        'relation': 'host',
+                        'interface': 'mysql',
+                        'resource_type': 'compute'
                     }],
                     'options': {
                         'database/name': {

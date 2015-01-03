@@ -510,11 +510,9 @@ class TestCatalog(unittest.TestCase):
                     'is': 'database',
                     'requires': [
                         {
-                            'compute': {
-                                'interface': 'mysql',
-                                'resource_type': 'compute',
-                                'relation': 'host'
-                            }
+                            'interface': 'mysql',
+                            'resource_type': 'compute',
+                            'relation': 'host'
                         }
                     ],
                     'id': 'mysql_database',
