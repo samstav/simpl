@@ -112,6 +112,7 @@ ENDPOINT_SCHEMA = Schema({
     'interface': Any(basestring, dict),
     'constraints': [dict],
     'name': basestring,
+    'satisfied-by': dict,
 })
 
 RELATION_SCHEMA = Schema({
