@@ -19,7 +19,6 @@ import logging
 import os
 import StringIO
 
-from celery.task.sets import subtask
 from celery.task import task
 import paramiko
 from satori import bash
@@ -58,7 +57,7 @@ def get_gateway(address, username=None, password=None, private_key=None,
 @task(default_retry_delay=10, max_retries=36)
 @statsd.collect
 def test_connection(context, ip, username, timeout=10, password=None,
-                    identity_file=None, port=22, callback=None,
+                    identity_file=None, port=22,
                     private_key=None, proxy_address=None,
                     proxy_credentials=None):
     """Connect to an ssh server and verify that it responds.
@@ -69,7 +68,6 @@ def test_connection(context, ip, username, timeout=10, password=None,
     password:       password to use for username/password auth
     identity_file:  a private key file to use
     port:           TCP IP port to use (ssh default is 22)
-    callback:       a callback task to call on success
     private_key:    an RSA string for the private key to use (instead of using
                     a file)
 
@@ -92,8 +90,6 @@ def test_connection(context, ip, username, timeout=10, password=None,
                          password=password, gateway=gateway)
         client.close()
         LOG.debug("ssh://%s@%s:%d is up.", username, ip, port)
-        if callback:
-            subtask(callback).delay()
         return True
     except Exception as exc:
         LOG.info('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
@@ -123,7 +119,7 @@ def execute_2(context, ip_address, command, username, timeout=10,
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def execute(ip, command, username, timeout=10, password=None,
-            identity_file=None, port=22, callback=None, private_key=None,
+            identity_file=None, port=22, private_key=None,
             proxy_address=None, proxy_credentials=None):
     """Execute an ssh command on a remote host.
 
@@ -136,7 +132,6 @@ def execute(ip, command, username, timeout=10, password=None,
     password:           password to use for username/password auth
     identity_file:      a private key file to use
     port:               TCP IP port to use (ssh default is 22)
-    callback:           a callback task to call on success
     private_key:        an RSA string for the private key to use (instead of
                         using a file)
     proxy_address:      optional proxy server address
@@ -154,8 +149,6 @@ def execute(ip, command, username, timeout=10, password=None,
                                  identity_file=identity_file,
                                  private_key=private_key, port=port,
                                  timeout=timeout, gateway=gateway)
-        if callback is not None:
-            subtask(callback).delay()
         return results
     except Exception as exc:
         LOG.info("ssh://%s@%s:%d failed.  %s", username, ip, port, exc)
