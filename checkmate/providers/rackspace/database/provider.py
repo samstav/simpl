@@ -531,6 +531,7 @@ class Provider(cmbase.ProviderBase):
                                 {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
                             ],
                             'unit': 'Gb',
+                            'default': 1,
                         },
                         'memory': {
                             'type': 'integer',
@@ -538,6 +539,7 @@ class Provider(cmbase.ProviderBase):
                                 {'in': [512, 1024, 2048, 4096]}
                             ],
                             'unit': 'Mb',
+                            'default': 512,
                         }
                     }
                 }
@@ -563,6 +565,7 @@ class Provider(cmbase.ProviderBase):
                                 {'in': [512, 1024, 2048, 4096]}
                             ],
                             'unit': 'Mb',
+                            'default': 512,
                         }
                     }
                 }

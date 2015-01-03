@@ -495,14 +495,16 @@ class TestCatalog(unittest.TestCase):
                             'unit': 'Gb',
                             'constraints': [
                                 {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-                            ]
+                            ],
+                            'default': 1
                         },
                         'memory': {
                             'type': 'integer',
                             'unit': 'Mb',
                             'constraints': [
                                 {'in': [512, 1024, 2048, 4096]}
-                            ]
+                            ],
+                            'default': 512
                         }
                     }
                 },
@@ -552,7 +554,8 @@ class TestCatalog(unittest.TestCase):
                             'unit': 'Mb',
                             'constraints': [
                                 {'in': [512, 1024, 2048, 4096]}
-                            ]
+                            ],
+                            'default': 512
                         }
                     }
                 }
