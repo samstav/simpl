@@ -344,7 +344,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 for key, type_category in data.iteritems():
                     if key == 'lists':
                         continue
-                    for _, component in type_category.iteritems():
+                    for component in type_category.itervalues():
                         if 'provides' in component:
                             for entry in component['provides']:
                                 if entry not in results:

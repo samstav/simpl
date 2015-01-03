@@ -36,7 +36,6 @@ REGIONS = ['DFW', 'HKG', 'IAD', 'LON', 'ORD', 'SYD']
 URL = 'https://%s.databases.api.rackspacecloud.com/v1.0/%s'  # region, t_id
 
 
-
 def get_config(region, t_id, token, instance_id):
     url = _build_url(region, t_id, '/instances/%s/configuration' % instance_id)
     params = {'accountId': t_id, 'instanceId': instance_id}
@@ -96,7 +95,8 @@ def create_instance(region, t_id, token, name, flavor):
 def delete_instance(region, t_id, token, instance_id):
     url = _build_url(region, t_id, '/instances/%s' % instance_id)
     params = {'accountId': t_id, 'instanceId': instance_id}
-    response = requests.delete(url, headers=_build_headers(token), params=params)
+    response = requests.delete(url, headers=_build_headers(token),
+                               params=params)
     return '%d, %s' % (response.status_code, response.reason)
 
 
