@@ -121,6 +121,7 @@ RELATION_SCHEMA = Schema({
     'constraints': list,
     'connect-from': basestring,
     'connect-to': basestring,
+    'key': basestring,
 })
 
 
