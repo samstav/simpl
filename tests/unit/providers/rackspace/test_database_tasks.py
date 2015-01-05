@@ -517,7 +517,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
         }
         message = ('Cannot find instance/host-instance for database to '
                    'delete. Skipping delete_database call for resource %s in '
-                   'deployment %s - Instance Id: %s, Host Instance Id: %s',
+                   'deployment %s - Instance Id: %s, Host Instance Id: %s' %
                    ('1', '123', None, None))
         expected = {
             'resources': {
@@ -722,7 +722,8 @@ class TestDeleteInstanceTask(unittest.TestCase):
 
     def test_delete_instance_no_region(self):
         self.context.pop('region')
-        self.assertRaisesRegexp(AssertionError, 'No region defined in context',
+        self.assertRaisesRegexp(AssertionError, 'No region defined in '
+                                'resource or context',
                                 dbtasks.delete_instance_task,
                                 self.context)
 
@@ -748,7 +749,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_logger.assert_called_with(('Instance ID is not available for '
                                         'Database server Instance, skipping '
                                         'delete_instance_task for resource %s '
-                                        'in deployment %s', ('0', '12345')))
+                                        'in deployment %s' % ('0', '12345')))
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
@@ -881,7 +882,8 @@ class TestWaitOnDelInstance(unittest.TestCase):
                 'instance': {
                     'id': '4321'
                 },
-                'hosts': []
+                'hosts': [],
+                'type': 'compute',
             }
         }
 
