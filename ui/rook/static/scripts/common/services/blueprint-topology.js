@@ -471,8 +471,7 @@ angular.module('checkmate.Blueprint')
 
           label.append('title')
             .text(function(d) {
-              var title = d.id || d.name;
-              return title;
+              return getDisplayName(d);
             });
 
           label.append('tspan')
@@ -490,7 +489,7 @@ angular.module('checkmate.Blueprint')
               return sizes.service.margin.top + 28;
             })
             .text(function(d) {
-              var label = d.id || d.name;
+              var label = getDisplayName(d);
 
               if(label.length > 12) {
                 label = label.substring(0,11) + '...';
@@ -755,6 +754,13 @@ angular.module('checkmate.Blueprint')
           component.classed('deactivated', false);
           state.linking = false;
           dragConnectorLine.remove();
+        }
+
+        function getDisplayName(d) {
+          var display = Catalog.getComponent(d.id || d.name).display_name;
+          var label =  display || d.id || d.name;
+
+          return label;
         }
 
         function resize() {
