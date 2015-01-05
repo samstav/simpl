@@ -734,12 +734,14 @@ environment:
         expected = [
             'Root',
             'Start',
-            'Create Database Server 0',
-            'Wait on Database Instance 0',
+            'Create Cache Server 0',
+            'Wait on Cache Instance 0',
         ]
         task_list.sort()
         expected.sort()
         self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertEqual(
+            workflow.spec.task_specs['Create Cache Server 0'].args[2], '101')
 
     def test_workflow_completion(self):
         self.mox.ReplayAll()

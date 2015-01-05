@@ -700,7 +700,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'resource': key,
                 })
             elif (resource.get('provider') == 'database' and
-                    resource.get('type') in ('compute', 'cache') and
+                    resource.get('type')  == 'compute' and
                     'disk' in resource['desired-state']):
                 expected_calls.extend([{
                     # Create Instance
@@ -709,7 +709,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'args': [
                         Func(is_good_context),
                         IsA(basestring),
-                        '1',
+                        resource['desired-state']['flavor'],
                         1,
                         None,
                         self.deployment.get_setting(
@@ -737,6 +737,69 @@ class StubbedWorkflowBase(unittest.TestCase):
                                         },
                                     },
                                     'databases': {}
+                                }
+                            }
+                        },
+                    },
+                    'post_back_result': True,
+                    'resource': key,
+                }, {  # wait_on_build
+                    'call': 'checkmate.providers.rackspace.database.tasks.'
+                            'wait_on_build',
+                    'args': [
+                        Func(is_good_context),
+                        IgnoreArg(),
+                    ],
+                    'kwargs': IgnoreArg(),
+                    'result': {
+                        'resources': {
+                            str(key): {
+                                'status': 'ACTIVE',
+                                'instance': {
+                                    'id': 'db-inst-1',
+                                }
+                            }
+                        },
+                    },
+                    'post_back_result': True,
+                    'resource': key,
+                }])
+            elif (resource.get('provider') == 'database' and
+                    resource.get('type') == 'cache'):
+                expected_calls.extend([{
+                    # Create Instance
+                    'call': 'checkmate.providers.rackspace.database.tasks.'
+                            'create_instance',
+                    'args': [
+                        Func(is_good_context),
+                        IsA(basestring),
+                        resource['desired-state']['flavor'],
+                        resource['desired-state'].get('disk'),
+                        None,
+                        self.deployment.get_setting(
+                            'region',
+                            resource_type=resource.get('type'),
+                            service_name=resource['service'],
+                            provider_key=resource['provider'],
+                            default='testonia'
+                        )
+                    ],
+                    'kwargs': IgnoreArg(),
+                    'result': {
+                        'resources': {
+                            str(key): {
+                                'instance': {
+                                    'id': 'db-inst-1',
+                                    'name': 'dbname.domain.local',
+                                    'status': 'BUILD',
+                                    'region': self.deployment.get_setting(
+                                            'region', default='testonia'),
+                                    'interfaces': {
+                                        'redis': {
+                                            'host':
+                                            'verylong.rackspaceclouddb.com',
+                                        },
+                                    }
                                 }
                             }
                         },
