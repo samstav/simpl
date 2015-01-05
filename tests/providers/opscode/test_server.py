@@ -1028,8 +1028,11 @@ interfaces/mysql/database_name
             'task_tags': ['collect'],
             'extend_lists': True,
             'chef_options': {
-            'roles': {
-                'foo-master': {'how-many': 2}}},
+                'roles': {
+                    'foo-master': {'how-many': 2}
+                },
+                'attributes:0': {'connections': 10, 'widgets': 10},
+            },
             'chef_output': None,
             'chef_maps': [
                 {
@@ -1311,7 +1314,12 @@ interfaces/mysql/database_name
                             'identity_file': '/var/tmp/DEP-ID-1000/private.pem',
                             'environment': 'DEP-ID-1000',
                             'password': 'shecret',
-                            'attributes':  {'widgets': 10, 'connections': 10},
+                            'attributes':  {
+                                'widgets': 10,
+                                'connections': 10,
+                                'db': {'name': 'foo-db'},
+                                'master': {'instance': {'ip': '4.4.4.1'}}
+                            },
                         },
                         'result': None
                     },
@@ -1360,7 +1368,7 @@ interfaces/mysql/database_name
                             'bootstrap_version': '11.16.4-1',
                             'identity_file':
                             '/var/tmp/DEP-ID-1000/private.pem',
-                            'attributes': {},
+                            'attributes': None,
                         },
                         'result': None
                     },
