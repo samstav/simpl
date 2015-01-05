@@ -24,23 +24,20 @@ class Transforms(object):
 
     We put them in a separate class to:
     - access them from tests
-    - possible, in the future, use them as a library instead of passing the
-      actual code in to Spiff for better security
-    TODO(zns): Should separate them out into their own module (not class)
+    - use them as a library instead of passing the actual code in to Spiff
+      for better security
     """
 
     @staticmethod  # self will actually be a SpiffWorkflow.TaskSpec
     def collect_options(self, my_task):  # pylint: disable=W0211
         """Collect and write run-time options."""
         try:
-            import copy  # pylint: disable=W0404,W0621
             # pylint: disable=W0621
             from checkmate.deployments.tasks import resource_postback \
                 as postback
             from checkmate.providers.opscode.chef_map import ChefMap
             from checkmate.providers.opscode.chef_map import \
                 SoloProviderNotReady
-            # pylint: disable=W0621
             maps = self.get_property('chef_maps', [])
             data = my_task.attributes
 
@@ -66,7 +63,7 @@ class Transforms(object):
 
             output_template = self.get_property('chef_output')
             if output_template:
-                output_template = copy.copy(output_template)
+                output_template = output_template.copy()
             else:
                 output_template = {}
             if results:
@@ -76,12 +73,11 @@ class Transforms(object):
                 # Use output_template as a template for outputs
                 if output_template:
                     outputs = utils.merge_dictionary(
-                        copy.copy(output_template), outputs)
+                        output_template.copy(), outputs)
 
                 # Write chef_options for databag and role tasks
                 if results:
-                    if 'chef_options' not in my_task.attributes:
-                        my_task.attributes['chef_options'] = {}
+                    my_task.attributes.setdefault('chef_options', {})
                     utils.merge_dictionary(my_task.attributes['chef_options'],
                                            results, True)
 
@@ -89,14 +85,6 @@ class Transforms(object):
                 if outputs:
                     # Write results into attributes
                     utils.merge_dictionary(my_task.attributes, outputs)
-                    # Be compatible and write without 'instance'
-                    compat = {}
-                    for key, value in outputs.iteritems():
-                        if isinstance(value, dict) and 'instance' in value:
-                            compat[key] = value['instance']
-                    if compat:
-                        utils.merge_dictionary(my_task.attributes, compat)
-
                     # Write outputs into output template
                     utils.merge_dictionary(output_template, outputs)
             else:
