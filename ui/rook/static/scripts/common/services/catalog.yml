@@ -168,7 +168,7 @@ meta-data:
     icon-20x20: "/images/mysql-small.png"
     tattoo: "/images/mysql-tattoo.png"
 ---
-id: rsCloudDb
+id: mysql_instance
 is: database
 name: myql
 display_name: "Cloud Database (MySQL)"
@@ -256,7 +256,7 @@ meta-data:
     icon-20x20: "/images/redis-icon-20x20.png"
     tattoo: "/images/redis-tattoo.png"
 ---
-id: redis_cache
+id: redis_instance
 is: cache
 name: redis
 display_name: "Cloud Redis"
@@ -325,25 +325,64 @@ meta-data:
 ---
 is: application
 id: "magentostack"
-display_name: Magento (New Style Stack)
+display_name: Magento Stack
 provides:
 - application: http
 requires:
 - host: linux
 - database: mysql
 supports:
-- cache: 'redis#FPC'
-- cache: 'redis#sessions'
-- objects:
+- cache: 'redis#sessions'  # shorthand
+- objects:  # long form, one interface
     interface: redis
     resource_type: cache
+- FPC:  # long form with optional interfaces
+    resource_type: cache
+    interface: {from: [redis, memcache]}
 meta-data:
   display-hints:
     icon-20x20: "/images/magento-icon-20x20.png"
     tattoo: "/images/magento-tattoo.png"
+options:
+  "domain":
+    type: string
+  "admin_frontname":
+    type: string
+    default: admin
+  "firstname":
+    type: string
+    default: Admin
+  "lastname":
+    type: string
+    default: User
+  "email":
+    type: string
+    required: true
+  "newrelic":
+    type: string
+  "username":
+    type: string
+    default: MagentoAdmin
+    required: true
+  "password":
+    type: string
+    default: =generate_password(min_length=12, required_chars=["0123456789", "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"])
+    required: true
+  "demo":
+    type: boolean
+    default: true
+    required: true
+  "newrelic":
+    type: boolean
+    default: false
+    required: true
+  "database_prefix":
+    type: string
+    default: magento_
 ---
 is: application
 name: "magento"
+display_name: Magento (Generic)
 provides:
 - application: http
 requires:
