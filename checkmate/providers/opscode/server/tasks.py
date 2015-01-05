@@ -324,7 +324,7 @@ def upload_cookbooks(context, deployment, environment):
 @ctask.task(base=base.ProviderTask, provider=Provider)
 @statsd.collect
 def delete_environment(context, deployment, name, api=None):
-
+    """Delete environment on Chef Server."""
     def on_failure(exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
         data = {

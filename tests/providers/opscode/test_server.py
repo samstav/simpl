@@ -1028,8 +1028,11 @@ interfaces/mysql/database_name
             'task_tags': ['collect'],
             'extend_lists': True,
             'chef_options': {
-            'roles': {
-                'foo-master': {'how-many': 2}}},
+                'roles': {
+                    'foo-master': {'how-many': 2}
+                },
+                'attributes:0': {'connections': 10, 'widgets': 10},
+            },
             'chef_output': None,
             'chef_maps': [
                 {
@@ -1205,8 +1208,7 @@ interfaces/mysql/database_name
                 '/var/tmp/%s/private.pem' % self.deployment['id'],
                 'public_key_path':
                 '/var/tmp/%s/checkmate.pub' % self.deployment['id'],
-                'public_key':
-                test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
+                'public_key': test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
             }
         }, {
             'call': 'checkmate.providers.opscode.server.tasks.'
@@ -1217,9 +1219,7 @@ interfaces/mysql/database_name
                 self.deployment['id']
             ],
             'result': None,
-            'kwargs': mox.And(
-                mox.ContainsKeyValue('desc', mox.IgnoreArg())
-            )
+            'kwargs': mox.And(mox.ContainsKeyValue('desc', mox.IgnoreArg()))
         }, {
             'call': 'checkmate.providers.opscode.server.tasks.'
                     'upload_cookbooks',
@@ -1311,7 +1311,12 @@ interfaces/mysql/database_name
                             'identity_file': '/var/tmp/DEP-ID-1000/private.pem',
                             'environment': 'DEP-ID-1000',
                             'password': 'shecret',
-                            'attributes':  {'widgets': 10, 'connections': 10},
+                            'attributes':  {
+                                'widgets': 10,
+                                'connections': 10,
+                                'db': {'name': 'foo-db'},
+                                'master': {'instance': {'ip': '4.4.4.1'}}
+                            },
                         },
                         'result': None
                     },
@@ -1360,7 +1365,7 @@ interfaces/mysql/database_name
                             'bootstrap_version': '11.16.4-1',
                             'identity_file':
                             '/var/tmp/DEP-ID-1000/private.pem',
-                            'attributes': {},
+                            'attributes': None,
                         },
                         'result': None
                     },

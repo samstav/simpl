@@ -40,7 +40,8 @@ class BaseOpscodeProvider(base.ProviderBase):
     def get_prep_tasks(self, wfspec, deployment, resource_key, component,
                        context, collect_tag='collect',
                        ready_tag='options-ready',
-                       provider='checkmate.providers.opscode.solo'):
+                       provider='checkmate.providers.opscode.solo',
+                       reset_attribs=True):
         """Create (or get if they exist) tasks that collect and write map
         options.
 
@@ -54,6 +55,7 @@ class BaseOpscodeProvider(base.ProviderBase):
         :param component: the component for that resource
         :param collect_tag: the tag to use for the collect task.
         :param ready_tag: the tag to tuse for the final, options-ready task
+        :param reset_attribs: does not write attributes resolved at planning
         :returns: a dict with 'root' and 'final' tasks. The tasks are linked
                   together but are not linked into the workflow
 
@@ -109,7 +111,7 @@ class BaseOpscodeProvider(base.ProviderBase):
         unresolved = ChefMap.resolve_ready_maps(all_maps, deployment,
                                                 chef_options)
         attrib_key = 'attributes:%s' % resource_key
-        if attrib_key in chef_options:
+        if reset_attribs and attrib_key in chef_options:
             # Remove ones already added in Register
             del chef_options[attrib_key]
 

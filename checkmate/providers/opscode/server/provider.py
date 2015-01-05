@@ -25,7 +25,6 @@ from checkmate.providers.opscode import base
 from checkmate.providers import base as cmbase
 from checkmate.providers.opscode.chef_map import ChefMap
 
-
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT', "11.16.4-1")
 
@@ -145,6 +144,30 @@ class Provider(base.BaseOpscodeProvider):
         component_id = component['id']
         LOG.debug("Determining component from dict: %s", component_id,
                   extra={'data': component})
+        kwargs = self.map_file.get_component_run_list(component)
+        resource = deployment['resources'][key]
+
+        collect_data_tasks = None
+        if self.map_file.has_mappings(component_id):
+            collect_data_tasks = self.get_prep_tasks(
+                wfspec, deployment, key, component, context,
+                provider='checkmate.providers.opscode.server',
+                reset_attribs=False)
+            kwargs['attributes'] = operators.PathAttrib(
+                'chef_options/attributes:%s' % key)
+        else:
+            map_with_context = self.map_file.get_map_with_context(
+                deployment=deployment, resource=resource, component=component)
+            attributes = map_with_context.get_attributes(resource['component'],
+                                                         deployment)
+            kwargs['attributes'] = attributes
+        host_idx = resource.get('hosted_on')
+        if not host_idx:
+            LOG.debug("Bypassing chef resource since no 'host' was supplied")
+            return
+
+        instance_ip = operators.PathAttrib("resources/%s/instance/ip" %
+                                           host_idx)
 
         bootstrap_version = deployment.get_setting(
             'bootstrap-version', provider_key=self.key,
@@ -162,82 +185,66 @@ class Provider(base.BaseOpscodeProvider):
                 bootstrap_version = deployment.get_setting(
                     'bootstrap-version', provider_key=self.key,
                     service_name=service_name, default=OMNIBUS_DEFAULT)
+        anchor_task = configure_task = specs.Celery(
+            wfspec,
+            'Configure %s: %s (%s)' % (component_id, key, service_name),
+            'checkmate.providers.opscode.server.tasks.bootstrap',
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment_id=deployment['id'],
+                    resource_key=key),
+                deployment['id'],
+                instance_ip,
+                instance_ip,  # name
+            ],
+            environment=deployment['id'],
+            password=operators.PathAttrib('resources/%s/instance/password'
+                                          % host_idx),
+            bootstrap_version=bootstrap_version,
+            merge_results=True,
+            identity_file=operators.Attrib('private_key_path'),
+            description="Bootstrap server as a Chef client",
+            defines=dict(resource=key, provider=self.key,
+                         task_tags=['final']),
+            properties={'estimated_duration': 100},
+            **kwargs
+        )
 
-        kwargs = self.map_file.get_component_run_list(component)
+        if collect_data_tasks:
+            configure_task.follow(collect_data_tasks['final'])
+            anchor_task = collect_data_tasks['root']
 
-        map_with_context = self.map_file.get_map_with_context(
-            deployment=deployment, resource=resource, component=component)
-        attributes = map_with_context.get_attributes(resource['component'],
-                                                     deployment)
-        resource = deployment['resources'][key]
-        host_idx = resource.get('hosted_on')
-        if host_idx:
-            instance_ip = operators.PathAttrib("resources/%s/instance/ip" %
-                                               host_idx)
-            anchor_task = configure_task = specs.Celery(
-                wfspec,
-                'Configure %s: %s (%s)' % (component_id, key, service_name),
-                'checkmate.providers.opscode.server.tasks.bootstrap',
-                call_args=[
-                    context.get_queued_task_dict(
-                        deployment_id=deployment['id'],
-                        resource_key=key),
-                    deployment['id'],
-                    instance_ip,
-                    instance_ip,  # name
-                ],
-                environment=deployment['id'],
-                password=operators.PathAttrib('resources/%s/instance/password'
-                                              % host_idx),
-                bootstrap_version=bootstrap_version,
-                merge_results=True,
-                identity_file=operators.Attrib('private_key_path'),
-                description="Bootstrap server as a Chef client",
-                defines=dict(resource=key, provider=self.key,
-                             task_tags=['final']),
-                properties={'estimated_duration': 100},
-                attributes=attributes,
-                **kwargs
+        # Collect dependencies
+        dependencies = [self.prep_task] if self.prep_task else []
+
+        # Wait for relations tasks to complete
+        for relation_key in resource.get('relations', {}).keys():
+            tasks = wfspec.find_task_specs(resource=key,
+                                           relation=relation_key,
+                                           tag='final')
+            if tasks:
+                dependencies.extend(tasks)
+
+        if anchor_task:
+            wfspec.wait_for(
+                anchor_task, dependencies,
+                name="After server %s (%s) is registered and options are "
+                "ready" % (host_idx, service_name),
+                description="Before applying chef recipes, we need to "
+                            "know that the server has chef on it and that "
+                            "the overrides (ex. database settings) have "
+                            "been applied"
             )
 
-            if self.map_file.has_mappings(component_id):
-                collect_data_tasks = self.get_prep_tasks(
-                    wfspec, deployment, key, component, context,
-                    provider='checkmate.providers.opscode.server')
-                configure_task.follow(collect_data_tasks['final'])
-                anchor_task = collect_data_tasks['root']
-
-            # Collect dependencies
-            dependencies = [self.prep_task] if self.prep_task else []
-
-            # Wait for relations tasks to complete
-            for relation_key in resource.get('relations', {}).keys():
-                tasks = wfspec.find_task_specs(resource=key,
-                                               relation=relation_key,
-                                               tag='final')
-                if tasks:
-                    dependencies.extend(tasks)
-
-            if anchor_task:
-                wfspec.wait_for(
-                    anchor_task, dependencies,
-                    name="After server %s (%s) is registered and options are "
-                    "ready" % (host_idx, service_name),
-                    description="Before applying chef recipes, we need to "
-                                "know that the server has chef on it and that "
-                                "the overrides (ex. database settings) have "
-                                "been applied"
-                )
-
-            # if we have a host task marked 'complete', make that wait on
-            # configure
-            host_complete = self.get_host_complete_task(wfspec, resource)
-            if host_complete:
-                wfspec.wait_for(
-                    host_complete,
-                    [configure_task],
-                    name='Wait for %s to be configured before completing host '
-                    '%s' % (service_name, host_idx))
+        # if we have a host task marked 'complete', make that wait on
+        # configure
+        host_complete = self.get_host_complete_task(wfspec, resource)
+        if host_complete:
+            wfspec.wait_for(
+                host_complete,
+                [configure_task],
+                name='Wait for %s to be configured before completing host '
+                '%s' % (service_name, host_idx))
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
@@ -280,7 +287,8 @@ class Provider(base.BaseOpscodeProvider):
             # tasks signal they are complete.
             collect_tasks = self.get_prep_tasks(
                 wfspec, deployment, key, component, context,
-                provider='checkmate.providers.opscode.server')
+                provider='checkmate.providers.opscode.server',
+                reset_attribs=False)
             wfspec.wait_for(collect_tasks['root'], tasks)
 
         if relation.get('relation') == 'host':
