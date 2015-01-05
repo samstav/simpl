@@ -332,11 +332,13 @@ requires:
 - host: linux
 - database: mysql
 supports:
-- cache: 'redis#FPC'
-- cache: 'redis#sessions'
-- objects:
+- cache: 'redis#sessions'  # shorthand
+- objects:  # long form, one interface
     interface: redis
     resource_type: cache
+- FPC:  # long form with optional interfaces
+    resource_type: cache
+    interface: {from: [redis, memcache]}
 meta-data:
   display-hints:
     icon-20x20: "/images/magento-icon-20x20.png"
