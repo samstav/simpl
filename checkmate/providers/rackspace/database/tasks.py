@@ -25,6 +25,7 @@ from checkmate.common import statsd
 from checkmate.deployments.tasks import resource_postback
 from checkmate import exceptions
 from checkmate.providers.base import RackspaceProviderTask
+from checkmate.providers.rackspace.database import cdbredis
 from checkmate.providers.rackspace.database.manager import Manager
 from checkmate.providers.rackspace.database.provider import Provider
 from checkmate import utils
@@ -273,6 +274,7 @@ def wait_on_del_instance(context, api=None):
     assert 'region' in context, "No region defined in resource or context"
     instance_id = instance.get('id')
     instance = None
+    status = None
     deployment_id = context["deployment_id"]
 
     if not instance_id or context.get('simulation'):
@@ -294,11 +296,22 @@ def wait_on_del_instance(context, api=None):
     if not api:
         api = Provider.connect(context, region)
     try:
-        instance = api.get(instance_id)
+        if resource['type'] == 'cache':
+            instance = cdbredis.get_instance(
+                region, context['tenant'], context['auth_token'], instance_id)
+            if 'instance' in instance:
+                status = instance['instance']['status']
+            elif 'status_code' in instance and instance['status_code'] == 404:
+                status = 'DELETED'
+            else:
+                raise pyexc.NotFound(instance.get('reason'))
+        else:
+            instance = api.get(instance_id)
+            status = instance.status
     except pyexc.NotFound:
         pass
 
-    if not instance or ('DELETED' == instance.status):
+    if not instance or ('DELETED' == status):
         res = {
             'resources': {
                 key: {
@@ -316,7 +329,7 @@ def wait_on_del_instance(context, api=None):
             })
     else:
         msg = ("Waiting on state DELETED. Instance %s is in state %s" %
-               (key, instance.status))
+               (key, status))
         res = {
             'resources': {
                 key: {
