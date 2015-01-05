@@ -408,7 +408,7 @@ class Provider(cmbase.ProviderBase):
             context['resource'] = resource
             context['region'] = region
 
-        if resource.get('type') == 'compute':
+        if resource.get('type') in ('compute', 'cache'):
             return self._delete_comp_res_tasks(wf_spec, context, key)
         if resource.get('type') == 'database':
             return self._delete_db_res_tasks(wf_spec, context, key)
