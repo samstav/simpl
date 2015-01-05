@@ -168,7 +168,7 @@ meta-data:
     icon-20x20: "/images/mysql-small.png"
     tattoo: "/images/mysql-tattoo.png"
 ---
-id: rsCloudDb
+id: mysql_instance
 is: database
 name: myql
 display_name: "Cloud Database (MySQL)"
@@ -256,7 +256,7 @@ meta-data:
     icon-20x20: "/images/redis-icon-20x20.png"
     tattoo: "/images/redis-tattoo.png"
 ---
-id: redis_cache
+id: redis_instance
 is: cache
 name: redis
 display_name: "Cloud Redis"
