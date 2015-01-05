@@ -107,7 +107,7 @@ class Manager(object):
     #pylint: disable=R0913
     @staticmethod
     def create_instance(instance_name, flavor, size, databases, context,
-                        api, callback, simulate=False):
+                        api, callback, region=None, simulate=False):
         """Create a Cloud Database instance with optional initial databases.
 
         :param databases: an array of dictionaries with keys to set the
@@ -129,6 +129,11 @@ class Manager(object):
                     id="DBS%s" % context.get('resource_key'),
                     name=instance_name,
                     hostname='db1.rax.net', volume=volume)
+            elif flavor >= 100:
+                return cdbredis.create_instance(region or context.region,
+                                                context.tenant,
+                                                context.auth_token,
+                                                instance_name, flavor)
             else:
                 instance = api.create(instance_name, flavor=flavor,
                                       volume=size, databases=databases)
@@ -146,7 +151,7 @@ class Manager(object):
                  "Databases = %s", instance.name, instance.id, size,
                  flavor, databases)
 
-        if int(flavor) >= 100:
+        if flavor >= 100:
             interface = 'redis'
         else:
             interface = 'mysql'

@@ -329,7 +329,6 @@ class Provider(cmbase.ProviderBase):
                     None,
                     resource['desired-state']['region'],
                 ],
-                component=resource.get('component'),
                 merge_results=True,
                 defines=defines,
                 properties={'estimated_duration': 80}

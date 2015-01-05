@@ -84,8 +84,7 @@ def create_instance(region, t_id, token, name, flavor):
                 'redis': {
                     'host': instance.get('hostname')
                 }
-            },
-            'databases': {}
+            }
         }
 
     # TODO(pablo): this should probably raise an exception
