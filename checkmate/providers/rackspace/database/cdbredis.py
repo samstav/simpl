@@ -20,7 +20,12 @@ import json
 import logging
 
 import requests
-
+from voluptuous import (
+    All,
+    Any,
+    Required,
+    Schema
+)
 DATA = {
     'instance': {
         'datastore': {'version': '2.8', 'type': 'redis'}
@@ -35,12 +40,25 @@ LOG = logging.getLogger(__name__)
 REGIONS = ['DFW', 'HKG', 'IAD', 'LON', 'ORD', 'SYD']
 URL = 'https://%s.databases.api.rackspacecloud.com/v1.0/%s'  # region, t_id
 
-
-def get_config(region, t_id, token, instance_id):
-    url = _build_url(region, t_id, '/instances/%s/configuration' % instance_id)
-    params = {'accountId': t_id, 'instanceId': instance_id}
-    response = requests.get(url, headers=_build_headers(token), params=params)
-    return response.json()
+# TODO(pablo): statuses should become Checkmate's (not Cloud Databases')
+validate = Schema(
+    {
+        'id': basestring,
+        'name': basestring,
+        'status': Any('BUILD', 'REBOOT', 'ACTIVE', 'FAILED', 'BACKUP',
+                      'BLOCKED', 'RESIZE', 'RESTART_REQUIRED', 'SHUTDOWN'),
+        'region': basestring,
+        'flavor': All(int, Any(1, 2, 3, 4, 5, 6, 7, 8,
+                               101, 102, 103, 104, 105, 106, 107, 108)),
+        'disk': None,
+        'interfaces': {
+            'redis': {
+                'host': basestring
+            }
+        }
+    },
+    required=True
+)
 
 
 def get_flavor(region, t_id, token, flavor_id):
@@ -68,61 +86,57 @@ def get_instance(region, t_id, token, instance_id):
     return {'status_code': response.status_code, 'reason': response.reason}
 
 
-def create_instance(region, t_id, token, name, flavor):
-    """Calls _create_instance then formats the response for Checkmate."""
-    results = _create_instance(region, t_id, token, name, flavor)
-    if 'instance' in results:
-        instance = results['instance']
-        return {
-            'id': instance.get('id'),
-            'name': instance.get('name'),
-            'status': 'BUILD',
-            'region': region,
-            'flavor': flavor,
-            'disk': None,
-            'interfaces': {
-                'redis': {
-                    'host': instance.get('hostname')
-                }
-            }
-        }
-
-    # TODO(pablo): this should probably raise an exception
-    return results  # Error: let the information bubble up
-
-
-def delete_instance(region, t_id, token, instance_id):
-    url = _build_url(region, t_id, '/instances/%s' % instance_id)
-    params = {'accountId': t_id, 'instanceId': instance_id}
-    response = requests.delete(url, headers=_build_headers(token),
-                               params=params)
-    return '%d, %s' % (response.status_code, response.reason)
-
-
-def _create_instance(region, t_id, token, name, flavor):
-    """Returns the raw response from creating a new instance."""
-    assert isinstance(region, unicode), 'Region must be unicode'
-    assert region.upper() in REGIONS, 'Must be a valid region (e.g. ORD)'
-    assert isinstance(t_id, unicode), 't_id must be unicode'
-    assert isinstance(token, unicode), 'A valid token must be provided'
-    assert isinstance(flavor, int), 'flavor must be an int from 101 - 108'
-    assert flavor in range(101, 109), (
-        'flavor must be an int from 101 - 108')
-
+def get_instances(region, t_id, token):
     url = _build_url(region, t_id, '/instances')
-    data = DATA.copy()
-    data['instance']['name'] = name
-    data['instance']['flavorRef'] = get_flavor_ref(region, t_id, token, flavor)
-    data = json.dumps(data)
-    response = requests.post(url, headers=_build_headers(token), data=data)
+    response = requests.get(url, headers=_build_headers(token))
+
     if response.ok:
         return response.json()
 
     return {'status_code': response.status_code, 'reason': response.reason}
 
 
+def create_instance(region, t_id, token, name, flavor):
+    """Calls _create_instance then formats the response for Checkmate."""
+    url = _build_url(region, t_id, '/instances')
+    data = DATA.copy()
+    data['instance']['name'] = name
+    data['instance']['flavorRef'] = get_flavor_ref(region, t_id, token, flavor)
+    data = json.dumps(data)
+    response = requests.post(url, headers=_build_headers(token), data=data)
+
+    if response.ok:
+        results = response.json()
+        if 'instance' in results:
+            instance = results['instance']
+            return {
+                'id': instance.get('id'),
+                'name': instance.get('name'),
+                'status': 'BUILD',
+                'region': region,
+                'flavor': flavor,
+                'disk': None,
+                'interfaces': {
+                    'redis': {
+                        'host': instance.get('hostname')
+                    }
+                }
+            }
+        return results
+    else:
+        # TODO(pablo): this should raise an exception
+        return {'status_code': response.status_code, 'reason': response.reason}
+
+
+def delete_instance(region, t_id, token, instance_id):
+    url = _build_url(region, t_id, '/instances/%s' % instance_id)
+    response = requests.delete(url, headers=_build_headers(token))
+    return u'%d, %s' % (response.status_code, response.reason)
+
+
 def _build_url(region, t_id, uri):
-    assert uri.startswith('/'), 'uri must include the leading slash "/"'
+    if not uri.startswith('/'):
+        uri = '/' + uri
     return URL % (region.lower(), t_id) + uri
 
 
