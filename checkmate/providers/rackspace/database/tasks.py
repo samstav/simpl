@@ -164,19 +164,21 @@ def delete_instance_task(context, api=None):
     delete_instance_task.on_failure = on_failure
 
     assert "deployment_id" in context, "No deployment id in context"
-    assert 'region' in context, "No region defined in context"
     assert 'resource_key' in context, 'No resource key in context'
     assert 'resource' in context, 'No resource defined in context'
 
-    region = context.get('region')
     resource = context.get('resource')
+    instance = resource.get('instance', {})
+    region = instance.get('region') or context.get('region')
+
+    assert 'region' in context, "No region defined in resource or context"
     resource_key = context.get("resource_key")
     deployment_id = context.get("deployment_id")
-    instance_id = resource.get('instance', {}).get('id')
+    instance_id = instance.get('id')
     if not instance_id:
         msg = ("Instance ID is not available for Database server Instance, "
                "skipping delete_instance_task for resource %s in deployment "
-               "%s", (resource_key, deployment_id))
+               "%s" % (resource_key, deployment_id))
         # TODO(Nate): Clear status-message on delete
         res = {'resources': {resource_key: {'status': 'DELETED'}}}
         for hosted in resource.get('hosts', []):
@@ -270,10 +272,12 @@ def wait_on_del_instance(context, api=None):
     assert 'resource_key' in context, 'No resource key in context'
     assert 'resource' in context, 'No resource defined in context'
 
-    region = context.get('region')
     key = context.get('resource_key')
     resource = context.get('resource')
-    instance_id = resource.get('instance', {}).get('id')
+    instance = resource.get('instance', {})
+    region = instance.get('region') or context.get('region')
+    assert 'region' in context, "No region defined in resource or context"
+    instance_id = instance.get('id')
     instance = None
     deployment_id = context["deployment_id"]
 
@@ -383,7 +387,7 @@ def delete_database(context, api=None):
     if not (instance and host_instance):
         msg = ("Cannot find instance/host-instance for database to delete. "
                "Skipping delete_database call for resource %s in deployment "
-               "%s - Instance Id: %s, Host Instance Id: %s",
+               "%s - Instance Id: %s, Host Instance Id: %s" %
                (resource_key, context["deployment_id"], instance,
                 host_instance))
         results = {
