@@ -95,8 +95,10 @@ class Provider(cmbase.ProviderBase):
             match = str(min(matches))
             for key, value in catalog['lists']['sizes'].iteritems():
                 if match == str(value['memory']):
-                    LOG.debug("Mapping flavor from '%s' to '%s'", memory, key)
                     flavor = key
+                    if resource_type == 'cache':
+                        flavor = str(int(flavor) + 100)
+                    LOG.debug("Mapping flavor from '%s' to '%s'", memory, key)
                     break
 
             if not flavor:
