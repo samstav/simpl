@@ -325,7 +325,7 @@ meta-data:
 ---
 is: application
 id: "magentostack"
-display_name: Magento (New Style Stack)
+display_name: Magento Stack
 provides:
 - application: http
 requires:
@@ -344,6 +344,7 @@ meta-data:
 ---
 is: application
 name: "magento"
+display_name: Magento (Generic)
 provides:
 - application: http
 requires:
