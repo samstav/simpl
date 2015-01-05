@@ -1208,8 +1208,7 @@ interfaces/mysql/database_name
                 '/var/tmp/%s/private.pem' % self.deployment['id'],
                 'public_key_path':
                 '/var/tmp/%s/checkmate.pub' % self.deployment['id'],
-                'public_key':
-                test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
+                'public_key': test.ENV_VARS['CHECKMATE_CLIENT_PUBLIC_KEY']
             }
         }, {
             'call': 'checkmate.providers.opscode.server.tasks.'
@@ -1220,9 +1219,7 @@ interfaces/mysql/database_name
                 self.deployment['id']
             ],
             'result': None,
-            'kwargs': mox.And(
-                mox.ContainsKeyValue('desc', mox.IgnoreArg())
-            )
+            'kwargs': mox.And(mox.ContainsKeyValue('desc', mox.IgnoreArg()))
         }, {
             'call': 'checkmate.providers.opscode.server.tasks.'
                     'upload_cookbooks',

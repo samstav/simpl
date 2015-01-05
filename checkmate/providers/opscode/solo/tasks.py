@@ -57,7 +57,8 @@ def write_databag(context, environment, bag_name, item_name, contents,
                                   simulate=context.simulation)
 
 
-@ctask.task(base=base.ProviderTask, provider=Provider, countdown=20, max_retries=3)
+@ctask.task(base=base.ProviderTask, provider=Provider, countdown=20,
+            max_retries=3)
 @statsd.collect
 def cook(context, host, environment, recipes=None, roles=None,
          path=None, username='root', password=None, identity_file=None,
@@ -181,7 +182,8 @@ def register_node(context, host, environment, path=None,
                                  simulate=context.simulation)
 
 
-@ctask.task(base=base.ProviderTask, provider=Provider, countdown=20, max_retries=3)
+@ctask.task(base=base.ProviderTask, provider=Provider, countdown=20,
+            max_retries=3)
 @statsd.collect
 def manage_role(context, name, environment, path=None, desc=None,
                 run_list=None, default_attributes=None,

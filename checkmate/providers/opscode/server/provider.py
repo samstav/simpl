@@ -25,7 +25,6 @@ from checkmate.providers.opscode import base
 from checkmate.providers import base as cmbase
 from checkmate.providers.opscode.chef_map import ChefMap
 
-
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT', "11.16.4-1")
 
