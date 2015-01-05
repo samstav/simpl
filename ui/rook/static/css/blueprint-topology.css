@@ -131,7 +131,7 @@ g.relation-indicator .connection {
 g.relation-indicator.active .connection {
   display: block;
 }
-g.relation-indicator .connection text {
+g.relation-indicator .connection .interface-text {
   font-size: 11px;
   fill: #7f8c8d;
 }

@@ -27,7 +27,7 @@
             <div class="rs-app-launch-list-item"
                  ng-repeat="(app,config) in types"
                  x-lvl-draggable="true"
-                 ng-show="config.id.indexOf(search) > -1 || !search"
+                 ng-show="config.id.indexOf(search) > -1 || config.display_name.indexOf(search) > -1 || config.name.indexOf(search) > -1 || !search"
                  ng-mousedown="select(config)"
                  ng-click="viewDetails()">
                 <div class="rs-app-list-item-icon">

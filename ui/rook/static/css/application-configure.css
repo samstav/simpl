@@ -86,7 +86,7 @@
 .rs-app-launch-search-bar input[type=text] {
   width: 100%;
   font-size: 15px;
-  height: 30px;
+  height: 20px;
   margin: 0;
   border-radius: 0;
   -webkit-box-shadow: none;
@@ -97,6 +97,7 @@
   border-left: 0;
   border-right: 0;
   background-color: transparent;
+  color: #333;
 }
 .rs-app-launch-search-bar input[type=text]:focus {
   background-color: transparent;
