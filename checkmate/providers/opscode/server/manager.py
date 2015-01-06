@@ -290,16 +290,22 @@ class Manager(object):
         env['BERKSHELF_CHEF_CONFIG'] = os.path.join(kitchen.kitchen_path,
                                                     '.chef', 'knife.rb')
         # Downloads cookbooks based on Berksfile.lock locked versions
-        utils.run_ruby_command(kitchen.kitchen_path, 'berks',
-                               ['install'], lock=True, env=env)
+        params = ['berks', 'install']
+        stdout, stderr, _ = utils.check_all_output(
+            params, cwd=kitchen.kitchen_path, env=env)
+        LOG.debug("'berks install' results: %s, %s", stdout, stderr)
 
         # Upload them to the server
-        utils.run_ruby_command(kitchen.kitchen_path, 'berks',
-                               ['upload'], lock=True, env=env)
+        params = ['berks', 'upload']
+        stdout, stderr, _ = utils.check_all_output(
+            params, cwd=kitchen.kitchen_path, env=env)
+        LOG.debug("'berks upload' results: %s, %s", stdout, stderr)
 
         # Pins cookbook versions in the environment
-        utils.run_ruby_command(kitchen.kitchen_path, 'berks',
-                               ['apply', environment], lock=True, env=env)
+        params = ['berks', 'apply', environment]
+        stdout, stderr, _ = utils.check_all_output(
+            params, cwd=kitchen.kitchen_path, env=env)
+        LOG.debug("'berks apply' results: %s, %s", stdout, stderr)
 
         return True
 

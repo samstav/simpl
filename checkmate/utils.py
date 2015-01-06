@@ -890,7 +890,7 @@ def evaluate(function_string):
     raise NameError("Unsupported function: %s" % function_string)
 
 
-def check_all_output(params, find="ERROR"):
+def check_all_output(params, find="ERROR", env=None, cwd=None):
     """Detect 'find' string in params, returning a list of all matching lines.
 
     Similar to subprocess.check_output, but parses both stdout and stderr
@@ -922,7 +922,7 @@ def check_all_output(params, find="ERROR"):
 
     process = subprc.Popen(params, stdout=subprc.PIPE,
                            stderr=subprc.PIPE, bufsize=1,
-                           close_fds=on_posix)
+                           close_fds=on_posix, env=env, cwd=cwd)
 
     # preserve last numlines of stdout and stderr
     numlines = 100
@@ -942,10 +942,10 @@ def check_all_output(params, find="ERROR"):
     else:
         msg = "stdout: %s \n stderr: %s \n Found: %s" % (stdout, stderr, found)
         LOG.debug(msg)
-        raise subprc.CalledProcessError(retcode, ' '.join(params),
-                                        output='\n'.join(stdout),
-                                        error_info='%s%s' % ('\n'.join(stderr),
-                                                             '\n'.join(found)))
+        raise cmexc.CheckmateCalledProcessError(
+            retcode, ' '.join(params),
+            output='\n'.join(stdout),
+            error_info='%s%s' % ('\n'.join(stderr), '\n'.join(found)))
 
 
 def is_simulation(api_id):
