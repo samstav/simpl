@@ -342,10 +342,11 @@ class ChefKitchen(object):
 
         TODO (zns): make this handle other github domains
         """
-        with open(berks_file_path, 'rw') as handle:
-            contents = handle.read()
-            if 'git@' in contents:
-                updated = contents.replace('git@github.com:',
-                                           'https://github.com/')
-                handle.write(updated)
-                LOG.info("Rewrote Berksfile to use https instead of ssh")
+        with open(berks_file_path, 'r') as read_handle:
+            contents = read_handle.read()
+        if 'git@' in contents:
+            updated = contents.replace('git@github.com:',
+                                       'https://github.com/')
+            with open(berks_file_path, 'w') as write_handle:
+                write_handle.write(updated)
+            LOG.info("Rewrote Berksfile to use https instead of ssh")
