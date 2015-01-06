@@ -46,7 +46,7 @@ angular.module('checkmate.ComponentOptions')
       link: function(scope, element, attrs) {
         scope.templates = '/scripts/app/applications/options.tpl.html';
       },
-      template: '<div> \
+      template: '<div class="component-editor"> \
                   <form name="BlueprintOptionForm"> \
                     <div class="rs-table-overlay" \
                          style="padding: 0 50px; width: auto; height: 200px;" \
@@ -58,13 +58,15 @@ angular.module('checkmate.ComponentOptions')
                       </div> \
                     </div> \
                     <cm-option ng-repeat="option in opts track by option.id" register-input /></cm-option> \
-                    <button ng-show="opts.length" \
-                            class="rs-btn rs-btn-secondary" \
-                            ng-click="save()"> \
-                      Save \
-                    </button> \
                   </form> \
                 </div> \
+                <div class="component-controls">\
+                  <button ng-show="opts.length" \
+                          class="rs-btn rs-btn-secondary" \
+                          ng-click="save()"> \
+                    Save Component Options \
+                  </button> \
+                </div>\
                 <ng-include src="templates"></ng-include>',
       controller: function($scope, $element, $attrs) {
         $scope.inputs = {};
