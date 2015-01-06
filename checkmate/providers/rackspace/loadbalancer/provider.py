@@ -704,9 +704,12 @@ class Provider(rsbase.RackspaceProviderBase):
                 'provides': [
                     {'load-balancer': 'proxy'},
                     {'load-balancer': 'vip'},
+                    {'load-balancer': 'http'},  # legacy support
                     {'load-balancer': {'from': protocols}}
                 ],
-                'supports': [{'*': {'from': protocols}}],
+                'supports': [
+                    {'application': 'http'},  # legacy support
+                    {'*': {'from': protocols}}],
                 'options': options
             }
 
