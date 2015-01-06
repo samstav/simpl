@@ -86,7 +86,7 @@
 .rs-app-launch-search-bar input[type=text] {
   width: 100%;
   font-size: 15px;
-  height: 30px;
+  height: 20px;
   margin: 0;
   border-radius: 0;
   -webkit-box-shadow: none;
@@ -97,6 +97,7 @@
   border-left: 0;
   border-right: 0;
   background-color: transparent;
+  color: #333;
 }
 .rs-app-launch-search-bar input[type=text]:focus {
   background-color: transparent;
@@ -293,7 +294,7 @@
 .editor-full-screen .rs-app-launch-sidebar.stick-left.app-selection {
   left: -450px;
 }
-.selection-open .rs-app-launch-sidebar.stick-left.app-selection {
+.selection-open .rs-app-launch-sidebar.stick-left {
   left: 0;
 }
 
@@ -326,4 +327,23 @@
 }
 .editor-open .codemirror-full-screen-button:hover i {
   opacity: 1;
+}
+
+/* Component Editor */
+.component-editor {
+  position: absolute;
+  top: 70px;
+  bottom: 95px;
+  left: 0;
+  right: 0;
+  overflow: scroll;
+  padding: 0 15px;
+}
+.component-controls {
+  position: absolute;
+  bottom: 55px;
+  left: 0;
+  right: 0;
+  padding: 15px;
+  background-color: rgba(50,50,50,.7);
 }
