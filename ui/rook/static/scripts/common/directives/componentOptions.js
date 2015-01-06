@@ -66,6 +66,11 @@ angular.module('checkmate.ComponentOptions')
                           ng-click="save()"> \
                     Save Component Options \
                   </button> \
+                  <button ng-show="opts.length" \
+                          class="rs-btn rs-btn-link" \
+                          ng-click="close()"> \
+                    Cancel \
+                  </button> \
                 </div>\
                 <ng-include src="templates"></ng-include>',
       controller: function($scope, $element, $attrs) {
@@ -347,6 +352,10 @@ angular.module('checkmate.ComponentOptions')
           }
         };
 
+        $scope.close = function() {
+          $scope.$emit('topology:deselect');
+        };
+
         $scope.save = function() {
           var id = ($scope.component.id || $scope.component.name || '');
           var _constraints = Blueprint.getComponentConstraints($scope.serviceId, id);
@@ -387,7 +396,7 @@ angular.module('checkmate.ComponentOptions')
 
           data.constraints = _constraints;
 
-          $scope.$emit('topology:deselect');
+          $scope.close();
           Blueprint.saveComponentConstraints(data);
         };
       }
