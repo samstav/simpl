@@ -273,6 +273,18 @@ angular.module('checkmate.Blueprint')
 
         this.broadcast();
       },
+      sever: function(data) {
+        var relations = this.get().services[data.source].relations;
+        var updated = _.reject(relations, function(relation) {
+          var _target = _.keys(relation)[0]; // TODO: Account for long-hand relation.
+          var _interface = _.values(relation)[0]; // TODO:  Account for long-hand relation.
+
+          return (data.target == _target) && (data.interface == _interface);
+        });
+
+        this.get().services[data.source].relations = updated;
+        this.broadcast();
+      },
       sort: function(component, target) {
         var serviceName = 'default';
 
@@ -411,14 +423,21 @@ angular.module('checkmate.Blueprint')
 
             // If the requirement requires anything then we validate.
             if(_requires == '*') {
+              _connection.type = _prov.type;
               _connection.interface = _prov.interface;
               valid = true;
             }
 
             // If the provided provides everything then we validate.
             if(_provides == '*') {
+              _connection.type = _req.type;
               _connection.interface = _req.interface;
               valid = true;
+            }
+
+            // If the connection type is still wildcard, disallow it as an option.
+            if(_connection.type == '*') {
+              valid = false;
             }
 
             // If everything lined up, we know it's a valid connection.
