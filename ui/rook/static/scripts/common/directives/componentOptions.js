@@ -364,17 +364,13 @@ angular.module('checkmate.ComponentOptions')
 
             // Rewrite the constraits without losing meta data.
             _.each(_constraints, function(constraint, index) {
-              _exists = true;
-
-              if(!(id in constraint) && constraint.setting !== id) {
-                constraint[id] = input;
-              }
-
               if(id in constraint) {
+                _exists = true;
                 constraint[id] = input;
               }
 
               if(constraint.setting == id) {
+                _exists = true;
                 constraint.value = input;
               }
             });
@@ -384,7 +380,7 @@ angular.module('checkmate.ComponentOptions')
             }
           });
 
-          data.constraints = _constraints
+          data.constraints = _constraints;
 
           Blueprint.saveComponentConstraints(data);
         };
