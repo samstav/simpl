@@ -2633,7 +2633,21 @@ angular.module('checkmate.services').factory('DeploymentTree', [function() {
 
     // Mongo
     primary: 0,
-    data: 1
+    data: 1,
+
+    //Magento
+    magento: 1,
+    'session-cache': 2,
+    'object-cache': 3,
+    data: 4,
+
+    // Editor
+    application: 1,
+    database: 3,
+    cache: 2,
+    cache2: 2,
+    cache3: 2,
+
   };
 
   var _create_vertex = function(resource, resource_list) {

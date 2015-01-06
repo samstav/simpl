@@ -12,6 +12,7 @@ var defaultDeployment = {
       },
       "load-balancer": {},
       "nova": {},
+      "database": {},
       "common": {
         "vendor": "rackspace"
       }

@@ -256,7 +256,7 @@ meta-data:
     icon-20x20: "/images/redis-icon-20x20.png"
     tattoo: "/images/redis-tattoo.png"
 ---
-id: redis_instance
+id: redis_cache
 is: cache
 name: redis
 display_name: "Cloud Redis"

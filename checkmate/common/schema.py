@@ -517,6 +517,7 @@ SERVICE_SCHEMA = Schema({
     'relations': [Relation()],
     'constraints': list,
     'display-outputs': dict,
+    'display-name': basestring,
 })
 
 BLUEPRINT_SCHEMA = Schema({

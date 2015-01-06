@@ -630,7 +630,6 @@ class Provider(rsbase.RackspaceProviderBase):
         """Return stored/override catalog if it exists, else connect, build,
         and return one.
         """
-
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
         results = base.ProviderBase.get_catalog(self, context,
@@ -704,9 +703,12 @@ class Provider(rsbase.RackspaceProviderBase):
                 'provides': [
                     {'load-balancer': 'proxy'},
                     {'load-balancer': 'vip'},
+                    {'load-balancer': 'http'},  # legacy support
                     {'load-balancer': {'from': protocols}}
                 ],
-                'supports': [{'*': {'from': protocols}}],
+                'supports': [
+                    {'application': 'http'},  # legacy support
+                    {'*': {'from': protocols}}],
                 'options': options
             }
 
