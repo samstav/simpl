@@ -102,9 +102,11 @@ angular.module('checkmate.Blueprint')
 
         var dragConnectorLine = svg.append('path');
 
-        container.append('g').attr('class', 'relations');
+        container.append('g').attr('class', 'relation-lines');
+        container.append('g').attr('class', 'services');
+        container.append('g').attr('class', 'relation-indicators');
 
-        var relation;
+        var relation = {};
         var line;
         var indicator;
 
@@ -202,12 +204,13 @@ angular.module('checkmate.Blueprint')
         function draw(blueprint) {
           // This resizes and cleans up old container elements.
           container.selectAll('g.service').remove();
-          container.selectAll('g.relation').remove();
+          container.selectAll('g.relation-line').remove();
+          container.selectAll('g.relation-group').remove();
           dragConnectorLine.remove();
           resize();
 
           // Append service container
-          service = container.selectAll('g.service')
+          service = container.select('g.services').selectAll('g.service')
               .data(blueprint.nodes)
             .enter()
             .append('g')
@@ -290,14 +293,22 @@ angular.module('checkmate.Blueprint')
             });
 
           // Appends relation lines.
-          relation = container.select('g.relations')
-            .selectAll('g.relation')
+          relation.line = container.select('g.relation-lines')
+            .selectAll('g.relation-line')
               .data(blueprint.links)
               .enter()
                 .append('g')
-                .attr('class', 'relation');
+                .attr('class', 'relation-line');
 
-          line = relation.append("line")
+          // Appends relation indicators.
+          relation.indicator = container.select('g.relation-indicators')
+            .selectAll('g.relation-group')
+              .data(blueprint.links)
+              .enter()
+                .append('g')
+                .attr('class', 'relation-group');
+
+          line = relation.line.append("line")
             .attr('class', function(d) {
               var classes = ['relation-link'];
 
@@ -312,7 +323,7 @@ angular.module('checkmate.Blueprint')
 
           connectRelationLines();
 
-          indicator = relation.append("g")
+          indicator = relation.indicator.append("g")
             .attr('class', function(d) {
               var classes = ['relation-indicator'];
               var status = state['indicator-'+d.source + '-' + d.target];
