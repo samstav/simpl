@@ -86,6 +86,11 @@ def preserve_linefeeds(value):
     return value.replace("\n", "\\n").replace("\r", "")
 
 
+def noop(*args, **kwargs):
+    """No operation function used as a stub for parsing templates."""
+    return
+
+
 def parse(template, extra_globals=None, **kwargs):
     """Parse template.
 

@@ -11,8 +11,39 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-"""Retrieves and parses Chefmap files."""
+"""Retrieves and parses Chefmap files.
+
+The 'context' for the templating language (see Jinja2 syntax
+http://jinja.pocoo.org/docs/templates/) will contain...
+
+Objects:
+    deployment: which includes inputs, environment, blueprint, and resources
+    component: the current component being evauated
+    resource: the current resource being evaluated
+    clients: hash of clients for each inbound relation (the join filter is
+        useful here http://jinja.pocoo.org/docs/templates/#builtin-filters).
+        Client hash includes ip only (so far).
+
+Extended functions (added to normal Jinja functions):
+    setting(name) - used to get a setting as Checkmate sees it
+    parse_url(url) - returns a url_parse result as
+        scheme://netloc/path;parameters?query#fragment (may also include
+        username, password, hostname, port)
+    hash(string) - returns an MD5 hash as expected by chef for values like
+        passwords
+    source(string) - evaluates a source string
+
+Example of map using source:
+
+    id: test
+    maps:
+    - value: 10
+      targets:
+      - "attributes://{{ source('requirements://host:linux/ip') }}/ten"
+
+"""
 import copy
+import functools
 import logging
 import os
 import urlparse
@@ -78,7 +109,8 @@ class ChefMap(object):
     def parsed(self):
         """Returns the parsed file contents."""
         if self._parsed is None:
-            self._parsed = templating.parse(self.raw)
+            self._parsed = templating.parse(
+                self.raw, extra_globals={'source': templating.noop})
         return self._parsed
 
     def get_map_file(self):
@@ -117,8 +149,21 @@ class ChefMap(object):
                         pass  # default probably not a string type
                     defaults[key] = default
             kwargs['defaults'] = defaults
+
+        extra_globals = kwargs.setdefault('extra_globals', {})
+        if 'source' not in extra_globals:
+            extra_globals['source'] = functools.partial(
+                self.source, kwargs.get('deployment'), kwargs.get('resource'))
         parsed = templating.parse(self.raw, **kwargs)
         return ChefMap(parsed=parsed)
+
+    def source(self, deployment, resource, url):
+        """Parse and return the value of a 'source' entry."""
+        maps = self.get_resource_prepared_maps(
+            resource, deployment, maps=[{'source': url}])
+        val = self.evaluate_mapping_source(maps[0], deployment)
+        LOG.debug("Evaluated map '%s' to %s", url, val)
+        return val
 
     def get_component_run_list(self, component):
         run_list = {}
@@ -144,7 +189,7 @@ class ChefMap(object):
         LOG.debug("Component run_list determined to be %s", run_list)
         return run_list
 
-    def get_resource_prepared_maps(self, resource, deployment):
+    def get_resource_prepared_maps(self, resource, deployment, maps=None):
         """Parse maps for a resource and identify paths for finding the map
         data.
 
@@ -154,7 +199,8 @@ class ChefMap(object):
         data from and provide the path to that resource as a hint to the
         TransMerge task
         """
-        maps = self.get_component_maps(resource['component'])
+        if not maps:
+            maps = self.get_component_maps(resource['component'])
         result = []
         for mapping in maps or []:
 
