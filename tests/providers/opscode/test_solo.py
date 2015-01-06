@@ -194,6 +194,70 @@ class TestChefSoloProvider(test.ProviderTester):
         self.assertEqual(output['blueprint'], "randp2")
         self.mox.VerifyAll()
 
+    def test_source_function(self):
+        solo_provider = solo.Provider({})
+        deployment = cm_dep.Deployment(utils.yaml_to_dict('''
+                id: 'DEP-ID-1000'
+                blueprint:
+                  name: Test
+                  services:
+                    foo:
+                      component:
+                        id: test
+                environment:
+                  name: test
+                  providers:
+                    chef-solo:
+                      vendor: opscode
+                      constraint:
+                      - source: dummy
+                resources:
+                  '0':
+                    type: application
+                    service: foo
+                    provider: chef-solo
+                    component: test
+                    index: '0'
+                    relations:
+                      host:
+                        name: "host:linux"
+                        state: active
+                        requires-key: host:linux
+                        relation: host
+                        interface: linux
+                        target: "1"
+                  '1':
+                    type: compute
+                    service: foo
+                    provider: nova
+                    component: test
+                    index: '1'
+                    instance:
+                      ip: "1.1.1.1"
+            '''))
+        chefmap = chef_map.ChefMap(raw='''
+                id: test
+                maps:
+                - value: 10
+                  targets:
+                  - "attributes://{{ source('requirements://host:linux/\
+ip') }}/ten"
+            ''')
+        solo_provider.map_file = chefmap
+        component = chefmap.components[0]
+
+        resource = deployment['resources']['0']
+        context = chefmap.get_map_with_context(component=component,
+                                               deployment=deployment,
+                                               resource=resource)
+        maps = context.get_resource_prepared_maps(resource, deployment)
+        expected = [{
+            'resource': '0',
+            'targets': ['attributes://1.1.1.1/ten'],
+            'value': 10,
+        }]
+        self.assertEqual(maps, expected)
+
     def test_cleanup_environment(self):
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
