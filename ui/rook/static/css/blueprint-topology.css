@@ -142,7 +142,7 @@ g.relation-indicator .connection .interface-text {
   display: none;
 }
 .connections-container {
-  fill: #fff;
+  fill: #f8f8f8;
   stroke: #ccc;
   display: none;
 }

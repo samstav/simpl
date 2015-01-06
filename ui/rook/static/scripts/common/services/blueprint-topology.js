@@ -24,6 +24,10 @@ angular.module('checkmate.Blueprint')
           Blueprint.remove(selection);
         };
 
+        $scope.sever = function(data) {
+          Blueprint.sever(data);
+        };
+
         $scope.connect = function() {
           var source = Drag.source.get() || {};
           var target = Drag.target.get() || {};
@@ -259,7 +263,7 @@ angular.module('checkmate.Blueprint')
               return sizes.service.width((d.components || [1]).length);
             })
             .attr("height", function(d) {
-              return sizes.service.height((d.components || [1]) .length);
+              return sizes.service.height((d.components || [1]).length);
             })
             .attr('rx', sizes.service.radius)
             .attr('ry', sizes.service.radius);
@@ -361,13 +365,13 @@ angular.module('checkmate.Blueprint')
           indicator.append('rect')
             .attr('width', sizes.indicator.width)
             .attr('height', function(d, i) {
-              return d.connections.length * 25;
+              return d.connections.length * 24;
             })
             .attr('x', 0)
             .attr('y', 0)
             .attr('transform', function(d, i) {
               var x = -1 * (sizes.indicator.width / 2);
-              var y = ((d.connections.length * 25) + sizes.indicator.radius * 2.5) * -1;
+              var y = ((d.connections.length * 24) + sizes.indicator.radius * 2.5) * -1;
               return 'translate('+x+','+y+')';
             })
             .attr('class', 'connections-container');
@@ -380,14 +384,48 @@ angular.module('checkmate.Blueprint')
               .append('g')
               .attr('class', 'connection')
               .attr('transform', function(d, i) {
-                return 'translate(0,'+((i * -1) * sizes.indicator.spacing - 24)+')'; // ext sizes
+                var x = -1 * ((sizes.indicator.width / 2) - sizes.indicator.radius - 1);
+                var y = ((i * -1) * sizes.indicator.spacing - 24);
+
+                return 'translate('+x+','+y+')';
               });
 
           connections.append("text")
-            .attr('text-anchor', 'middle')
-            .text(function(d) {
+            .attr('text-anchor', 'left')
+            .attr('class', 'interface-text')
+            .html(function(d) {
               var parent = d3.select(this.parentNode.parentNode).datum();
-              return parent.source +':'+d.protocol+' - '+parent.target +':'+d.protocol;
+              var protocol = d.protocol.split('#')[0];
+
+              if(d.protocol.split('#')[1]) {
+                protocol += ' ('+d.protocol.split('#')[1]+')';
+              }
+
+              return parent.source + ' &#8596; ' + parent.target +' : '+protocol;
+            });
+
+            connections.append('text')
+            .html('&#xf057')
+            .attr('x', function(d, index) {
+              return sizes.indicator.width - 25;
+            })
+            .attr('y', function() {
+              return 1;
+            })
+            .attr('class', 'fa fa-times component-remover')
+            .on('click', function(d, index) {
+              if(d3.event.defaultPrevented) {
+                return;
+              }
+              d3.event.stopPropagation();
+
+              var data = {
+                source: d3.select(this.parentNode.parentNode).datum().source,
+                target: d3.select(this.parentNode.parentNode).datum().target,
+                interface: d.protocol
+              };
+
+              removeConnection(data);
             });
 
           positionIndicatorNodes();
@@ -431,7 +469,7 @@ angular.module('checkmate.Blueprint')
             .attr('x', function(d, index) {
               return sizes.service.margin.left + (sizes.component.width() * (index + 1)) - 16;
             })
-            .attr('y', function(d, index) {
+            .attr('y', function() {
               return 25;
             })
             .attr('class', 'fa fa-times component-remover')
@@ -649,9 +687,16 @@ angular.module('checkmate.Blueprint')
               return ((sizes.interfaces.height() - 2) * (index + 1)) - 5;
             })
             .text(function(d) {
-              var text = d.type + ' ' + d.interface.substring(0,12);
+              var text = '';
 
-              if(d.interface.length > 12) {
+              if(d.type) {
+                text = d.type;
+              } else {
+                text = d.interface;
+              }
+
+              if(text.length > 12) {
+                text = text.substring(0,12);
                 text += '...';
               }
 
@@ -681,6 +726,10 @@ angular.module('checkmate.Blueprint')
 
         function removeComponent(data) {
           scope.remove(data);
+        }
+
+        function removeConnection(data) {
+          scope.sever(data);
         }
 
         function getCoords(element) {
