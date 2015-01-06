@@ -302,12 +302,20 @@ angular.module('checkmate.ComponentOptions')
         // END: These were functions from app.js that are not available in this scope.
 
         $scope.$watch('component', function(newVal, oldVal) {
+          $scope.reset();
+        }, true);
+
+        $scope.$watchGroup(['options', 'serviceId'], function(newValues, oldValues) {
+          $scope.redraw(newValues[0]);
+        }, true);
+
+        $scope.reset = function() {
           $scope.inputs = {};
           $scope.opts = [];
           $scope.BlueprintOptionForm.$setPristine();
-        }, true);
+        };
 
-        $scope.$watch('options', function(newVal, oldVal) {
+        $scope.redraw = function(options) {
           $scope.BlueprintOptionForm.$setPristine();
           var _opts = [];
 
@@ -329,7 +337,7 @@ angular.module('checkmate.ComponentOptions')
               });
             });
 
-            _.each(newVal, function(option, key) {
+            _.each(options, function(option, key) {
               if(!_inputs[key])
                 _inputs[key] = '';
 
@@ -340,7 +348,7 @@ angular.module('checkmate.ComponentOptions')
             $scope.inputs = _inputs;
             $scope.opts = _opts;
           }
-        });
+        };
 
         $scope.save = function() {
           var id = ($scope.component.id || $scope.component.name || '');
