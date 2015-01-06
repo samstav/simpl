@@ -37,6 +37,9 @@ angular.module('checkmate.applications-configure')
       hasSelection: function() {
         return Blueprint.componentInService($scope.selection.data.component, $scope.selection.data.service);
       },
+      open: function() {
+        this.isVisible = true;
+      },
       close: function() {
         this.isVisible = false;
       },
@@ -138,15 +141,15 @@ angular.module('checkmate.applications-configure')
       if (selection) {
         $scope.selection.data = selection;
         $scope.selection.parseOptions();
-        $scope.selection.isVisible = true;
+        $scope.selection.open();
       } else {
-        $scope.selection.isVisible = false;
+        $scope.selection.close();
         $scope.$apply();
       }
     });
 
     $scope.$on('topology:deselect', function(event, selection) {
-      $scope.selection.isVisible = false;
+      $scope.selection.close();
     });
 
   });

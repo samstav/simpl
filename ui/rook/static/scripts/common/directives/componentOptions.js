@@ -301,11 +301,8 @@ angular.module('checkmate.ComponentOptions')
         };
         // END: These were functions from app.js that are not available in this scope.
 
-        $scope.$watch('component', function(newVal, oldVal) {
+        $scope.$watchGroup(['options', 'serviceId', 'component'], function(newValues, oldValues) {
           $scope.reset();
-        }, true);
-
-        $scope.$watchGroup(['options', 'serviceId'], function(newValues, oldValues) {
           $scope.redraw(newValues[0]);
         }, true);
 
@@ -390,6 +387,7 @@ angular.module('checkmate.ComponentOptions')
 
           data.constraints = _constraints;
 
+          $scope.$emit('topology:deselect');
           Blueprint.saveComponentConstraints(data);
         };
       }
