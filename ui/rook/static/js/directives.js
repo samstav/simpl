@@ -253,7 +253,6 @@ directives.directive('cmTreeView', function() {
       case "ACTIVE":
         color = 'green';
         break;
-      case 'NEW':
       case 'BUILD':
       case 'DELETING':
       case 'CONFIGURE':
@@ -265,6 +264,7 @@ directives.directive('cmTreeView', function() {
       case 'DELETED':
         color = 'black';
         break;
+      case 'NEW':
       case "PLANNED":
       default:
         color = 'gray';
@@ -286,6 +286,7 @@ directives.directive('cmTreeView', function() {
       case 'lb':
         icon = 'load-balancer';
         break;
+      case 'data':
       case 'backend':
         icon = 'database';
         break;
@@ -412,7 +413,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     NODE_RADIUS: 1.5,
     NODE_HEIGHT: 3,
     HIGHLIGHT_NODE: 'highlight',
-    AVAILABLE_ICONS: ['compute', 'load-balancer', 'database'],
+    AVAILABLE_ICONS: ['application', 'compute', 'load-balancer', 'database', 'cache'],
     ICON_FOLDER: '/img/icons/',
     ICON_HEIGHT: 8,
     ICON_WIDTH: 8,
@@ -626,7 +627,7 @@ directives.directive('cmWorkflow', ['WorkflowSpec', function(WorkflowSpec) {
     stream.append("text")
       .attr("class", "nodetext")
       .attr("dx", DEFAULTS.TEXT_MARGIN)
-      .attr("dy", function(d) { return (d.height - DEFAULTS.ICON_HEIGHT) / 2 + DEFAULTS.ICON_HEIGHT })
+      .attr("dy", function(d) { return (d.height - DEFAULTS.ICON_HEIGHT) / 2 + DEFAULTS.ICON_HEIGHT + 4})
       .text(function(d) { return d.title.split('.').shift(); });
 
     // Exit
