@@ -339,6 +339,16 @@
   overflow: scroll;
   padding: 0 15px;
 }
+.component-editor .icon-question-sign {
+  background-image: url("/libs/bootstrap-2.3.1/img/glyphicons-halflings-white.png");
+  opacity: .5;
+}
+.component-controls .rs-btn.rs-btn-link {
+  color: #999;
+  margin-left: 5px;
+  text-shadow: none;
+
+}
 .component-controls {
   position: absolute;
   bottom: 55px;

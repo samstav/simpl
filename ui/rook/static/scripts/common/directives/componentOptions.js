@@ -66,6 +66,11 @@ angular.module('checkmate.ComponentOptions')
                           ng-click="save()"> \
                     Save Component Options \
                   </button> \
+                  <button ng-show="opts.length" \
+                          class="rs-btn rs-btn-link" \
+                          ng-click="close()"> \
+                    Cancel \
+                  </button> \
                 </div>\
                 <ng-include src="templates"></ng-include>',
       controller: function($scope, $element, $attrs) {
@@ -301,13 +306,18 @@ angular.module('checkmate.ComponentOptions')
         };
         // END: These were functions from app.js that are not available in this scope.
 
-        $scope.$watch('component', function(newVal, oldVal) {
+        $scope.$watchGroup(['options', 'serviceId', 'component'], function(newValues, oldValues) {
+          $scope.reset();
+          $scope.redraw(newValues[0]);
+        }, true);
+
+        $scope.reset = function() {
           $scope.inputs = {};
           $scope.opts = [];
           $scope.BlueprintOptionForm.$setPristine();
-        }, true);
+        };
 
-        $scope.$watch('options', function(newVal, oldVal) {
+        $scope.redraw = function(options) {
           $scope.BlueprintOptionForm.$setPristine();
           var _opts = [];
 
@@ -329,7 +339,7 @@ angular.module('checkmate.ComponentOptions')
               });
             });
 
-            _.each(newVal, function(option, key) {
+            _.each(options, function(option, key) {
               if(!_inputs[key])
                 _inputs[key] = '';
 
@@ -340,7 +350,11 @@ angular.module('checkmate.ComponentOptions')
             $scope.inputs = _inputs;
             $scope.opts = _opts;
           }
-        });
+        };
+
+        $scope.close = function() {
+          $scope.$emit('topology:deselect');
+        };
 
         $scope.save = function() {
           var id = ($scope.component.id || $scope.component.name || '');
@@ -364,17 +378,13 @@ angular.module('checkmate.ComponentOptions')
 
             // Rewrite the constraits without losing meta data.
             _.each(_constraints, function(constraint, index) {
-              _exists = true;
-
-              if(!(id in constraint) && constraint.setting !== id) {
-                constraint[id] = input;
-              }
-
               if(id in constraint) {
+                _exists = true;
                 constraint[id] = input;
               }
 
               if(constraint.setting == id) {
+                _exists = true;
                 constraint.value = input;
               }
             });
@@ -384,8 +394,9 @@ angular.module('checkmate.ComponentOptions')
             }
           });
 
-          data.constraints = _constraints
+          data.constraints = _constraints;
 
+          $scope.close();
           Blueprint.saveComponentConstraints(data);
         };
       }
