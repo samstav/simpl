@@ -303,7 +303,7 @@ angular.module('checkmate.Blueprint')
               return 10;
             })
             .attr('y', function(d, index) {
-              return ((sizes.interfaces.height() - 2) * (index + 1)) - 5;
+              return (sizes.interfaces.height() * (index + 1)) - 7;
             })
             .text(function(d) {
               var text = '';
@@ -314,8 +314,8 @@ angular.module('checkmate.Blueprint')
                 text = d.interface;
               }
 
-              if(text.length > 12) {
-                text = text.substring(0,12);
+              if(text.length > 16) {
+                text = text.substring(0,16);
                 text += '...';
               }
 
