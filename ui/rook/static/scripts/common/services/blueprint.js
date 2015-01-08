@@ -201,7 +201,7 @@ angular.module('checkmate.Blueprint', [
 ]);
 
 angular.module('checkmate.Blueprint')
-  .factory('Blueprint', function($rootScope, Catalog) {
+  .factory('Blueprint', function($rootScope, Catalog, $timeout) {
     return {
       data: window.defaultBlueprint,
       get: function() {
@@ -307,145 +307,120 @@ angular.module('checkmate.Blueprint')
           return false;
         }
 
-        var _connection;
-        var _req;
-        var _requires;
-        var _prov;
-        var _provides;
-        var valid;
-        var _interfaceIndex;
         var components = Catalog.getComponents();
-        var connections = [];
-        var requires = components[source.componentId].requires || [];
         var provides = components[target.componentId].provides || [];
-        var uses = components[source.componentId].supports || [];
-        var interfaces = requires.concat(uses);
+        var requires = components[source.componentId].requires || [];
+        var supports = components[source.componentId].supports || [];
+        var interfaces = requires.concat(supports);
 
-        // Let's iterate over the `interfaces` to find matches for available connections.
-        _.each(interfaces, function(_interface, index) {
-          _requires = _.values(_interface)[0];
+        var required = normalize(interfaces);
+        var provided = normalize(provides);
+        var connections = resolve(required, provided);
 
-          // This is a requirement object that we'll attempt to construct from
-          // either a long or short-hand form schema. Most likely there will not
-          // be a long-hand form case but additional logic here would be
-          // necessary if there was.
-          _req = {
-            type: _.keys(_interface)[0],
-            interface: null
-          };
-
-          // This will usually be similar to the requirement object but we want
-          // to leave the `_req` variable in tact while we manipulate this variable.
-          // It would be wise to leave it pristine for possible further comparisons.
-          _connection = {
-            type: _req.type,
-            interface: null
-          };
-
-          // Let's try to parse the `_interface` that we're iterating over.
-          // If it's a long-hand (an object) then we can try to account for any
-          // wildcards.
-          _requires = _.values(_interface)[0];
-
-          if(_.isObject(_requires)) {
-            // If we find that the type is a wildcard then the format may change.
-            // We need to set the interface property directly.
-            if(_req.type == '*') {
-              _req.interface = _requires;
-            } else { // we extend `_req` containting the interface property.
-              _.extend(_req, _requires);
-            }
-          } else { // we'll assume it's short-hand.
-            _req.interface = _requires.split('#')[0];
-
-            if(_requires.split('#')[1]) {
-              _req.type = _requires.split('#')[1];
-            }
-
-            _connection = _req;
+        function add(connection, interface) {
+          if(connection.indexOf(interface) < 0) {
+            return connection.push(interface);
           }
 
-          // While iterating over the `interfaces`, we will now iterate on the
-          // `provides` so we can check potential matches for this interface.
-          _.each(provides, function(_provided, index) {
-            // We assume the provided is false until proven true.
-            valid = false;
+          return false;
+        }
 
-            // Let's try to normalize this provided object into something more
-            // usable.
-            _prov = {
-              type: _.keys(_provided)[0],
-              interface: null
-            };
+        function normalize(relations) {
+          var _connections = {};
 
-            // Let's try to normalize this provided's value into something more
-            // usable. Same logic as before, if it's an object then we know it's
-            // in long-hand and if not, it's short-hand and probably a string.
-            _provides = _.values(_provided)[0];
+          _.each(relations, function(_relation, index) {
+            var _name = _.keys(_relation)[0];
+            var _interface = _.values(_relation)[0];
+            var _type = null;
 
-            if(_.isObject(_provides)) {
-              if(_prov.type == '*') {
-                _prov.interface = _provides;
-              } else { // we extend `_prov` containting the interface property.
-                _.extend(_prov, _provides);
-              }
+            if(!_.isObject(_interface) && _interface.indexOf('#') > -1) {
+              _type = _name;
+              _name = _interface.split('#')[1];
             } else {
-              _prov.interface = _provides;
+              _type = _interface.resource_type;
             }
 
-            // Let's look up to the `_req.interface` object to see if it has multiple
-            // supported connections.
-            if(_.isObject(_req.interface) && 'from' in _req.interface) {
-              // Find if this `_prov.interface` matches any of the options. If it
-              // does then we set the `_connection.interface`.
-              _interfaceIndex = _req.interface.from.indexOf(_prov.interface);
+            if(_interface.from) {
+              _interface = _interface.from;
+            } else if(_interface.interface) {
+              if(_interface.interface.from) {
+                _interface = _interface.interface.from;
+              } else {
+                _interface = _interface.interface;
+              }
 
-              if(_interfaceIndex > -1) {
-                _connection.interface = _req.interface.from[_interfaceIndex];
+            } else {
+              _interface = _interface.split('#')[0];
+            }
 
-                // If a connection_type is present then we know we need to specifiy
-                // the type via the `connect-from` property.
-                if(_req.connection_type) {
-                  _connection['connect-from'] = _req.type;
-                }
-
-                valid = true;
+            if(!(_name in _connections)) {
+              _connections[_name] = {};
+              _connections[_name].interfaces = [];
+              if(_type) {
+                _connections[_name].type = _type;
               }
             }
 
-            // This is the most simple form of matching interfaces. If the string
-            // comparison matches then we flag as true. This should catch any
-            // `{'*':'*'}` matches as well.
-            if(_req.interface == _prov.interface) {
-              _connection = _req;
-              valid = true;
-            }
-
-            // If the requirement requires anything then we validate.
-            if(_requires == '*') {
-              _connection.type = _prov.type;
-              _connection.interface = _prov.interface;
-              valid = true;
-            }
-
-            // If the provided provides everything then we validate.
-            if(_provides == '*') {
-              _connection.type = _req.type;
-              _connection.interface = _req.interface;
-              valid = true;
-            }
-
-            // If the connection type is still wildcard, disallow it as an option.
-            if(_connection.type == '*') {
-              valid = false;
-            }
-
-            // If everything lined up, we know it's a valid connection.
-            if(valid) {
-              connections.push(_connection);
+            if(_.isArray(_interface)) {
+              _.each(_interface, function(__interface) {
+                add(_connections[_name].interfaces, __interface);
+              });
+            } else {
+              add(_connections[_name].interfaces, _interface);
             }
           });
-        });
+
+          return _connections;
+        }
+
+        function resolve(required, provided) {
+          var connections = [];
+
+          _.each(required, function(_data, _type) {
+            var _providesAll = (_type == '*');
+            var _options = _providesAll ? provided : [_data];
+
+            _.each(_options, function(_option, _index) {
+              _.each(_option.interfaces, function(__interface, __index) {
+                var __connection = {
+                  type: null,
+                  interface: null
+                };
+
+                if(!_.isArray(__interface)) {
+                  __interface = [__interface];
+                };
+
+                _.each(__interface, function(___interface, ___index) {
+                  var ___provided = provided[_data.type ? _data.type : _type];
+                  var ___interfaces = ((___provided || {}).interfaces || []);
+                  var ___acceptsAll = (___interface === '*');
+                  var ___hasInterface = ___interfaces.indexOf(___interface) > -1;
+
+                  if(___hasInterface || _providesAll || ___acceptsAll) {
+                    if(!(___acceptsAll && _providesAll)) {
+                      if(!_providesAll) {
+                        __connection.type = _type;
+                      }
+                      __connection.interface = ___interface;
+
+                      if(_data.type) {
+                        __connection['connect-from'] = _data.type;
+                      }
+                    }
+                  }
+                });
+
+                if(__connection.interface) {
+                  connections.push(__connection);
+                }
+              });
+            });
+
+          });
+
+          return connections;
+        }
 
         return connections.length ? connections : false;
       },
