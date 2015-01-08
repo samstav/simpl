@@ -317,14 +317,11 @@ angular.module('checkmate.Blueprint')
         var provided = normalize(provides);
         var connections = resolve(required, provided);
 
-        function add(connection, interface) {
-          if(connection.indexOf(interface) < 0) {
-            return connection.push(interface);
-          }
-
-          return false;
-        }
-
+        /**
+        * Converts an array of interfaces into a map.
+        * @param {array} relations List of relations from a Catalog entry.
+        * @return {object} Map of connection names to their interfaces.
+        */
         function normalize(relations) {
           var _connections = {};
 
@@ -363,16 +360,39 @@ angular.module('checkmate.Blueprint')
 
             if(_.isArray(_interface)) {
               _.each(_interface, function(__interface) {
-                add(_connections[_name].interfaces, __interface);
+                add(_connections, _name, __interface);
               });
             } else {
-              add(_connections[_name].interfaces, _interface);
+              add(_connections, _name, _interface);
             }
           });
+
+          /**
+          * Pushes an interface object into a connections array if it doesn't exist.
+          * @param {object} connections Map of all available connection interfaces.
+          * @param {object} interface A possible new connection.
+          * @return {boolean} If the addition was successful.
+          */
+          function add(connections, name, interface) {
+            var connection = connections[name].interfaces;
+
+            if(connection.indexOf(interface) < 0) {
+              connection.push(interface);
+              return true;
+            }
+
+            return false;
+          }
 
           return _connections;
         }
 
+        /**
+        * Finds valid connections between two interface objects.
+        * @param {object} required A map of normalized interface connections.
+        * @param {object} provided A map of normalized interface connections.
+        * @return {array} A list of valid interfaces connections.
+        */
         function resolve(required, provided) {
           var connections = [];
 
