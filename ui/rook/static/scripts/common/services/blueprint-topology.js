@@ -89,6 +89,7 @@ angular.module('checkmate.Blueprint')
               if(d3.event.defaultPrevented) {
                 return;
               }
+              closeIndicators();
               toggleSelect(d3.select(this), null);
             });
 
@@ -109,6 +110,8 @@ angular.module('checkmate.Blueprint')
         var relation = {};
         var line;
         var indicator;
+        var selector;
+        var options;
 
         d3.selection.prototype.position = function() {
           var el = this.node();
@@ -200,13 +203,155 @@ angular.module('checkmate.Blueprint')
         // Immediately give a full width/height to svg.
         resize();
 
-        // This draws (or redraws) the blueprint.
+        function closeIndicators() {
+          indicator.classed('active', function(d) {
+            var id = d3.select(this).attr('id');
+            if(state[id])
+              state[id].active = false;
+
+            return false;
+          });
+        }
+
+        function closeMenus() {
+          if(selector)
+            selector.remove();
+        }
+
+        function connectRelationLines() {
+          line.attr("x1", function(d) {
+            var ele = d3.select('#'+d.source+'-service');
+            return getCoords(ele).x;
+          })
+          .attr("y1", function(d) {
+            var ele = d3.select('#'+d.source+'-service');
+            return getCoords(ele).y;
+          })
+          .attr("x2", function(d) {
+            var ele = d3.select('#'+d.target+'-service');
+            if(!ele[0][0]) {
+              return d3.select(this).attr('x1');
+            }
+            return getCoords(ele).x;
+          })
+          .attr("y2", function(d) {
+            var ele = d3.select('#'+d.target+'-service');
+            if(!ele[0][0]) {
+              return d3.select(this).attr('y1');
+            }
+            return getCoords(ele).y;
+          });
+        }
+
+        function determineProtocol(element, connections) {
+          closeMenus();
+
+          // Spawns popover asking for user input
+          selector = element.append('g')
+            .attr('class', 'interface-selector')
+            .attr('transform', function() {
+              var w = sizes.component.width();
+              var h = sizes.component.height();
+
+              return "translate(" + w + "," + h + ")";
+            });
+
+          selector.append('rect')
+            .attr('class', 'interface-container')
+            .attr('height', function() {
+              return connections.length * 25;
+            })
+            .attr('width', sizes.interfaces.width())
+            .attr('x', 0)
+            .attr('y', 0);
+
+          options = selector.selectAll('g.interface-selector')
+            .data(connections)
+            .enter()
+              .append('g')
+              .attr('class', 'interface-option')
+              .on('mousedown', function(d) {
+                d3.event.stopPropagation();
+              }).on('click', function(d) {
+                if(d3.event.defaultPrevented) {
+                  return;
+                }
+                d3.event.stopPropagation();
+                removeDragConnector();
+                setProtocol(d.interface, d.type);
+              });
+
+          options.append('rect')
+            .attr('x', 0)
+            .attr('y', function(d, index) {
+              return index * sizes.interfaces.height()
+            })
+            .attr('width', sizes.interfaces.width())
+            .attr('height', sizes.interfaces.height());
+
+          var option = options.append('text')
+            .attr('class', 'interface-title');
+
+          option.append('title')
+            .text(function(d) {
+              return d.type + ' ' + d.interface.substring(0,12);
+            });
+
+          option.append('tspan')
+            .attr('text-anchor', 'left')
+            .attr('x', function(d) {
+              return 10;
+            })
+            .attr('y', function(d, index) {
+              return (sizes.interfaces.height() * (index + 1)) - 7;
+            })
+            .text(function(d) {
+              var text = '';
+
+              if(d.type) {
+                text = d.type;
+              } else {
+                text = d.interface;
+              }
+
+              if(text.length > 16) {
+                text = text.substring(0,16);
+                text += '...';
+              }
+
+              return text;
+            });
+        }
+
+        function dragended(d) {
+          d3.event.sourceEvent.stopPropagation();
+          d3.select(this).classed("dragging", false);
+          save();
+          Drag.reset();
+        }
+
+        function dragged(d) {
+          d.x = d3.event.x;
+          d.y = d3.event.y;
+
+          d3.select(this).attr("transform", "translate(" + d.x + "," + d.y + ")");
+
+          connectRelationLines();
+          positionIndicatorNodes();
+        }
+
+        function dragstarted(d) {
+          d3.event.sourceEvent.stopPropagation();
+          removeDragConnector();
+          d3.select(this).classed("dragging dragged", true);
+        }
+
         function draw(blueprint) {
           // This resizes and cleans up old container elements.
           container.selectAll('g.service').remove();
           container.selectAll('g.relation-line').remove();
           container.selectAll('g.relation-group').remove();
-          dragConnectorLine.remove();
+          removeDragConnector();
           resize();
 
           // Append service container
@@ -343,6 +488,8 @@ angular.module('checkmate.Blueprint')
                 return;
               }
               d3.event.stopPropagation();
+
+              closeIndicators();
 
               if(!state['indicator-'+d.source + '-' + d.target]) {
                 state['indicator-'+d.source + '-' + d.target] = {
@@ -555,6 +702,7 @@ angular.module('checkmate.Blueprint')
               if(d3.event.defaultPrevented) {
                 return;
               }
+              d3.event.stopPropagation();
 
               var data = {
                 service: d3.select(this.parentNode).datum()._id,
@@ -563,7 +711,6 @@ angular.module('checkmate.Blueprint')
               };
 
               toggleSelect(d3.select(this), data);
-              d3.event.stopPropagation();
             })
             .call(linkerDrag);
 
@@ -633,6 +780,7 @@ angular.module('checkmate.Blueprint')
                   if(target && target.interface) {
                     scope.connect();
                   }
+                  removeDragConnector();
                 } else if(connections.length > 1) {
                   // Ask user to select connection instead.
                   determineProtocol(d3.select(this), connections);
@@ -643,104 +791,11 @@ angular.module('checkmate.Blueprint')
             });
         }
 
-        function determineProtocol(element, connections) {
-          // Spawns popover asking for user input
-          var selector = element.append('g')
-            .attr('class', 'interface-selector')
-            .attr('transform', "translate(" + sizes.component.width() + "," + sizes.component.height() + ")")
+        function getDisplayName(d) {
+          var display = Catalog.getComponent(d.id || d.name).display_name;
+          var label =  display || d.id || d.name;
 
-          selector.append('rect')
-            .attr('class', 'interface-container')
-            .attr('height', function() {
-              return connections.length * 25;
-            })
-            .attr('width', sizes.interfaces.width())
-            .attr('x', 0)
-            .attr('y', 0);
-
-          var options = selector.selectAll('g.interface-selector')
-              .data(connections)
-            .enter()
-            .append('g')
-            .attr('class', 'interface-option')
-            .on('mousedown', function(d) {
-              d3.event.stopPropagation();
-            }).on('click', function(d) {
-              if(d3.event.defaultPrevented) {
-                return;
-              }
-              d3.event.stopPropagation();
-              setProtocol(d.interface, d.type);
-            });
-
-          options.append('rect')
-            .attr('x', 0)
-            .attr('y', function(d, index) {
-              return index * sizes.interfaces.height()
-            })
-            .attr('width', sizes.interfaces.width())
-            .attr('height', sizes.interfaces.height());
-
-          var option = options.append('text')
-            .attr('class', 'interface-title');
-
-          option.append('title')
-            .text(function(d) {
-              return d.type + ' ' + d.interface.substring(0,12);
-            });
-
-          option.append('tspan')
-            .attr('text-anchor', 'left')
-            .attr('x', function(d) {
-              return 10;
-            })
-            .attr('y', function(d, index) {
-              return ((sizes.interfaces.height() - 2) * (index + 1)) - 5;
-            })
-            .text(function(d) {
-              var text = '';
-
-              if(d.type) {
-                text = d.type;
-              } else {
-                text = d.interface;
-              }
-
-              if(text.length > 12) {
-                text = text.substring(0,12);
-                text += '...';
-              }
-
-              return text;
-            });
-        }
-
-        function setProtocol(interface, connectFrom) {
-          var target = Drag.target.get();
-          target.interface = interface;
-          target['connect-from'] = connectFrom;
-          Drag.target.set(target);
-
-          scope.connect();
-        }
-
-        function toggleSelect(el, data) {
-          if (el.classed('selected')) {
-            el.classed('selected', false);
-            scope.deselect(data);
-          } else {
-            svg.selectAll('.selected').classed('selected', false);
-            el.classed('selected', true);
-            scope.select(data);
-          }
-        }
-
-        function removeComponent(data) {
-          scope.remove(data);
-        }
-
-        function removeConnection(data) {
-          scope.sever(data);
+          return label;
         }
 
         function getCoords(element) {
@@ -765,26 +820,17 @@ angular.module('checkmate.Blueprint')
           }
         }
 
-        function linkstarted(d) {
-          state.linking = true;
-          var coords = getCoords(d3.select(this.parentNode.parentNode));
-
-          dragConnectorLine = svg
-            .append('path')
-            .attr('class', 'linker dragline')
-            .style("pointer-events", "none")
-            .attr('d', 'M0,0L0,0');
-
-          Drag.reset();
-          Drag.source.set({
-            componentId: d.id || d.name,
-            serviceId: d3.select(this.parentNode.parentNode).datum()._id
-          });
+        function linkended(d) {
           d3.event.sourceEvent.stopPropagation();
-          d3.select(this).classed("dragging dragged", true);
+          d3.select(this).classed("dragging", false);
+          component.classed('deactivated', false);
+          removeDragConnector();
+          state.linking = false;
         }
 
         function linkdragged(d) {
+          d3.event.sourceEvent.stopPropagation();
+
           var source = Drag.source.get();
           var target = null;
           var elem = d3.select(this);
@@ -807,50 +853,23 @@ angular.module('checkmate.Blueprint')
           dragConnectorLine.attr('d', 'M' + (box.left + box.width/2) + ',' + (box.top + box.height/2) + 'L' + mouse[0] + ',' + mouse[1]);
         }
 
-        function linkended(d) {
-          //Drag.reset();
-          d3.event.sourceEvent.stopPropagation();
-          d3.select(this).classed("dragging", false);
-          component.classed('deactivated', false);
-          state.linking = false;
-          dragConnectorLine.remove();
-        }
+        function linkstarted(d) {
+          state.linking = true;
+          var coords = getCoords(d3.select(this.parentNode.parentNode));
 
-        function getDisplayName(d) {
-          var display = Catalog.getComponent(d.id || d.name).display_name;
-          var label =  display || d.id || d.name;
+          dragConnectorLine = svg
+            .append('path')
+              .attr('class', 'linker dragline')
+              .style("pointer-events", "none")
+              .attr('d', 'M0,0L0,0');
 
-          return label;
-        }
-
-        function resize() {
-          svg.attr('width', parent.clientWidth);
-          svg.attr('height', parent.clientHeight);
-
-          rect.attr('width', parent.clientWidth);
-          rect.attr('height', parent.clientHeight);
-        }
-
-        function zoomed() {
-          state.translation = d3.event.translate;
-          state.scale = d3.event.scale;
-          dragConnectorLine.remove();
-          container.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-        }
-
-        function dragstarted(d) {
+          Drag.reset();
+          Drag.source.set({
+            componentId: d.id || d.name,
+            serviceId: d3.select(this.parentNode.parentNode).datum()._id
+          });
           d3.event.sourceEvent.stopPropagation();
           d3.select(this).classed("dragging dragged", true);
-        }
-
-        function dragged(d) {
-          d.x = d3.event.x;
-          d.y = d3.event.y;
-
-          d3.select(this).attr("transform", "translate(" + d.x + "," + d.y + ")");
-
-          connectRelationLines();
-          positionIndicatorNodes();
         }
 
         function positionIndicatorNodes() {
@@ -871,36 +890,24 @@ angular.module('checkmate.Blueprint')
           });
         }
 
-        function connectRelationLines() {
-          line.attr("x1", function(d) {
-              var ele = d3.select('#'+d.source+'-service');
-              return getCoords(ele).x;
-            })
-            .attr("y1", function(d) {
-              var ele = d3.select('#'+d.source+'-service');
-              return getCoords(ele).y;
-            })
-            .attr("x2", function(d) {
-              var ele = d3.select('#'+d.target+'-service');
-              if(!ele[0][0]) {
-                return d3.select(this).attr('x1');
-              }
-              return getCoords(ele).x;
-            })
-            .attr("y2", function(d) {
-              var ele = d3.select('#'+d.target+'-service');
-              if(!ele[0][0]) {
-                return d3.select(this).attr('y1');
-              }
-              return getCoords(ele).y;
-            });
+        function removeConnection(data) {
+          scope.sever(data);
         }
 
-        function dragended(d) {
-          d3.event.sourceEvent.stopPropagation();
-          d3.select(this).classed("dragging", false);
-          save();
-          Drag.reset();
+        function removeComponent(data) {
+          scope.remove(data);
+        }
+
+        function removeDragConnector() {
+          dragConnectorLine.remove();
+        }
+
+        function resize() {
+          svg.attr('width', parent.clientWidth);
+          svg.attr('height', parent.clientHeight);
+
+          rect.attr('width', parent.clientWidth);
+          rect.attr('height', parent.clientHeight);
         }
 
         function save() {
@@ -944,6 +951,33 @@ angular.module('checkmate.Blueprint')
           _.extend(original['meta-data'], blueprint['meta-data']);
 
           Blueprint.set(original);
+        }
+
+        function setProtocol(interface, connectFrom) {
+          var target = Drag.target.get();
+          target.interface = interface;
+          target['connect-from'] = connectFrom;
+          Drag.target.set(target);
+
+          scope.connect();
+        }
+
+        function toggleSelect(el, data) {
+          if (el.classed('selected')) {
+            el.classed('selected', false);
+            scope.deselect(data);
+          } else {
+            svg.selectAll('.selected').classed('selected', false);
+            el.classed('selected', true);
+            scope.select(data);
+          }
+        }
+
+        function zoomed() {
+          state.translation = d3.event.translate;
+          state.scale = d3.event.scale;
+          removeDragConnector();
+          container.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
         }
       }
     };
