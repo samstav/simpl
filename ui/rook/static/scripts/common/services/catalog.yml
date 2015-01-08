@@ -1,99 +1,196 @@
 # To test the schema: python tests/unit/test_schema.py TestUICatalog
----
-id: apache
-is: web
-requires:
-- host: linux
+#
+# GENERIC CATALOG
+#
+# These are the generic entries that list all types and options available for
+# generic and portable blueprints
+name: server
+display_name: Generic Linux Server
+is: compute
 provides:
-- web: apache
+- compute: ssh
 options:
-  server_alias:
-    type: array
-    display-hints:
-      sample: blog.example.com
-    label: "Additional domain names to respond on"
-  port:
-    default: 80
+  memory:
     type: integer
-    label: "Listening port"
-  server_name:
+    constraints:
+    - greater-than: 0
+    default: 512
+  disk:
+    type: integer
+  disk-preference:
     type: string
     display-hints:
-      sample: "example.com"
-    label: "Site's domain name"
-meta-data:
-  display-hints:
-    icon-20x20: "/images/apache-small.png"
-    tattoo: "/images/apache.png"
----
-id: "nginx"
-is: "web"
-requires:
-- host: linux
-provides:
-- web: "nginx"
-meta-data:
-  display-hints:
-    icon-20x20: "/images/nginx.png"
-    tattoo: "/images/nginx.png"
----
-id: "new-relic"
-is: "monitoring"
-provides:
-- monitoring: "new-relic"
-requires:
-- host: linux
-options:
-  license:
+      choice:
+      - name: Standard (SATA)
+        value: 0
+      - name: High (SSD)
+        value: 1
+  ssh_port:
+    type: integer
+    label: "SSH port"
+  os:
     type: string
-    label: "New Relic license key"
+    display-hints:
+      choice:
+      - name: CoreOS (Alpha)
+        value: Coreos 0
+      - name: CoreOS (Beta)
+        value: Coreos
+      - name: CoreOS (Stable)
+        value: Coreos
+      - name: FreeBSD 10.0
+        value: Freebsd 10.0
+      - name: Arch 2014.10 (PVHVM)
+        value: Archlinux 2014.8
+      - name: Ubuntu 14.04 LTS (Trusty Tahr)
+        value: Ubuntu 14.04
+      - name: Ubuntu 10.04 LTS (Lucid Lynx)
+        value: Ubuntu 10.04
+      - name: Debian 6 (Squeeze)
+        value: Debian 6.10
+      - name: CentOS 6.5
+        value: Centos 6.5
+      - name: Ubuntu 14.10 (Utopic Unicorn)
+        value: Ubuntu 14.10
+      - name: Red Hat Enterprise Linux 6.6
+        value: Redhat 6.6
+      - name: Ubuntu 12.04 LTS (Precise Pangolin)
+        value: Ubuntu 12.04
+      - name: CentOS 5.11
+        value: Centos 5.11
+      - name: Red Hat Enterprise Linux 5.11
+        value: Redhat 5.11
+      required: true
 meta-data:
   display-hints:
-    icon-20x20: "/images/newrelic.png"
-    tattoo: "/images/newrelic.png"
+    icon-20x20: "/images/icon-servers.svg"
+    tattoo: "/images/icon-servers.svg"
 ---
-id: "rax-cloud-monitoring"
-is: "monitoring"
+name: load-balancer
+is: load-balancer
+display_name: Load Balancer (Generic)
 provides:
-- monitoring: "rackspace"
-requires: []
-options: {}
+- load-balancer: vip
+- load-balancer: proxy
+- load-balancer: '*'
+supports:
+- '*': '*'
+options:
+  algorithm:
+    type: string
+    constraints:
+    - in:
+      - LEAST_CONNECTIONS
+      - RANDOM
+      - ROUND_ROBIN
+      - WEIGHTED_LEAST_CONNECTIONS
+      - WEIGHTED_ROUND_ROBIN
+  allow_unencrypted:
+    type: boolean
+    default: false
+  redirect_unencrypted:
+    type: boolean
+    default: false
+  protocol:
+    type: string
+    constraints:
+    - in:
+      - dns_tcp
+      - dns_udp
+      - ftp
+      - http
+      - https
+      - imaps
+      - imapv2
+      - imapv3
+      - imapv4
+      - ldap
+      - ldaps
+      - mysql
+      - pop3
+      - pop3s
+      - sftp
+      - smtp
+      - tcp
+      - tcp_client_first
+      - tcp_stream
+      - udp
+      - udp_stream
+      - proxy
+      - vip
+  port:
+    type: integer
+    constraints:
+    - greater-than: 0
+      less-than-or-equal: 65535
+      message: port must be in the range 1 to 65535
 meta-data:
   display-hints:
-    icon-20x20: "/images/icon-monitoring.svg"
-    tattoo: "/images/icon-monitoring.svg"
+    icon-20x20: "/images/icon-load-balancing.png"
+    tattoo: "/images/icon-load-balancing.png"
 ---
-id: mongodb
+is: application
+name: app
+display_name: GitHub App
+provides:
+- application: http
+requires:
+- host: linux
+supports:
+- '*': '*'
+options:
+  source:
+    type: string
+    label: "Source Repo"
+  branch:
+    type: string
+    label: "Ref (branch/tag/commit)"
+  role:
+    type: string
+meta-data:
+  display-hints:
+    icon-20x20: "/images/github.ico"
+    tattoo: "/images/github-tattoo.png"
+---
+name: mongodb
 is: database
 provides:
 - database: mongodb
-requires:
-- host: linux
 options:
-  port:
-    type: integer
-    label: "Listening port"
+  role:
+    default: primary
+    type: string
+    constraints:
+    - in: [primary, arbiter, secondary]
+  full-text:
+    type: boolean
+    label: "Enable Full Text Indexing"
 meta-data:
   display-hints:
     icon-20x20: "/images/mongodb-icon-20x20.png"
     tattoo: "/images/mongodb-tattoo.png"
 ---
-id: postgres
+name: postgres
 is: database
-requires:
-- host: linux
 provides:
 - database: postgres
+requires:
+- host: linux
 meta-data:
   display-hints:
     icon-20x20: "/images/postgres-icon.png"
     tattoo: "/images/postgre_sql_256.png"
 ---
-is: database
 name: mysql
+is: database
 provides:
 - database: mysql
 options:
+  role:
+    default: master
+    type: string
+    constraints:
+    - in: [master, slave]
   server_root_password:
     default: '=generate_password(min_length=12, required_chars=[\"0123456789\", \"abcdefghijklmnopqrstuvwxyz\", \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"])'
     required: true
@@ -121,10 +218,211 @@ options:
     constraints:
     - regex: "^((.){8,255})?$"
       message: "must be between 8 and 255 characters long if provided"
+  port:
+    type: integer
+    default: 3306
+    label: "Listening port"
 meta-data:
   display-hints:
     icon-20x20: "/images/mysql-small.png"
     tattoo: "/images/mysql-tattoo.png"
+---
+name: memcached
+is: cache
+provides:
+- cache: memcache
+requires:
+- host: linux
+options:
+  port:
+    type: integer
+    label: "Listening port"
+meta-data:
+  display-hints:
+    icon-20x20: "/images/memcached-icon-20x20.png"
+    tattoo: "/images/memcached-tattoo.png"
+---
+id: redis
+is: cache
+name: redis
+provides:
+- cache: redis
+- database: redis
+requires:
+- host: linux
+options:
+  role:
+    default: master
+    type: string
+    constraints:
+    - in: [master, slave, sentinel]
+  memory:
+    type: integer
+    label: "Minimum Memory"
+  port:
+    type: integer
+    default: 6379
+    label: "Listening port"
+meta-data:
+  display-hints:
+    icon-20x20: "/images/redis-icon-20x20.png"
+    tattoo: "/images/redis-tattoo.png"
+---
+id: varnish
+is: cache
+requires:
+- host: linux
+provides:
+- cache: varnish
+options:
+  memory:
+    type: integer
+    label: "Minimum Memory"
+meta-data:
+  display-hints:
+    icon-20x20: "/images/varnish.jpg"
+    tattoo: "/images/varnish.jpg"
+---
+id: gluster
+is: storage
+requires:
+- host: linux
+provides:
+- storage: gluster
+meta-data:
+  display-hints:
+    icon-20x20: "/images/glusterfs-icon-20x20.png"
+    tattoo: "/images/glusterfs-tattoo.png"
+---
+id: wordpress
+is: application
+provides:
+- application: http
+requires:
+- host: linux
+- database: mysql
+options:
+  prefix:
+    type: string
+    label: "Prefix"
+  url:
+    label: "Site Address"
+    description: "The address you wish to host your blog on."
+    type: "url"
+    required: true
+    default: "http://example.com/"
+    display-hints:
+      group: application
+      order: 1
+      default-protocol: http
+      encrypted-protocols:
+      - https
+      sample: "http://example.com/"
+    constraints:
+    - protocols:
+      - http
+      - https
+      message: "must be a supported protocol"
+    - regex: "^([a-zA-Z]{2,}?\\:\\/\\/[a-zA-Z0-9\\-]+(?:\\.[a-zA-Z0-9\\-]+)*\\.[a-zA-Z]{2,16}(?:\\/?|(?:\\/[\\w\\-]+)*)(?:\\/?|\\/\\w+\\.[a-zA-Z]{2,4}(?:\\?[\\w]+\\=[\\w\\-]+)?)?(?:\\&[\\w]+\\=[\\w\\-]+)*)$"
+      message: "must be a valid web address"
+meta-data:
+  display-hints:
+    icon-20x20: "/images/wordpress-icon-20x20.png"
+    tattoo: "/images/wordpress-tattoo.png"
+---
+is: application
+name: "magento"
+display_name: Magento (Generic)
+provides:
+- application: http
+requires:
+- host: linux
+- database: mysql
+supports:
+- FPC:
+    resource_type: cache
+    interface: {from: [redis, memcache]}
+- sessions:
+    resource_type: cache
+    interface: {from: [redis, memcache]}
+- objects:
+    resource_type: cache
+    interface: {from: [redis, memcache]}
+meta-data:
+  display-hints:
+    icon-20x20: "/images/magento-icon-20x20.png"
+    tattoo: "/images/magento-tattoo.png"
+
+---
+name: apache
+is: web
+requires:
+- host: linux
+provides:
+- web: apache
+supports:
+- application: '*'
+options:
+  server_alias:
+    type: array
+    display-hints:
+      sample: blog.example.com
+    label: "Additional domain names to respond on"
+  port:
+    default: 80
+    type: integer
+    label: "Listening port"
+  server_name:
+    type: string
+    display-hints:
+      sample: "example.com"
+    label: "Site's domain name"
+meta-data:
+  display-hints:
+    icon-20x20: "/images/apache-small.png"
+    tattoo: "/images/apache.png"
+---
+name: "nginx"
+is: "web"
+requires:
+- host: linux
+provides:
+- web: "nginx"
+meta-data:
+  display-hints:
+    icon-20x20: "/images/nginx.png"
+    tattoo: "/images/nginx.png"
+
+
+#
+# Specific, non-portable components
+#
+---
+id: "new-relic"
+is: "monitoring"
+provides:
+- monitoring: "new-relic"
+requires:
+- host: linux
+options:
+  license:
+    type: string
+    label: "New Relic license key"
+meta-data:
+  display-hints:
+    icon-20x20: "/images/newrelic.png"
+    tattoo: "/images/newrelic.png"
+---
+id: "rax-cloud-monitoring"
+is: "monitoring"
+provides:
+- monitoring: "rackspace"
+requires: []
+options: {}
+meta-data:
+  display-hints:
+    icon-20x20: "/images/icon-monitoring.svg"
+    tattoo: "/images/icon-monitoring.svg"
 ---
 id: "opscode.chef-server.mysql"
 is: "database"
@@ -210,52 +508,6 @@ meta-data:
     icon-20x20: "/images/icon-databases.svg"
     tattoo: "/images/icon-databases.svg"
 ---
-id: varnish
-is: cache
-requires:
-- host: linux
-provides:
-- cache: varnish
-meta-data:
-  display-hints:
-    icon-20x20: "/images/varnish.jpg"
-    tattoo: "/images/varnish.jpg"
----
-id: memcached
-is: cache
-provides:
-- cache: memcache
-requires:
-- host: linux
-options:
-  monitoring:
-    default: false
-    type: boolean
-    label: "Enable monitoring"
-  port:
-    type: integer
-    label: "Listening port"
-meta-data:
-  display-hints:
-    icon-20x20: "/images/memcached-icon-20x20.png"
-    tattoo: "/images/memcached-tattoo.png"
----
-id: redis
-is: cache
-name: redis
-provides:
-- cache: redis
-requires:
-- host: linux
-options:
-  port:
-    type: integer
-    label: "Listening port"
-meta-data:
-  display-hints:
-    icon-20x20: "/images/redis-icon-20x20.png"
-    tattoo: "/images/redis-tattoo.png"
----
 id: redis_cache
 is: cache
 name: redis
@@ -287,17 +539,6 @@ meta-data:
     icon-20x20: "/images/redis-icon-20x20.png"
     tattoo: "/images/redis-tattoo.png"
 ---
-id: gluster
-is: storage
-requires:
-- host: linux
-provides:
-- storage: gluster
-meta-data:
-  display-hints:
-    icon-20x20: "/images/glusterfs-icon-20x20.png"
-    tattoo: "/images/glusterfs-tattoo.png"
----
 is: storage
 id: "rax-cloud-files"
 meta-data:
@@ -306,14 +547,14 @@ meta-data:
     tattoo: "/images/icon-files.svg"
 ---
 is: application
-id: app
+id: php_app
 provides:
 - application: http
 requires:
 - host: linux
 options:
   demo:
-    type: "boolean"
+    type: boolean
     label: "Enable Demo"
   packages:
     type: string
@@ -381,29 +622,6 @@ options:
     default: magento_
 ---
 is: application
-name: "magento"
-display_name: Magento (Generic)
-provides:
-- application: http
-requires:
-- host: linux
-- database: mysql
-supports:
-- FPC:
-    resource_type: cache
-    interface: {from: [redis, memcache]}
-- sessions:
-    resource_type: cache
-    interface: {from: [redis, memcache]}
-- objects:
-    resource_type: cache
-    interface: {from: [redis, memcache]}
-meta-data:
-  display-hints:
-    icon-20x20: "/images/magento-icon-20x20.png"
-    tattoo: "/images/magento-tattoo.png"
----
-is: application
 id: "asp.net"
 provides:
 - application: http
@@ -413,96 +631,6 @@ meta-data:
   display-hints:
     icon-20x20: "/images/asp-net-icon-20x20.png"
     tattoo: "/images/asp-net-tattoo.png"
----
-id: wordpress
-is: application
-provides:
-- application: http
-requires:
-- host: linux
-- database: mysql
-options:
-  prefix:
-    type: string
-    label: "Prefix"
-  url:
-    label: "Site Address"
-    description: "The address you wish to host your blog on."
-    type: "url"
-    required: true
-    default: "http://example.com/"
-    display-hints:
-      group: application
-      order: 1
-      default-protocol: http
-      encrypted-protocols:
-      - https
-      sample: "http://example.com/"
-    constraints:
-    - protocols:
-      - http
-      - https
-      message: "must be a supported protocol"
-    - regex: "^([a-zA-Z]{2,}?\\:\\/\\/[a-zA-Z0-9\\-]+(?:\\.[a-zA-Z0-9\\-]+)*\\.[a-zA-Z]{2,16}(?:\\/?|(?:\\/[\\w\\-]+)*)(?:\\/?|\\/\\w+\\.[a-zA-Z]{2,4}(?:\\?[\\w]+\\=[\\w\\-]+)?)?(?:\\&[\\w]+\\=[\\w\\-]+)*)$"
-      message: "must be a valid web address"
-meta-data:
-  display-hints:
-    icon-20x20: "/images/wordpress-icon-20x20.png"
-    tattoo: "/images/wordpress-tattoo.png"
----
-name: load-balancer
-is: load-balancer
-display_name: Load Balancer (Generic)
-provides:
-- load-balancer: vip
-- load-balancer: proxy
-- load-balancer: '*'
-supports:
-- '*': '*'
-options:
-  algorithm:
-    type: string
-    constraints:
-    - in:
-      - LEAST_CONNECTIONS
-      - RANDOM
-      - ROUND_ROBIN
-      - WEIGHTED_LEAST_CONNECTIONS
-      - WEIGHTED_ROUND_ROBIN
-  allow_unencrypted:
-    type: "boolean"
-    default: false
-  protocol:
-    type: string
-    constraints:
-    - in:
-      - dns_tcp
-      - dns_udp
-      - ftp
-      - http
-      - https
-      - imaps
-      - imapv2
-      - imapv3
-      - imapv4
-      - ldap
-      - ldaps
-      - mysql
-      - pop3
-      - pop3s
-      - sftp
-      - smtp
-      - tcp
-      - tcp_client_first
-      - tcp_stream
-      - udp
-      - udp_stream
-      - proxy
-      - vip
-meta-data:
-  display-hints:
-    icon-20x20: "/images/icon-load-balancing.png"
-    tattoo: "/images/icon-load-balancing.png"
 ---
 id: "rsCloudLB"
 name: load-balancer
@@ -570,10 +698,10 @@ options:
       - WEIGHTED_LEAST_CONNECTIONS
       - WEIGHTED_ROUND_ROBIN
   create_dns:
-    type: "boolean"
+    type: boolean
     default: false
   allow_unencrypted:
-    type: "boolean"
+    type: boolean
     default: false
   protocol:
     type: string
