@@ -32,7 +32,12 @@ from voluptuous import (
     Required,
     Schema,
 )
+import yaml
+from yaml.composer import ComposerError
+from yaml.parser import ParserError
+from yaml.scanner import ScannerError
 
+from checkmate import exceptions
 from checkmate.inputs import Input
 from checkmate.utils import yaml_to_dict
 
@@ -938,3 +943,39 @@ def translate_dict(data):
                 LOG.debug("Translating '%s' to '%s'", key, canonical)
             results[canonical] = value
         return results
+
+
+def load_catalog(path):
+    """Loads and parses a YAML catalog.
+
+    This function will handle multiple YAML documents (separated by `---`) and
+    correctly format them into a valid catalog structure.
+    """
+    with open(path) as handle:
+        docs = handle.read()
+    catalog = {}
+    try:
+        for doc in yaml.safe_load_all(docs):
+            # Strip extra info
+            for key in doc.keys():
+                if key not in COMPONENT_STRICT_SCHEMA_DICT:
+                    del doc[key]
+            try:
+                COMPONENT_SCHEMA(doc)
+            except MultipleInvalid as exc:
+                raise exceptions.CheckmateValidationException(
+                    '%s in %s' % (exc, doc))
+            resource_type = doc.get('is', 'application')
+            category = catalog.setdefault(resource_type, {})
+            category[doc['id']] = doc
+        LOG.debug('Loaded catalog from %s', path)
+    except ValueError:
+        msg = 'Catalog source did not return parsable content'
+        raise exceptions.CheckmateException(msg)
+    except (ParserError, ScannerError) as exc:
+        raise exceptions.CheckmateValidationException(
+            "Invalid YAML syntax in catalog at '%s'. Check:\n%s" % (path, exc))
+    except ComposerError as exc:
+        raise exceptions.CheckmateValidationException(
+            "Invalid YAML structure in catalog '%s'. Check:\n%s" % (path, exc))
+    return catalog

@@ -33,6 +33,7 @@ from SpiffWorkflow import specs
 
 from checkmate.common import caching
 from checkmate.common import config
+from checkmate.common import schema
 from checkmate.common import templating
 from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
@@ -72,81 +73,8 @@ RACKSPACE_VERSION_KEY = 'os_version'
 
 OPENSTACK_DISTRO_KEY = 'org.openstack__1__os_distro'
 OPENSTACK_VERSION_KEY = 'org.openstack__1__os_version'
-CATALOG_TEMPLATE = utils.yaml_to_dict("""
-compute:
-  linux_instance:
-    id: linux_instance
-    is: compute
-    provides:
-    - compute: linux
-    options:
-        'name':
-            type: string
-            required: true
-        'os':
-            source_field_name: image
-            required: true
-            constraints: []
-            display-hints:
-                choice: []
-        'memory':
-            default: 512
-            required: true
-            source_field_name: flavor
-            constraints: []
-            display-hints:
-                choice: []
-        'personality': &personality
-            type: hash
-            required: false
-            description: File path and contents.
-            display-hints:
-                sample: |
-                    "personality: [
-                        {
-                            "path" : "/etc/banner.txt",
-                            "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBr\
-bm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBz\
-cGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vd\
-y4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgY\
-WxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZ\
-iBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
-                        }
-                    ]
-        'metadata': &metadata
-            type: hash
-            required: false
-            description: Metadata key and value pairs.
-            display-hints:
-                sample: |
-                    "metadata" : {
-                        "My Server Name" : "API Test Server 1"
-                    }
-  windows_instance:
-    id: windows_instance
-    is: compute
-    provides:
-    - compute: windows
-    options:
-        'name':
-            type: string
-            required: true
-        'metadata': *metadata
-        'personality': *personality
-        'os':
-            required: true
-            source_field_name: image
-            constraints: []
-            display-hints:
-                choice: []
-        'memory':
-            required: true
-            default: 1024
-            source_field_name: flavor
-            constraints: []
-            display-hints:
-                choice: []
-""")
+CATALOG_TEMPLATE = schema.load_catalog(os.path.join(os.path.dirname(__file__),
+                                                    'catalog.yaml'))
 API_IMAGE_CACHE = {}
 API_FLAVOR_CACHE = {}
 API_LIMITS_CACHE = {}
@@ -165,6 +93,7 @@ pyrax.set_setting('identity_type', 'rackspace')
 
 
 class RackspaceComputeProviderBase(base.RackspaceProviderBase):
+
     """Generic functions for rackspace Compute providers."""
 
     def __init__(self, provider, key=None):

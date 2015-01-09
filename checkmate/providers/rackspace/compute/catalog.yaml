@@ -1,0 +1,94 @@
+
+id: linux_instance
+is: compute
+provides:
+- compute: linux
+supports:
+- '*': '*'
+options:
+  'name':
+    type: string
+    required: true
+  'os':
+    source_field_name: image
+    required: true
+    constraints: []
+    display-hints:
+      choice: []
+  'memory':
+    default: 512
+    required: true
+    source_field_name: flavor
+    constraints: []
+    display-hints:
+      choice: []
+  'personality':
+    type: hash
+    required: false
+    description: File path and contents.
+    display-hints:
+      sample: |
+          "personality": [
+              {
+                  "path" : "/etc/banner.txt",
+                  "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBrbm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBzcGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vdy4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgYWxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZiBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
+              }
+          ]
+  'metadata':
+    type: hash
+    required: false
+    description: Metadata key and value pairs.
+    display-hints:
+      sample: |
+        "metadata" : {
+            "My Server Name" : "API Test Server 1"
+        }
+  userdata:
+    type: string
+    required: false
+---
+id: windows_instance
+is: compute
+provides:
+- compute: windows
+supports:
+- '*': '*'
+options:
+  'name':
+    type: string
+    required: true
+  'metadata':
+    type: hash
+    required: false
+    description: Metadata key and value pairs.
+    display-hints:
+      sample: |
+        "metadata" : {
+            "My Server Name" : "API Test Server 1"
+        }
+  'personality':
+    type: hash
+    required: false
+    description: File path and contents.
+    display-hints:
+      sample: |
+          "personality": [
+              {
+                  "path" : "/etc/banner.txt",
+                  "contents" : "ICAgICAgDQoiQSBjbG91ZCBkb2VzIG5vdCBrbm93IHdoeSBp dCBtb3ZlcyBpbiBqdXN0IHN1Y2ggYSBkaXJlY3Rpb24gYW5k IGF0IHN1Y2ggYSBzcGVlZC4uLkl0IGZlZWxzIGFuIGltcHVs c2lvbi4uLnRoaXMgaXMgdGhlIHBsYWNlIHRvIGdvIG5vdy4g QnV0IHRoZSBza3kga25vd3MgdGhlIHJlYXNvbnMgYW5kIHRo ZSBwYXR0ZXJucyBiZWhpbmQgYWxsIGNsb3VkcywgYW5kIHlv dSB3aWxsIGtub3csIHRvbywgd2hlbiB5b3UgbGlmdCB5b3Vy c2VsZiBoaWdoIGVub3VnaCB0byBzZWUgYmV5b25kIGhvcml6 b25zLiINCg0KLVJpY2hhcmQgQmFjaA=="
+              }
+          ]
+  'os':
+    required: true
+    constraints: []
+    display-hints:
+      choice: []  # gets populated from account images
+  'memory':
+    required: true
+    default: 1024
+    constraints: []
+    display-hints:
+      choice: []  # gets populated from account flavors
+  userdata:
+    type: string
+    required: false
