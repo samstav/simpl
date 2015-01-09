@@ -1,0 +1,36 @@
+#
+# Settings for use with Docker
+# Used for testing/development of Checkmatefile deployment templates.
+
+# Celery Options
+CELERY_CONFIG_MODULE=checkmate.celeryconfig
+CHECKMATE_BROKER_URL=redis://checkredis/0
+CELERY_RESULT_BACKEND=redis://checkredis/1
+CHECKMATE_RESULT_BACKEND=redis://checkredis/1
+CHECKMATE_CELERY_RESULT_BACKEND=redis://checkredis/1
+
+# Cache Config
+CHECKMATE_CACHE_CONNECTION_STRING=redis://checkredis/2
+CHECKMATE_BLUEPRINT_CACHE_EXPIRE=3600
+CHECKMATE_GIT_USE_HTTPS=1
+
+# Database
+CHECKMATE_CONNECTION_STRING=mongodb://checkmongo/checkmate
+CHECKMATE_SIMULATOR_CONNECTION_STRING=mongodb://checkmongo/simulations
+CHECKMATE_LOCK_CONNECTION_STRING=mongodb://checkmongo/locks
+
+# Github.com Auth (public github)
+#CHECKMATE_GITHUB_ENDPOINT=https://api.github.com
+#CHECKMATE_GITHUB_CLIENT_ID='CLIENT_ID'
+#CHECKMATE_GITHUB_CLIENT_SECRET='SECRET'
+
+# SSH Configs
+# Change values to use a Rackspace bastion
+#CHECKMATE_BASTION_ADDRESS='BASTION.ADDRESS'
+#CHECKMATE_BASTION_USERNAME='SSO.NAME'
+#CHECKMATE_BASTION_PKEY_FILE='/FULL/PATH/TO/BASTION/KEY_RSA'
+
+# Provider Settings
+NOVA_INSECURE=True
+
+CHECKMATE_AUTH_ENDPOINTS=[{"default": true, "middleware": "checkmate.middleware.TokenAuthMiddleware", "uri": "https://identity.api.rackspacecloud.com/v2.0/tokens", "kwargs": {"protocol": "Keystone", "realm": "US", "priority": "1"}}, {"middleware": "checkmate.middleware.TokenAuthMiddleware", "uri": "https://lon.identity.api.rackspacecloud.com/v2.0/tokens", "kwargs": {"protocol": "Keystone", "realm": "UK", "priority": "2"}}]
