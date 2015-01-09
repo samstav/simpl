@@ -909,10 +909,26 @@ interfaces/mysql/host
 
         final = workflow.get_tasks()[-1]
         expected = utils.yaml_to_dict('''
-                chef_options:
                 resources:
                   '0':
+                    status: PLANNED
+                    index: '0'
                     name: app_db
+                    dns-name: db01.checkmate.local
+                    service: db
+                    component: mysql
+                    desired-state: {}
+                    hosted_on: '1'
+                    provider: chef-solo
+                    type: database
+                    relations:
+                      host:
+                        name: 'host:linux'
+                        state: planned
+                        requires-key: 'host:linux'
+                        relation: host
+                        interface: linux
+                        target: '1'
                     instance:
                       interfaces:
                         mysql:
@@ -921,6 +937,7 @@ interfaces/mysql/host
                           host: 4.4.4.4              # from host requirement
                           database_name: app_db      # from defaults
             ''')
+        self.maxDiff = None
         self.assertDictEqual(final.attributes['resources']['0'],
                              expected['resources']['0'])
 
@@ -1097,6 +1114,8 @@ interfaces/mysql/database_name
             'task_tags': ['collect'],
             'extend_lists': True,
             'chef_options': {
+                'attributes': {
+                    'resources': {'0': {'widgets': 10, 'connections': 10}}},
                 'roles': {
                     'foo-master': {'how-many': 2}}},
             'chef_output': None,
@@ -1138,7 +1157,6 @@ interfaces/mysql/database_name
             ]
         }
         self.assertDictEqual(transmerge.properties, expected)
-
         transmerge = workflow.spec.task_specs['Collect Chef Data for 2']
         expected = {
             'resource': '2',
@@ -1388,7 +1406,9 @@ interfaces/mysql/database_name
                         'kwargs': {
                             'attributes': {
                                 'master': {'ip': '4.4.4.4'},
-                                'db': {'name': 'foo-db'}
+                                'db': {'name': 'foo-db'},
+                                'widgets': 10,
+                                'connections': 10
                             },
                             'recipes': ['something', 'something::role'],
                             'password': 'shecret',
@@ -1463,15 +1483,14 @@ interfaces/mysql/database_name
         found = False
         for task in workflow.get_tasks():
             if task.get_name() == "Reconfig Chef Data for 2":
-                connections = (
-                    task.attributes.get('chef_options', {}).get(
-                        'attributes:2', {}).get('connections')
-                )
+                connections = utils.read_path(
+                    task.attributes,
+                    'chef_options/attributes/resources/2/connections')
                 if connections == ['4.4.4.4']:
                     found = True
                 self.assertNotEqual(connections, 10, "Foo attribute written "
                                                      "to Bar")
-        self.assertTrue(found, "Client IPs expected in 'connecitons' for bar")
+        self.assertTrue(found, "Client IPs expected in 'connections' for bar")
 
         for task in workflow.get_tasks():
             if task.get_name() == "Collect Chef Data for 0":
@@ -1518,7 +1537,11 @@ class TestTransform(unittest.TestCase):
         result = fxn(spec, task)
         self.mox.VerifyAll()
         self.assertTrue(result)  # task completes
-        expected = {'chef_options': {'attributes:0': {'widgets': 10}}}
+        expected = {
+            'chef_options': {
+                'attributes': {'resources': {'0': {'widgets': 10}}}
+            }
+        }
         self.assertDictEqual(results, expected)
 
     def test_write_output_template(self):
@@ -1623,7 +1646,11 @@ class TestChefMapResolver(unittest.TestCase):
                 ''')
         result = {}
         unresolved = chef_map.ChefMap.resolve_ready_maps(maps, data, result)
-        expected = {'attributes:0': {'ready': 8, 'simple': 1}}
+        expected = {
+            'attributes': {
+                'resources': {'0': {'ready': 8, 'simple': 1}}
+            }
+        }
         self.assertDictEqual(result, expected)
         self.assertListEqual(unresolved, [maps[2]])
 

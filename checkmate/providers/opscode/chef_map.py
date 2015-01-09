@@ -255,11 +255,12 @@ class ChefMap(object):
                     for client in deployment['resources'].values():
                         if 'relations' not in client:
                             continue
-                        relations = [r for r in client['relations'].values()
-                                     if ((r.get('requires-key') == key or
-                                          r.get('supports-key') == key) and
-                                         r.get('target') == resource['index'])
-                                     ]
+                        relations = [
+                            r for r in client['relations'].values()
+                            if ((r.get('requires-key') == key or
+                                 r.get('supports-key') == key) and
+                                r.get('target') == resource['index'])
+                        ]
                         if relations:
                             mapping['path'] = ('resources/%s/instance' %
                                                client['index'])
@@ -450,10 +451,10 @@ class ChefMap(object):
                     message = 'Resource hint required in attribute mapping'
                     raise exceptions.CheckmateException(message)
 
-                path = '%s:%s' % (url['scheme'], mapping['resource'])
-                if path not in output:
-                    output[path] = {}
-                seed = output[path]
+                path = 'attributes/resources/%s' % mapping['resource']
+                if not utils.path_exists(output, path):
+                    utils.write_path(output, path, {})
+                seed = utils.read_path(output, path)
             elif url['scheme'] == 'outputs':
                 if url['scheme'] not in output:
                     output[url['scheme']] = {}

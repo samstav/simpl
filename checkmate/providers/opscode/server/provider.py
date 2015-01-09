@@ -154,7 +154,7 @@ class Provider(base.BaseOpscodeProvider):
                 provider='checkmate.providers.opscode.server',
                 reset_attribs=False)
             kwargs['attributes'] = operators.PathAttrib(
-                'chef_options/attributes:%s' % key)
+                'chef_options/attributes/resources/%s' % key)
         else:
             map_with_context = self.map_file.get_map_with_context(
                 deployment=deployment, resource=resource, component=component)

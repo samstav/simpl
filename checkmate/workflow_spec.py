@@ -393,7 +393,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         def recursive_add_host(sorted_list, resource_key, resources, stack):
             if resource_key in new_and_planned_resources.keys():
                 resource = resources[resource_key]
-                for _, relation in resource.get('relations', {}).iteritems():
+                for relation in resource.get('relations', {}).itervalues():
                     if 'target' in relation:
                         if relation['target'] not in sorted_list:
                             if relation['target'] in stack:
@@ -461,11 +461,11 @@ class WorkflowSpec(specs.WorkflowSpec):
                     # Process where this is a source (host relations done
                     # above)
                     if ('target' in relation
-                        and name != 'host'
-                        and relation['target'] in non_deleted_resources
-                        and (relation['target'] in
-                        new_and_planned_resources.keys()
-                             or key in new_and_planned_resources.keys())):
+                            and name != 'host'
+                            and relation['target'] in non_deleted_resources
+                            and (relation['target'] in
+                                 new_and_planned_resources.keys() or
+                                 key in new_and_planned_resources.keys())):
                         provider = providers[resource['provider']]
                         provider_result = provider.add_connection_tasks(
                             resource, key, relation, name, wf_spec,

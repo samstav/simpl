@@ -300,9 +300,9 @@ class Provider(RackspaceComputeProviderBase):
         if not flavor:
             raise cmexc.CheckmateNoMapping(
                 "No flavor mapping for '%s' in '%s'" % (memory, self.key))
-        userdata = deployment.get_setting('userdata', resource_type=resource_type,
-                                        service_name=service,
-                                        provider_key=self.key)
+        userdata = deployment.get_setting(
+            'userdata', resource_type=resource_type, service_name=service,
+            provider_key=self.key)
         for template in templates:
             template['desired-state']['flavor'] = flavor
             template['desired-state']['image'] = image
