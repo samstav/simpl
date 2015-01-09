@@ -1,12 +1,83 @@
 # Installing Checkmate
-![Checkmate](https://github.rackspace.com/checkmate/checkmate/raw/master/checkmate/static/img/checkmate.png)
 
-This document explains how to install Checkmate
+## Using Checkmate in Docker
 
-## Automated Install Using Vagrant
+### Set up the environment file
 
-You can install a Checkmate environment automatically using [vagrant](https://github.rackspace.com/checkmate/checkmate/blob/master/docs/vagrant.md).
+Using the `.checkmate_env` file in this repository, you will need to fill in the
+following values:
 
+```
+# Github.com Auth (public github)
+CHECKMATE_GITHUB_ENDPOINT=https://api.github.com
+CHECKMATE_GITHUB_CLIENT_ID='CLIENT_ID'
+CHECKMATE_GITHUB_CLIENT_SECRET='SECRET'
+
+# SSH Configs
+# Change values to use a Rackspace bastion
+CHECKMATE_BASTION_ADDRESS='BASTION.ADDRESS'
+CHECKMATE_BASTION_USERNAME='SSO.NAME'
+CHECKMATE_BASTION_PKEY_FILE='/FULL/PATH/TO/BASTION/KEY_RSA'
+```
+
+The GitHub environment variables are optional and can be commented out if you
+don't want to use them in your deployment.
+
+### Running Checkmate in Docker containers
+
+Assuming you are using OS X, you will need to install
+[VirtualBox](https://www.virtualbox.org/wiki/Downloads) and
+[boot2docker](https://docs.docker.com/installation/mac/).
+
+If you are using Linux, you should be able to run
+[Docker natively](https://docs.docker.com/installation/).
+
+First, start docker containers for Redis and MongoDB:
+
+```
+$ docker run --name checkredis -d -p 6379:6379 dockerfile/redis
+$ docker run --name checkmongo -d -p 27017:27017 dockerfile/mongodb
+```
+
+Next, build the Checkmate docker container:
+
+`$ docker build -t checkmate .`
+
+Next, run two containers: one for the API and one for the worker. We will also
+pass in the environment file you set up in the previous step:
+
+```
+$ docker run -d --name checkmate-api \
+--env-file=.checkmate_env \
+--link checkredis:checkredis \
+--link checkmongo:checkmongo \
+-p 8080:8080 \
+checkmate '/app/bin/checkmate-server START --with-ui --with-simulator 0.0.0.0:8080'
+```
+
+```
+$ docker run -d --name checkmate-worker \
+--env-file=.checkmate_env \
+--link checkredis:checkredis \
+--link checkmongo:checkmongo \
+checkmate '/app/bin/checkmate-queue START -P eventlet'
+```
+
+You can now reach Checkmate by going to your boot2docker IP address on port
+`8080`. For exaple: `http://192.168.59.103:8080`. You can find this IP with the
+boot2docker command:
+
+`$ boot2docker ip`
+
+Log in with a US/UK cloud account. You can now experiment with Checkmatefile
+deployments.
+
+### Stop Checkmate Docker containers
+
+```
+$ docker kill checkredis checkmongo checkmate-api checkmate-worker
+$ docker rm checkredis checkmongo checkmate-api checkmate-worker
+```
 
 ## Manual Installation
 
@@ -35,7 +106,7 @@ You need:
 - python 2.7.1 or greater with easy_install (available by default on OSX)
 - [git](http://git-scm.com/download) for source control
 - access to Rackspace internal github, so you must be on the Rackspace network
-  or on VPN.
+or on VPN.
 - a c-compiler (on Mac, install X-Code from the App Store and then install the
   `Command Line tools` from XCode preferences/downloads). There is a separate
   download also available here
@@ -86,7 +157,8 @@ system python, you can set up all requirements using the following commands:
 
 ### Install Chef
 
-We'll document two configs. The latest, bleeding edge config for hacking and the last known good (LKG) config.
+We'll document two configs. The latest, bleeding edge config for hacking and
+the last known good (LKG) config.
 
 Bleeding Edge: To install the latest Chef client, knife-solo, and
 knife-solo_data_bag:
@@ -140,7 +212,8 @@ server:
     gem install librarian-chef --version 0.0.2 --no-rdoc --no-ri
     gem install berkshelf --version 2.0.10 --no-rdoc --no-ri
 
-    # If this is a production system, install the same gems in global, because root from cron needs them
+    # If this is a production system, install the same gems in global, because
+    # root from cron needs them
     rvm gemset use global
     gem install bundler --no-rdoc --no-ri
     gem install chef --version 11.4.0 --no-rdoc --no-ri
@@ -148,6 +221,7 @@ server:
     gem install knife-solo_data_bag --version 0.4.0 --no-rdoc --no-ri
     gem install librarian-chef --version 0.0.2 --no-rdoc --no-ri
     gem install berkshelf --version 2.0.10 --no-rdoc --no-ri
+
     # Verify
     knife -v  # should show 'Chef: 11.4.0'
     gem list knife  # should show solo at 0.3.0 and data_bag at 0.4.0
@@ -174,11 +248,13 @@ Installing and starting MongoDB 2.0.6 on OSX:
 
 Install, configure, and start rabbitmq.
 
-    sudo apt-get -y install rabbitmq-server python-dev python-setuptools
-    sudo rabbitmqctl delete_user guest
-    sudo rabbitmqctl add_vhost checkmate
-    sudo rabbitmqctl add_user checkmate <some_password_here>
-    sudo rabbitmqctl set_permissions -p checkmate checkmate ".*" ".*" ".*"
+```
+sudo apt-get -y install rabbitmq-server python-dev python-setuptools
+sudo rabbitmqctl delete_user guest
+sudo rabbitmqctl add_vhost checkmate
+sudo rabbitmqctl add_user checkmate <some_password_here>
+sudo rabbitmqctl set_permissions -p checkmate checkmate ".*" ".*" ".*"
+```
 
 Set the environment variable for your checkmate deployment environments and
 create the directory. If you want your variable settings to look stock, set
@@ -201,7 +277,8 @@ be prepped:
     export CHECKMATE_CONNECTION_STRING="sqlite:///${CHECKMATE_PREFIX}/var/checkmate/data/db.sqlite"
 
     # If you're using MongoDB
-    # in username and passwords reserved characters like :, /, + and @ must be escaped following RFC 2396.
+    # in username and passwords reserved characters like :, /, + and @ must be
+    # escaped following RFC 2396.
     export CHECKMATE_BROKER_URL="mongodb://checkmate:secret@localhost:27017/checkmate"
     export CHECKMATE_RESULT_BACKEND="mongodb"
     export CHECKMATE_MONGODB_BACKEND_SETTINGS='{"host": "localhost", "port": 27017, "user": "checkmate", "password": "secret", "database": "checkmate", "taskmeta_collection": "celery_task_meta"}'
@@ -218,7 +295,7 @@ development without a queue):
 
     bin/checkmate-queue START
 
-Start the Checkmate API and UI service:
+    Start the Checkmate API and UI service:
 
     bin/checkmate-server START --with-ui --with-simulator
     # Or, to specify an alternate IP:Port
