@@ -1011,7 +1011,7 @@ class Planner(classes.ExtensibleDict):
         if not found:
             error_message = "Could not resolve component '%s'" % definition
             raise CheckmateException(error_message,
-                                     friendly_message=BLUEPRINT_ERROR)
+                                     friendly_message=error_message)
         component = {}
         component['id'] = found['id']
         provider = found.provider

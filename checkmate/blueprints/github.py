@@ -659,7 +659,7 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
         else:
             ref_ending = '/%s' % ref_name
             for ref in refs:
-                if ('/pull/' not in ref.ref and ref.ref.endswith(ref_ending)):
+                if '/pull/' not in ref.ref and ref.ref.endswith(ref_ending):
                     return ref
 
     def _get_blueprint(self, repo, tag):

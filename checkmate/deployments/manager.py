@@ -295,8 +295,8 @@ class Manager(object):
     @staticmethod
     def _get_dep_resources(deployment):
         """Return the resources for the deployment or abort if not found.."""
-        if deployment and "resources" in deployment:
-            return deployment.get("resources")
+        if deployment and 'resources' in deployment:
+            return deployment['resources']
         raise CheckmateDoesNotExist("No resources found for deployment %s" %
                                     deployment.get("id"))
 
@@ -439,7 +439,7 @@ class Manager(object):
 
     def deploy_workflow(self, context, deployment, tenant_id, wf_type,
                         workflow_id=None, **kwargs):
-        """Create a workflow and operation based in the passed in workflow
+        """Create a workflow and operation based on the passed in workflow
         type.
 
         :param context: request context

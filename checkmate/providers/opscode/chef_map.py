@@ -255,11 +255,12 @@ class ChefMap(object):
                     for client in deployment['resources'].values():
                         if 'relations' not in client:
                             continue
-                        relations = [r for r in client['relations'].values()
-                                     if ((r.get('requires-key') == key or
-                                          r.get('supports-key') == key) and
-                                         r.get('target') == resource['index'])
-                                     ]
+                        relations = [
+                            r for r in client['relations'].values()
+                            if ((r.get('requires-key') == key or
+                                 r.get('supports-key') == key) and
+                                r.get('target') == resource['index'])
+                        ]
                         if relations:
                             mapping['path'] = ('resources/%s/instance' %
                                                client['index'])

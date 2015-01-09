@@ -445,15 +445,13 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
     while tasks:
         task = tasks.pop(0)
         tasks.extend(task.children)
-        expect_to_take = (task.parent._get_internal_attribute(
-                          'estimated_completed_in') +
-                          task.task_spec.get_property('estimated_duration',
-                                                      0))
+        expect_to_take = (
+            task.parent._get_internal_attribute('estimated_completed_in') +
+            task.task_spec.get_property('estimated_duration', 0))
         if expect_to_take > overall:
             overall = expect_to_take
         task._set_internal_attribute(estimated_completed_in=expect_to_take)
-    LOG.debug("Workflow %s estimated duration: %s", workflow_id,
-              overall)
+    LOG.debug("Workflow %s estimated duration: %s", workflow_id, overall)
     workflow.attributes['estimated_duration'] = overall
     workflow.attributes['deploymentId'] = deployment['id']
     workflow.attributes['id'] = workflow_id
