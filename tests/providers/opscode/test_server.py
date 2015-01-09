@@ -837,7 +837,24 @@ interfaces/mysql/host
         expected = utils.yaml_to_dict("""
                 resources:
                   '0':
+                    status: PLANNED
+                    index: '0'
                     name: app_db
+                    dns-name: db01.checkmate.local
+                    service: db
+                    component: mysql
+                    desired-state: {}
+                    hosted_on: '1'
+                    provider: chef-server
+                    type: database
+                    relations:
+                      host:
+                        name: 'host:linux'
+                        state: planned
+                        requires-key: 'host:linux'
+                        relation: host
+                        interface: linux
+                        target: '1'
                     instance:
                       interfaces:
                         mysql:
@@ -846,6 +863,7 @@ interfaces/mysql/host
                           username: u1               # from blueprint settings
                           database_name: app_db      # from map output entry
             """)
+        self.maxDiff = None
         self.assertEqual(final.attributes['resources']['0'],
                          expected['resources']['0'])
 
@@ -1031,7 +1049,11 @@ interfaces/mysql/database_name
                 'roles': {
                     'foo-master': {'how-many': 2}
                 },
-                'attributes:0': {'connections': 10, 'widgets': 10},
+                'attributes': {
+                    'resources': {
+                        '0': {'connections': 10, 'widgets': 10},
+                    }
+                }
             },
             'chef_output': None,
             'chef_maps': [
@@ -1365,7 +1387,7 @@ interfaces/mysql/database_name
                             'bootstrap_version': '11.16.4-1',
                             'identity_file':
                             '/var/tmp/DEP-ID-1000/private.pem',
-                            'attributes': None,
+                            'attributes': {'connections': ['4.4.4.1']},
                         },
                         'result': None
                     },
@@ -1450,7 +1472,13 @@ class TestTransform(unittest.TestCase):
         result = fxn(spec, task)
         self.mox.VerifyAll()
         self.assertTrue(result)  # task completes
-        expected = {'chef_options': {'attributes:0': {'widgets': 10}}}
+        expected = {
+            'chef_options': {
+                'attributes': {
+                    'resources': {'0': {'widgets': 10}}
+                }
+            }
+        }
         self.assertEqual(results, expected)
 
     def test_write_output_template(self):
@@ -1556,7 +1584,11 @@ class TestChefMapResolver(unittest.TestCase):
                 """)
         result = {}
         unresolved = chef_map.ChefMap.resolve_ready_maps(maps, data, result)
-        expected = {'attributes:0': {'ready': 8, 'simple': 1}}
+        expected = {
+            'attributes': {
+                'resources': {'0': {'ready': 8, 'simple': 1}}
+            }
+        }
         self.assertEqual(result, expected)
         self.assertListEqual(unresolved, [maps[2]])
 

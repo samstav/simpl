@@ -170,8 +170,8 @@ class Provider(base.BaseOpscodeProvider):
                 'resources/%s/instance/password' %
                 resource.get('hosted_on', key)
             ),
-            attributes=operators.PathAttrib('chef_options/attributes:%s' %
-                                            key),
+            attributes=operators.PathAttrib(
+                'chef_options/attributes/resources/%s' % key),
             merge_results=True,
             identity_file=operators.Attrib('private_key_path'),
             description="Push and apply Chef recipes on the server",
@@ -475,7 +475,7 @@ class Provider(base.BaseOpscodeProvider):
                 password=operators.PathAttrib(
                     'resources/%s/instance/password' % host_idx),
                 attributes=operators.PathAttrib(
-                    'chef_options/attributes:%s' % server['index']
+                    'chef_options/attributes/resources/%s' % server['index']
                 ),
                 merge_results=True,
                 identity_file=operators.Attrib('private_key_path'),

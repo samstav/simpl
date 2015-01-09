@@ -1,0 +1,24 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances
+  response:
+    body: {string: !!python/unicode '{"unauthorized": {"message": "This server could
+        not verify that you are authorized to access the document you requested. Either
+        you supplied the wrong credentials (e.g., bad password), or your browser does
+        not understand how to supply the credentials required.", "code": 401}}'}
+    headers:
+      connection: [close]
+      content-length: ['276']
+      content-type: [application/json; charset=UTF-8]
+      date: ['Fri, 09 Jan 2015 01:01:41 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 401, message: Unauthorized}
+version: 1

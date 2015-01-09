@@ -110,7 +110,7 @@ class BaseOpscodeProvider(base.ProviderBase):
 
         unresolved = ChefMap.resolve_ready_maps(all_maps, deployment,
                                                 chef_options)
-        attrib_key = 'attributes:%s' % resource_key
+        attrib_key = "attributes\resources\%s" % resource_key
         if reset_attribs and attrib_key in chef_options:
             # Remove ones already added in Register
             del chef_options[attrib_key]
