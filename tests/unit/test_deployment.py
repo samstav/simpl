@@ -230,25 +230,6 @@ class TestDeployments(unittest.TestCase):
                                      "3": {"status": "NEW",
                                            "provider": "something else"}})
 
-    def test_get_indexed_resources(self):
-        self.deployment["resources"] = {"1": {"status": "PLANNED",
-                                              "provider": "load-balancer"},
-                                        "2": {"status": "BUILD",
-                                              "provider": "something"},
-                                        "foo": {"status": "BUILD",
-                                                "provider": "something"},
-                                        "3": {"status": "BUILD",
-                                              "provider": "something"},
-                                        "bar": {"status": "NEW",
-                                                "provider": "something else"}}
-        resources = self.deployment.get_indexed_resources()
-        self.assertEqual(resources, {"1": {"status": "PLANNED",
-                                           "provider": "load-balancer"},
-                                     "2": {"status": "BUILD",
-                                           "provider": "something"},
-                                     "3": {"status": "BUILD",
-                                           "provider": "something"}})
-
     def test_get_statuses_for_deleted_resources(self):
         resource_status = {'resources': {'0': {'status': 'DELETED'}}}
         self.provider.get_resource_status.return_value = resource_status

@@ -1396,15 +1396,6 @@ class Deployment(ExtensibleDict):
                 resources.update({resource_key: resource_value})
         return resources
 
-    def get_indexed_resources(self):
-        """Return a set of indexed resources."""
-        indexed_resources = {}
-        for resource_key, resource_value in self.get(
-                "resources", {}).iteritems():
-            if resource_key.isdigit():
-                indexed_resources.update({resource_key: resource_value})
-        return indexed_resources
-
 
 def update_deployment_status(deployment_id, new_status, driver=None):
     """Update the status of the specified deployment."""
