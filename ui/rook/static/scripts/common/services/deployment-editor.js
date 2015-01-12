@@ -1,5 +1,5 @@
 angular.module('checkmate.DeploymentData')
-  .directive('deploymentEditor', function(DeploymentData, $timeout) {
+  .directive('deploymentEditor', function(DeploymentData, $timeout, Blueprint) {
     return {
       restrict: 'E',
       replace: true,
@@ -14,6 +14,7 @@ angular.module('checkmate.DeploymentData')
         $scope.codemirror = {
           editor: null,
           editorAltered: false,
+          isFocused: false,
           markAltered: function() {
             $scope.codemirror.editorAltered = true;
           },
@@ -36,9 +37,7 @@ angular.module('checkmate.DeploymentData')
             });
           },
           setEditorDefaultState: function(editor) {
-            if (!$scope.codemirror.editorAltered) {
-              $scope.codemirror.foldDefault(editor);
-            }
+            $scope.codemirror.foldDefault(editor);
           }
         };
 
@@ -62,16 +61,23 @@ angular.module('checkmate.DeploymentData')
             _editor.on("change", function(d) {
               try {
                 var deployment = jsyaml.load($scope.deployment);
-                $scope.valid = true;
+                $scope.$emit('editor:nsync');
                 DeploymentData.set(deployment);
-                $scope.dirty = false;
-              } catch(err) {
-                $scope.valid = false;
-                $scope.dirty = true;
+              } catch(e) {
+                $scope.$emit('editor:out_of_sync');
+                $scope.$apply();
               }
             });
           },
-          onFocus: $scope.codemirror.markAltered
+          onFocus: function() {
+            $scope.codemirror.markAltered();
+            $scope.codemirror.isFocused = true;
+            $scope.$emit('editor:focus');
+          },
+          onBlur: function() {
+            $scope.codemirror.isFocused = false;
+            $scope.$emit('editor:blur');
+          }
         };
 
         $scope.$on('editor:refreshed', function(event, editor, viewData) {
@@ -79,17 +85,14 @@ angular.module('checkmate.DeploymentData')
         });
 
         $scope.$on('deployment:update', function(event, data) {
-          if ($scope.dirty) {
-            $scope.$emit('editor:out_of_sync');
-            console.log('Editor out of sync with topology. TODO: handle better');
-            return;
-          }
-          var yamlData = jsyaml.safeDump(data);
+          if(!$scope.codemirror.isFocused) {
+            var yamlData = jsyaml.safeDump(data);
 
-          if ($scope.deployment != yamlData) {
-            $timeout(function() {
-              $scope.deployment = yamlData;
-            });
+            if ($scope.deployment != yamlData) {
+              $timeout(function() {
+                $scope.deployment = yamlData;
+              });
+            }
           }
         });
 
