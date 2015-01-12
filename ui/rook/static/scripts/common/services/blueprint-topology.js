@@ -147,56 +147,61 @@ angular.module('checkmate.Blueprint')
         scope.$on('window:resize', resize);
         scope.$watch('blueprint', function(newVal, oldVal) {
           if(newVal && newVal !== oldVal) {
-            var blueprint = {
-              nodes: [],
-              links: [],
-              'meta-data': angular.copy(newVal['meta-data'])
-            };
-            var _links = {};
-            var services = angular.copy(newVal.services);
+            try {
+              var blueprint = {
+                nodes: [],
+                links: [],
+                'meta-data': angular.copy(newVal['meta-data'])
+              };
+              var _links = {};
+              var services = angular.copy(newVal.services);
 
-            for(var service in services) {
-              var _entry = services[service];
-              _entry._id = service;
+              for(var service in services) {
+                var _entry = services[service];
+                _entry._id = service;
 
-              // Map out multiple connections from a service to another service.
-              if(_entry.relations) {
-                for (i = _entry.relations.length - 1; i >= 0; i--) {
-                  for(var component in _entry.relations[i]) {
-                    var protocol = _entry.relations[i][component];
+                // Map out multiple connections from a service to another service.
+                if(_entry.relations) {
+                  for (i = _entry.relations.length - 1; i >= 0; i--) {
+                    for(var component in _entry.relations[i]) {
+                      var protocol = _entry.relations[i][component];
 
-                    if(!_links[service]) {
-                      _links[service] = {};
+                      if(!_links[service]) {
+                        _links[service] = {};
+                      }
+
+                      if(!_links[service][component]) {
+                        _links[service][component] = [];
+                      }
+
+                      _links[service][component].push({
+                        'protocol': protocol
+                      });
                     }
-
-                    if(!_links[service][component]) {
-                      _links[service][component] = [];
-                    }
-
-                    _links[service][component].push({
-                      'protocol': protocol
-                    });
                   }
+                }
+
+                blueprint.nodes.push(_entry);
+              }
+
+              // Push connection map to blueprint.links
+              for(var source in _links) {
+                for(var target in _links[source]) {
+                  var _link = {
+                    'source': source,
+                    'target': target,
+                    'connections': _links[source][target]
+                  };
+
+                  blueprint.links.push(_link);
                 }
               }
 
-              blueprint.nodes.push(_entry);
+              draw(blueprint);
+            } catch(e) {
+              scope.$emit('topology:error', e);
+              console.error(e.message);
             }
-
-            // Push connection map to blueprint.links
-            for(var source in _links) {
-              for(var target in _links[source]) {
-                var _link = {
-                  'source': source,
-                  'target': target,
-                  'connections': _links[source][target]
-                };
-
-                blueprint.links.push(_link);
-              }
-            }
-
-            draw(blueprint);
           }
         }, true);
 
@@ -792,8 +797,8 @@ angular.module('checkmate.Blueprint')
         }
 
         function getDisplayName(d) {
-          var display = Catalog.getComponent(d.id || d.name).display_name;
-          var label =  display || d.id || d.name;
+          var display = (Catalog.getComponent(d.id || d.name) || {}).display_name;
+          var label =  display || d.id || d.name || '';
 
           return label;
         }

@@ -3,6 +3,7 @@
         ng-class="{
           'editor-open': codemirror.isVisible,
           'editor-full-screen': codemirror.isFullScreen,
+          'editor-error': codemirror.hasError,
           'catalog-open': catalog.isVisible,
           'selection-open': selection.isVisible && selection.hasSelection()
         }">
@@ -97,11 +98,11 @@
                          ng-class="{'visible': codemirror.isVisible}">
       </deployment-editor>
 
-      <div class="rs-table-overlay rs-app-launch-empty-canvas" ng-hide="deployment.blueprint.services">
+      <div class="rs-table-overlay rs-app-launch-empty-canvas" ng-show="!deployment.blueprint.services">
         <div class="rs-table-overlay-content">
-          <div class="rs-table-overlay-title">You don't have any applications yet.</div>
+          <div class="rs-table-overlay-title">You don't have any services yet.</div>
           <div class="rs-table-overlay-subtitle">Add one now.</div>
-          <div class="rs-table-overlay-message">Drag an application here. We'll draw an application topology, just for you.</div>
+          <div class="rs-table-overlay-message">Drag a service here. We'll draw the topology, just for you.</div>
         </div>
       </div>
 
@@ -109,6 +110,7 @@
         <div class="rs-btn-group rs-pull-right">
           <button class="rs-btn rs-btn-primary" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit()">Launch</button>
           <button class="rs-btn" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit('simulate')">Simulate</button>
+          <button class="rs-btn" ng-disabled="!controls.canRevert" ng-click="revert()">Revert</button>
           <button class="rs-btn" ng-disabled="!deployment.blueprint.services" ng-click="reset()">Reset</button>
         </div>
         <div class="rs-btn-group">
@@ -116,6 +118,15 @@
           <button class="rs-btn rs-btn-secondary" ng-disabled="true">Export</button>
         </div>
       </div> <!-- /.rs-app-launch-controls -->
+
+      <div class="rs-app-launch-controls rs-app-warning">
+        <i class="fa fa-exclamation-triangle" style="opacity:.5;"></i>
+        Something is wrong with your Blueprint. You need to fix it before you mess it up even more! Resolve it by hand or revert it.
+        <button class="rs-btn"
+                ng-click="revert()">
+          Revert Blueprint
+        </button>
+      </div> <!-- /.rs-app-launch-controls.rs-app-warning -->
     </div>
 
   </div> <!-- /.rs-app-launch-container -->

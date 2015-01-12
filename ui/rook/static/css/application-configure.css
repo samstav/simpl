@@ -11,6 +11,9 @@
 .rs-app-launch-container * {
   transition: opacity 0.3s ease, width 0.5s ease, height 0.5s ease, transform 0.5s ease, top 0.5s ease, right 0.5s ease, bottom 0.5s ease, left 0.5s ease;
 }
+.rs-app-launch-container button {
+  transition: background-color 0.3s ease, color 0.3s ease
+}
 
 /* Sidebar */
 .rs-app-launch-sidebar {
@@ -217,10 +220,13 @@
   bottom: -55px;
   right: 0;
   left: 0;
-  height: 25px;
-  padding: 15px;
+  height: 35px;
+  padding: 10px;
   z-index: 900;
   background-color: #f5f5f5;
+}
+.rs-app-launch-controls .rs-btn-group {
+  margin-top: 5px;
 }
 .codemirror-toggle-button {
   position: absolute;
@@ -238,6 +244,33 @@
   right: 15px;
   z-index: 900;
   cursor: pointer;
+}
+
+/* App Warning */
+.editor-error .rs-app-warning {
+  bottom: -55px;
+}
+.rs-app-warning {
+  bottom: -110px;
+  background-color: #c0392b;
+  color: #fff;
+  font-size: 15px;
+  line-height: 33px;
+}
+.rs-app-warning button.rs-btn {
+  background-color: rgba(0,0,0,.1);
+  border: none;
+  background-image: none;
+  color: rgba(255,255,255,.9);
+  text-shadow: none;
+  padding: 7px 12px;
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: bold;
+}
+.rs-app-warning button.rs-btn:hover {
+  background-color: rgba(0,0,0,.17);
+  color: rgba(255,255,255,1);
 }
 
 /* Drag & Drop */

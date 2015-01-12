@@ -208,8 +208,10 @@ angular.module('checkmate.Blueprint')
         return this.data;
       },
       set: function(blueprint) {
-        this.data = angular.copy(blueprint);
-        this.broadcast();
+        if(this.isValid(blueprint)) {
+          this.data = angular.copy(blueprint);
+          this.broadcast();
+        }
       },
       reset: function() {
         delete this.get().services;
@@ -271,6 +273,9 @@ angular.module('checkmate.Blueprint')
           delete this.get().services;
         }
 
+        this.broadcast();
+      },
+      revert: function(component, target) {
         this.broadcast();
       },
       sever: function(data) {
@@ -532,6 +537,35 @@ angular.module('checkmate.Blueprint')
       },
       broadcast: function() {
         $rootScope.$broadcast('blueprint:update', this.data);
+      },
+      isValid: function(blueprint) {
+        var valid = true;
+
+        if(!blueprint.name) valid = false;
+        if(valid && !blueprint.version) valid = false;
+        if(valid && !angular.isDefined(blueprint.services)) valid = false;
+
+        if(valid) {
+          _.each(blueprint.services, function(service, name) {
+            var _hasName = name && name.length
+            var _hasService = service;
+            var _hasComponent = 'component' in service && service.component;
+            var _hasComponents = 'components' in service && service.components.length > -1;
+
+            if(!_hasName || !_hasService || !_hasComponents || !_hasComponents) {
+              valid = false;
+              return valid;
+            }
+          });
+        }
+
+        if(!valid) {
+          $rootScope.$broadcast('blueprint:invalid');
+        } else {
+          $rootScope.$broadcast('blueprint:valid');
+        }
+
+        return valid;
       }
     };
   });
