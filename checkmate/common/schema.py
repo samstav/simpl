@@ -21,6 +21,7 @@ stabilized the schema.
 """
 
 import logging
+import os
 
 from voluptuous import (
     All,
@@ -137,7 +138,7 @@ def check_schema(schema, value):
     try:
         schema(value)
         return True
-    except MultipleInvalid:
+    except (MultipleInvalid, Invalid):
         return False
 
 
@@ -591,6 +592,28 @@ def get_schema(name):
         return SCHEMA_MAPS[name]
     return {}
 
+DOCS_MAP = {
+    'checkmate.component': '../components.yaml',
+}
+DOC_CACHE = {}
+
+
+def get_docs(name):
+    """Return the schema docs that match the supplied module name."""
+    if name in DOC_CACHE:
+        return DOC_CACHE[name]
+
+    if name in DOCS_MAP:
+        path = os.path.join(os.path.dirname(__file__), DOCS_MAP[name])
+        with open(path, 'r') as handle:
+            docs = yaml.safe_load_all(handle.read()).next()
+        LOG.debug("Got docs for %s. Keys available: %s", name, docs.keys())
+    else:
+        LOG.debug("No docs found for %s", name)
+        docs = {}
+    DOC_CACHE[name] = docs
+    return docs
+
 
 def validate_catalog(obj):
     """Validate provider catalog."""
@@ -610,7 +633,7 @@ def validate_catalog(obj):
     return errors
 
 
-def validate(obj, schema):
+def validate(obj, schema, docs=None):
     """Validate an object.
 
     :param obj: a dict of the object to validate
@@ -627,11 +650,30 @@ def validate(obj, schema):
             try:
                 schema(obj)
             except MultipleInvalid as exc:
+                LOG.debug("Invalid schema: %s, %s", obj, exc.errors)
                 for error in exc.errors:
-                    errors.append(str(error))
+                    msg = error_item_description(error, docs)
+                    errors.append(msg)
             except Invalid as exc:
-                errors.append(str(exc))
+                LOG.debug("Invalid schema: %s, %s", obj, exc)
+                msg = error_item_description(exc, docs)
+                errors.append(msg)
     return errors
+
+
+def error_item_description(error, docs):
+    """Add Schema Description to Validation Exception."""
+    msg = str(error)
+    try:
+        if docs and error.path:
+            path = error.path[0]
+            if path in docs:
+                description = docs[path].get('description')
+                if description:
+                    msg = "%s\nDocs:\n%s" % (msg, description)
+    except (KeyError, IndexError, AttributeError, TypeError):
+        pass
+    return msg
 
 
 def validate_inputs(deployment):
