@@ -15,13 +15,17 @@ In a Checkmatefile there are several sections:
   * [services](#services)
   * [components](#components)
   * [options](#options)
+    * [Passwords](#passwords)
+    * [URLs](#urls)
+    * [Supported Constraints](#supported-constraints)
   * [resources](#resources)
   * [meta](#meta)
   * [display-outputs](#display-outputs)
+    * [syntax for display-outputs](#syntax-for-display-outputs)
 * [inputs](#the-inputs-section)
 * [environment](#the-environment-section)
 
-##### The `blueprint` section
+#### The `blueprint` section
 
 Imagine the blueprint section as a whiteboard that you are using to draw your
 generalized application architecture:
@@ -30,13 +34,13 @@ generalized application architecture:
 
 The blueprint section is made up of several subsections:
 
-###### Services
+##### Services
 Services are the boxes on your virtual whiteboard and how they relate to each
 other. A catalog of all available services (and their default options) is
 available
 [here](https://github.com/checkmate/checkmate/blob/master/ui/rook/static/scripts/common/services/catalog.yml).
 
-###### Components
+##### Components
 
 * What is inside the boxes (web, database, application, cache)
 * These components have sane defaults set
@@ -64,7 +68,7 @@ appserver:
       - omnibus-version: "11.8.2"
 ```
 
-###### Options
+##### Options
 
 Choices presented to the user launching the deployment. The options will most
 likely be the bulk of the Checkmatefile.
@@ -130,6 +134,8 @@ options:
     service: appserver
 ```
 
+###### Passwords
+
 When creating an option for a password, several values are available:
 
 **default**: The default value to use. YAML will assume numbers are ints, so
@@ -175,6 +181,8 @@ options:
     - regex: '^(?=.*[A-Z])'
       message: must contain an upper case letter
 ```
+
+###### URLs
 
 Options of type url provide some advanced handling of common url use cases. The
 option can be used simply as a string that accepts a url. In this case, the only
@@ -244,27 +252,6 @@ options:
     - protocols: [http, https]
 ```
 
-Supported constraints are:
-
-* `greater-than`: self-explanatory (for strings or integers)
-* `less-than`: self-explanatory (for strings or integers)
-* `greater-than-or-equal-to`: self-explanatory (for strings or integers)
-* `less-than-or-equal-to`: self-explanatory (for strings or integers)
-* `min-length`: for strings or text
-* `max-length`: for strings or text (including URLs)
-* `allowed-chars`: for strings and text types. Ex. "ABCDEFGabcdefg012345657!&@"
-* `required-chars`: for strings and text types. Ex. "ABCDEFG"
-* `in`: a list of acceptable values (these could also be used by clients to
-  display drop-downs)
-* `protocols`: unique to URL types. This lists allowed protocols in the URL.
-  See also display-hints for `encrypted-protocols`
-* `regex`: do not use look-forward/behind. Keep these simple so they are
-  supported in javascript (client) and python (server). While many of the above
-  can also be written as regex rules, both are available to blueprint authors
-  to use the one that suits them best.
-* `check`: evaluates a constraint using constructs like "if", "if-not",
-  "and", etc...
-
 And there are special display-hints used to aid a client in rendering and
 validating the url. These are `encrypted-protocols` and
 `always-accept-certificates` which are documented in constraints.
@@ -292,7 +279,30 @@ Note:  A common use case is to supply the url and keys. A shortcut is available
 that accepts a key called `url` that can be used to supply the url without having
 to provide all the components of the url.
 
-###### Resources
+###### Supported Constraints
+
+Supported constraints are:
+
+* `greater-than`: self-explanatory (for strings or integers)
+* `less-than`: self-explanatory (for strings or integers)
+* `greater-than-or-equal-to`: self-explanatory (for strings or integers)
+* `less-than-or-equal-to`: self-explanatory (for strings or integers)
+* `min-length`: for strings or text
+* `max-length`: for strings or text (including URLs)
+* `allowed-chars`: for strings and text types. Ex. "ABCDEFGabcdefg012345657!&@"
+* `required-chars`: for strings and text types. Ex. "ABCDEFG"
+* `in`: a list of acceptable values (these could also be used by clients to
+  display drop-downs)
+* `protocols`: unique to URL types. This lists allowed protocols in the URL.
+  See also display-hints for `encrypted-protocols`
+* `regex`: do not use look-forward/behind. Keep these simple so they are
+  supported in javascript (client) and python (server). While many of the above
+  can also be written as regex rules, both are available to blueprint authors
+  to use the one that suits them best.
+* `check`: evaluates a constraint using constructs like "if", "if-not",
+  "and", etc...
+
+##### Resources
 
 Static resources to be created and shared across the Checkmatefile. For
 example: users, passwords, or SSH keys:
@@ -312,13 +322,13 @@ resources:
       attribute: password
 ```
 
-###### Meta
+##### Meta
 
 * id (random UUID)
 * version (semver number for your use)
 * meta-data (documentation for the deployment.)
 
-###### Display Outputs
+##### Display Outputs
 
 Display outputs is how a Checkmatefile author determines what information to
 provide to the end user to be able to use the deployment (credentials, urls,
@@ -391,7 +401,7 @@ blueprint:
       group: database
 ```
 
-***Syntax for Display Outputs***
+###### Syntax for Display Outputs
 
 The syntax is:
 
@@ -469,7 +479,7 @@ Additional Information:
 Sample Checkmatefiles (with complete blueprint sections) are available
 [here](https://github.rackspace.com/Blueprints).
 
-###### The `inputs` section
+#### The `inputs` section
 
 When launching a deployment, the values selected for options are stored as an
 *input* to the deployment under the 'inputs' key. Inputs can be applied at
