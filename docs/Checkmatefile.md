@@ -4,7 +4,7 @@ A Checkmatefile is a file, typically written in YAML, that defines an
 application and how it is deployed.
 
 A catalog of all available components (and their default options) is available
-[here](https://raw.githubusercontent.com/checkmate/checkmate/master/ui/rook/static/scripts/common/services/catalog.yml).
+[here](https://github.com/checkmate/checkmate/blob/master/ui/rook/static/scripts/common/services/catalog.yml).
 
 Full Checkmatefile examples are available on
 [Rackspace github](https://github.rackspace.com/Blueprints).
