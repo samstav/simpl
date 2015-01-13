@@ -8,6 +8,22 @@ It exposes a REST API for manipulating configurations. It uses celery for task q
 
 Checkmatefile examples are available on [Rackspace github](https://github.rackspace.com/Blueprints).
 
+## Table of Contents
+
+* [Pieces of Checkmate](#logic-the-pieces)
+* [Writing Checkmatefiles](docs/Checkmatefile.md)
+* [The Checkmate API](docs/API.md)
+* [Environment Variables](docs/EnvVars.md)
+* [Checkmate Installation & Setup](docs/INSTALL.md)
+  * [Dependencies](#dependencies)
+    * [SpiffWorkflow](#SpiffWorkflow)
+    * [python-novacalient](#python-novacalient)
+    * [python-clouddb](#python-clouddb)
+    * [Celery](#celery)
+    * [Mox](#mox)
+* [Testing](#testing)
+* [How to Contribute](#hacking-&-contributing)
+
 ## Logic: the pieces
 In a nutshell:
 
@@ -127,45 +143,6 @@ Requirements lists:
 
 - production: requirements.txt
 - development: test-requirements.txt
-
-### Cloud Cafe & Checkmate
-
-#### Installing Cloud Cafe
-In order to run the QE tests for Checkmate, you will need to start with the
-[install of Cloud Cafe](https://github.rackspace.com/Cloud-QE/CloudCAFE-Python)
-
-#### Running the QE Tests
-In your Cloud Cafe install (git cloned) directory
-(i.e. \<workspace\>/CloudCafe-Python/) you should now be able to run:
-
-    bin/runner.py
-
-With no options, it will give the help menu.
-
-To run the checkmate smoke tests, run:
-
-    bin/runner.py checkmate $CONFIG -m smoketest
-
-where `$CONFIG` is the `.config` file to run the tests against
-(i.e. localhost/dev/qa/staging/prod)
-
-#### Where to find the QE checkmate configurations
-
-    $WORKSPACE/CloudCafe-Python/config/checkmate
-
-#### Where to find the QE checkmate test cases
-
-    $WORKSPACE/CloudCafe-Python/lib/testrepo/checkmate
-
-#### SPECIAL: Offline Blueprint development testing
-
-Set the `blueprint_test_path` variable in your localhost.config file
-
-To run tests against blueprints that you (the blueprint developer) are actively
-developing, please run:
-
-    cd $WORKSPACE/CloudCafe-Python
-    bin/runner.py checkmate localhost.config -m offline_blueprint_validation
 
 ## Hacking & Contributing:
 
