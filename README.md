@@ -32,7 +32,7 @@ See [API docs](docs/API.md)
 
 ### Environment Variables / Settings
 
-See [Environment docs](docs/Environment.md)
+See [EnvVars docs](docs/EnvVars.md)
 
 ## Checkmate Installation & Setup
 
