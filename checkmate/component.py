@@ -31,6 +31,7 @@ from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
+COMPONENT_DOCS = schema.get_docs(__name__)
 COMPONENT_SCHEMA = schema.get_schema(__name__)
 COERCER = schema.Schema([schema.ConnectionPoint(coerce=True)])
 
@@ -39,6 +40,7 @@ class Component(ExtensibleDict):
 
     """TODO: docstring."""
 
+    documentation = COMPONENT_DOCS
     __schema__ = staticmethod(COMPONENT_SCHEMA)
 
     def __init__(self, *args, **kwargs):
@@ -93,7 +95,7 @@ class Component(ExtensibleDict):
 
     @classmethod
     def inspect(cls, obj):
-        return schema.validate(obj, cls.__schema__)
+        return schema.validate(obj, cls.__schema__, docs=cls.documentation)
 
     @property
     def provides(self):

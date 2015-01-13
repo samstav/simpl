@@ -61,24 +61,14 @@ angular.module('checkmate.applications-configure')
       }
     };
 
-    $scope.$on('catalog:update', function(event, data) {
-      $scope.catalog.data = Catalog.get();
-      $scope.catalog.components = Catalog.getComponents();
-    });
-
     // This is the codemirror model for the sidebar.
     $scope.codemirror = {
+      hasError: false
     };
 
-    $scope.$on('deployment:update', function(event, data) {
-      if(data.blueprint && _.size(data.blueprint.services) === 1) {
-        $timeout(function() {
-          $scope.codemirror.isVisible = true;
-        }, 50);
-      }
-
-      $scope.deployment = data;
-    });
+    $scope.controls = {
+      canRevert: false
+    };
 
     // Removes annotations, forces 'components' array to single 'component'
     $scope.prepDeployment = function(newFormatDeployment) {
@@ -137,6 +127,59 @@ angular.module('checkmate.applications-configure')
       Blueprint.reset();
     };
 
+    $scope.revert = function() {
+      Blueprint.revert();
+    };
+
+    $scope.$on('catalog:update', function(event, data) {
+      $scope.catalog.data = Catalog.get();
+      $scope.catalog.components = Catalog.getComponents();
+    });
+
+    $scope.$on('deployment:update', function(event, data) {
+      if(data.blueprint && _.size(data.blueprint.services) === 1) {
+        $timeout(function() {
+          $scope.codemirror.isVisible = true;
+        }, 50);
+      }
+
+      $scope.deployment = data;
+    });
+
+    $scope.$on('deployment:invalid', function(event, data) {
+      prepareUiBlock();
+    });
+
+    $scope.$on('deployment:valid', function(event, data) {
+      unblockUi();
+    });
+
+    $scope.$on('blueprint:invalid', function(event, data) {
+      prepareUiBlock();
+    });
+
+    $scope.$on('blueprint:valid', function(event, data) {
+      unblockUi();
+    });
+
+    $scope.$on('topology:error', function(event, data) {
+      blockUi();
+    });
+
+    $scope.$on('editor:focus', function(event, data) {});
+
+    $scope.$on('editor:blur', function(event, data) {
+      if($scope.codemirror.isOutOfSync) blockUi();
+    });
+
+    $scope.$on('editor:out_of_sync', function(event, data) {
+      $scope.codemirror.isOutOfSync = true;
+    });
+
+    $scope.$on('editor:nsync', function(event, data) {
+      $scope.codemirror.isOutOfSync = false;
+    });
+
     $scope.$on('topology:select', function(event, selection) {
       if (selection) {
         $scope.selection.data = selection;
@@ -152,4 +195,19 @@ angular.module('checkmate.applications-configure')
       $scope.selection.close();
     });
 
+    function prepareUiBlock() {
+      $scope.codemirror.isOutOfSync = true;
+      $scope.controls.canRevert = true;
+    }
+
+    function blockUi() {
+      $scope.codemirror.hasError = true;
+      $scope.$apply();
+    }
+
+    function unblockUi() {
+      $scope.controls.canRevert = false;
+      $scope.codemirror.isOutOfSync = false;
+      $scope.codemirror.hasError = false;
+    }
   });

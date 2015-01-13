@@ -42,9 +42,22 @@ class TestComponent(unittest.TestCase):
         self.assertEqual(comp._data, data)
 
     def test_schema_validation(self):
-        self.assertRaises(cmexc.CheckmateValidationException,
-                          cmcomp.Component.__init__, cmcomp.Component(),
-                          {'invalid': 'field'})
+        self.assertRaisesRegexp(
+            cmexc.CheckmateValidationException,
+            "Invalid Component: extra keys not allowed @ data\['invalid'\]",
+            cmcomp.Component.__init__,
+            cmcomp.Component(), {'invalid': 'field'})
+
+    def test_schema_validation_docs(self):
+        self.assertRaisesRegexp(
+            cmexc.CheckmateValidationException,
+            """
+Invalid Component: expected basestring for dictionary value @ data\['version'\]
+Docs:
+supply a version string in semantic versioning format.
+""".strip(),
+            cmcomp.Component.__init__,
+            cmcomp.Component(), {'version': 0})  # must be string
 
     def test_provider_attribute(self):
         """Check that passing in special value gets processed correctly."""
