@@ -247,6 +247,27 @@
 }
 
 /* App Warning */
+.ui-block {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  opacity: 0;
+  background-color: #fff;
+  z-index: -1;
+}
+.editor-error .ui-block {
+  opacity: .7;
+  z-index: 399;
+}
+.editor-error .rs-app-launch-sidebar.stick-left {
+  opacity: .3;
+  pointer-events: none;
+}
+.editor-error .blueprint-topology {
+  z-index: 0;
+}
 .editor-error .rs-app-warning {
   bottom: -55px;
 }

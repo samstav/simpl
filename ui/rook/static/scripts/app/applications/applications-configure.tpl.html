@@ -71,6 +71,8 @@
          x-lvl-drop-target="true"
          x-on-drop="add()">
 
+      <div class="ui-block"></div>
+
       <!-- Topology -->
       <blueprint-topology></blueprint-topology>
 
@@ -121,7 +123,7 @@
 
       <div class="rs-app-launch-controls rs-app-warning">
         <i class="fa fa-exclamation-triangle" style="opacity:.5;"></i>
-        Something is wrong with your Blueprint. You need to fix it before you mess it up even more! Resolve it by hand or revert it.
+        Something is wrong with your Blueprint. You should fix the code in the editor or you can revert to when it last worked.
         <button class="rs-btn"
                 ng-click="revert()">
           Revert Blueprint
