@@ -57,6 +57,7 @@ angular.module('checkmate.DeploymentData')
         if(valid && !env.name) valid = false;
         if(valid && !env.providers) valid = false;
         if(valid && !blueprint) valid = false;
+        if(valid && !Blueprint.isValid(blueprint)) valid = false;
 
         if(!valid) {
           $rootScope.$broadcast('deployment:invalid');
