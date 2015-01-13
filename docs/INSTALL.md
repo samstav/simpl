@@ -1,6 +1,7 @@
 # Installing Checkmate
 
 Development: [Docker](#Using-Checkmate-in-Docker)
+
 Production: [Installation](#Manual-Installation)
 
 ## Using Checkmate in Docker
