@@ -27,7 +27,7 @@
         <li ng-show="clientId && !github.config.accessToken"><a ng-href="https://github.com/login/oauth/authorize?scope=user:email,repo&client_id={{ clientId }}"><i class="fa fa-github"></i> Auth to GitHub.com</a></li>
         <li ng-show="github.config.accessToken"><a href="#" ng-click="githubLogout()">Remove GitHub Token</a></li>
 
-        <li ng-hide="clientId">GitHub not Enabled on Server</li>
+        <li class="nav-text" ng-hide="clientId">GitHub not Enabled on Server</li>
         <li class="divider"></li>
 
         <!-- User Tenants -->
