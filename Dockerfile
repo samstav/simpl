@@ -1,4 +1,4 @@
-FROM debian:jessie
+FROM debian:wheezy
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y python python-dev python-pip git libssl-dev
 RUN pip install -U pip
