@@ -64,6 +64,11 @@ body {
   width: 100%;
 }
 
+.dropdown .dropdown-menu .nav-text {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
 .clickable {
   cursor: pointer;
 }
