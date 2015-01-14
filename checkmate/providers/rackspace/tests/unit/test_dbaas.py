@@ -21,13 +21,13 @@ import unittest
 
 import mock
 
-from checkmate.providers.rackspace.database import cdbredis
+from checkmate.providers.rackspace.database import dbaas
 
 
 class TestCreateRedisInstance(unittest.TestCase):
     """Exercise Redis Instance Creation."""
-    @mock.patch.object(cdbredis.requests, 'post')
-    @mock.patch.object(cdbredis, 'get_flavor_ref')
+    @mock.patch.object(dbaas.requests, 'post')
+    @mock.patch.object(dbaas, 'get_flavor_ref')
     def test_api_call_uses_passed_in_data(self, mock_flavor_ref, mock_post):
         """Call uses passed-in data."""
         expected_flavor_ref = ('https://iad.databases.api.rackspacecloud.com/'
@@ -47,7 +47,7 @@ class TestCreateRedisInstance(unittest.TestCase):
             }
         })
         mock_flavor_ref.return_value = expected_flavor_ref
-        cdbredis.create_instance(u'IAD', u'825642', u'VALID', u'name', 101)
+        dbaas.create_instance(u'IAD', u'825642', u'VALID', u'name', 101)
         mock_post.assert_called_with(expected_url, headers=expected_headers,
                                      data=expected_data)
 

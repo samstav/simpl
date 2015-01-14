@@ -24,7 +24,7 @@ import unittest
 import requests
 import vcr
 
-from checkmate.providers.rackspace.database import cdbredis
+from checkmate.providers.rackspace.database import dbaas
 
 SCRUB_URI_RE = re.compile(r'v1\.0/[^/]*/')
 SCRUB_URI_SUB = 'v1.0/redacted/'
@@ -71,44 +71,42 @@ class TestCloudDatabases(unittest.TestCase):
     def test_successful_create_and_delete(self):
         """The full lifecycle works: create, get, delete."""
         with self.vcr.use_cassette('vcr-cdb-full.yaml'):
-            create_response = cdbredis.create_instance(self.region,
-                                                       self.tenant,
-                                                       self.token,
-                                                       u'test-delete-me',
-                                                       101)
-            validated = cdbredis.validate(create_response)
+            create_response = dbaas.create_instance(self.region, self.tenant,
+                                                    self.token,
+                                                    u'test-delete-me', 101)
+            validated = dbaas.validate(create_response)
             self.assertEqual(validated, create_response)
 
             status = create_response.get('status')
             timeout = time.time() + 60 * 5  # 5 minutes
             while status != u'ACTIVE' and time.time() < timeout:
                 time.sleep(self.delay)
-                get_response = cdbredis.get_instance(self.region, self.tenant,
-                                                     self.token,
-                                                     create_response.get('id'))
+                get_response = dbaas.get_instance(self.region, self.tenant,
+                                                  self.token,
+                                                  create_response.get('id'))
                 if 'instance' in get_response:
                     status = get_response['instance'].get('status')
 
 
-            del_response = cdbredis.delete_instance(self.region,
-                                                    self.tenant, self.token,
-                                                    create_response.get('id'))
+            del_response = dbaas.delete_instance(self.region,
+                                                 self.tenant, self.token,
+                                                 create_response.get('id'))
             self.assertEqual(u'202, Accepted', del_response)
 
     def test_bad_region(self):
         """Invalid region results in an HTTP error (vcrpy not needed)."""
         with self.assertRaises(requests.ConnectionError) as expected:
-            cdbredis.get_instances(u'YYZ', self.tenant, self.token)
+            dbaas.get_instances(u'YYZ', self.tenant, self.token)
 
     def test_bad_tenant(self):
         """Invalid tenant results in an HTTP error."""
         with self.vcr.use_cassette('vcr-cdb-tenant-invalid.yaml'):
-            cdbredis.get_instances(self.region, 'invalid', self.token)
+            dbaas.get_instances(self.region, 'invalid', self.token)
 
     def test_bad_token(self):
         """Invalid token results in an HTTP error."""
         with self.vcr.use_cassette('vcr-cdb-token-invalid.yaml'):
-            cdbredis.get_instances(self.region, self.tenant, 'invalid')
+            dbaas.get_instances(self.region, self.tenant, 'invalid')
 
 
 if __name__ == '__main__':

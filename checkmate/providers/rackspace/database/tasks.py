@@ -25,7 +25,7 @@ from checkmate.common import statsd
 from checkmate.deployments.tasks import resource_postback
 from checkmate import exceptions
 from checkmate.providers.base import RackspaceProviderTask
-from checkmate.providers.rackspace.database import cdbredis
+from checkmate.providers.rackspace.database import dbaas
 from checkmate.providers.rackspace.database.manager import Manager
 from checkmate.providers.rackspace.database.provider import Provider
 from checkmate import utils
@@ -297,7 +297,7 @@ def wait_on_del_instance(context, api=None):
         api = Provider.connect(context, region)
     try:
         if resource['type'] == 'cache':
-            instance = cdbredis.get_instance(
+            instance = dbaas.get_instance(
                 region, context['tenant'], context['auth_token'], instance_id)
             if 'instance' in instance:
                 status = instance['instance']['status']
