@@ -22,7 +22,7 @@ import logging
 
 from pyrax import exceptions as cdb_errors
 
-from checkmate.providers.rackspace.database import cdbredis
+from checkmate.providers.rackspace.database import dbaas
 from checkmate import exceptions as cmexc
 from checkmate import utils
 
@@ -45,9 +45,9 @@ class Manager(object):
             if simulate:
                 data['status'] = 'ACTIVE'
             else:
-                details = cdbredis.get_instance(region, context.tenant,
-                                                context.auth_token,
-                                                instance_id)
+                details = dbaas.get_instance(region, context.tenant,
+                                             context.auth_token,
+                                             instance_id)
                 data['status'] = details.get('instance', {}).get('status')
         except cdb_errors.ClientException as exc:
             raise cmexc.CheckmateException(
@@ -130,10 +130,10 @@ class Manager(object):
                     name=instance_name,
                     hostname='db1.rax.net', volume=volume)
             elif flavor >= 100:
-                return cdbredis.create_instance(region or context.region,
-                                                context.tenant,
-                                                context.auth_token,
-                                                instance_name, flavor)
+                return dbaas.create_instance(region or context.region,
+                                             context.tenant,
+                                             context.auth_token,
+                                             instance_name, flavor)
             else:
                 instance = api.create(instance_name, flavor=flavor,
                                       volume=size, databases=databases)
