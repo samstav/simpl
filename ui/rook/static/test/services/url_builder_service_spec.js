@@ -32,7 +32,7 @@ describe('urlBuilder', function(){
 
     it('should get URLs for Nova Stats', function() {
       var url = urlBuilder.get_url('nova_stats', resource, tenantId, username);
-      expect(url).toContain('reports.ohthree.com');
+      expect(url).toContain('alerts.ohthree.com');
     });
 
     it('should get URLs for SSH', function() {
@@ -109,7 +109,7 @@ describe('urlBuilder', function(){
 
     describe('novaStatsURL', function(){
       it('should build a nova stats url', function(){
-        var expected = 'https://reports.ohthree.com/ord/instance/resource_id';
+        var expected = 'https://alerts.ohthree.com/ORD/instance/resource_id';
         expect(urlBuilder.get_url('nova_stats', resource, tenantId, username)).toEqual(expected);
       });
     });

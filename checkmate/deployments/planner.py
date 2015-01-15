@@ -1096,5 +1096,10 @@ class Planner(classes.ExtensibleDict):
         """
         for key, connection_point in component.get('supports', {}).iteritems():
             if Planner.is_connection_point_match(connection_point, relation):
-                if 'satisfied-by' not in connection_point:
+                if 'satisfied-by' in connection_point:
+                    continue
+                cp_name = connection_point.get('name')
+                rel_connection = relation.get('connect-from')
+                if ((cp_name is None and rel_connection is None) or
+                        cp_name == rel_connection):
                     return key

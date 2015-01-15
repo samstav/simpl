@@ -501,6 +501,7 @@ COMPONENT_STRICT_SCHEMA_DICT = {
     'roles': [basestring],
     'properties': dict,
     'meta-data': dict,
+    'maps': list,
 }
 COMPONENT_SCHEMA = All(
     Schema(COMPONENT_STRICT_SCHEMA_DICT),

@@ -32,7 +32,12 @@ Extended functions (added to normal Jinja functions):
     hash(string) - returns an MD5 hash as expected by chef for values like
         passwords
     source(string) - evaluates a source string
-    base64(string) - returns multiline base64 encoded string
+
+Extended filters (added to normal Jinja filters):
+    base64 - a filter to convert to multiline base64 encoded string
+    prepend(string) - ensures the value starts with <string>
+    preserve - To make templates work with both YAML and JSON, escape linefeeds
+               instead of allowing Jinja to render them.
 
 Example of map using source:
 

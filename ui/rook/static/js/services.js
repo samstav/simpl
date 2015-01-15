@@ -1908,7 +1908,7 @@ services.factory('urlBuilder', function(){
 
   scope.novaStatsURL = function(region, resource_id){
     if(region)
-      return 'https://reports.ohthree.com/' + region.toLowerCase() + '/instance/' + resource_id;
+      return 'https://alerts.ohthree.com/' + region.toUpperCase() + '/instance/' + resource_id;
   }
 
   scope.sshTo = function(address){
@@ -1929,7 +1929,7 @@ services.factory('urlBuilder', function(){
       case 'load-balancer':
         resource_type = 'load_balancer';
         break;
-      case 'databases':
+      case 'database':
         resource_type = 'database';
         break;
       default:

@@ -85,7 +85,8 @@ class TestCreateServer(unittest.TestCase):
                                                         meta="SERVER_TAG",
                                                         files=None,
                                                         userdata=None,
-                                                        config_drive=None)
+                                                        config_drive=None,
+                                                        nics=None)
 
     def test_create_server_overlimit_error(self):
         context = {
@@ -128,7 +129,8 @@ class TestCreateServer(unittest.TestCase):
                                                         meta="SERVER_TAG",
                                                         files=None,
                                                         userdata=None,
-                                                        config_drive=None)
+                                                        config_drive=None,
+                                                        nics=None)
 
     def test_create_server_connection_error(self):
         context = {
@@ -169,7 +171,8 @@ class TestCreateServer(unittest.TestCase):
                                                         meta="SERVER_TAG",
                                                         files=None,
                                                         userdata=None,
-                                                        config_drive=None)
+                                                        config_drive=None,
+                                                        nics=None)
 
 
 class TestWaitOnBuild(unittest.TestCase):
@@ -936,3 +939,7 @@ class TestOnFailure(unittest.TestCase):
             'status-message': 'Unexpected error action compute instance 1',
             'error-message': 'Something has gone wrong'
         }, resource_key=1)
+
+if __name__ == '__main__':
+    from checkmate import test
+    test.run_with_params()

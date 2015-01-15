@@ -199,10 +199,11 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.servers.create.assert_called_once_with(
             'fake_server', image, flavor, files=None, config_drive=None,
             userdata=None,
+            nics=None,
             meta={
                 'RAX-CHECKMATE':
                 'http://MOCK/TMOCK/deployments/DEP/resources/1'
-            }
+            },
         )
 
         postback.assert_called_once_with('DEP', expected)
@@ -1081,6 +1082,11 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                                     provider_key=provider.key) \
             .AndReturn(None)
 
+        self.deployment.get_setting('networks', resource_type='compute',
+                                    service_name='master',
+                                    provider_key=provider.key)  \
+            .AndReturn(None)
+
         expected = [{
             'instance': {},
             'dns-name': 'master.domain',
@@ -1154,6 +1160,11 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         self.deployment.get_setting('userdata', resource_type='compute',
                                     service_name='master',
                                     provider_key=provider.key) \
+            .AndReturn(None)
+
+        self.deployment.get_setting('networks', provider_key='rackspace.nova',
+                                    resource_type='compute',
+                                    service_name='master') \
             .AndReturn(None)
 
         copy.deepcopy(context).AndReturn(context2)
