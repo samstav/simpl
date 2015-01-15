@@ -32,6 +32,7 @@ Extended functions (added to normal Jinja functions):
     hash(string) - returns an MD5 hash as expected by chef for values like
         passwords
     source(string) - evaluates a source string
+    base64(string) - returns multiline base64 encoded string
 
 Example of map using source:
 
