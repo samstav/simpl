@@ -68,13 +68,13 @@ class TestCloudDatabases(unittest.TestCase):
             before_record_response=before_record_response_cb
         )
 
-    def test_successful_create_and_delete(self):
-        """The full lifecycle works: create, get, delete."""
+    def test_successful_instance_create_retrieve_delete(self):
+        """Successfully create/retrieve/delete a database instance."""
         with self.vcr.use_cassette('vcr-cdb-full.yaml'):
             create_response = dbaas.create_instance(self.region, self.tenant,
                                                     self.token,
                                                     u'test-delete-me', 101)
-            validated = dbaas.validate(create_response)
+            validated = dbaas.validate_instance(create_response)
             self.assertEqual(validated, create_response)
 
             status = create_response.get('status')
@@ -92,6 +92,33 @@ class TestCloudDatabases(unittest.TestCase):
                                                  self.tenant, self.token,
                                                  create_response.get('id'))
             self.assertEqual(u'202, Accepted', del_response)
+
+    def test_successful_configuration_create_retrieve_delete(self):
+        """Successfully create/retrieve/delete a database configuration."""
+        details = {
+            'datastore': {'type': 'mysql', 'version': '5.6'},
+            'description': 'Created by integration test. Please delete!',
+            'name': 'integration-test-please-delete',
+            'values': {'connect_timeout': 60, 'expire_logs_days': 90}
+        }
+        with self.vcr.use_cassette('vcr-cdb-db-config.yaml'):
+            create_response = dbaas.create_configuration(self.region,
+                                                         self.tenant,
+                                                         self.token,
+                                                         details)
+            validated = dbaas.validate_db_config(create_response)
+            self.assertEqual(validated, create_response)
+            config_id = create_response['configuration']['id']
+
+            get_response = dbaas.get_configuration(self.region, self.tenant,
+                                                   self.token, config_id)
+            self.assertEqual(create_response, get_response)
+
+            delete_response = dbaas.delete_configuration(self.region,
+                                                         self.tenant,
+                                                         self.token,
+                                                         config_id)
+            self.assertEqual(u'202, Accepted', delete_response)
 
     def test_bad_region(self):
         """Invalid region results in an HTTP error (vcrpy not needed)."""
