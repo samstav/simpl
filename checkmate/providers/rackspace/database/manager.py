@@ -124,11 +124,19 @@ class Manager(object):
 
         try:
             if simulate:
-                volume = utils.Simulation(size=1)
-                instance = utils.Simulation(
-                    id="DBS%s" % context.get('resource_key'),
-                    name=instance_name,
-                    hostname='db1.rax.net', volume=volume)
+                resource_key = context.get('resource_key')
+                if flavor >= 100:
+                    instance = utils.Simulation(
+                        id='REDIS%s' % resource_key,
+                        name=instance_name,
+                        password='TopSecret',
+                        hostname='redis%s.rax.net' % resource_key)
+                else:
+                    volume = utils.Simulation(size=1)
+                    instance = utils.Simulation(
+                        id="DBS%s" % resource_key,
+                        name=instance_name,
+                        hostname='db1.rax.net', volume=volume)
             elif flavor >= 100:
                 return dbaas.create_instance(region or context.region,
                                              context.tenant,
@@ -151,10 +159,6 @@ class Manager(object):
                  "Databases = %s", instance.name, instance.id, size,
                  flavor, databases)
 
-        if flavor >= 100:
-            interface = 'redis'
-        else:
-            interface = 'mysql'
         # Return instance and its interfaces
         results = {
             'id': instance.id,
@@ -162,26 +166,30 @@ class Manager(object):
             'status': 'BUILD',
             'region': context.get('region'),
             'flavor': flavor,
-            'disk': instance.volume.size,
-            'interfaces': {
-                interface: {
-                    'host': instance.hostname
-                }
-            }
+            'interfaces': {}
         }
-
-        # Return created databases and their interfaces
-        if databases:
-            db_results = results.setdefault('databases', {})
-            for database in databases:
-                data = copy.copy(database)
-                data['interfaces'] = {
-                    'mysql': {
-                        'host': instance.hostname,
-                        'database_name': database.get('name'),
+        if flavor >= 100:
+            results['interfaces']['redis'] = {
+                'host': instance.hostname,
+                'password': instance.password,
+            }
+        else:
+            results['interfaces']['mysql'] = {
+                'host': instance.hostname,
+            }
+            results['disk'] = instance.volume.size
+            # Return created databases and their interfaces
+            if databases:
+                db_results = results.setdefault('databases', {})
+                for database in databases:
+                    data = copy.copy(database)
+                    data['interfaces'] = {
+                        'mysql': {
+                            'host': instance.hostname,
+                            'database_name': database.get('name'),
+                        }
                     }
-                }
-                db_results[database['name']] = data
+                    db_results[database['name']] = data
 
         return results
 

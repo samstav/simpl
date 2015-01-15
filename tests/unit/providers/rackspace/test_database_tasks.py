@@ -129,7 +129,7 @@ class TestDatabaseTasks(unittest.TestCase):
                         'disk': 1,
                         'interfaces': {
                             'mysql': {
-                                'host': 'db1.rax.net'
+                                'host': 'db1.rax.net',
                             }
                         }
                     },
@@ -178,7 +178,7 @@ class TestDatabaseTasks(unittest.TestCase):
                         'disk': 1,
                         'interfaces': {
                             'mysql': {
-                                'host': 'test.hostname'
+                                'host': 'test.hostname',
                             }
                         }
                     },
@@ -253,7 +253,7 @@ class TestDatabaseTasks(unittest.TestCase):
                         'disk': 1,
                         'interfaces': {
                             'mysql': {
-                                'host': 'test.hostname'
+                                'host': 'test.hostname',
                             }
                         }
                     },
@@ -270,8 +270,7 @@ class TestDatabaseTasks(unittest.TestCase):
         api.create.assert_called_with('test_instance', volume=1, flavor=1,
                                       databases=databases)
         partial.assert_called_with({'id': 1234})
-        mock_postback.assert_called_with(
-            context['deployment_id'], expected)
+        mock_postback.assert_called_with(context['deployment_id'], expected)
         self.assertEqual(results, expected)
 
     @mock.patch.object(tasks.reset_failed_resource_task, 'delay')
