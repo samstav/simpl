@@ -41,7 +41,7 @@ REGIONS = ['DFW', 'HKG', 'IAD', 'LON', 'ORD', 'SYD']
 URL = 'https://%s.databases.api.rackspacecloud.com/v1.0/%s'  # region, t_id
 
 # TODO(pablo): statuses should become Checkmate's (not Cloud Databases')
-validate = Schema(
+validate_instance = Schema(
     {
         'id': basestring,
         'name': basestring,
@@ -60,15 +60,126 @@ validate = Schema(
     },
     required=True
 )
+validate_db_config = Schema(
+    {
+        'configuration': {
+            'created': basestring,
+            'datastore_name': basestring,
+            'datastore_version_id': basestring,
+            'datastore_version_name': basestring,
+            'description': basestring,
+            'id': basestring,
+            'instance_count': int,
+            'name': basestring,
+            'updated': basestring,
+            'values': dict
+        }
+    },
+    required=True
+)
+
+
+###
+# Configuration Stuffs
+###
+
+
+def create_configuration(region, t_id, token, details):
+    """Create a configuration to be used by database instances
+
+    `details` must be a dict containing the following:
+    {
+        'datastore': {
+            'type': '<one of mariadb, mysql, percona>',
+            'version': '<valid version for datastore type>'
+        },
+        'description': '<optional configuration description>',
+        'name': '<configuration name>',
+        'values': {
+            'some_valid_key': 'some_valid_value',
+            'another_valid_key': 'another_valid_value'
+        }
+    }
+    """
+    url = _build_url(region, t_id, '/configurations')
+    data = json.dumps({'configuration': details})
+    response = requests.post(url, headers=_build_headers(token), data=data)
+
+    if response.ok:
+        return response.json()
+
+    # TODO(pablo): this should raise an exception
+    return {'status_code': response.status_code, 'reason': response.reason}
+
+
+def delete_configuration(region, t_id, token, config_id):
+    """Delete the configuration instance referenced by config_id."""
+    url = _build_url(region, t_id, '/configurations/%s' % config_id)
+    response = requests.delete(url, headers=_build_headers(token))
+    return u'%d, %s' % (response.status_code, response.reason)
+
+
+def get_configuration(region, t_id, token, config_id):
+    """Return the database configuration document for config_id."""
+    url = _build_url(region, t_id, '/configurations/%s' % config_id)
+    return _handle_response(requests.get(url, headers=_build_headers(token)))
+
+
+def get_configurations(region, t_id, token):
+    """List all database configurations for the given region and tenant."""
+    url = _build_url(region, t_id, '/configurations')
+    return _handle_response(requests.get(url, headers=_build_headers(token)))
+
+
+###
+# Datastore Stuffs
+###
+
+
+def get_datastore(region, t_id, token, datastore_id):
+    """Return datastore details for the given datatstore_id."""
+    url = _build_url(region, t_id, '/datastores/%s' % datastore_id)
+    return _handle_response(requests.get(url, headers=_build_headers(token)))
+
+
+def get_datastores(region, t_id, token):
+    """List all available datastores/details for the given region and tenant
+
+    Returns a list containing details for each datastore type (e.g. MySQL,
+    Percona, MariaDB) and support details such as: versions supported,
+    datastore id's, links to retrieve details, etc.
+    """
+    url = _build_url(region, t_id, '/datastores')
+    return _handle_response(requests.get(url, headers=_build_headers(token)))
+
+
+def get_datastore_version(region, t_id, token, datastore_id, version_id):
+    """List datastore details for the given datastore_id/version_id."""
+    urn = '/datastores/%s/versions/%s' % (datastore_id, version_id)
+    url = _build_url(region, t_id, urn)
+    return _handle_response(requests.get(url, headers=_build_headers(token)))
+
+
+def get_datastore_versions(region, t_id, token, datastore_id):
+    """List all available versions for the given datastore_id."""
+    url = _build_url(region, t_id, '/datastores/%s/versions' % datastore_id)
+    return _handle_response(requests.get(url, headers=_build_headers(token)))
+
+
+###
+# Flavor Stuffs
+###
 
 
 def get_flavor(region, t_id, token, flavor_id):
+    """List database instance flavors available for the given region/tenant."""
     url = _build_url(region, t_id, '/flavors/%s' % flavor_id)
     response = requests.get(url, headers=_build_headers(token))
     return response.json()
 
 
 def get_flavor_ref(region, t_id, token, flavor_id):
+    """Return the reference link for the given flavor_id."""
     flavor_info = get_flavor(region, t_id, token, flavor_id)
     if 'links' in flavor_info.get('flavor', {}):
         for link in flavor_info['flavor']['links']:
@@ -77,24 +188,9 @@ def get_flavor_ref(region, t_id, token, flavor_id):
     return None
 
 
-def get_instance(region, t_id, token, instance_id):
-    url = _build_url(region, t_id, '/instances/%s' % instance_id)
-    response = requests.get(url, headers=_build_headers(token))
-
-    if response.ok:
-        return response.json()
-
-    return {'status_code': response.status_code, 'reason': response.reason}
-
-
-def get_instances(region, t_id, token):
-    url = _build_url(region, t_id, '/instances')
-    response = requests.get(url, headers=_build_headers(token))
-
-    if response.ok:
-        return response.json()
-
-    return {'status_code': response.status_code, 'reason': response.reason}
+###
+# Instance Stuffs
+###
 
 
 def create_instance(region, t_id, token, name, flavor):
@@ -131,18 +227,46 @@ def create_instance(region, t_id, token, name, flavor):
 
 
 def delete_instance(region, t_id, token, instance_id):
+    """Delete the database instance referenced by region/tenant/instance_id."""
     url = _build_url(region, t_id, '/instances/%s' % instance_id)
     response = requests.delete(url, headers=_build_headers(token))
     return u'%d, %s' % (response.status_code, response.reason)
 
 
+def get_instance(region, t_id, token, instance_id):
+    """Return database instance details for the given instance_id."""
+    url = _build_url(region, t_id, '/instances/%s' % instance_id)
+    return _handle_response(requests.get(url, headers=_build_headers(token)))
+
+
+def get_instances(region, t_id, token):
+    """List all database instances for the given region/tenant."""
+    url = _build_url(region, t_id, '/instances')
+    return _handle_response(requests.get(url, headers=_build_headers(token)))
+
+
+###
+# Helper Functions
+###
+
+
+def _build_headers(token):
+    """Helper function to build a dict of HTTP headers for a request."""
+    headers = HEADERS.copy()
+    headers['X-Auth-Token'] = token
+    return headers
+
+
 def _build_url(region, t_id, uri):
+    """Helper function to build the full URL for an HTTP request."""
     if not uri.startswith('/'):
         uri = '/' + uri
     return URL % (region.lower(), t_id) + uri
 
 
-def _build_headers(token):
-    headers = HEADERS.copy()
-    headers['X-Auth-Token'] = token
-    return headers
+def _handle_response(response):
+    """Helper function to return response content as json or error info."""
+    if response.ok:
+        return response.json()
+    # TODO(pablo): this should raise an exception
+    return {'status_code': response.status_code, 'reason': response.reason}
