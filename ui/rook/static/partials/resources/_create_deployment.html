@@ -14,7 +14,7 @@
     </thead>
     <tbody>
       <tr ng-repeat="decorated_resource in selected_resources">
-        <td><i ng-click="remove_from_deployment(decorated_resource)" class="icon-minus-sign-alt clickable"></i></td>
+        <td><i ng-click="remove_from_deployment(decorated_resource)" class="fa fa-minus clickable"></i></td>
         <td>{{decorated_resource.object['dns-name']}}</td>
         <td>{{decorated_resource.object['instance']['id']}}</td>
         <td>{{decorated_resource.object['region']}}</td>

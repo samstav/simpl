@@ -633,7 +633,12 @@ class Provider(cmbase.ProviderBase):
         db_hosts = []
         for region in pyrax.regions:
             api = Provider.connect(context, region=region)
-            db_hosts += api.list()
+            try:
+                db_hosts += api.list()
+            except AttributeError as exc:
+                # TODO (zns): fix upstream. Ignore pyrax error parsing redis.
+                if "object has no attribute 'volume'" not in str(exc):
+                    raise
         results = []
         for db_host in db_hosts:
             if int(db_host.flavor.id) >= 100:  # redis flavors
@@ -652,7 +657,6 @@ class Provider(cmbase.ProviderBase):
                             }
                         },
                         'flavor': db_host.flavor.id,
-                        'disk': db_host.volume.size,
                     },
                     'type': 'database'
                 }
