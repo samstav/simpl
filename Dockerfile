@@ -12,6 +12,8 @@ ADD docker/config/run.sh /app/run.sh
 
 RUN (mkdir /var/log/supervisor; \
      useradd -m -u 8888 checkmate; \
+     mkdir -p /var/local/checkmate; \
+     chown checkmate /var/log/checkmate;
      git config --global url."https://".insteadOf git://; \
      pip install -r /app/requirements.txt; \
      pip install -e /app/ui; \
