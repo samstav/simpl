@@ -239,7 +239,7 @@ class Provider(RackspaceComputeProviderBase):
                                           service_name=service,
                                           provider_key=self.key)
         if networks:
-            # requies novaclient extensions, e.g. rackspace-novaclient
+            # requires novaclient extensions, e.g. rackspace-novaclient
             # or os_virtual_interfacesv2_python_novaclient_ext
             # TODO(sam): do type/attribute-checking here?
             for nic in networks:
