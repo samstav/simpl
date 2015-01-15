@@ -48,13 +48,15 @@ Next, build the Checkmate docker container:
 `$ docker build -t checkmate .`
 
 Next, run two containers: one for the API and one for the worker. We will also
-pass in the environment file you set up in the previous step:
+pass in the environment file you set up in the previous step. Your bastion SSH
+key also needs to be mounted to the container:
 
 ```
 $ docker run -d --name checkmate-api \
 --env-file=.checkmate_env \
 --link checkredis:checkredis \
 --link checkmongo:checkmongo \
+-v /PATH/TO/MY/BASTION/SSHKEY:/root/.ssh/lnx-key.lnx:ro
 -p 8080:8080 \
 checkmate '/app/bin/checkmate-server START --with-ui --with-simulator 0.0.0.0:8080'
 ```
@@ -64,6 +66,7 @@ $ docker run -d --name checkmate-worker \
 --env-file=.checkmate_env \
 --link checkredis:checkredis \
 --link checkmongo:checkmongo \
+-v /PATH/TO/MY/BASTION/SSHKEY:/root/.ssh/lnx-key.lnx:ro
 checkmate '/app/bin/checkmate-queue START -P eventlet'
 ```
 
