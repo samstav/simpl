@@ -61,7 +61,7 @@ class TestCloudDatabases(unittest.TestCase):
 
     def setUp(self):
         self.vcr = vcr.VCR(
-            cassette_library_dir=os.path.dirname(__file__) + '/cassettes',
+            cassette_library_dir=os.path.dirname(__file__) + '/fixtures',
             record_mode=self.vcr_mode,
             filter_headers=['X-Auth-Token', 'User-Agent'],
             before_record=before_record_cb,
