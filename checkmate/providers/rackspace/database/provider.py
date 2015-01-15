@@ -179,7 +179,7 @@ class Provider(cmbase.ProviderBase):
     def verify_access(self, context):
         """Verify that the user has permissions to create database resources.
         """
-        roles = ['identity:user-admin', 'dbaas:admin', 'dbaas:creator']
+        roles = ['identity:user-admin', 'admin', 'dbaas:admin', 'dbaas:creator']
         if cmbase.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",

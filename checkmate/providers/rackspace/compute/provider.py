@@ -312,7 +312,11 @@ class Provider(RackspaceComputeProviderBase):
 
     def verify_access(self, context):
         """Verify that the user has permissions to create compute resources."""
-        roles = ['identity:user-admin', 'nova:admin', 'nova:creator']
+        roles = [
+            'identity:user-admin', 'admin',  # full access
+            'nova:admin', 'nova:creator',  # old roles
+            'compute:admin', 'compute:creator',  # new roles
+        ]
         if cmbase.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
