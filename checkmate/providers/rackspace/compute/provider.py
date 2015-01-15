@@ -58,6 +58,7 @@ IMAGE_MAP = {
     'spherical cow': 'Fedora 18',
     'schroedinger': 'Fedora 19',
     'opensuse': 'openSUSE',
+    'coreos': 'CoreOS (Stable)',
 }
 KNOWN_OSES = {
     'ubuntu': ['10.04', '10.12', '11.04', '11.10', '12.04', '12.10', '13.04',
@@ -229,9 +230,24 @@ class Provider(RackspaceComputeProviderBase):
         if not flavor:
             raise cmexc.CheckmateNoMapping(
                 "No flavor mapping for '%s' in '%s'" % (memory, self.key))
-        userdata = deployment.get_setting(
-            'userdata', resource_type=resource_type, service_name=service,
-            provider_key=self.key)
+        userdata = deployment.get_setting('userdata',
+                                          resource_type=resource_type,
+                                          service_name=service,
+                                          provider_key=self.key)
+        networks = deployment.get_setting('networks',
+                                          resource_type=resource_type,
+                                          service_name=service,
+                                          provider_key=self.key)
+        if networks:
+            # requies novaclient extensions, e.g. rackspace-novaclient
+            # or os_virtual_interfacesv2_python_novaclient_ext
+            # TODO(sam): do type/attribute-checking here?
+            for nic in networks:
+                if 'uuid' in nic:
+                    nic['net-id'] = nic.pop('uuid')
+                elif 'UUID' in nic:
+                    nic['net-id'] = nic.pop('UUID')
+
         for template in templates:
             template['desired-state']['flavor'] = flavor
             template['desired-state']['image'] = image
@@ -241,6 +257,8 @@ class Provider(RackspaceComputeProviderBase):
             if userdata:
                 template['desired-state']['userdata'] = userdata
                 template['desired-state']['config_drive'] = True
+            if networks:
+                template['desired-state']['networks'] = networks
         return templates
 
     def verify_limits(self, context, resources):
@@ -362,6 +380,7 @@ class Provider(RackspaceComputeProviderBase):
             files=files,
             userdata=userdata,
             config_drive=desired.get('config_drive'),
+            networks=desired.get('networks'),
             tags=self.generate_resource_tag(
                 context.base_url, context.tenant, deployment['id'],
                 resource['index']
