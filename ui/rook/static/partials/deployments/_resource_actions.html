@@ -25,10 +25,10 @@
     <li>
       <a target="_blank" ng-href="{{urlBuilder.get_url('my_cloud', resource[1] || resource[0], data.tenantId, auth.context.username)}}">My Cloud</a>
     </li>
-    <li>
+    <li ng-show="resource[1].provider === 'nova' || resource[0].provider === 'nova'">
       <a target="_blank" ng-href="{{urlBuilder.get_url('nova_stats', resource[1] || resource[0], data.tenantId, auth.context.username)}}">Nova Stats</a>
     </li>
-    <li>
+    <li ng-show="resource[0].provider === 'nova' || resource[0].provider === 'legacy' || resource[1].provider === 'nova' || resource[1].provider === 'legacy'">
       <a ng-href="{{urlBuilder.get_url('ssh', resource[1] || resource[0], data.tenantId, auth.context.username)}}">SSH</a>
     </li>
 
