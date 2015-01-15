@@ -15,6 +15,7 @@
 
 """Script file templating and management module."""
 
+import base64
 import json
 import logging
 
@@ -103,6 +104,7 @@ def parse(template, extra_globals=None, **kwargs):
                                         bytecode_cache=CompilerCache())
     env.filters['prepend'] = do_prepend
     env.filters['preserve'] = preserve_linefeeds
+    env.filters['base64'] = base64.encodestring
     env.json = json
     env.globals['parse_url'] = parse_url
     env.globals['patterns'] = functions.get_patterns()
