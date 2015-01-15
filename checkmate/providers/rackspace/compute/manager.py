@@ -35,7 +35,7 @@ class Manager(object):
     @staticmethod
     def create_server(context, name, update_state, api=None, flavor="2",
                       files=None, image=None, tags=None, config_drive=None,
-                      userdata=None):
+                      userdata=None, networks=None):
         #pylint: disable=R0914
         """Create a Rackspace Cloud server using novaclient.
 
@@ -107,7 +107,8 @@ class Manager(object):
             server = api.servers.create(name, image_object, flavor_object,
                                         meta=meta, files=files,
                                         config_drive=config_drive,
-                                        userdata=userdata)
+                                        userdata=userdata,
+                                        nics=networks)
         except ncexc.OverLimit as exc:
             raise cmexec.CheckmateException(
                 message=str(exc),

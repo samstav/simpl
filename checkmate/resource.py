@@ -123,5 +123,5 @@ class Resource(dict):
         __schema__ = [
             'region', 'flavor', 'image', 'disk', 'protocol',
             'port', 'status', 'databases', 'os-type', 'os', 'userdata',
-            'config_drive', 'dns-A-name'
+            'config_drive', 'dns-A-name', 'networks'
         ]

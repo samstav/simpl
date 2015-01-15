@@ -31,7 +31,7 @@ LOG = logging.getLogger(__name__)
 @statsd.collect
 def create_server(context, name, region=None, api=None, flavor="2",
                   files=None, image=None, tags=None, userdata=None,
-                  config_drive=None):
+                  config_drive=None, networks=None):
     # pylint: disable=W0613
     """Create a Rackspace Cloud server using novaclient.
 
@@ -75,7 +75,8 @@ def create_server(context, name, region=None, api=None, flavor="2",
                                          flavor=flavor, files=files,
                                          image=image, tags=tags,
                                          userdata=userdata,
-                                         config_drive=config_drive)
+                                         config_drive=config_drive,
+                                         networks=networks)
     return data
 
 
