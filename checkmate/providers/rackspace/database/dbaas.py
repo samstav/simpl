@@ -53,7 +53,8 @@ validate = Schema(
         'disk': None,
         'interfaces': {
             'redis': {
-                'host': basestring
+                'host': basestring,
+                'password': basestring,
             }
         }
     },
@@ -118,7 +119,8 @@ def create_instance(region, t_id, token, name, flavor):
                 'disk': None,
                 'interfaces': {
                     'redis': {
-                        'host': instance.get('hostname')
+                        'host': instance.get('hostname'),
+                        'password': instance.get('password'),
                     }
                 }
             }
