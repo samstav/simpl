@@ -18,10 +18,10 @@
     <tbody>
       <tr ng-repeat="decorated_lb in resources_by_provider['load-balancer'] | orderBy:'object.instance.id'">
         <td>{{decorated_lb.object['dns-name']}}</td>
-        <td>{{decorated_lb.object['instance']['id']}}</td>
-        <td>{{decorated_lb.object['region']}}</td>
-        <td>{{decorated_lb.object['status']}}</td>
-        <td><i ng-click="add_to_deployment(decorated_lb)" class="icon-plus-sign-alt clickable"></i></td>
+        <td>{{decorated_lb.object.instance.id}}</td>
+        <td>{{decorated_lb.object.instance.region}}</td>
+        <td>{{decorated_lb.object.status}}</td>
+        <td><i ng-click="add_to_deployment(decorated_lb)" class="fa fa-plus clickable"></i></td>
       </tr>
 
       <tr class='messages'>
