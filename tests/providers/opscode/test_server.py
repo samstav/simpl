@@ -501,7 +501,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                 id: bar
                 provides:
                 - database: mysql
-                maps: {}  # blank map should be ignored as well
+                maps: []  # blank map should be ignored as well
             """
 
     def test_workflow_task_generation(self):
