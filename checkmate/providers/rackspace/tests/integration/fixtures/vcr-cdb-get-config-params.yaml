@@ -1,0 +1,1017 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/datastores
+  response:
+    body: {string: !!python/unicode '{"datastores": [{"default_version": "4f5f2548-1102-4d22-9162-5c8a67949048",
+        "versions": [{"id": "4f5f2548-1102-4d22-9162-5c8a67949048", "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/versions/4f5f2548-1102-4d22-9162-5c8a67949048",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/versions/4f5f2548-1102-4d22-9162-5c8a67949048",
+        "rel": "bookmark"}], "name": "10"}], "id": "0627c7ba-6439-425c-aece-a83c160740df",
+        "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/0627c7ba-6439-425c-aece-a83c160740df",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/0627c7ba-6439-425c-aece-a83c160740df",
+        "rel": "bookmark"}], "name": "mariadb"}, {"default_version": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "versions": [{"id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/versions/14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/versions/14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "rel": "bookmark"}], "name": "5.6"}, {"id": "20000000-0000-0000-0000-000000000002",
+        "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/versions/20000000-0000-0000-0000-000000000002",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/versions/20000000-0000-0000-0000-000000000002",
+        "rel": "bookmark"}], "name": "5.1"}], "id": "10000000-0000-0000-0000-000000000001",
+        "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/10000000-0000-0000-0000-000000000001",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/10000000-0000-0000-0000-000000000001",
+        "rel": "bookmark"}], "name": "mysql"}, {"default_version": "038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "versions": [{"id": "038463a0-ee0d-48be-b01d-f11d5a18af0a", "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/versions/038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/versions/038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "rel": "bookmark"}], "name": "5.6"}], "id": "22436190-c72b-428a-86ce-87ecaa03b718",
+        "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/22436190-c72b-428a-86ce-87ecaa03b718",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/22436190-c72b-428a-86ce-87ecaa03b718",
+        "rel": "bookmark"}], "name": "percona"}]}'}
+    headers:
+      connection: [close]
+      content-length: ['2640']
+      content-type: [application/json]
+      date: ['Fri, 16 Jan 2015 02:23:29 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/datastores/versions/4f5f2548-1102-4d22-9162-5c8a67949048/parameters
+  response:
+    body: {string: !!python/unicode '{"configuration-parameters": [{"name": "auto_increment_increment",
+        "min": 1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "auto_increment_offset",
+        "min": 1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "bulk_insert_buffer_size",
+        "min": 0, "max": 18446744073709547520, "restart_required": false, "type":
+        "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"type": "string", "name": "character_set_filesystem", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048", "restart_required": false}, {"type":
+        "string", "name": "character_set_server", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048",
+        "restart_required": false}, {"type": "string", "name": "collation_server",
+        "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048", "restart_required":
+        false}, {"name": "completion_type", "min": 0, "max": 2, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "concurrent_insert", "min": 0, "max": 2, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "connect_timeout", "min": 2, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"type": "string", "name": "default-storage-engine", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048", "restart_required": false}, {"type":
+        "string", "name": "default_time_zone", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048",
+        "restart_required": true}, {"name": "default_week_format", "min": 0, "max":
+        7, "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "delayed_insert_limit", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "delayed_insert_timeout", "min": 1, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "delayed_queue_size", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "delay_key_write", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "div_precision_increment", "min": 0, "max": 30, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "event_scheduler", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "expire_logs_days", "min": 1, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "flush", "min": 0, "max": 1, "restart_required": false, "type": "integer",
+        "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name":
+        "flush_time", "min": 0, "max": 31536000, "restart_required": false, "type":
+        "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"type": "string", "name": "ft_boolean_syntax", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048",
+        "restart_required": false}, {"name": "ft_max_word_len", "min": 10, "max":
+        18446744073709547520, "restart_required": true, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "ft_min_word_len", "min":
+        1, "max": 18446744073709547520, "restart_required": true, "type": "integer",
+        "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name":
+        "ft_query_expansion_limit", "min": 0, "max": 1000, "restart_required": true,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "general_log", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "group_concat_max_len", "min": 4, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_adaptive_hash_index", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_autoinc_lock_mode", "min": 0, "max": 2, "restart_required":
+        true, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_buffer_pool_size", "min": 0, "max": 68719476736, "restart_required":
+        true, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_commit_concurrency", "min": 0, "max": 1000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_concurrency_tickets", "min": 1, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"type": "string", "name": "innodb_file_format", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048",
+        "restart_required": false}, {"name": "innodb_file_per_table", "min": 0, "max":
+        1, "restart_required": true, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_flush_log_at_trx_commit", "min": 0, "max": 2, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_locks_unsafe_for_binlog", "min": 0, "max": 1, "restart_required":
+        true, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_lock_wait_timeout", "min": 1, "max": 1073741824, "restart_required":
+        true, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_log_buffer_size", "min": 1048576, "max": 4294967296, "restart_required":
+        true, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_max_dirty_pages_pct", "min": 0, "max": 100, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_max_purge_lag", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_old_blocks_pct", "min": 5, "max": 95, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_old_blocks_time", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_open_files", "min": 10, "max": 4294967296, "restart_required":
+        true, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_rollback_on_timeout", "min": 0, "max": 1, "restart_required":
+        true, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"type": "string", "name": "innodb_stats_method", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048", "restart_required": false}, {"name":
+        "innodb_stats_on_metadata", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_stats_sample_pages", "min": 1, "max": 18446744073709551615,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_strict_mode", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_sync_spin_loops", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_thread_concurrency", "min": 0, "max": 1000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "innodb_thread_sleep_delay", "min": 1, "max": 18446744073709551615,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "interactive_timeout", "min": 1, "max": 65535, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "join_buffer_size", "min": 0, "max": 4294967296, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "key_buffer_size", "min": 0, "max": 4294967296, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "key_cache_age_threshold", "min": 100, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "key_cache_division_limit", "min": 1, "max": 100, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"type": "string", "name": "log_output", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048",
+        "restart_required": false}, {"name": "log_queries_not_using_indexes", "min":
+        0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "log_slow_admin_statements",
+        "min": 0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "log_slow_queries", "min":
+        0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "long_query_time", "min":
+        0, "max": 31536000, "restart_required": false, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "lower_case_table_names",
+        "min": 0, "max": 2, "restart_required": true, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "low_priority_updates",
+        "min": 0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "max_allowed_packet", "min":
+        1024, "max": 1073741824, "restart_required": false, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "max_connections", "min":
+        1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name": "max_connect_errors", "min":
+        1, "max": 18446744073709547520, "restart_required": false, "type": "integer",
+        "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"}, {"name":
+        "max_delayed_threads", "min": 0, "max": 16384, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "max_error_count", "min": 0, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "max_heap_table_size", "min": 16384, "max": 1844674407370954752,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "max_join_size", "min": 1, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "max_length_for_sort_data", "min": 4, "max": 8388608, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "max_prepared_stmt_count", "min": 0, "max": 1048576, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "max_seeks_for_key", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "max_sort_length", "min": 4, "max": 8388608, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "max_user_connections", "min": 1, "max": 100000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "max_write_lock_count", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "min_examined_rows_limit", "min": 0, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "myisam_max_sort_file_size", "min": 0, "max": 9223372036854775807,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "myisam_sort_buffer_size", "min": 4, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"type": "string", "name": "myisam_stats_method", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048", "restart_required": false}, {"name":
+        "net_read_timeout", "min": 1, "max": 31536000, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "net_retry_count", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "net_write_timeout", "min": 1, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "old_alter_table", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "old_passwords", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "old_style_user_limits", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "open-files-limit", "min": 0, "max": 65535, "restart_required": true,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "optimizer_prune_level", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "optimizer_search_depth", "min": 0, "max": 62, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "preload_buffer_size", "min": 1024, "max": 1073741824, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "query_cache_limit", "min": 0, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "query_cache_size", "min": 0, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "query_cache_type", "min": 0, "max": 2, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "query_cache_wlock_invalidate", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "query_prealloc_size", "min": 8192, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "range_alloc_block_size", "min": 4096, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "read_buffer_size", "min": 8200, "max": 2147479552, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "read_rnd_buffer_size", "min": 8200, "max": 2147483647, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "secure_auth", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "server_id", "min": 1, "max": 100000, "restart_required": true, "type":
+        "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "slow_launch_time", "min": 0, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "slow_query_log", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "sort_buffer_size", "min": 32768, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"type": "string", "name": "sql_mode", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048",
+        "restart_required": false}, {"name": "sync_binlog", "min": 0, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "sync_frm", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "table_definition_cache", "min": 256, "max": 524288, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "table_open_cache", "min": 1, "max": 524288, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "thread_cache_size", "min": 0, "max": 16384, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "thread_stack", "min": 131072, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "tmp_table_size", "min": 1024, "max": 18446744073709551615, "restart_required":
+        false, "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"type": "string", "name": "transaction-isolation", "datastore_version_id":
+        "4f5f2548-1102-4d22-9162-5c8a67949048", "restart_required": true}, {"name":
+        "updatable_views_with_limit", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"},
+        {"name": "wait_timeout", "min": 1, "max": 31536000, "restart_required": false,
+        "type": "integer", "datastore_version_id": "4f5f2548-1102-4d22-9162-5c8a67949048"}]}'}
+    headers:
+      connection: [close]
+      content-length: ['19136']
+      content-type: [application/json]
+      date: ['Fri, 16 Jan 2015 02:23:30 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/datastores/versions/14069833-2efd-4d3a-b7e7-d57b51fc7dc4/parameters
+  response:
+    body: {string: !!python/unicode '{"configuration-parameters": [{"name": "auto_increment_increment",
+        "min": 1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "auto_increment_offset",
+        "min": 1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "bulk_insert_buffer_size",
+        "min": 0, "max": 18446744073709547520, "restart_required": false, "type":
+        "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"type": "string", "name": "character_set_filesystem", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "restart_required": false}, {"type":
+        "string", "name": "character_set_server", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "restart_required": false}, {"type": "string", "name": "collation_server",
+        "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "restart_required":
+        false}, {"name": "completion_type", "min": 0, "max": 2, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "concurrent_insert", "min": 0, "max": 2, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "connect_timeout", "min": 2, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"type": "string", "name": "default-storage-engine", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "restart_required": false}, {"type":
+        "string", "name": "default_time_zone", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "restart_required": true}, {"name": "default_week_format", "min": 0, "max":
+        7, "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "delayed_insert_limit", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "delayed_insert_timeout", "min": 1, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "delayed_queue_size", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "delay_key_write", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "div_precision_increment", "min": 0, "max": 30, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "event_scheduler", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "expire_logs_days", "min": 1, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "flush", "min": 0, "max": 1, "restart_required": false, "type": "integer",
+        "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name":
+        "flush_time", "min": 0, "max": 31536000, "restart_required": false, "type":
+        "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"type": "string", "name": "ft_boolean_syntax", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "restart_required": false}, {"name": "ft_max_word_len", "min": 10, "max":
+        18446744073709547520, "restart_required": true, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "ft_min_word_len", "min":
+        1, "max": 18446744073709547520, "restart_required": true, "type": "integer",
+        "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name":
+        "ft_query_expansion_limit", "min": 0, "max": 1000, "restart_required": true,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "general_log", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "group_concat_max_len", "min": 4, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_adaptive_hash_index", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_autoinc_lock_mode", "min": 0, "max": 2, "restart_required":
+        true, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_buffer_pool_size", "min": 0, "max": 68719476736, "restart_required":
+        true, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_commit_concurrency", "min": 0, "max": 1000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_concurrency_tickets", "min": 1, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"type": "string", "name": "innodb_file_format", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "restart_required": false}, {"name": "innodb_file_per_table", "min": 0, "max":
+        1, "restart_required": true, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_flush_log_at_trx_commit", "min": 0, "max": 2, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_locks_unsafe_for_binlog", "min": 0, "max": 1, "restart_required":
+        true, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_lock_wait_timeout", "min": 1, "max": 1073741824, "restart_required":
+        true, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_log_buffer_size", "min": 1048576, "max": 4294967296, "restart_required":
+        true, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_max_dirty_pages_pct", "min": 0, "max": 100, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_max_purge_lag", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_old_blocks_pct", "min": 5, "max": 95, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_old_blocks_time", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_open_files", "min": 10, "max": 4294967296, "restart_required":
+        true, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_rollback_on_timeout", "min": 0, "max": 1, "restart_required":
+        true, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"type": "string", "name": "innodb_stats_method", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "restart_required": false}, {"name":
+        "innodb_stats_on_metadata", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_stats_sample_pages", "min": 1, "max": 18446744073709551615,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_strict_mode", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_sync_spin_loops", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_thread_concurrency", "min": 0, "max": 1000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "innodb_thread_sleep_delay", "min": 1, "max": 18446744073709551615,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "interactive_timeout", "min": 1, "max": 65535, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "join_buffer_size", "min": 0, "max": 4294967296, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "key_buffer_size", "min": 0, "max": 4294967296, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "key_cache_age_threshold", "min": 100, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "key_cache_division_limit", "min": 1, "max": 100, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"type": "string", "name": "log_output", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "restart_required": false}, {"name": "log_queries_not_using_indexes", "min":
+        0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "log_slow_admin_statements",
+        "min": 0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "log_slow_queries", "min":
+        0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "long_query_time", "min":
+        0, "max": 31536000, "restart_required": false, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "lower_case_table_names",
+        "min": 0, "max": 2, "restart_required": true, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "low_priority_updates",
+        "min": 0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "max_allowed_packet", "min":
+        1024, "max": 1073741824, "restart_required": false, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "max_connections", "min":
+        1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name": "max_connect_errors", "min":
+        1, "max": 18446744073709547520, "restart_required": false, "type": "integer",
+        "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}, {"name":
+        "max_delayed_threads", "min": 0, "max": 16384, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "max_error_count", "min": 0, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "max_heap_table_size", "min": 16384, "max": 1844674407370954752,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "max_join_size", "min": 1, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "max_length_for_sort_data", "min": 4, "max": 8388608, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "max_prepared_stmt_count", "min": 0, "max": 1048576, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "max_seeks_for_key", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "max_sort_length", "min": 4, "max": 8388608, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "max_user_connections", "min": 1, "max": 100000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "max_write_lock_count", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "min_examined_rows_limit", "min": 0, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "myisam_max_sort_file_size", "min": 0, "max": 9223372036854775807,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "myisam_sort_buffer_size", "min": 4, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"type": "string", "name": "myisam_stats_method", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "restart_required": false}, {"name":
+        "net_read_timeout", "min": 1, "max": 31536000, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "net_retry_count", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "net_write_timeout", "min": 1, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "old_alter_table", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "old_passwords", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "old_style_user_limits", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "open-files-limit", "min": 0, "max": 65535, "restart_required": true,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "optimizer_prune_level", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "optimizer_search_depth", "min": 0, "max": 62, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "preload_buffer_size", "min": 1024, "max": 1073741824, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "query_cache_limit", "min": 0, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "query_cache_size", "min": 0, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "query_cache_type", "min": 0, "max": 2, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "query_cache_wlock_invalidate", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "query_prealloc_size", "min": 8192, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "range_alloc_block_size", "min": 4096, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "read_buffer_size", "min": 8200, "max": 2147479552, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "read_rnd_buffer_size", "min": 8200, "max": 2147483647, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "secure_auth", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "server_id", "min": 1, "max": 100000, "restart_required": true, "type":
+        "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "slow_launch_time", "min": 0, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "slow_query_log", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "sort_buffer_size", "min": 32768, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"type": "string", "name": "sql_mode", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "restart_required": false}, {"name": "sync_binlog", "min": 0, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "sync_frm", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "table_definition_cache", "min": 256, "max": 524288, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "table_open_cache", "min": 1, "max": 524288, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "thread_cache_size", "min": 0, "max": 16384, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "thread_stack", "min": 131072, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "tmp_table_size", "min": 1024, "max": 18446744073709551615, "restart_required":
+        false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"type": "string", "name": "transaction-isolation", "datastore_version_id":
+        "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "restart_required": true}, {"name":
+        "updatable_views_with_limit", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
+        {"name": "wait_timeout", "min": 1, "max": 31536000, "restart_required": false,
+        "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}]}'}
+    headers:
+      connection: [close]
+      content-length: ['19136']
+      content-type: [application/json]
+      date: ['Fri, 16 Jan 2015 02:23:30 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/datastores/versions/20000000-0000-0000-0000-000000000002/parameters
+  response:
+    body: {string: !!python/unicode '{"configuration-parameters": [{"name": "auto_increment_increment",
+        "min": 1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "auto_increment_offset",
+        "min": 1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "bulk_insert_buffer_size",
+        "min": 0, "max": 18446744073709547520, "restart_required": false, "type":
+        "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"type": "string", "name": "character_set_filesystem", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002", "restart_required": false}, {"type":
+        "string", "name": "character_set_server", "datastore_version_id": "20000000-0000-0000-0000-000000000002",
+        "restart_required": false}, {"type": "string", "name": "collation_server",
+        "datastore_version_id": "20000000-0000-0000-0000-000000000002", "restart_required":
+        false}, {"name": "completion_type", "min": 0, "max": 2, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "concurrent_insert", "min": 0, "max": 2, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "connect_timeout", "min": 2, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"type": "string", "name": "default-storage-engine", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002", "restart_required": false}, {"type":
+        "string", "name": "default_time_zone", "datastore_version_id": "20000000-0000-0000-0000-000000000002",
+        "restart_required": true}, {"name": "default_week_format", "min": 0, "max":
+        7, "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "delayed_insert_limit", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "delayed_insert_timeout", "min": 1, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "delayed_queue_size", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "delay_key_write", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "div_precision_increment", "min": 0, "max": 30, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "event_scheduler", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "expire_logs_days", "min": 1, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "flush", "min": 0, "max": 1, "restart_required": false, "type": "integer",
+        "datastore_version_id": "20000000-0000-0000-0000-000000000002"}, {"name":
+        "flush_time", "min": 0, "max": 31536000, "restart_required": false, "type":
+        "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"type": "string", "name": "ft_boolean_syntax", "datastore_version_id": "20000000-0000-0000-0000-000000000002",
+        "restart_required": false}, {"name": "ft_max_word_len", "min": 10, "max":
+        18446744073709547520, "restart_required": true, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "ft_min_word_len", "min":
+        1, "max": 18446744073709547520, "restart_required": true, "type": "integer",
+        "datastore_version_id": "20000000-0000-0000-0000-000000000002"}, {"name":
+        "ft_query_expansion_limit", "min": 0, "max": 1000, "restart_required": true,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "general_log", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "group_concat_max_len", "min": 4, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_adaptive_hash_index", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_autoinc_lock_mode", "min": 0, "max": 2, "restart_required":
+        true, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_buffer_pool_size", "min": 0, "max": 68719476736, "restart_required":
+        true, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_commit_concurrency", "min": 0, "max": 1000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_concurrency_tickets", "min": 1, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"type": "string", "name": "innodb_file_format", "datastore_version_id": "20000000-0000-0000-0000-000000000002",
+        "restart_required": false}, {"name": "innodb_file_per_table", "min": 0, "max":
+        1, "restart_required": true, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_flush_log_at_trx_commit", "min": 0, "max": 2, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_locks_unsafe_for_binlog", "min": 0, "max": 1, "restart_required":
+        true, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_lock_wait_timeout", "min": 1, "max": 1073741824, "restart_required":
+        true, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_log_buffer_size", "min": 1048576, "max": 4294967296, "restart_required":
+        true, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_max_dirty_pages_pct", "min": 0, "max": 100, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_max_purge_lag", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_old_blocks_pct", "min": 5, "max": 95, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_old_blocks_time", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_open_files", "min": 10, "max": 4294967296, "restart_required":
+        true, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_rollback_on_timeout", "min": 0, "max": 1, "restart_required":
+        true, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"type": "string", "name": "innodb_stats_method", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002", "restart_required": false}, {"name":
+        "innodb_stats_on_metadata", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_stats_sample_pages", "min": 1, "max": 18446744073709551615,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_strict_mode", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_sync_spin_loops", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_thread_concurrency", "min": 0, "max": 1000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "innodb_thread_sleep_delay", "min": 1, "max": 18446744073709551615,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "interactive_timeout", "min": 1, "max": 65535, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "join_buffer_size", "min": 0, "max": 4294967296, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "key_buffer_size", "min": 0, "max": 4294967296, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "key_cache_age_threshold", "min": 100, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "key_cache_division_limit", "min": 1, "max": 100, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"type": "string", "name": "log_output", "datastore_version_id": "20000000-0000-0000-0000-000000000002",
+        "restart_required": false}, {"name": "log_queries_not_using_indexes", "min":
+        0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "log_slow_admin_statements",
+        "min": 0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "log_slow_queries", "min":
+        0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "long_query_time", "min":
+        0, "max": 31536000, "restart_required": false, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "lower_case_table_names",
+        "min": 0, "max": 2, "restart_required": true, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "low_priority_updates",
+        "min": 0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "max_allowed_packet", "min":
+        1024, "max": 1073741824, "restart_required": false, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "max_connections", "min":
+        1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002"}, {"name": "max_connect_errors", "min":
+        1, "max": 18446744073709547520, "restart_required": false, "type": "integer",
+        "datastore_version_id": "20000000-0000-0000-0000-000000000002"}, {"name":
+        "max_delayed_threads", "min": 0, "max": 16384, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "max_error_count", "min": 0, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "max_heap_table_size", "min": 16384, "max": 1844674407370954752,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "max_join_size", "min": 1, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "max_length_for_sort_data", "min": 4, "max": 8388608, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "max_prepared_stmt_count", "min": 0, "max": 1048576, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "max_seeks_for_key", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "max_sort_length", "min": 4, "max": 8388608, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "max_user_connections", "min": 1, "max": 100000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "max_write_lock_count", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "min_examined_rows_limit", "min": 0, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "myisam_max_sort_file_size", "min": 0, "max": 9223372036854775807,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "myisam_sort_buffer_size", "min": 4, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"type": "string", "name": "myisam_stats_method", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002", "restart_required": false}, {"name":
+        "net_read_timeout", "min": 1, "max": 31536000, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "net_retry_count", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "net_write_timeout", "min": 1, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "old_alter_table", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "old_passwords", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "old_style_user_limits", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "open-files-limit", "min": 0, "max": 65535, "restart_required": true,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "optimizer_prune_level", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "optimizer_search_depth", "min": 0, "max": 62, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "preload_buffer_size", "min": 1024, "max": 1073741824, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "query_cache_limit", "min": 0, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "query_cache_size", "min": 0, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "query_cache_type", "min": 0, "max": 2, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "query_cache_wlock_invalidate", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "query_prealloc_size", "min": 8192, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "range_alloc_block_size", "min": 4096, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "read_buffer_size", "min": 8200, "max": 2147479552, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "read_rnd_buffer_size", "min": 8200, "max": 2147483647, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "secure_auth", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "server_id", "min": 1, "max": 100000, "restart_required": true, "type":
+        "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "slow_launch_time", "min": 0, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "slow_query_log", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "sort_buffer_size", "min": 32768, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"type": "string", "name": "sql_mode", "datastore_version_id": "20000000-0000-0000-0000-000000000002",
+        "restart_required": false}, {"name": "sync_binlog", "min": 0, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "sync_frm", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "table_definition_cache", "min": 256, "max": 524288, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "table_open_cache", "min": 1, "max": 524288, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "thread_cache_size", "min": 0, "max": 16384, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "thread_stack", "min": 131072, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "tmp_table_size", "min": 1024, "max": 18446744073709551615, "restart_required":
+        false, "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"type": "string", "name": "transaction-isolation", "datastore_version_id":
+        "20000000-0000-0000-0000-000000000002", "restart_required": true}, {"name":
+        "updatable_views_with_limit", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"},
+        {"name": "wait_timeout", "min": 1, "max": 31536000, "restart_required": false,
+        "type": "integer", "datastore_version_id": "20000000-0000-0000-0000-000000000002"}]}'}
+    headers:
+      connection: [close]
+      content-length: ['19136']
+      content-type: [application/json]
+      date: ['Fri, 16 Jan 2015 02:23:31 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/datastores/versions/038463a0-ee0d-48be-b01d-f11d5a18af0a/parameters
+  response:
+    body: {string: !!python/unicode '{"configuration-parameters": [{"name": "auto_increment_increment",
+        "min": 1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "auto_increment_offset",
+        "min": 1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "bulk_insert_buffer_size",
+        "min": 0, "max": 18446744073709547520, "restart_required": false, "type":
+        "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"type": "string", "name": "character_set_filesystem", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a", "restart_required": false}, {"type":
+        "string", "name": "character_set_server", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "restart_required": false}, {"type": "string", "name": "collation_server",
+        "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a", "restart_required":
+        false}, {"name": "completion_type", "min": 0, "max": 2, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "concurrent_insert", "min": 0, "max": 2, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "connect_timeout", "min": 2, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"type": "string", "name": "default-storage-engine", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a", "restart_required": false}, {"type":
+        "string", "name": "default_time_zone", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "restart_required": true}, {"name": "default_week_format", "min": 0, "max":
+        7, "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "delayed_insert_limit", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "delayed_insert_timeout", "min": 1, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "delayed_queue_size", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "delay_key_write", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "div_precision_increment", "min": 0, "max": 30, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "event_scheduler", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "expire_logs_days", "min": 1, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "flush", "min": 0, "max": 1, "restart_required": false, "type": "integer",
+        "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name":
+        "flush_time", "min": 0, "max": 31536000, "restart_required": false, "type":
+        "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"type": "string", "name": "ft_boolean_syntax", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "restart_required": false}, {"name": "ft_max_word_len", "min": 10, "max":
+        18446744073709547520, "restart_required": true, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "ft_min_word_len", "min":
+        1, "max": 18446744073709547520, "restart_required": true, "type": "integer",
+        "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name":
+        "ft_query_expansion_limit", "min": 0, "max": 1000, "restart_required": true,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "general_log", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "group_concat_max_len", "min": 4, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_adaptive_hash_index", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_autoinc_lock_mode", "min": 0, "max": 2, "restart_required":
+        true, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_buffer_pool_size", "min": 0, "max": 68719476736, "restart_required":
+        true, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_commit_concurrency", "min": 0, "max": 1000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_concurrency_tickets", "min": 1, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"type": "string", "name": "innodb_file_format", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "restart_required": false}, {"name": "innodb_file_per_table", "min": 0, "max":
+        1, "restart_required": true, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_flush_log_at_trx_commit", "min": 0, "max": 2, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_locks_unsafe_for_binlog", "min": 0, "max": 1, "restart_required":
+        true, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_lock_wait_timeout", "min": 1, "max": 1073741824, "restart_required":
+        true, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_log_buffer_size", "min": 1048576, "max": 4294967296, "restart_required":
+        true, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_max_dirty_pages_pct", "min": 0, "max": 100, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_max_purge_lag", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_old_blocks_pct", "min": 5, "max": 95, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_old_blocks_time", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_open_files", "min": 10, "max": 4294967296, "restart_required":
+        true, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_rollback_on_timeout", "min": 0, "max": 1, "restart_required":
+        true, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"type": "string", "name": "innodb_stats_method", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a", "restart_required": false}, {"name":
+        "innodb_stats_on_metadata", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_stats_sample_pages", "min": 1, "max": 18446744073709551615,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_strict_mode", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_sync_spin_loops", "min": 0, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_thread_concurrency", "min": 0, "max": 1000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "innodb_thread_sleep_delay", "min": 1, "max": 18446744073709551615,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "interactive_timeout", "min": 1, "max": 65535, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "join_buffer_size", "min": 0, "max": 4294967296, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "key_buffer_size", "min": 0, "max": 4294967296, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "key_cache_age_threshold", "min": 100, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "key_cache_division_limit", "min": 1, "max": 100, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"type": "string", "name": "log_output", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "restart_required": false}, {"name": "log_queries_not_using_indexes", "min":
+        0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "log_slow_admin_statements",
+        "min": 0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "log_slow_queries", "min":
+        0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "long_query_time", "min":
+        0, "max": 31536000, "restart_required": false, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "lower_case_table_names",
+        "min": 0, "max": 2, "restart_required": true, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "low_priority_updates",
+        "min": 0, "max": 1, "restart_required": false, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "max_allowed_packet", "min":
+        1024, "max": 1073741824, "restart_required": false, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "max_connections", "min":
+        1, "max": 65535, "restart_required": false, "type": "integer", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name": "max_connect_errors", "min":
+        1, "max": 18446744073709547520, "restart_required": false, "type": "integer",
+        "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"}, {"name":
+        "max_delayed_threads", "min": 0, "max": 16384, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "max_error_count", "min": 0, "max": 65535, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "max_heap_table_size", "min": 16384, "max": 1844674407370954752,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "max_join_size", "min": 1, "max": 4294967295, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "max_length_for_sort_data", "min": 4, "max": 8388608, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "max_prepared_stmt_count", "min": 0, "max": 1048576, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "max_seeks_for_key", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "max_sort_length", "min": 4, "max": 8388608, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "max_user_connections", "min": 1, "max": 100000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "max_write_lock_count", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "min_examined_rows_limit", "min": 0, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "myisam_max_sort_file_size", "min": 0, "max": 9223372036854775807,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "myisam_sort_buffer_size", "min": 4, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"type": "string", "name": "myisam_stats_method", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a", "restart_required": false}, {"name":
+        "net_read_timeout", "min": 1, "max": 31536000, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "net_retry_count", "min": 1, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "net_write_timeout", "min": 1, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "old_alter_table", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "old_passwords", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "old_style_user_limits", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "open-files-limit", "min": 0, "max": 65535, "restart_required": true,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "optimizer_prune_level", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "optimizer_search_depth", "min": 0, "max": 62, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "preload_buffer_size", "min": 1024, "max": 1073741824, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "query_cache_limit", "min": 0, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "query_cache_size", "min": 0, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "query_cache_type", "min": 0, "max": 2, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "query_cache_wlock_invalidate", "min": 0, "max": 1, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "query_prealloc_size", "min": 8192, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "range_alloc_block_size", "min": 4096, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "read_buffer_size", "min": 8200, "max": 2147479552, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "read_rnd_buffer_size", "min": 8200, "max": 2147483647, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "secure_auth", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "server_id", "min": 1, "max": 100000, "restart_required": true, "type":
+        "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "slow_launch_time", "min": 0, "max": 31536000, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "slow_query_log", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "sort_buffer_size", "min": 32768, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"type": "string", "name": "sql_mode", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "restart_required": false}, {"name": "sync_binlog", "min": 0, "max": 18446744073709547520,
+        "restart_required": false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "sync_frm", "min": 0, "max": 1, "restart_required": false, "type":
+        "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "table_definition_cache", "min": 256, "max": 524288, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "table_open_cache", "min": 1, "max": 524288, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "thread_cache_size", "min": 0, "max": 16384, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "thread_stack", "min": 131072, "max": 18446744073709547520, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "tmp_table_size", "min": 1024, "max": 18446744073709551615, "restart_required":
+        false, "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"type": "string", "name": "transaction-isolation", "datastore_version_id":
+        "038463a0-ee0d-48be-b01d-f11d5a18af0a", "restart_required": true}, {"name":
+        "updatable_views_with_limit", "min": 0, "max": 1, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"},
+        {"name": "wait_timeout", "min": 1, "max": 31536000, "restart_required": false,
+        "type": "integer", "datastore_version_id": "038463a0-ee0d-48be-b01d-f11d5a18af0a"}]}'}
+    headers:
+      connection: [close]
+      content-length: ['19136']
+      content-type: [application/json]
+      date: ['Fri, 16 Jan 2015 02:23:31 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+version: 1

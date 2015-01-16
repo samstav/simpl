@@ -13,17 +13,18 @@
 #    under the License.
 
 # encoding: utf-8
+# pylint: disable=C0103
 
 """Provider module for interfacing with Redis via Cloud Databases."""
 
 import json
 import logging
+import time
 
 import requests
 from voluptuous import (
     All,
     Any,
-    Required,
     Schema
 )
 DATA = {
@@ -40,6 +41,8 @@ LOG = logging.getLogger(__name__)
 REGIONS = ['DFW', 'HKG', 'IAD', 'LON', 'ORD', 'SYD']
 URL = 'https://%s.databases.api.rackspacecloud.com/v1.0/%s'  # region, t_id
 
+_config_params_cache = {}
+_version_id_cache = {'expires': None}
 # TODO(pablo): statuses should become Checkmate's (not Cloud Databases')
 validate_instance = Schema(
     {
@@ -131,15 +134,23 @@ def get_configurations(region, t_id, token):
     return _handle_response(requests.get(url, headers=_build_headers(token)))
 
 
+def get_config_params(region, t_id, token, db_name, db_version):
+    """Return the list of config params available for the given db/version
+
+    Refresh _config_params_cache if needed (may also trigger a
+    _version_id_cache refresh)
+
+    Return list of configuration parameters
+    """
+    key = _build_datastore_key(region, db_name, db_version)
+    if _config_params_refresh_needed(region, db_name, db_version):
+        _refresh_config_params_cache(region, t_id, token, db_name, db_version)
+    return _config_params_cache.get(key)
+
+
 ###
 # Datastore Stuffs
 ###
-
-
-def get_datastore(region, t_id, token, datastore_id):
-    """Return datastore details for the given datatstore_id."""
-    url = _build_url(region, t_id, '/datastores/%s' % datastore_id)
-    return _handle_response(requests.get(url, headers=_build_headers(token)))
 
 
 def get_datastores(region, t_id, token):
@@ -153,17 +164,13 @@ def get_datastores(region, t_id, token):
     return _handle_response(requests.get(url, headers=_build_headers(token)))
 
 
-def get_datastore_version(region, t_id, token, datastore_id, version_id):
-    """List datastore details for the given datastore_id/version_id."""
-    urn = '/datastores/%s/versions/%s' % (datastore_id, version_id)
-    url = _build_url(region, t_id, urn)
-    return _handle_response(requests.get(url, headers=_build_headers(token)))
+def get_datastore_version_id(region, t_id, token, db_name, db_version):
+    """Return the version id for the given database name/version."""
+    key = _build_datastore_key(region, db_name, db_version)
+    if _version_id_refresh_needed(key):
+        _refresh_version_id_cache(region, t_id, token)
 
-
-def get_datastore_versions(region, t_id, token, datastore_id):
-    """List all available versions for the given datastore_id."""
-    url = _build_url(region, t_id, '/datastores/%s/versions' % datastore_id)
-    return _handle_response(requests.get(url, headers=_build_headers(token)))
+    return _version_id_cache.get(key)
 
 
 ###
@@ -250,6 +257,11 @@ def get_instances(region, t_id, token):
 ###
 
 
+def _build_datastore_key(region, db_name, db_version):
+    """Ensure all datastore cache keys are consistent."""
+    return '%s:%s:%s' % (region, db_name, db_version)
+
+
 def _build_headers(token):
     """Helper function to build a dict of HTTP headers for a request."""
     headers = HEADERS.copy()
@@ -264,9 +276,61 @@ def _build_url(region, t_id, uri):
     return URL % (region.lower(), t_id) + uri
 
 
+def _expired(expiry):
+    """True if current time exceeds expiry time."""
+    return expiry < time.time()
+
+
+def _refresh_config_params_cache(region, t_id, token, db_name, db_version):
+    """Lookup version_id, then pull a fresh list of configuration params."""
+    version_id = get_datastore_version_id(region, t_id, token, db_name,
+                                          db_version)
+    key = _build_datastore_key(region, db_name, db_version)
+    urn = '/datastores/versions/%s/parameters' % version_id
+    url = _build_url(region, t_id, urn)
+    response = requests.get(url, headers=_build_headers(token))
+
+    result = {}
+    if response.ok:
+        result = response.json()
+        for param in result['configuration-parameters']:
+            param.pop('datastore_version_id')
+        result['version_id'] = version_id
+        result['expires'] = time.time() + 60 * 60 * 24  # 24 hours
+        _config_params_cache[key] = result
+    else:  # refresh failed: if it's cached, remove it
+        _config_params_cache.pop(key, None)
+
+
 def _handle_response(response):
     """Helper function to return response content as json or error info."""
     if response.ok:
         return response.json()
     # TODO(pablo): this should raise an exception
     return {'status_code': response.status_code, 'reason': response.reason}
+
+
+def _refresh_version_id_cache(region, t_id, token):
+    """Pull all version ID's from a fresh list of datastores."""
+    datastores = get_datastores(region, t_id, token).get('datastores')
+    _version_id_cache.clear()
+    for datastore in datastores:
+        for version in datastore['versions']:
+            if 'name' in datastore and 'name' in version:
+                key = _build_datastore_key(region, datastore['name'],
+                                           version['name'])
+                _version_id_cache[key] = version['id']
+    _version_id_cache['expires'] = time.time() + 60 * 60 * 48  # 48 hours
+
+
+def _config_params_refresh_needed(region, db_name, db_version):
+    """True if either region:db_name:db_version not found or cache expired."""
+    key = _build_datastore_key(region, db_name, db_version)
+    return (key not in _config_params_cache or
+            _expired(_config_params_cache[key]['expires']))
+
+
+def _version_id_refresh_needed(key):
+    """True if either key not found or key expired."""
+    return (key not in _version_id_cache or
+            _expired(_version_id_cache['expires']))

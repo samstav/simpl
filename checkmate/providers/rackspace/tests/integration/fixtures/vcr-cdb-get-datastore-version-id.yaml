@@ -1,0 +1,45 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/datastores
+  response:
+    body: {string: !!python/unicode '{"datastores": [{"default_version": "4f5f2548-1102-4d22-9162-5c8a67949048",
+        "versions": [{"id": "4f5f2548-1102-4d22-9162-5c8a67949048", "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/versions/4f5f2548-1102-4d22-9162-5c8a67949048",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/versions/4f5f2548-1102-4d22-9162-5c8a67949048",
+        "rel": "bookmark"}], "name": "10"}], "id": "0627c7ba-6439-425c-aece-a83c160740df",
+        "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/0627c7ba-6439-425c-aece-a83c160740df",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/0627c7ba-6439-425c-aece-a83c160740df",
+        "rel": "bookmark"}], "name": "mariadb"}, {"default_version": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "versions": [{"id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/versions/14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/versions/14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+        "rel": "bookmark"}], "name": "5.6"}, {"id": "20000000-0000-0000-0000-000000000002",
+        "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/versions/20000000-0000-0000-0000-000000000002",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/versions/20000000-0000-0000-0000-000000000002",
+        "rel": "bookmark"}], "name": "5.1"}], "id": "10000000-0000-0000-0000-000000000001",
+        "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/10000000-0000-0000-0000-000000000001",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/10000000-0000-0000-0000-000000000001",
+        "rel": "bookmark"}], "name": "mysql"}, {"default_version": "038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "versions": [{"id": "038463a0-ee0d-48be-b01d-f11d5a18af0a", "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/versions/038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/versions/038463a0-ee0d-48be-b01d-f11d5a18af0a",
+        "rel": "bookmark"}], "name": "5.6"}], "id": "22436190-c72b-428a-86ce-87ecaa03b718",
+        "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/datastores/22436190-c72b-428a-86ce-87ecaa03b718",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/datastores/22436190-c72b-428a-86ce-87ecaa03b718",
+        "rel": "bookmark"}], "name": "percona"}]}'}
+    headers:
+      connection: [close]
+      content-length: ['2640']
+      content-type: [application/json]
+      date: ['Mon, 19 Jan 2015 19:43:44 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+version: 1

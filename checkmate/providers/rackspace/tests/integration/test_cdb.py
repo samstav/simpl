@@ -1,5 +1,3 @@
-# pylint: disable=C0103,R0201,R0904,W0212,W0613
-
 # Copyright (c) 2011-2013 Rackspace Hosting
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -13,6 +11,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
+# pylint: disable=C0103
 
 """Unit Tests for Cloud Database Redis instance management."""
 
@@ -35,6 +35,7 @@ SCRUB_HOST_SUB = '"hostname": "redacted"'
 
 
 def before_record_cb(request):
+    """Callback function to scrub request data before saving."""
     request.uri = re.sub(SCRUB_URI_RE, SCRUB_URI_SUB, request.uri)
     if request.body:
         request.body = re.sub(SCRUB_URI_RE, SCRUB_URI_SUB, request.body)
@@ -42,6 +43,7 @@ def before_record_cb(request):
 
 
 def before_record_response_cb(response):
+    """Callback function to scrub response data before saving."""
     body = response.get('body').get('string')
     if body:
         body = re.sub(SCRUB_URI_RE, SCRUB_URI_SUB, body)
@@ -120,9 +122,28 @@ class TestCloudDatabases(unittest.TestCase):
                                                          config_id)
             self.assertEqual(u'202, Accepted', delete_response)
 
+    def test_get_config_params(self):
+        """Retrieve config params for MySQL version 5.6."""
+        with self.vcr.use_cassette('vcr-cdb-get-config-params.yaml'):
+            get_response = dbaas.get_config_params(self.region, self.tenant,
+                                                   self.token, 'mysql', '5.6')
+            expected_keys = ['configuration-parameters', 'expires',
+                             'version_id']
+            self.assertEqual(expected_keys, get_response.keys())
+
+    def test_get_datastore_version_id(self):
+        """Retrieve datastore version id for MySQL version 5.6."""
+        with self.vcr.use_cassette('vcr-cdb-get-datastore-version-id.yaml'):
+            get_response = dbaas.get_datastore_version_id(self.region,
+                                                          self.tenant,
+                                                          self.token,
+                                                          'mysql', '5.6')
+            expected_id = '14069833-2efd-4d3a-b7e7-d57b51fc7dc4'
+            self.assertEqual(expected_id, get_response)
+
     def test_bad_region(self):
         """Invalid region results in an HTTP error (vcrpy not needed)."""
-        with self.assertRaises(requests.ConnectionError) as expected:
+        with self.assertRaises(requests.ConnectionError):
             dbaas.get_instances(u'YYZ', self.tenant, self.token)
 
     def test_bad_tenant(self):
