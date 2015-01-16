@@ -1,0 +1,14 @@
+# RAX debian mirrors please
+
+deb http://mirror.rackspace.com/debian wheezy main
+deb-src http://mirror.rackspace.com/debian wheezy main
+
+deb http://mirror.rackspace.com/debian/ wheezy-backports main
+deb-src http://mirror.rackspace.com/debian/ wheezy-backports main
+
+deb http://mirror.rackspace.com/debian-security/ wheezy/updates main
+deb-src http://mirror.rackspace.com/debian-security/ wheezy/updates main
+
+# wheezy-updates, previously known as 'volatile'
+deb http://mirror.rackspace.com/debian wheezy-updates main
+deb-src http://mirror.rackspace.com/debian wheezy-updates main
