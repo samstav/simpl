@@ -1,6 +1,7 @@
 FROM debian:wheezy
 
 # Base packages and Python install
+ADD docker/config/sources.list /etc/apt/
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y procps autoconf build-essential python python-dev python-pip git libssl-dev
 RUN pip install -U pip
 RUN pip install supervisor
