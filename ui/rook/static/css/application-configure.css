@@ -213,6 +213,9 @@
   bottom: 55px;
   background-color: rgba(255,255,255,1);
 }
+.editor-error .blueprint-topology {
+  z-index: 0;
+}
 
 /* Controls */
 .rs-app-launch-controls {
@@ -246,7 +249,7 @@
   cursor: pointer;
 }
 
-/* App Warning */
+/* UI Block */
 .ui-block {
   position: absolute;
   top: 0;
@@ -261,24 +264,28 @@
   opacity: .7;
   z-index: 399;
 }
-.editor-error .rs-app-launch-sidebar.stick-left {
-  opacity: .3;
-  pointer-events: none;
-}
-.editor-error .blueprint-topology {
-  z-index: 0;
-}
-.editor-error .rs-app-warning {
-  bottom: -55px;
-}
-.rs-app-warning {
+
+/* App Prompts */
+.rs-app-prompt {
   bottom: -110px;
-  background-color: #c0392b;
   color: #fff;
   font-size: 15px;
   line-height: 33px;
 }
-.rs-app-warning button.rs-btn {
+.rs-app-prompt .fa-close {
+  margin-top: 9px;
+  margin-right: 10px;
+  opacity: .5;
+  cursor: pointer;
+}
+.rs-app-prompt .fa-close:hover {
+  opacity: .8;
+}
+.editor-error .rs-app-prompt.revert-warning,
+.github-auth-open .rs-app-prompt.github-auth {
+  bottom: -55px !important;
+}
+.rs-app-prompt button.rs-btn {
   background-color: rgba(0,0,0,.1);
   border: none;
   background-image: none;
@@ -289,9 +296,15 @@
   font-size: 12px;
   font-weight: bold;
 }
-.rs-app-warning button.rs-btn:hover {
+.rs-app-prompt button.rs-btn:hover {
   background-color: rgba(0,0,0,.17);
   color: rgba(255,255,255,1);
+}
+.rs-app-warning {
+  background-color: #c0392b;
+}
+.rs-app-processing {
+  background-color: #2980b9;
 }
 
 /* Drag & Drop */
@@ -313,6 +326,10 @@
   top: 20px;
   right: 25px;
   cursor: pointer;
+}
+.editor-error .rs-app-launch-sidebar.stick-left {
+  opacity: .3;
+  pointer-events: none;
 }
 
 /* Interactions & Animations */

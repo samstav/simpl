@@ -584,7 +584,6 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
           scope.currentUser = data;
         }).
         error(function(data, status, headers, config) {
-          console.log(data);
           scope.currentUser = {};
         });
     }
@@ -804,9 +803,10 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
         } catch(err) {
           var parse_error_response = {
             data: err.message,
-            status: 400
+            status: yaml_string.status || 400
           };
-          return $q.reject(parse_error_response);
+          $q.reject(parse_error_response);
+          return false;
         }
       },
       // Error
