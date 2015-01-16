@@ -193,7 +193,8 @@ var defaultBlueprint = {
       'reach-info': {
         'option-groups': ['application']
       }
-  }
+  },
+  services: null
 };
 
 angular.module('checkmate.Blueprint', [
@@ -203,7 +204,7 @@ angular.module('checkmate.Blueprint', [
 angular.module('checkmate.Blueprint')
   .factory('Blueprint', function($rootScope, Catalog, $timeout) {
     return {
-      data: window.defaultBlueprint,
+      data: angular.copy(window.defaultBlueprint),
       get: function() {
         return this.data;
       },
@@ -214,8 +215,7 @@ angular.module('checkmate.Blueprint')
         }
       },
       reset: function() {
-        delete this.get().services;
-        this.broadcast();
+        this.set(defaultBlueprint);
       },
       add: function(component, target) {
         // Add item to blueprint data.
@@ -498,7 +498,8 @@ angular.module('checkmate.Blueprint')
         return this.getComponent(serviceName, _id) ? true : false;
       },
       getComponent: function(serviceId, componentId) {
-        var components = ((this.data.services || {})[serviceId] || {}).components || [];
+        var service = ((this.data.services || {})[serviceId] || {});
+        var components = service.components || [service.component] || [];
 
         var component = _.find(components, function(_component) {
           return _component.id == componentId || _component.name == componentId;
@@ -547,12 +548,12 @@ angular.module('checkmate.Blueprint')
 
         if(valid) {
           _.each(blueprint.services, function(service, name) {
-            var _hasName = name && name.length
-            var _hasService = service;
-            var _hasComponent = 'component' in service && service.component;
-            var _hasComponents = 'components' in service && service.components.length > -1;
+            var _hasName = name && name.length ? true : false;
+            var _hasService = service ? true : false;
+            var _hasComponent = 'component' in service && service.component ? true : false;
+            var _hasComponents = 'components' in service && service.components.length > -1 ? true : _hasComponent;
 
-            if(!_hasName || !_hasService || !_hasComponents || !_hasComponents) {
+            if(!_hasName || !_hasService || !_hasComponents) {
               valid = false;
               return valid;
             }

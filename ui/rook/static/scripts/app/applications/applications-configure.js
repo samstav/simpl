@@ -8,7 +8,7 @@ angular.module('checkmate.applications-configure', [
 ]);
 
 angular.module('checkmate.applications-configure')
-  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource) {
+  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window) {
 
     $scope.deployment = DeploymentData.get();
 
@@ -70,6 +70,23 @@ angular.module('checkmate.applications-configure')
       canRevert: false
     };
 
+    $scope.prompts = {
+      github: {
+        isVisible: false,
+        action: function() {
+          var url = [];
+
+          url.push('https://github.com/login/oauth/authorize');
+          url.push('?');
+          url.push('scope=user:email,repo');
+          url.push('&client_id='+$scope.$root.clientId);
+          // url.push('&redirect_uri='+$location.absUrl());
+
+          $window.location.href = url.join('');
+        }
+      }
+    };
+
     // Removes annotations, forces 'components' array to single 'component'
     $scope.prepDeployment = function(newFormatDeployment) {
       var deployment = angular.copy(newFormatDeployment);
@@ -124,12 +141,23 @@ angular.module('checkmate.applications-configure')
     };
 
     $scope.reset = function() {
-      Blueprint.reset();
+      DeploymentData.reset();
     };
 
     $scope.revert = function() {
       Blueprint.revert();
     };
+
+    // If there's a deployment object resolved, let's use it.
+    if(!_.isNull(deployment)) {
+      if(!deployment && !github.config.accessToken && $scope.$root.clientId) {
+        $scope.prompts.github.isVisible = true;
+      } else {
+        $timeout(function(){
+          DeploymentData.set(deployment);
+        }, 50);
+      }
+    }
 
     $scope.$on('catalog:update', function(event, data) {
       $scope.catalog.data = Catalog.get();
@@ -137,7 +165,7 @@ angular.module('checkmate.applications-configure')
     });
 
     $scope.$on('deployment:update', function(event, data) {
-      if(data.blueprint && _.size(data.blueprint.services) === 1) {
+      if(data.blueprint && _.size(data.blueprint.services) > 0) {
         $timeout(function() {
           $scope.codemirror.isVisible = true;
         }, 50);

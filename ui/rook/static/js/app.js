@@ -60,9 +60,33 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/blueprints/new.html',
     controller: 'BlueprintNewController'
   })
-  .when('/blueprints/design', {
+  .when('/blueprints/design/:owner?/:repo?', {
     templateUrl: '/partials/blueprints/design.html',
-    controller: 'ConfigureCtrl'
+    controller: 'ConfigureCtrl',
+    resolve: {
+      deployment: function($route, github) {
+        var fragments = [];
+        var owner = $route.current.params.owner;
+        var repo = $route.current.params.repo;
+        var url;
+        var remote;
+
+        if(!owner || !repo) {
+          return null;
+        }
+
+        fragments.push('https://www.github.com/');
+        fragments.push(owner);
+        fragments.push('/');
+        fragments.push(repo);
+        fragments.push(window.location.hash || '#master');
+
+        url = fragments.join('');
+        remote = github.parse_url(url);
+
+        return github.get_blueprint(remote);
+      }
+    }
   })
   .when('/:tenantId/blueprints/design', {
     templateUrl: '/partials/blueprints/design.html',

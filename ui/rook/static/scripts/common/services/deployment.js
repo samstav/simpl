@@ -26,9 +26,11 @@ angular.module('checkmate.DeploymentData', [
   'checkmate.codemirror'
 ]);
 angular.module('checkmate.DeploymentData')
-  .factory('DeploymentData', function($rootScope, Blueprint){
+  .factory('DeploymentData', function($rootScope, Blueprint) {
+    window.defaultDeployment.blueprint = Blueprint.get();
+
     var service = {
-      data: $.extend(window.defaultDeployment, {blueprint: Blueprint.get()}),
+      data: angular.copy(window.defaultDeployment),
       get: function() {
         return this.data;
       },
@@ -44,6 +46,11 @@ angular.module('checkmate.DeploymentData')
 
           this.broadcast();
         }
+      },
+      reset: function() {
+        Blueprint.reset();
+        window.defaultDeployment.blueprint = Blueprint.get();
+        this.set(window.defaultDeployment);
       },
       broadcast: function() {
         $rootScope.$broadcast('deployment:update', this.data);

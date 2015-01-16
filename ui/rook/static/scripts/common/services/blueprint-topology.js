@@ -209,6 +209,8 @@ angular.module('checkmate.Blueprint')
         resize();
 
         function closeIndicators() {
+          if(!indicator) return false;
+
           indicator.classed('active', function(d) {
             var id = d3.select(this).attr('id');
             if(state[id])
