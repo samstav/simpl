@@ -30,7 +30,7 @@ from checkmate.common import config
 class TestGitHubManager(unittest.TestCase):
     def setUp(self):
         self.mox = mox.Mox()
-        self.config = config.Config({
+        self.config = config.Config.init({
             'github_api': 'http://localhost',
             'organization': 'Blueprints',
             'ref': 'master',
@@ -120,7 +120,7 @@ class TestGitHubManagerV1Cache(unittest.TestCase):
     """Test local cache code."""
     def setUp(self):
         os.environ['BOTTLE_CHILD'] = '1'
-        self.config = config.Config({
+        self.config = config.Config.init({
             'github_api': 'http://localhost',
             'organization': 'Blueprints',
             'ref': 'master',

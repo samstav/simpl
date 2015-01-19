@@ -18,6 +18,7 @@
 import unittest
 
 from checkmate.common import config
+from checkmate.contrib import contrib_config
 
 
 class TestConfig(unittest.TestCase):
@@ -76,61 +77,65 @@ class TestConfig(unittest.TestCase):
 class TestParsers(unittest.TestCase):
     def test_comma_separated_strs(self):
         expected = ['1', '2', '3']
-        result = config._comma_separated_strs("1,2,3")
+        result = contrib_config.comma_separated_strings("1,2,3")
         self.assertItemsEqual(result, expected)
 
     def test_format_comma_separated(self):
         expected = dict(A='1', B='2', C='3')
-        result = config._comma_separated_key_value_pairs("A=1,B=2,C=3")
+        result = contrib_config.comma_separated_pairs("A=1,B=2,C=3")
         self.assertEqual(result, expected)
 
 
 class TestArgParser(unittest.TestCase):
+
+    def setUp(self):
+        self.parsed = config.Config()
+
     def test_default(self):
-        parsed = config.parse_arguments(['/prog'])
-        self.assertFalse(parsed.with_admin)
-        self.assertFalse(parsed.eventlet)
+        self.parsed.parse_cli(argv=['/prog'])
+        self.assertFalse(self.parsed.with_admin)
+        self.assertFalse(self.parsed.eventlet)
 
     def test_flag(self):
-        parsed = config.parse_arguments(['/prog', '--with-admin'])
-        self.assertTrue(parsed.with_admin)
+        self.parsed.parse_cli(argv=['/prog', '--with-admin'])
+        self.assertTrue(self.parsed.with_admin)
 
     def test_flag_singlechar(self):
-        parsed = config.parse_arguments(['/prog', '-e'])
-        self.assertTrue(parsed.eventlet)
+        self.parsed.parse_cli(argv=['/prog', '-e'])
+        self.assertTrue(self.parsed.eventlet)
 
     def test_ignore_start(self):
         """Ignore unused/old START position."""
-        parsed = config.parse_arguments(['/prog', 'START', '-e'])
+        self.parsed.parse_cli(argv=['/prog', 'START', '-e'])
         self.assertTrue(parsed.eventlet)
 
     def test_start_as_address(self):
         """Ensure START is not picked up as address."""
-        parsed = config.parse_arguments(['/prog', 'START', '-e'])
-        self.assertEqual(parsed.address, '127.0.0.1:8080')
+        self.parsed.parse_cli(argv=['/prog', 'START', '-e'])
+        self.assertEqual(self.parsed.address, '127.0.0.1:8080')
 
     def test_address(self):
-        parsed = config.parse_arguments(['/prog', '10.1.1.1'])
+        self.parsed.parse_cli(argv=['/prog', '10.1.1.1'])
         self.assertEqual(parsed.address, '10.1.1.1')
 
     def test_port(self):
-        parsed = config.parse_arguments(['/prog', '10.1.1.1:10000'])
+        self.parsed.parse_cli(argv=['/prog', '10.1.1.1:10000'])
         self.assertEqual(parsed.address, '10.1.1.1:10000')
 
     def test_allow_extras(self):
-        parsed = config.parse_arguments(['/prog', '-e', '--concurrency'])
+        self.parsed.parse_cli(argv=['/prog', '-e', '--concurrency'])
         self.assertFalse(hasattr(parsed, 'concurrency'))
 
 
 class TestEnvParser(unittest.TestCase):
     def test_blank(self):
-        parsed = config.parse_environment({})
+        parsed = config.Config().parse_env(env={})
         self.assertIsInstance(parsed, dict)
         self.assertEqual(parsed, {})
 
     def test_one_value(self):
-        parsed = config.parse_environment({
-            'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
+        parsed = config.Config().parse_env(
+            env={'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
         self.assertIn('deployments_path', parsed)
         self.assertEqual(parsed['deployments_path'], '/tmp/not_default')
 
@@ -139,9 +144,8 @@ class TestEnvParser(unittest.TestCase):
         current = config.Config()
         self.assertEqual(current.deployments_path,
                          '/var/local/checkmate/deployments')
-        parsed = config.parse_environment({
-            'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
-        current.update(parsed)
+        current.parse_env(
+            env={'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
         self.assertEqual(current.deployments_path, '/tmp/not_default')
 
     @unittest.skip('No conflicts yet')
