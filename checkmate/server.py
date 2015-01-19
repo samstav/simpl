@@ -32,6 +32,7 @@ __import__('checkmate.common.tracer')
 import httplib
 import json
 import logging
+import operator
 import os
 import sys
 
@@ -195,29 +196,44 @@ def main():
     from checkmate import entry_points
     entry_points.preconfigure()
     global LOG
+    if (CONFIG.bottle_reloader and not CONFIG.eventlet
+            and not os.environ.get('BOTTLE_CHILD')):
+        # bottle spawns 2 processes when in reloader mode
+        LOG.setLevel(logging.ERROR)
     resources = ['version']
     anonymous_paths = ['version']
     if CONFIG.webhook:
         resources.append('webhooks')
         anonymous_paths.append('webhooks')
 
-    # Init logging before we load the database, 3rd party, and 'noisy' modules
-    utils.init_logging(CONFIG,
-                       default_config="/etc/default/checkmate-svr-log.conf")
-    LOG = logging.getLogger(__name__)  # reload
-    LOG.info("*** Checkmate v%s ***", checkmate.__version__)
-    if utils.get_debug_level(CONFIG) == logging.DEBUG:
+
+    if CONFIG.debug:
         bottle.debug(True)
 
     if CONFIG.eventlet is True:
+        LOG.warn(">>> Loading multi-threaded eventlet server <<<")
+        if not CONFIG.quiet:
+            print("You've loaded Checkmate as a multi-threaded server "
+                  "with non-blocking HTTP io.")
         eventlet.monkey_patch()
     else:
         LOG.warn(">>> Loading single-threaded dev server <<<")
-        print ("You've loaded Checkmate as a single-threaded WSGIRef server. "
-               "The advantage is that it will autoreload when you edit any "
-               "files. However, it will block when performing background "
-               "operations or responding to requests. To run a multi-threaded "
-               "server start Checkmate with the '--eventlet' switch")
+        if not CONFIG.quiet:
+            if CONFIG.bottle_reloader:
+                msg = (
+                    "You've loaded Checkmate as a single-threaded WSGIRef "
+                    "server. The advantage is that it will autoreload when "
+                    "you edit any files. However, it will block when "
+                    "performing background operations or responding to "
+                    "requests. To run a multi-threaded server start "
+                    "Checkmate with the '--eventlet' switch.")
+            else:
+                msg = (
+                    "You've loaded Checkmate as a single-threaded WSGIRef "
+                    "server. It will block when performing background "
+                    "operations or responding to requests. To run a multi-"
+                    "threaded server start Checkmate with the '--eventlet' "
+                    "switch.")
 
     check_celery_config()
 
@@ -394,8 +410,12 @@ def main():
     # Load request/response dumping if debugging enabled
     if CONFIG.debug is True:
         next_app = middleware.DebugMiddleware(next_app)
-        LOG.debug("Routes: %s", ''.join(['\n    %s %s' % (r.method, r.rule)
-                                         for r in bottle.app().routes]))
+    if not CONFIG.quiet:
+        routes = [(r.method, r.rule) for r in bottle.app().routes]
+        routes = sorted(routes, key=operator.itemgetter(1))
+        print("Routes:\n" + "\n".join(
+            ["    {: <6} {}".format(method, rule)
+             for method, rule in routes]))
 
     next_app = gzip_middleware.Gzipper(next_app, compresslevel=8)
 
@@ -424,9 +444,11 @@ def main():
     kwargs = dict(
         server='wsgiref',
         quiet=CONFIG.quiet,
-        reloader=True,
+        reloader=CONFIG.bottle_reloader,
     )
     if CONFIG.eventlet is True:
+        if CONFIG.bottle_reloader:
+            LOG.warning("Bottle reloader not available with eventlet server.")
         kwargs['server'] = CustomEventletServer
         kwargs['reloader'] = False  # reload fails in bottle with eventlet
         kwargs['backlog'] = 100
@@ -438,6 +460,12 @@ def main():
             print "--access-log only works with --eventlet"
             sys.exit(1)
 
+    if kwargs['reloader']:
+        LOG.warning("Bottle auto-reloader is on. The main process will not "
+                    "start a server, but spawn a new child process using "
+                    "the same command line arguments used to start the main "
+                    "process. All module-level code is executed at least "
+                    "twice! Be careful.")
     # Start listening. Enable reload by default to pick up file changes
     try:
         bottle.run(app=next_app, host=ip_address, port=port, **kwargs)
