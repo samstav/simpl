@@ -63,8 +63,8 @@ signals.after_setup_task_logger.connect(after_setup_logger_handler)
 def init_checkmate_worker(sender=None, conf=None, **kwargs):
     """Initialize Configuration."""
     LOG.info("Initializing Checkmate worker")
-    CONFIG.update(config.parse_environment(env=os.environ))
-    LOG.debug("Initialized config: %s", CONFIG.__dict__)
+    CONFIG.parse_env()
+    LOG.debug("Initialized config: %s", CONFIG)
 
 
 class SingleTask(celery.Task):

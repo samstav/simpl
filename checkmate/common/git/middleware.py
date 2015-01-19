@@ -118,11 +118,9 @@ import bottle
 from eventlet.green import httplib
 
 from checkmate.common import caching
-from checkmate.common import config
 from checkmate.common.git import manager
 from checkmate.contrib import wsgi_git_http_backend
 
-CONFIG = config.current()
 GIT_SERVER_APP = bottle.Bottle()
 EXPECTED_ENVIRONMENT_LIST = [
     'wsgi.errors',
