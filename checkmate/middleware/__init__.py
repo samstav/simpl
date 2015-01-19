@@ -23,6 +23,7 @@ import copy
 import json
 import logging
 import os
+import re
 import traceback
 import uuid
 
@@ -258,7 +259,10 @@ class TokenAuthMiddleware(object):
         self.app = app
         self.endpoint = endpoint
         self.endpoint_uri = endpoint.get('uri')
-        self.anonymous_paths = anonymous_paths
+        if anonymous_paths:
+            self.anonymous_paths = [re.compile(p) for p in anonymous_paths]
+        else:
+            self.anonymous_paths = []
         self.auth_header = 'Keystone uri="%s"' % endpoint['uri']
         if 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
             # Safer for many browsers if realm is first
@@ -295,7 +299,9 @@ class TokenAuthMiddleware(object):
         """Authenticate calls with X-Auth-Token to the source auth service."""
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
-        if all([self.anonymous_paths, root in self.anonymous_paths]):
+        request = webob.Request(environ)
+        if any(path.match(request.path) for path in self.anonymous_paths):
+            LOG.info("Allow anonymous path: %s", request.path)
             # Allow anything marked as anonymous
             return self.app(environ, start_response)
 
@@ -405,14 +411,19 @@ class AuthorizationMiddleware(object):
 
     def __init__(self, app, anonymous_paths=None, admin_paths=None):
         self.app = app
-        self.anonymous_paths = anonymous_paths
+        if anonymous_paths:
+            self.anonymous_paths = [re.compile(p) for p in anonymous_paths]
+        else:
+            self.anonymous_paths = []
         self.admin_paths = admin_paths
 
     def __call__(self, environ, start_response):
         path_parts = environ['PATH_INFO'].split('/')
         root = path_parts[1] if len(path_parts) > 1 else None
-        if self.anonymous_paths and root in self.anonymous_paths:
+        request = webob.Request(environ)
+        if any(path.match(request.path) for path in self.anonymous_paths):
             # Allow anonymous calls
+            LOG.info("Allow anonymous path: %s", request.path)
             return self.app(environ, start_response)
 
         context = environ['context']
@@ -860,9 +871,13 @@ class AuthTokenRouterMiddleware(object):
             if not self.default_endpoint:
                 self.default_endpoint = endpoints[0]
 
+        if anonymous_paths:
+            self.anonymous_paths = [re.compile(p) for p in anonymous_paths]
+        else:
+            self.anonymous_paths = []
+
         self.middleware = {}
         self.default_middleware = None
-        self.anonymous_paths = anonymous_paths
         self.last_status = None
         self.last_headers = None
         self.last_exc_info = None

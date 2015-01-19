@@ -201,11 +201,10 @@ def main():
         # bottle spawns 2 processes when in reloader mode
         LOG.setLevel(logging.ERROR)
     resources = ['version']
-    anonymous_paths = ['version']
+    anonymous_paths = ['^[/]?version']
     if CONFIG.webhook:
         resources.append('webhooks')
-        anonymous_paths.append('webhooks')
-
+        anonymous_paths.append('^[/]?webhooks')
 
     if CONFIG.debug:
         bottle.debug(True)
@@ -254,9 +253,6 @@ def main():
             LOG.error("%s has no register method", prvder)
             LOG.exception(exc)
 
-    # Load routes from other modules
-    LOG.info("Loading Checkmate API")
-    bottle.load("checkmate.api")
 
     # Build WSGI Chain:
     next_app = root_app = bottle.default_app()  # the main checkmate app
@@ -270,6 +266,12 @@ def main():
         415: error_formatter,
     }
     root_app.catchall = True
+
+    # Load routes from other modules
+    LOG.info("Loading Checkmate API")
+    bottle.load("checkmate.api")
+    bottle.load("checkmate.api.version")
+
 
     DRIVERS['default'] = db.get_driver()
     DRIVERS['simulation'] = db.get_driver(
