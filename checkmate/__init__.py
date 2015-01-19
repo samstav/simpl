@@ -67,7 +67,16 @@ def _read_version():
     return parser.get("checkmate", "version")
 
 __version__ = _read_version()
-
+def _get_commit():
+    """Get HEAD commit sha-1 from ../.git/HEAD ."""
+    directory = os.path.dirname(os.path.realpath(__file__))
+    path = os.path.abspath(os.path.join(directory, "%s/.git" % os.pardir))
+    if not os.path.exists(path):
+        return
+    with open(os.path.join(path, 'HEAD')) as head:
+        headref = head.read().partition('ref:')[-1].strip()
+    with open(os.path.join(path, headref)) as href:
+        return href.read().strip()
 
 def version():
     """Return checkmate server version as a string."""
