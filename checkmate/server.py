@@ -192,6 +192,8 @@ def error_formatter(error):
 
 def main():
     """Start the server based on passed in arguments. Called by __main__."""
+    from checkmate import entry_points
+    entry_points.preconfigure()
     global LOG
     resources = ['version']
     anonymous_paths = ['version']

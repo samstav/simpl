@@ -20,6 +20,8 @@ import sys
 
 def main_func():
     "Called automatically when this module is executed."""
+    from checkmate import entry_points
+    entry_points.preconfigure()
     if len(sys.argv) > 1 and sys.argv[1] == 'START':
         params = []
         if '--newrelic' in sys.argv:

@@ -20,7 +20,9 @@
 
 import base64
 import collections
+import copy
 import inspect
+import itertools
 import json
 import logging.config
 import os
@@ -31,6 +33,7 @@ import struct
 import subprocess as subprc
 import sys
 import time
+import traceback as traceback_module
 import urlparse
 import uuid
 
@@ -163,6 +166,101 @@ def match_celery_logging(logger):
     """Match celery log level."""
     if logger.level < int(os.environ.get('CELERY_LOG_LEVEL', logger.level)):
         logger.setLevel(int(os.environ.get('CELERY_LOG_LEVEL')))
+
+
+def pytb_lastline(excinfo=None):
+    """Return the actual last line of the (current) traceback.
+    To provide exc_info, rather than allowing this function
+    to read the stack automatically, this function may be called like so:
+        ll = pytb_lastline(sys.exc_info())
+    OR
+        try:
+            1/0
+        except Exception as err:
+            ll = pytb_lastline(err)
+    """
+    # TODO(samstav): Add this to airbrake-python utils
+    lines = None
+    if excinfo:
+        if isinstance(excinfo, Exception):
+            kls = getattr(excinfo, '__class__', '')
+            if kls:
+                kls = str(getattr(kls, '__name__', ''))
+                kls = ("%s: " % kls) if kls else ''
+            lines = [kls + str(excinfo)]
+        else:
+            try:
+                lines = traceback_module.format_exception(*excinfo)
+                lines = "\n".join(lines).split('\n')
+            except (TypeError, AttributeError) as err:
+                LOG.error("Bad argument %s passed to pytb_lastline()."
+                          "Should be sys.exc_info() or None.", excinfo,
+                          exc_info=err)
+    if not lines:
+        lines = traceback_module.format_exc().split('\n')
+    lines = [line.strip() for line in lines]
+    # remove Falsy values
+    lines = itertools.ifilter(None, lines)
+    # remove the word "None" (returned by the traceback module sometimes)
+    lines = filter(lambda line: line != 'None', lines)
+    if lines:
+        return lines[-1]
+
+
+def scrub_data(data, conf=None, exempt=None):
+    """Remove password and conf values from dict.
+    :param data:    A dict or iterable of results to sanitize.
+    :param config:  A dict (optional) of config values to sanitize
+                    against in addition to the common keys.
+    :param exempt:  An iterable of strings which qualify as exempt from
+                    sanitization. Matches must be exact. Be careful.
+    Santitize results and remove potentially sensitive data.
+    Iterates through results and removes any values that match
+    keys found in either `config` or `blacklist`. Returns
+    sanitized results dict.
+    """
+    if exempt and not isinstance(exempt, list):
+        raise TypeError("'exempt' should be a list of exempted keys.")
+    exempt = exempt or []
+
+    if isinstance(data, dict):
+        result = copy.deepcopy(data)
+        for key, value in result.items():
+            if not value:
+                continue
+            if key in exempt:
+                LOG.warning("Key '%s' has been exempted from sanitization "
+                            "on this call.", key)
+                result[key] = scrub_data(value)
+            if conf:
+                if key in conf:
+                    LOG.debug("Sanitized %s from dict.", key)
+                    result[key] = '*****'
+                    continue
+            elif any((w in str(key).lower() for w in
+                     {'password', 'passphrase', 'token', 'key', 'user'})):
+                LOG.debug("Sanitized %s from dict.", key)
+                result[key] = '*****'
+            elif 'key' in str(key).lower():
+                if value.startswith('-----'):
+                    result[key] = '%s...%s' % (value[0:25], value[-25:])
+                else:
+                    result[key] = '*****'
+                LOG.debug("Sanitized %s from dict.", key)
+            elif any((w in str(key).lower() for w in
+                      {'url', 'connection', 'backend', 'broker'})):
+                result[key] = hide_url_password(value)
+            else:
+                result[key] = scrub_data(value)
+        return result
+    elif isinstance(data, tuple):
+        return tuple(scrub_data(x) for x in data)
+    elif isinstance(data, set):
+        return {scrub_data(x) for x in data}
+    elif isinstance(data, list):
+        return [scrub_data(x) for x in data]
+    else:
+        return data
 
 
 def import_class(import_str):

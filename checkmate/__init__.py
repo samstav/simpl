@@ -35,17 +35,29 @@ except ImportError:
     pass  # OK if running setup.py or not using eventlet somehow
 # END: ignore style guide
 
-import ConfigParser
-import gettext
 import os
 
-from checkmate.common import config
+import gettext
+
 
 # This installs the _(...) function as a built-in so all other modules
 # don't need to.
 gettext.install('checkmate')
 
-config.CURRENT_CONFIG.initialize()
+
+def preconfigure(args=None):
+    """Common configuration to be done before everything else."""
+
+    # make this match most of waldo.entry_points.start()
+    from checkmate.common import config
+
+    args = args or sys.argv
+    conf = config.current()
+    conf.parse()
+    conf.init_logging()
+    print conf.quiet
+    if not conf.quiet:
+        print(conf.display())
 
 
 def _read_version():
