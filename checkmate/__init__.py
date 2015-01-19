@@ -21,6 +21,13 @@ full eventlet support, we need to handle eventlet up front. If we are using
 eventlet, then we'll monkey_patch ASAP. If not, then we won't monkey_patch at
 all as that breaks reloading.
 """
+
+__title__ = 'checkmate'
+__version__ = '2.0.0'
+__license__ = 'Apache 2.0'
+__copyright__ = 'Copyright (c) 2011-2015'
+__url__ = 'https://github.com/checkmate/checkmate'
+
 # BEGIN: ignore style guide
 # monkey_patch ASAP if we're using eventlet
 import sys
@@ -60,13 +67,6 @@ def preconfigure(args=None):
         print(conf.display())
 
 
-def _read_version():
-    configfile = os.path.join(os.path.dirname(__file__), 'checkmate.cfg')
-    parser = ConfigParser.ConfigParser()
-    parser.read(configfile)
-    return parser.get("checkmate", "version")
-
-__version__ = _read_version()
 def _get_commit():
     """Get HEAD commit sha-1 from ../.git/HEAD ."""
     directory = os.path.dirname(os.path.realpath(__file__))
@@ -78,6 +78,4 @@ def _get_commit():
     with open(os.path.join(path, headref)) as href:
         return href.read().strip()
 
-def version():
-    """Return checkmate server version as a string."""
-    return __version__
+__commit__ = _get_commit()
