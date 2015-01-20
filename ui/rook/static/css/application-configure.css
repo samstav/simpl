@@ -243,7 +243,7 @@
 }
 .codemirror-full-screen-button {
   position: absolute;
-  bottom: 10px;
+  bottom: 5px;
   right: 15px;
   z-index: 900;
   cursor: pointer;
@@ -427,4 +427,16 @@
   right: 0;
   padding: 15px;
   background-color: rgba(50,50,50,.7);
+}
+
+/* Deployment Editor */
+.deployment-editor .toggle-editor {
+  width: 100%;
+  background-color: rgba(0,0,0,.85);
+  z-index: 100;
+  height: 20px;
+  padding: 10px;
+}
+.deployment-editor {
+  bottom: 40px;
 }
