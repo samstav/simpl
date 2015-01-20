@@ -264,23 +264,7 @@ class Option(object):
 
 class Config(collections.MutableMapping):
 
-    """Parses configuration sources.
-
-    By using collections.MutableMapping, we get these methods for free:
-
-        __contains__
-        __eq__
-        __ne__
-        keys()
-        items()
-        values()
-        get()
-        pop()
-        popitem()
-        clear()
-        update()
-        setdefault()
-    """
+    """Parses configuration sources."""
 
     def __init__(self, options=None, ini_paths=None, **parser_kwargs):
         """Initialize with list of options.
