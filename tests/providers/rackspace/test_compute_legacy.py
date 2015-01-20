@@ -220,7 +220,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                                              'master',
                                              context, 1, provider.key, None)
 
-        self.assertListEqual(results, expected)
+        self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
 
     def test_catalog_and_deployment_diff(self):
@@ -315,7 +315,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                                              'master',
                                              context, 1, provider.key, None)
 
-        self.assertListEqual(results, expected)
+        self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
 
     def test_deployment_region(self):
@@ -381,7 +381,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                                              'master',
                                              context, 1, provider.key, None)
         self.mox.VerifyAll()
-        self.assertListEqual(results, expected)
+        self.assertItemsEqual(results, expected)
 
     def test_region_supplied_as_airport_code(self):
         """Deployment region listed as airport code."""
@@ -448,7 +448,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
                                              'master',
                                              context, 1, provider.key, None)
 
-        self.assertListEqual(results, expected)
+        self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
 
 

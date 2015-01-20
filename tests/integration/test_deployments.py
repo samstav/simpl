@@ -1788,7 +1788,6 @@ class TestDeploymentDisplayOutputs(unittest.TestCase):
         }
         self.assertDictEqual(result, expected)
 
-    @unittest.skip('Looks like there is a python 2.7.4/2.7.1 issue')
     def test_parse_source_uri_python24(self):
         """This seems to fail in python 2.7.1, but not 2.7.4
 

@@ -364,7 +364,7 @@ class TestDatabase(unittest.TestCase):
         resource_list = []
         for key, value in deployment['resources'].items():
             resource_list.append({key: value})
-        self.assertListEqual(resource_list, self._get_resources(dep_id))
+        self.assertItemsEqual(resource_list, self._get_resources(dep_id))
 
     def test_full_deployment_update_with_secrets(self):
         dep_id = uuid.uuid4().hex
@@ -439,7 +439,7 @@ class TestDatabase(unittest.TestCase):
             resource_ids.append(db_resource['id'])
         db_deployment = self.driver.database().deployments.find_one(
             {'_id': dep_id})
-        self.assertListEqual(db_deployment['resources'], resource_ids)
+        self.assertItemsEqual(db_deployment['resources'], resource_ids)
         self.assertDictEqual(utils.flatten(self._get_resources(dep_id)),
                              utils.flatten([{'2': new_resource_2},
                                             {'1': new_resource_1},
@@ -494,7 +494,7 @@ class TestDatabase(unittest.TestCase):
             resource_ids.append(db_resource['id'])
         db_deployment = self.driver.database().deployments.find_one(
             {'_id': dep_id})
-        self.assertListEqual(db_deployment['resources'], resource_ids)
+        self.assertItemsEqual(db_deployment['resources'], resource_ids)
         self.assertDictEqual(utils.flatten(self._get_resources(dep_id)),
                              utils.flatten([{'1': new_resource_1},
                                             {'0': resource_0}]))

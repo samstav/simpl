@@ -102,7 +102,7 @@ class TestDeployment(test.StubbedWorkflowBase):
                                              'db', context, 1, provider.key,
                                              None)
 
-        self.assertListEqual(results, expected)
+        self.assertItemsEqual(results, expected)
 
     def test_workflow_resource_task_generation(self):
         """Test Add Task"""
@@ -119,9 +119,7 @@ class TestDeployment(test.StubbedWorkflowBase):
         task_list = workflow.spec.task_specs.keys()
         expected = ['Root', 'Start', 'Create Resource 1',
                     'Execute Script 0 (1)']
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertItemsEqual(task_list, expected, msg=task_list)
 
     def test_workflow_completion(self):
         """."""

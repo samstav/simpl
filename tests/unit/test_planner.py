@@ -238,7 +238,7 @@ class TestPlanningAspects(unittest.TestCase):
         planner.init_service_plans_dict()
         planner.resolve_components(self.context)
         resolved = [r['component']['id'] for r in planner['services'].values()]
-        self.assertEqual(resolved, ['app_instance', 'rsCloudLB'])
+        self.assertItemsEqual(resolved, ['app_instance', 'rsCloudLB'])
 
     def test_dependency_resolution(self):
         """Test that two levels of dependencies are resolved."""

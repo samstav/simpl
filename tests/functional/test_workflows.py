@@ -33,7 +33,7 @@ class TestWorkflowTools(unittest.TestCase):
         wf_b = specs.Simple(wf_spec, 'B')
 
         wf_spec.wait_for(wf_a, [wf_b])
-        self.assertListEqual(wf_a.inputs, [wf_b])
+        self.assertEqual(wf_a.inputs, [wf_b])
 
     def test_insert_wait_for(self):
         wf_spec = workflow_spec.WorkflowSpec()
@@ -138,7 +138,7 @@ class TestWorkflowTools(unittest.TestCase):
         wf_b.connect(wf_m)
 
         wf_spec.wait_for(wf_a, [wf_c])
-        self.assertListEqual(wf_a.inputs, [wf_m])
+        self.assertEqual(wf_a.inputs, [wf_m])
 
 
 class TestWorkflow(unittest.TestCase):
@@ -157,7 +157,7 @@ class TestWorkflow(unittest.TestCase):
         wflow = workflow.Workflow(spiff_wf.serialize(serializer))
         expected_keys = ['wf_spec', 'last_task', 'success', 'workflow',
                          'attributes', 'task_tree']
-        self.assertListEqual(wflow._data.keys(), expected_keys)
+        self.assertItemsEqual(wflow._data.keys(), expected_keys)
 
         # Deserialize from Checkmate Workflow (dict)
         new = SpiffWorkflow.deserialize(serializer, wflow)

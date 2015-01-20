@@ -89,7 +89,7 @@ class TestSchema(unittest.TestCase):
                 my_boolean: true
                 my_string: Hello!
             """)
-        self.assertListEqual(schema.validate_inputs(deployment), [])
+        self.assertEqual(schema.validate_inputs(deployment), [])
 
     def test_bad_url_is_invalid(self):
         """Test that bad url input formats don't pass validation."""
@@ -127,9 +127,7 @@ class TestSchema(unittest.TestCase):
              "It is a 'bool' which is not valid"),
         ]
         results = schema.validate_inputs(deployment)
-        results.sort()
-        expected.sort()
-        self.assertListEqual(results, expected)
+        self.assertItemsEqual(results, expected)
 
 
 class TestSchemaValidation(unittest.TestCase):

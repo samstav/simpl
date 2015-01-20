@@ -90,7 +90,7 @@ class TestLoadBalancer(test.ProviderTester):
                                                    relation)
         root_task = result['root']
         self.assertEqual(len(result), 2)
-        self.assertListEqual(result.keys(), ['root', 'final'])
+        self.assertItemsEqual(result.keys(), ['root', 'final'])
         self.assertIsInstance(root_task, specs.Celery)
         self.assertEqual(root_task.call, exp_call)
         self.assertEqual(root_task.args, [{}, relation, "LB_ID", "IP",
@@ -133,7 +133,7 @@ class TestLoadBalancer(test.ProviderTester):
                                                   relation)
         root_task = result['root']
         self.assertEqual(len(result), 2)
-        self.assertListEqual(result.keys(), ['root', 'final'])
+        self.assertItemsEqual(result.keys(), ['root', 'final'])
         self.assertIsInstance(root_task, specs.Celery)
         self.assertEqual(root_task.call, exp_call)
         self.assertEqual(root_task.args, [{}, relation, "LB_ID", "IP",

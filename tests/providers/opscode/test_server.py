@@ -122,7 +122,7 @@ class TestChefServerProvider(test.ProviderTester):
             'path': 'resources/2/instance/interfaces/mysql',
             'resource': '0',
         }]
-        self.assertListEqual(result, expected)
+        self.assertItemsEqual(result, expected)
 
         # Check client maps
 
@@ -142,7 +142,7 @@ class TestChefServerProvider(test.ProviderTester):
                 'path': 'resources/0/instance',
             },
         ]
-        self.assertListEqual(result, expected)
+        self.assertItemsEqual(result, expected)
 
     def test_get_map_with_context_defaults(self):
         server_provider = server.Provider({})
@@ -311,9 +311,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
             'After server 1 (db) is registered and options are ready',
             'Configure mysql: 0 (db)',
         ]
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertItemsEqual(task_list, expected, msg=task_list)
 
     def test_workflow_completion(self):
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
@@ -531,9 +529,7 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
             'Start',
             'Upload Cookbooks'
         ]
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertItemsEqual(task_list, expected, msg=task_list)
 
         self.mox.VerifyAll()
 
@@ -662,9 +658,7 @@ interfaces/mysql/host
             'Upload Cookbooks',
             'Configure mysql: 0 (db)',
         ]
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertItemsEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
         # Make sure hash value was generated
@@ -1032,9 +1026,7 @@ interfaces/mysql/database_name
             'Write Data Bag for 0',
             'Write Role foo-master for 0',
         ]
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertItemsEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
         # Make sure maps are correct
@@ -1142,7 +1134,7 @@ interfaces/mysql/database_name
         # Make sure role is being created
         role = workflow.spec.task_specs['Write Role foo-master for 0']
         expected = ['recipe[apt]', 'recipe[foo::server]']
-        self.assertListEqual(role.kwargs['run_list'], expected)
+        self.assertItemsEqual(role.kwargs['run_list'], expected)
 
     def test_manage_role_task_should_have_merge_results_set_to_true(self):
         self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
@@ -1590,7 +1582,7 @@ class TestChefMapResolver(unittest.TestCase):
             }
         }
         self.assertEqual(result, expected)
-        self.assertListEqual(unresolved, [maps[2]])
+        self.assertEqual(unresolved, [maps[2]])
 
 
 class TestCatalog(unittest.TestCase):
@@ -1615,10 +1607,10 @@ class TestCatalog(unittest.TestCase):
 
         response = server_provider.get_catalog(middleware.RequestContext())
 
-        self.assertListEqual(
+        self.assertItemsEqual(
             response.keys(), ['application', 'database'])
-        self.assertListEqual(response['application'].keys(), ['webapp'])
-        self.assertListEqual(response['database'].keys(), ['mysql'])
+        self.assertEqual(response['application'].keys(), ['webapp'])
+        self.assertEqual(response['database'].keys(), ['mysql'])
         self.mox.VerifyAll()
 
 

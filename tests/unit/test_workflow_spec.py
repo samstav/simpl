@@ -110,7 +110,7 @@ class TestWorkflowSpec(unittest.TestCase):
             mock_wfspec, mock_context, "DEP_ID",
             {"index": "INDEX"}, "INDEX")
         deployment.get.assert_called_once_with("id")
-        self.assertListEqual([mock_task], tasks)
+        self.assertEqual([mock_task], tasks)
 
     def test_get_host_delete_tasks_provider_delete_res_task_no_impl(self):
         #pylint: disable=C0103
@@ -136,7 +136,7 @@ class TestWorkflowSpec(unittest.TestCase):
             mock_wfspec, mock_context, "DEP_ID",
             {"index": "INDEX"}, "INDEX")
         deployment.get.assert_called_once_with("id")
-        self.assertListEqual([], tasks)
+        self.assertEqual([], tasks)
 
     def test_create_take_offline_spec(self):
         context = mock.Mock()
@@ -171,7 +171,7 @@ class TestWorkflowSpec(unittest.TestCase):
 
         wf_spec = workflow_spec.WorkflowSpec.create_take_offline_spec(
             context, deployment, resource_id="1")
-        self.assertListEqual(wf_spec.start.outputs, [mock_task_spec])
+        self.assertEqual(wf_spec.start.outputs, [mock_task_spec])
         mock_environment.get_provider.assert_called_once_with('load-balancer')
         mock_provider.disable_connection_tasks.assert_called_once_with(
             mock.ANY, deployment, context, source_resource, dest_resource,
@@ -210,7 +210,7 @@ class TestWorkflowSpec(unittest.TestCase):
 
         wf_spec = workflow_spec.WorkflowSpec.create_bring_online_spec(
             context, deployment, resource_id="1")
-        self.assertListEqual(wf_spec.start.outputs, [mock_task_spec])
+        self.assertEqual(wf_spec.start.outputs, [mock_task_spec])
         mock_environment.get_provider.assert_called_once_with('load-balancer')
         mock_provider.enable_connection_tasks.assert_called_once_with(
             mock.ANY, deployment, context, source_resource, dest_resource,

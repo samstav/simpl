@@ -327,9 +327,7 @@ devstack.git
             'Create Resource 1',
             'Execute Script 0 (1)',
         ]
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertItemsEqual(task_list, expected, msg=task_list)
         self.mox.VerifyAll()
 
 

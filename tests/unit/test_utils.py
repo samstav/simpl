@@ -747,7 +747,12 @@ class TestFormatCheck(unittest.TestCase):
                 'instance': {'flavor': '3'}
             }
         }
-        self.assertEqual(expected, utils.format_check(data))
+        result = utils.format_check(data)
+        self.assertItemsEqual(['0', '1'], result['resources'].keys())
+        self.assertItemsEqual(
+            expected['resources']['0'], result['resources']['0'])
+        self.assertItemsEqual(
+            expected['resources']['1'], result['resources']['1'])
 
 
 if __name__ == '__main__':
