@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -25,7 +25,7 @@ all as that breaks reloading.
 __title__ = 'checkmate'
 __version__ = '2.0.0'
 __license__ = 'Apache 2.0'
-__copyright__ = 'Copyright (c) 2011-2015'
+__copyright__ = 'Copyright Rackspace US, Inc. (c) 2011-2015'
 __url__ = 'https://github.com/checkmate/checkmate'
 
 # BEGIN: ignore style guide
