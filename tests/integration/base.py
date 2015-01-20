@@ -88,29 +88,29 @@ class DBDriverTests(object):
         # find them all
         tenants = self.driver.list_tenants()
         self.assertIsNotNone(tenants)
-        self.assertEquals(2, len(tenants))
+        self.assertEqual(2, len(tenants))
         self.assertIn("1234", tenants)
         self.assertIn("11111", tenants)
         # find just 'foo'
         tenants = self.driver.list_tenants('foo')
         self.assertIsNotNone(tenants)
-        self.assertEquals(2, len(tenants))
+        self.assertEqual(2, len(tenants))
         self.assertIn("1234", tenants)
         self.assertIn("11111", tenants)
         # find foo and bar
         tenants = self.driver.list_tenants('foo', 'bar')
         self.assertIsNotNone(tenants)
-        self.assertEquals(1, len(tenants))
+        self.assertEqual(1, len(tenants))
         self.assertIn("1234", tenants)
         # find just 'blap'
         tenants = self.driver.list_tenants('blap')
         self.assertIsNotNone(tenants)
-        self.assertEquals(1, len(tenants))
+        self.assertEqual(1, len(tenants))
         self.assertIn("11111", tenants)
         # find nothing
         tenants = self.driver.list_tenants('not there')
         self.assertIsNotNone(tenants)
-        self.assertEquals(0, len(tenants))
+        self.assertEqual(0, len(tenants))
 
     def test_save_tenant(self):
         # save a new one
@@ -226,7 +226,7 @@ class DBDriverTests(object):
             tenant_id='T3',
             body={'id': '1234'}
         )
-        self.assertEquals(
+        self.assertEqual(
             {'id': '1234', 'tenantId': 'T3'},
             self.driver.get_deployment('1234')
         )
@@ -238,11 +238,11 @@ class DBDriverTests(object):
             body={'id': '1234'},
             secrets={'secret': 'SHHH!!!'}
         )
-        self.assertEquals(
+        self.assertEqual(
             {'id': '1234', 'tenantId': 'T3', 'secret': 'SHHH!!!'},
             self.driver.get_deployment('1234', with_secrets=True)
         )
-        self.assertEquals(
+        self.assertEqual(
             {'id': '1234', 'tenantId': 'T3'},
             self.driver.get_deployment('1234', with_secrets=False)
         )
@@ -261,7 +261,7 @@ class DBDriverTests(object):
             partial=True  # merge_existing in _save_deployment
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {'id': '1234', 'tenantId': 'T3', 'old': 'blarp', 'new': 'blerg'},
             self.driver.get_deployment('1234')
         )
@@ -280,13 +280,13 @@ class DBDriverTests(object):
             partial=False  # merge_existing in _save_deployment
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {'id': '1234', 'tenantId': 'T3', 'new': 'blerg'},
             self.driver.get_deployment('1234')
         )
 
     def test_get_deployments_found_nothing(self):
-        self.assertEquals(
+        self.assertEqual(
             {'_links': {}, 'results': {}, 'collection-count': 0},
             self.driver.get_deployments(tenant_id='T3')
         )
@@ -308,7 +308,7 @@ class DBDriverTests(object):
             body={'id': '9999', 'status': 'NEW'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -337,7 +337,7 @@ class DBDriverTests(object):
             body={'id': '9999', 'status': 'NEW'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -366,7 +366,7 @@ class DBDriverTests(object):
             tenant_id='T3',
             body={'id': '4321', 'status': 'NEW'}
         )
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -386,7 +386,7 @@ class DBDriverTests(object):
             },
             self.driver.get_deployments(tenant_id='T3', with_secrets=True)
         )
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -410,7 +410,7 @@ class DBDriverTests(object):
             body={'id': '4321', 'status': 'NEW'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -433,7 +433,7 @@ class DBDriverTests(object):
             body={'id': '4321', 'status': 'NEW', 'created': '2012-01-01'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -466,7 +466,7 @@ class DBDriverTests(object):
             body={'id': '5678', 'status': 'NEW', 'created': '2013-01-01'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -495,7 +495,7 @@ class DBDriverTests(object):
             body={'id': '1234', 'status': 'NEW'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -512,7 +512,7 @@ class DBDriverTests(object):
             body={'id': '1234', 'status': 'NEW'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -530,7 +530,7 @@ class DBDriverTests(object):
             body={'id': '1234', 'status': 'NEW'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -553,7 +553,7 @@ class DBDriverTests(object):
             body={'id': '4321', 'status': 'DELETED'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -580,7 +580,7 @@ class DBDriverTests(object):
             body={'id': '4321', 'status': 'DELETED'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -607,7 +607,7 @@ class DBDriverTests(object):
             body={'id': '4321', 'status': 'DELETED'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -664,7 +664,7 @@ class DBDriverTests(object):
             body={'id': '0000', 'status': 'DELETED', 'created': '2015-01-01'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -704,7 +704,7 @@ class DBDriverTests(object):
             tenant_id='T3',
             body={'id': '1234', 'status': 'UP', 'r0': {'status': 'DELETED'}}
         )
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -736,11 +736,11 @@ class DBDriverTests(object):
             partial=True,
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {'id': '1234', 'tenantId': 'T3', 'secret': 'NEWWWW!!!'},
             self.driver.get_deployment('1234', with_secrets=True)
         )
-        self.assertEquals(
+        self.assertEqual(
             {'id': '1234', 'tenantId': 'T3'},
             self.driver.get_deployment('1234', with_secrets=False)
         )
@@ -764,7 +764,7 @@ class DBDriverTests(object):
             body={'id': '9999'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -792,7 +792,7 @@ class DBDriverTests(object):
             body={'id': '9999'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -819,7 +819,7 @@ class DBDriverTests(object):
             body={'id': '9999'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -845,7 +845,7 @@ class DBDriverTests(object):
             body={'id': '9999'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -863,7 +863,7 @@ class DBDriverTests(object):
             body={'id': '1234'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {
@@ -881,7 +881,7 @@ class DBDriverTests(object):
             body={'id': '1234'}
         )
 
-        self.assertEquals(
+        self.assertEqual(
             {
                 '_links': {},
                 'results': {

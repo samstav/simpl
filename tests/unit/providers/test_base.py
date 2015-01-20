@@ -28,7 +28,7 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
     # Tests for generate_resource_tag
     def test_no_values_given(self):
         result = base.ProviderBasePlanningMixIn.generate_resource_tag()
-        self.assertEquals(
+        self.assertEqual(
             {'RAX-CHECKMATE': 'None/None/deployments/None/resources/None'},
             result
         )
@@ -40,7 +40,7 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
             deployment_id='deba8c',
             resource_id='r0'
         )
-        self.assertEquals({
+        self.assertEqual({
             'RAX-CHECKMATE':
             'http://blerp.com/T1/deployments/deba8c/resources/r0'}, result)
 

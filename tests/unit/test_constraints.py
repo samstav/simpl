@@ -69,7 +69,7 @@ class TestRegexConstraint(unittest.TestCase):
 
     def test_constraint_message(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[0])
-        self.assertEquals(constraint.message, "between 2 and 5 characters")
+        self.assertEqual(constraint.message, "between 2 and 5 characters")
 
 
 class TestProtocolConstraint(unittest.TestCase):
@@ -100,7 +100,7 @@ class TestProtocolConstraint(unittest.TestCase):
 
     def test_constraint_message(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[0])
-        self.assertEquals(constraint.message, "Nope. Only http(s)")
+        self.assertEqual(constraint.message, "Nope. Only http(s)")
 
 
 class TestSimpleComparisonConstraint(unittest.TestCase):
@@ -143,21 +143,21 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
         self.assertFalse(constraint.test(9))
         self.assertFalse(constraint.test(8))
         self.assertTrue(constraint.test(7))
-        self.assertEquals(constraint.message, "must be less than 8")
+        self.assertEqual(constraint.message, "must be less than 8")
 
     def test_constraint_tests_greater_than(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[1])
         self.assertFalse(constraint.test(1))
         self.assertFalse(constraint.test(2))
         self.assertTrue(constraint.test(3))
-        self.assertEquals(constraint.message, "must be greater than 2")
+        self.assertEqual(constraint.message, "must be greater than 2")
 
     def test_constraint_tests_less_than_or_equal_to(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[2])
         self.assertFalse(constraint.test(10))
         self.assertTrue(constraint.test(9))
         self.assertTrue(constraint.test(8))
-        self.assertEquals(constraint.message, "must be less than or equal to "
+        self.assertEqual(constraint.message, "must be less than or equal to "
                                               "9")
 
     def test_constraint_tests_greater_than_or_equal_to(self):
@@ -165,19 +165,19 @@ class TestSimpleComparisonConstraint(unittest.TestCase):
         self.assertFalse(constraint.test(0))
         self.assertTrue(constraint.test(1))
         self.assertTrue(constraint.test(2))
-        self.assertEquals(constraint.message, "must be greater than or equal "
+        self.assertEqual(constraint.message, "must be greater than or equal "
                                               "to 1")
 
     def test_constraint_message(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[4])
-        self.assertEquals(constraint.message, "Nope! Less than 18")
+        self.assertEqual(constraint.message, "Nope! Less than 18")
 
     def test_constraint_combined_keys(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[5])
         self.assertFalse(constraint.test(98))
         self.assertFalse(constraint.test(101))
         self.assertTrue(constraint.test(99))
-        self.assertEquals(constraint.message, "must be less than 100, must be "
+        self.assertEqual(constraint.message, "must be less than 100, must be "
                                               "greater than 98")
 
 
@@ -209,7 +209,7 @@ class TestInConstraint(unittest.TestCase):
 
     def test_constraint_message(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[0])
-        self.assertEquals(constraint.message, "Nope. Only http(s)")
+        self.assertEqual(constraint.message, "Nope. Only http(s)")
 
 
 class TestStaticConstraint(unittest.TestCase):
@@ -236,7 +236,7 @@ class TestStaticConstraint(unittest.TestCase):
 
     def test_constraint_message(self):
         constraint = cmcon.Constraint.from_constraint(self.test_data[0])
-        self.assertEquals(constraint.message, "No")
+        self.assertEqual(constraint.message, "No")
 
 
 if __name__ == '__main__':

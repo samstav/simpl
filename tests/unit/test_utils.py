@@ -34,7 +34,7 @@ class TestUtils(unittest.TestCase):
 
     def test_extract_sensitive_data_simple(self):
         fxn = utils.extract_sensitive_data
-        self.assertEquals(fxn({}), ({}, None))
+        self.assertEqual(fxn({}), ({}, None))
         combined = {
             'innocuous': 'Hello!',
             'password': 'secret',
@@ -42,8 +42,8 @@ class TestUtils(unittest.TestCase):
         innocuous = {'innocuous': 'Hello!'}
         secret = {'password': 'secret'}
         original = copy.copy(combined)
-        self.assertEquals(fxn(combined, sensitive_keys=[]), (combined, None))
-        self.assertEquals(fxn(combined, ['password']), (innocuous, secret))
+        self.assertEqual(fxn(combined, sensitive_keys=[]), (combined, None))
+        self.assertEqual(fxn(combined, ['password']), (innocuous, secret))
         self.assertDictEqual(combined, original)
 
     def test_extract_sensitive_data_works_with_None_keys(self):
@@ -129,7 +129,7 @@ class TestUtils(unittest.TestCase):
 
     def test_extract_sensitive_data_complex(self):
         fxn = utils.extract_sensitive_data
-        self.assertEquals(fxn({}), ({}, None))
+        self.assertEqual(fxn({}), ({}, None))
         combined = {
             'innocuous': {
                 'names': ['Tom', 'Richard', 'Harry']
@@ -198,7 +198,7 @@ class TestUtils(unittest.TestCase):
         }
         body, hidden = utils.extract_sensitive_data(data)
         self.assertIsNone(body)
-        self.assertEquals(hidden, data)
+        self.assertEqual(hidden, data)
 
     def test_extract_and_merge(self):
         fxn = utils.extract_sensitive_data
@@ -234,30 +234,30 @@ class TestUtils(unittest.TestCase):
                    l=[None, [{'t': 8}]])
         result = utils.merge_dictionary(dst, src)
         self.assertIsInstance(result, dict)
-        self.assertEquals(result['a'], 1)
-        self.assertEquals(result['d'], 4)
-        self.assertEquals(result['f'], 6)
-        self.assertEquals(result['b'], 'u2')
-        self.assertEquals(result['e'], 'u5')
+        self.assertEqual(result['a'], 1)
+        self.assertEqual(result['d'], 4)
+        self.assertEqual(result['f'], 6)
+        self.assertEqual(result['b'], 'u2')
+        self.assertEqual(result['e'], 'u5')
         self.assertIs(result['c'], dst['c'])
         self.assertIs(result['c']['cd'], dst['c']['cd'])
-        self.assertEquals(result['c']['cd']['cda']['cdaa'], 'u3411')
-        self.assertEquals(result['c']['cd']['cda']['cdab'], 'u3412')
-        self.assertEquals(result['g'], 7)
+        self.assertEqual(result['c']['cd']['cda']['cdaa'], 'u3411')
+        self.assertEqual(result['c']['cd']['cda']['cdab'], 'u3412')
+        self.assertEqual(result['g'], 7)
         self.assertIs(src['h'], result['h'])
-        self.assertEquals(result['i'], [1])
-        self.assertEquals(result['j'], [1, 2])
-        self.assertEquals(result['k'], [3, 4])
-        self.assertEquals(result['l'], [[], [{'s': 1, 't': 8}]])
+        self.assertEqual(result['i'], [1])
+        self.assertEqual(result['j'], [1, 2])
+        self.assertEqual(result['k'], [3, 4])
+        self.assertEqual(result['l'], [[], [{'s': 1, 't': 8}]])
 
     def test_merge_lists(self):
         dst = [[], [2], [None, 4]]
         src = [[1], [], [3, None]]
         result = utils.merge_lists(dst, src)
         self.assertIsInstance(result, list)
-        self.assertEquals(result[0], [1])
-        self.assertEquals(result[1], [2])
-        self.assertEquals(result[2], [3, 4], "Found: %s" % result[2])
+        self.assertEqual(result[0], [1])
+        self.assertEqual(result[1], [2])
+        self.assertEqual(result[2], [3, 4], "Found: %s" % result[2])
 
     def test_is_ssh_key(self):
         self.assertFalse(utils.is_ssh_key(None))
@@ -471,11 +471,11 @@ class TestUtils(unittest.TestCase):
         with mock.patch.object(utils.time, 'gmtime') as mock_gmt:
             mock_gmt.return_value = some_time
             result = utils.get_time_string()
-            self.assertEquals(result, "1970-01-01 00:00:00 +0000")
+            self.assertEqual(result, "1970-01-01 00:00:00 +0000")
 
     def test_get_formatted_time_string_with_input(self):
         result = utils.get_time_string(time_gmt=time.gmtime(0))
-        self.assertEquals(result, "1970-01-01 00:00:00 +0000")
+        self.assertEqual(result, "1970-01-01 00:00:00 +0000")
 
     #
     # _validate_range_values tests
@@ -503,28 +503,28 @@ class TestUtils(unittest.TestCase):
         bottle.request.environ = {'QUERY_STRING': ''}
         kwargs = {}
         utils._validate_range_values(bottle.request, 'offset', kwargs)
-        self.assertEquals(None, kwargs.get('offset'))
-        self.assertEquals(200, bottle.response.status_code)
+        self.assertEqual(None, kwargs.get('offset'))
+        self.assertEqual(200, bottle.response.status_code)
 
     def test_valid_number_passed_in_param(self):
         bottle.request.environ = {'QUERY_STRING': ''}
         kwargs = {'limit': '4236'}
         utils._validate_range_values(bottle.request, 'limit', kwargs)
-        self.assertEquals(4236, kwargs['limit'])
-        self.assertEquals(200, bottle.response.status_code)
+        self.assertEqual(4236, kwargs['limit'])
+        self.assertEqual(200, bottle.response.status_code)
 
     def test_valid_number_passed_in_request(self):
         bottle.request.environ = {'QUERY_STRING': 'offset=2'}
         kwargs = {}
         utils._validate_range_values(bottle.request, 'offset', kwargs)
-        self.assertEquals(2, kwargs['offset'])
-        self.assertEquals(200, bottle.response.status_code)
+        self.assertEqual(2, kwargs['offset'])
+        self.assertEqual(200, bottle.response.status_code)
 
     def test_pagination_headers_no_ranges_no_results(self):
         utils._write_pagination_headers({'results': {}}, 0, None,
                                         bottle.response, 'deployments', '')
-        self.assertEquals(200, bottle.response.status_code)
-        self.assertEquals(
+        self.assertEqual(200, bottle.response.status_code)
+        self.assertEqual(
             [
                 ('Content-Range', 'deployments 0-0/0'),
                 ('Content-Type', 'text/html; charset=UTF-8')
@@ -540,8 +540,8 @@ class TestUtils(unittest.TestCase):
             },
             0, None, bottle.response, 'deployments', ''
         )
-        self.assertEquals(200, bottle.response.status_code)
-        self.assertEquals(
+        self.assertEqual(200, bottle.response.status_code)
+        self.assertEqual(
             [
                 ('Content-Range', 'deployments 0-3/4'),
                 ('Content-Type', 'text/html; charset=UTF-8')
@@ -557,7 +557,7 @@ class TestUtils(unittest.TestCase):
             },
             1, 2, bottle.response, 'deployments', 'T3'
         )
-        self.assertEquals(206, bottle.response.status_code)
+        self.assertEqual(206, bottle.response.status_code)
         self.assertItemsEqual(
             [
                 ('Link', '</T3/deployments?limit=2>; rel="first"; '
@@ -691,14 +691,14 @@ class TestQueryParams(unittest.TestCase):
         ))
 
     def test_cap_limit(self):
-        self.assertEquals(90, utils.cap_limit(90, None))
-        self.assertEquals(100, utils.cap_limit(120, None))
-        self.assertEquals(100, utils.cap_limit(-10, None))
+        self.assertEqual(90, utils.cap_limit(90, None))
+        self.assertEqual(100, utils.cap_limit(120, None))
+        self.assertEqual(100, utils.cap_limit(-10, None))
 
     def test_filter_resources(self):
         resources = {"1": {"provider": "compute"}, "2": {}}
         filtered = utils.filter_resources(resources, "compute")
-        self.assertEquals(1, len(filtered))
+        self.assertEqual(1, len(filtered))
         self.assertDictEqual({"provider": "compute"}, filtered[0])
 
 

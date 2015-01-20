@@ -303,7 +303,7 @@ class TestCount(unittest.TestCase):
         self.driver.get_deployments = mock.Mock(return_value=deps)
         result = self.controller.count(blueprint_id="blp-123-aabc-efg",
                                        tenant_id="12345")
-        self.assertEquals(result, 1)
+        self.assertEqual(result, 1)
         self.driver.get_deployments.assert_called_with(tenant_id="12345",
                                                        with_count=True,
                                                        status=None,
@@ -421,7 +421,7 @@ class TestSecrets(unittest.TestCase):
 
         self.assertEqual(dep['id'], '1')
         self.assertIn('secrets', dep)
-        self.assertEquals(dep['secrets'], 'GENERATING')
+        self.assertEqual(dep['secrets'], 'GENERATING')
         self.driver.get_deployment.assert_called_with('1', with_secrets=False)
 
     def test_get_secrets_works_when_blank(self):
@@ -435,7 +435,7 @@ class TestSecrets(unittest.TestCase):
         self.assertEqual(dep['id'], '1')
 
         self.assertIn('secrets', dep)
-        self.assertEquals(dep['secrets'], 'NO SECRETS')
+        self.assertEqual(dep['secrets'], 'NO SECRETS')
         self.driver.get_deployment.assert_called_with('1', with_secrets=False)
 
     def test_status_available_trumps_locked(self):
@@ -447,7 +447,7 @@ class TestSecrets(unittest.TestCase):
 
         self.assertEqual(dep['id'], '1')
         self.assertIn('secrets', dep)
-        self.assertEquals(dep['secrets'], 'AVAILABLE')
+        self.assertEqual(dep['secrets'], 'AVAILABLE')
         self.driver.get_deployment.assert_called_with('1', with_secrets=False)
 
     def test_get_deployments_strips_secrets(self):

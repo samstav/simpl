@@ -29,9 +29,7 @@ from celery.app import default_app
 from celery.result import AsyncResult
 import mock
 import mox
-from mox import (IsA, In, And, IgnoreArg, ContainsKeyValue, Func, StrContains,
-                 Not)
-from SpiffWorkflow.specs import Celery, Transform
+from SpiffWorkflow import specs
 
 from checkmate.deployment import Deployment
 from checkmate import deployments
@@ -42,8 +40,8 @@ os.environ['CHECKMATE_DATA_PATH'] = os.path.join(os.path.dirname(__file__),
 
 from checkmate.common import schema
 from checkmate import exceptions
+from checkmate import middleware
 from checkmate.providers import base
-from checkmate.middleware import RequestContext  # also enables logging
 from checkmate import utils
 from checkmate.workflow import init_spiff_workflow
 
@@ -72,8 +70,8 @@ lAiEd8z7gyiQnBexn/dXzldGFiJYJgQ5HolYaNMtTF+AQY6R6Qt0okCPyEDJxHJUM7d""",
 CATALOG = [
     {
         "endpoints": [{
-            "publicURL": "https://monitoring.api.rackspacecloud.com/v1.0/T1000\
-",
+            "publicURL":
+            "https://monitoring.api.rackspacecloud.com/v1.0/T1000",
             "tenantId": "T1000"
         }],
         "name": "cloudMonitoring",
@@ -279,12 +277,10 @@ class StubbedWorkflowBase(unittest.TestCase):
             LOG.debug("No postback for %s", args[0])
 
     def _get_stubbed_out_workflow(self, expected_calls=None, context=None):
-        """Returns a workflow of self.deployment with mocks attached to all
-        celery calls
-        """
+        """Return a self.deployment workflow with all celery calls mocked."""
         assert isinstance(self.deployment, Deployment)
         if not context:
-            context = RequestContext(auth_token="MOCK_TOKEN",
+            context = middleware.RequestContext(auth_token="MOCK_TOKEN",
                                      tenant='TMOCK',
                                      username="MOCK_USER", catalog=CATALOG,
                                      base_url='http://MOCK')
@@ -346,9 +342,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             return True
 
         def is_good_data_bag(context):
-            """Checks that we're writing everything we need to the chef databag
-            for managed cloud cookbooks to work
-            """
+            """True if all managed cloud cookbook needs are in the databag."""
             if context is None:
                 return False
             for key in context:
@@ -361,11 +355,11 @@ class StubbedWorkflowBase(unittest.TestCase):
             # Create Chef Environment
             'call': 'checkmate.providers.opscode.solo.tasks'
                     '.create_environment',
-            'args': [IgnoreArg(), self.deployment['id'], IgnoreArg()],
-            'kwargs': And(
-                ContainsKeyValue('private_key', IgnoreArg()),
-                ContainsKeyValue('secret_key', IgnoreArg()),
-                ContainsKeyValue('public_key_ssh', IgnoreArg())
+            'args': [mox.IgnoreArg(), self.deployment['id'], mox.IgnoreArg()],
+            'kwargs': mox.And(
+                mox.ContainsKeyValue('private_key', mox.IgnoreArg()),
+                mox.ContainsKeyValue('secret_key', mox.IgnoreArg()),
+                mox.ContainsKeyValue('public_key_ssh', mox.IgnoreArg())
             ),
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
@@ -383,28 +377,30 @@ class StubbedWorkflowBase(unittest.TestCase):
                 'call': 'checkmate.providers.opscode.solo.tasks'
                         '.write_databag',
                 'args': [
-                    IgnoreArg(),
+                    mox.IgnoreArg(),
                     self.deployment['id'],
                     self.deployment['id'],
                     self.deployment.settings().get('app_id'),
-                    Func(is_good_data_bag)
+                    mox.Func(is_good_data_bag)
                 ],
-                'kwargs': And(
-                    ContainsKeyValue('secret_file', 'certificates/chef.pem'),
-                    ContainsKeyValue('merge', True)
+                'kwargs': mox.And(
+                    mox.ContainsKeyValue('secret_file',
+                                         'certificates/chef.pem'),
+                    mox.ContainsKeyValue('merge', True)
                 ),
                 'result': None
             })
         else:
             expected_calls.append({
                 'call': 'checkmate.providers.opscode.solo.tasks.manage_role',
-                'args': [IgnoreArg(), 'wordpress-web', self.deployment['id']],
+                'args': [mox.IgnoreArg(), 'wordpress-web',
+                         self.deployment['id']],
                 'kwargs': {
                     'override_attributes': {
                         'wordpress': {
                             'db': {
                                 'host': 'verylong.rackspaceclouddb.com',
-                                'password': IsA(basestring),
+                                'password': mox.IsA(basestring),
                                 'user': os.environ['USER'],
                                 'database': 'db1'
                             }
@@ -434,16 +430,16 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'call': 'checkmate.providers.rackspace.compute.'
                                 'create_server',
                         'args': [
-                            Func(is_good_context),
-                            StrContains(name),
+                            mox.Func(is_good_context),
+                            mox.StrContains(name),
                             self.deployment.get_setting(
                                 'region',
                                 default='testonia'
                             )
                         ],
-                        'kwargs': And(
-                            ContainsKeyValue('image', image),
-                            ContainsKeyValue('flavor', flavor)
+                        'kwargs': mox.And(
+                            mox.ContainsKeyValue('image', image),
+                            mox.ContainsKeyValue('flavor', flavor)
                         ),
                         'result': {
                             'resources': {
@@ -463,11 +459,11 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'call': 'checkmate.providers.rackspace.compute'
                                 '.wait_on_build',
                         'args': [
-                            Func(is_good_context), fake_id,
+                            mox.Func(is_good_context), fake_id,
                             self.deployment.get_setting(
                                 'region', default='testonia')
                         ],
-                        'kwargs': And(In('password')),
+                        'kwargs': mox.And(mox.In('password')),
                         'result': {
                             'resources': {
                                 str(key): {
@@ -509,11 +505,12 @@ class StubbedWorkflowBase(unittest.TestCase):
                         # Create Server
                         'call': 'checkmate.providers.rackspace.compute_legacy.'
                                 'create_server',
-                        'args': [Func(is_good_context), StrContains(name)],
-                        'kwargs': And(
-                            ContainsKeyValue('image', image),
-                            ContainsKeyValue('flavor', flavor),
-                            ContainsKeyValue('ip_address_type', 'public')
+                        'args': [mox.Func(is_good_context),
+                                 mox.StrContains(name)],
+                        'kwargs': mox.And(
+                            mox.ContainsKeyValue('image', image),
+                            mox.ContainsKeyValue('flavor', flavor),
+                            mox.ContainsKeyValue('ip_address_type', 'public')
                         ),
                         'result': {
                             'resources': {
@@ -534,8 +531,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                         # Wait for Server Build
                         'call': 'checkmate.providers.rackspace.compute_legacy'
                                 '.wait_on_build',
-                        'args': [Func(is_good_context), fake_id],
-                        'kwargs': And(In('password')),
+                        'args': [mox.Func(is_good_context), fake_id],
+                        'kwargs': mox.And(mox.In('password')),
                         'result': {
                             'resources': {
                                 str(key): {
@@ -576,9 +573,9 @@ class StubbedWorkflowBase(unittest.TestCase):
                 expected_calls.append({
                     'call': 'checkmate.providers.opscode.solo.tasks'
                             'register_node_v2',
-                    'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
+                    'args': [mox.IgnoreArg(), "4.4.4.%s" % fake_ip,
                              self.deployment['id']],
-                    'kwargs': In('password'),
+                    'kwargs': mox.In('password'),
                     'result': None,
                     'resource': key,
                 })
@@ -586,12 +583,12 @@ class StubbedWorkflowBase(unittest.TestCase):
                 # build-essential (now just cook with bootstrap.json)
                 expected_calls.append({
                     'call': 'checkmate.providers.opscode.solo.tasks.cook_v2',
-                    'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
+                    'args': [mox.IgnoreArg(), "4.4.4.%s" % fake_ip,
                              self.deployment['id']],
-                    'kwargs': And(
-                        In('password'), Not(In('recipes')),
-                        Not(In('roles')),
-                        ContainsKeyValue(
+                    'kwargs': mox.And(
+                        mox.In('password'), mox.Not(mox.In('recipes')),
+                        mox.Not(mox.In('roles')),
+                        mox.ContainsKeyValue(
                             'identity_file',
                             '/var/tmp/%s/private.pem' %
                             self.deployment['id']
@@ -605,12 +602,13 @@ class StubbedWorkflowBase(unittest.TestCase):
                     {
                         'call': 'checkmate.providers.opscode.solo.tasks'
                                 '.cook_v2',
-                        'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
+                        'args': [mox.IgnoreArg(), "4.4.4.%s" % fake_ip,
                                  self.deployment['id']],
-                        'kwargs': And(
-                            In('password'),
-                            ContainsKeyValue('roles', ["wordpress-%s" % role]),
-                            ContainsKeyValue(
+                        'kwargs': mox.And(
+                            mox.In('password'),
+                            mox.ContainsKeyValue(
+                                'roles', ["wordpress-%s" % role]),
+                            mox.ContainsKeyValue(
                                 'identity_file',
                                 '/var/tmp/%s/private.pem' % (
                                     self.deployment['id']))
@@ -623,17 +621,17 @@ class StubbedWorkflowBase(unittest.TestCase):
                         'call': 'checkmate.providers.opscode.'
                                 'solo.tasks.write_databag',
                         'args': [
-                            IgnoreArg(),
+                            mox.IgnoreArg(),
                             self.deployment['id'],
                             self.deployment['id'],
                             'webapp_wordpress_%s' % (
                                 self.deployment.get_setting('prefix')),
-                            And(IsA(dict), In('lsyncd'))
+                            mox.And(mox.IsA(dict), mox.In('lsyncd'))
                         ],
-                        'kwargs': And(
-                            ContainsKeyValue(
+                        'kwargs': mox.And(
+                            mox.ContainsKeyValue(
                                 'secret_file', 'certificates/chef.pem'),
-                            ContainsKeyValue('merge', True)),
+                            mox.ContainsKeyValue('merge', True)),
                         'result': None,
                         'resource': key,
                     })
@@ -641,15 +639,15 @@ class StubbedWorkflowBase(unittest.TestCase):
                         {
                             'call': 'checkmate.providers.opscode.solo.tasks'
                                     '.cook_v2',
-                            'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
+                            'args': [mox.IgnoreArg(), "4.4.4.%s" % fake_ip,
                                      self.deployment['id']],
-                            'kwargs': And(
-                                In('password'),
-                                ContainsKeyValue(
+                            'kwargs': mox.And(
+                                mox.In('password'),
+                                mox.ContainsKeyValue(
                                     'recipes',
                                     ['lsyncd::install']
                                 ),
-                                ContainsKeyValue(
+                                mox.ContainsKeyValue(
                                     'identity_file',
                                     '/var/tmp/%s/private.pem' %
                                     self.deployment['id']
@@ -664,14 +662,14 @@ class StubbedWorkflowBase(unittest.TestCase):
                         {
                             'call': 'checkmate.providers.opscode.solo.tasks'
                                     '.cook_v2',
-                            'args': [IgnoreArg(), "4.4.4.%s" % fake_ip,
+                            'args': [mox.IgnoreArg(), "4.4.4.%s" % fake_ip,
                                      self.deployment['id']],
-                            'kwargs': And(
-                                In('password'),
-                                ContainsKeyValue(
+                            'kwargs': mox.And(
+                                mox.In('password'),
+                                mox.ContainsKeyValue(
                                     'recipes',
                                     ["lsyncd::install_keys"]),
-                                ContainsKeyValue(
+                                mox.ContainsKeyValue(
                                     'identity_file',
                                     '/var/tmp/%s/private.pem' %
                                     self.deployment['id']
@@ -686,7 +684,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'add_node',
                     'args':
                     [
-                        Func(is_good_context),
+                        mox.Func(is_good_context),
                         20001,
                         "10.1.2.%s" % fake_ip,
                         80,
@@ -700,15 +698,15 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'resource': key,
                 })
             elif (resource.get('provider') == 'database' and
-                    resource.get('type')  == 'compute' and
+                    resource.get('type') == 'compute' and
                     'disk' in resource['desired-state']):
                 expected_calls.extend([{
                     # Create Instance
                     'call': 'checkmate.providers.rackspace.database.tasks.'
                             'create_instance',
                     'args': [
-                        Func(is_good_context),
-                        IsA(basestring),
+                        mox.Func(is_good_context),
+                        mox.IsA(basestring),
                         resource['desired-state']['flavor'],
                         1,
                         None,
@@ -720,7 +718,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                             default='testonia'
                         )
                     ],
-                    'kwargs': IgnoreArg(),
+                    'kwargs': mox.IgnoreArg(),
                     'result': {
                         'resources': {
                             str(key): {
@@ -747,10 +745,10 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'call': 'checkmate.providers.rackspace.database.tasks.'
                             'wait_on_build',
                     'args': [
-                        Func(is_good_context),
-                        IgnoreArg(),
+                        mox.Func(is_good_context),
+                        mox.IgnoreArg(),
                     ],
-                    'kwargs': IgnoreArg(),
+                    'kwargs': mox.IgnoreArg(),
                     'result': {
                         'resources': {
                             str(key): {
@@ -771,8 +769,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'call': 'checkmate.providers.rackspace.database.tasks.'
                             'create_instance',
                     'args': [
-                        Func(is_good_context),
-                        IsA(basestring),
+                        mox.Func(is_good_context),
+                        mox.IsA(basestring),
                         resource['desired-state']['flavor'],
                         resource['desired-state'].get('disk'),
                         None,
@@ -784,7 +782,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                             default='testonia'
                         )
                     ],
-                    'kwargs': IgnoreArg(),
+                    'kwargs': mox.IgnoreArg(),
                     'result': {
                         'resources': {
                             str(key): {
@@ -810,10 +808,10 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'call': 'checkmate.providers.rackspace.database.tasks.'
                             'wait_on_build',
                     'args': [
-                        Func(is_good_context),
-                        IgnoreArg(),
+                        mox.Func(is_good_context),
+                        mox.IgnoreArg(),
                     ],
-                    'kwargs': IgnoreArg(),
+                    'kwargs': mox.IgnoreArg(),
                     'result': {
                         'resources': {
                             str(key): {
@@ -838,8 +836,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                     # Create Database
                     'call': 'checkmate.providers.rackspace.database.tasks.'
                             'create_database',
-                    'args': IgnoreArg(),
-                    'kwargs': IgnoreArg(),
+                    'args': mox.IgnoreArg(),
+                    'kwargs': mox.IgnoreArg(),
                     'result': {
                         'resources': {
                             str(key): {
@@ -867,11 +865,11 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'call':
                     'checkmate.providers.rackspace.database.tasks.add_user',
                     'args': [
-                        Func(is_good_context),
+                        mox.Func(is_good_context),
                         'db-inst-1',
                         ['db1'],
                         username,
-                        IsA(basestring),
+                        mox.IsA(basestring),
                         self.deployment.get_setting(
                             'region',
                             default='testonia'
@@ -901,17 +899,17 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'call': 'checkmate.providers.opscode.solo.tasks'
                             '.write_databag',
                     'args': [
-                        IgnoreArg(),
+                        mox.IgnoreArg(),
                         self.deployment['id'],
                         self.deployment['id'],
                         'webapp_wordpress_%s' % (
                             self.deployment.get_setting('prefix')),
-                        IsA(dict)
+                        mox.IsA(dict)
                     ],
-                    'kwargs': And(
-                        ContainsKeyValue(
+                    'kwargs': mox.And(
+                        mox.ContainsKeyValue(
                             'secret_file', 'certificates/chef.pem'),
-                        ContainsKeyValue('merge', True)),
+                        mox.ContainsKeyValue('merge', True)),
                     'result': None,
                     'resource': key,
                 })
@@ -923,14 +921,15 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'call': 'checkmate.providers.rackspace.loadbalancer.'
                             'create_loadbalancer',
                     'args': [
-                        Func(is_good_context), IsA(basestring),
+                        mox.Func(is_good_context), mox.IsA(basestring),
                         'PUBLIC',
                         'HTTP',
                         80,
                         region
                     ],
-                    'kwargs': ContainsKeyValue('tag',
-                                               {'RAX-CHECKMATE': IgnoreArg()}),
+                    'kwargs': mox.ContainsKeyValue(
+                        'tag', {'RAX-CHECKMATE': mox.IgnoreArg()}
+                    ),
                     'result': {
                         'resources': {
                             str(key): {
@@ -967,7 +966,7 @@ class TestProvider(base.ProviderBase):
         wait_on, _, _ = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
 
-        create_instance_task = Celery(
+        create_instance_task = specs.Celery(
             wfspec,
             'Create Resource %s' % key,
             'checkmate.providers.test.create_resource',
@@ -1058,7 +1057,7 @@ class TestProvider(base.ProviderBase):
                              extra=dict(data=my_task.attributes))
             utils.merge_dictionary(my_task.attributes, data)
 
-        compile_override = Transform(
+        compile_override = specs.Transform(
             wfspec,
             "Get %s values for %s" % (relation_key, key),
             transforms=[utils.get_source_body(get_fields_code)],
@@ -1165,9 +1164,7 @@ class ProviderTester(unittest.TestCase):
 
 
 class MockContext(dict):
-
     """Used to mock RequestContext."""
-
     is_admin = False
     tenant = None
     username = "Ziad"

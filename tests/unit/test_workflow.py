@@ -85,7 +85,7 @@ class TestWorkflow(unittest.TestCase):
         self.mocked_workflow.get_tasks().AndReturn([self.task_with_error,
                                                     self.task_without_error])
         self.mox.ReplayAll()
-        self.assertEquals(workflow.get_errored_tasks(self.mocked_workflow),
+        self.assertEqual(workflow.get_errored_tasks(self.mocked_workflow),
                           ['task_id'])
 
     def test_create_reset_failed_task_workflow(self):
@@ -159,7 +159,7 @@ class TestWorkflow(unittest.TestCase):
         task1.task_spec._clear_celery_task_data.assert_called_with(task1)
         task1.task_spec._update_state.assert_called_once_with(task1)
 
-        self.assertEquals(task1._state, Task.FUTURE)
+        self.assertEqual(task1._state, Task.FUTURE)
 
     def test_reset_task_tree_for_celery_task_with_parents(self):
         task1 = mock.MagicMock()
@@ -180,8 +180,8 @@ class TestWorkflow(unittest.TestCase):
 
         task2.task_spec._update_state.assert_called_once_with(task2)
 
-        self.assertEquals(task1._state, Task.FUTURE)
-        self.assertEquals(task2._state, Task.FUTURE)
+        self.assertEqual(task1._state, Task.FUTURE)
+        self.assertEqual(task2._state, Task.FUTURE)
 
     def test_convert_exc_to_dict_with_retriable_exception(self):
         info = "CheckmateException('foo', 'exception_message', 2)"
@@ -434,9 +434,9 @@ class TestWorkflow(unittest.TestCase):
         test_workflow = workflow.init_spiff_workflow(
             wf_spec, deployment_with_lb_provider, context, "w_id",
             "DELETE")
-        self.assertEquals(test_workflow.attributes["created"],
+        self.assertEqual(test_workflow.attributes["created"],
                           '2013-03-31 17:49:51 +0000')
-        self.assertEquals(test_workflow.attributes["updated"],
+        self.assertEqual(test_workflow.attributes["updated"],
                           '2013-03-31 17:49:51 +0000')
 
     def test_create_delete_workflow_with_incomplete_operation(self):

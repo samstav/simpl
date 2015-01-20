@@ -138,7 +138,7 @@ class TestResource(unittest.TestCase):
         self.resource['index'] = '0'
         self.resource['desired-state'] = {'port': '80'}
         self.resource['status'] = 'PLANNED'
-        self.assertEquals(3, len(self.resource))
+        self.assertEqual(3, len(self.resource))
 
     def test_resource_get_item(self):
         self.resource['index'] = '0'

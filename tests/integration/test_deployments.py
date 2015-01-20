@@ -34,7 +34,6 @@ from checkmate import deployment as cmdep
 from checkmate import deployments as cmdeps
 from checkmate.deployments import tasks as deployment_tasks
 from checkmate import exceptions
-from checkmate.exceptions import CheckmateBadState
 from checkmate import inputs as cminp
 from checkmate import keys
 from checkmate import middleware as cmmid
@@ -354,7 +353,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                          msg="Expecting constraint to generate 2 resources")
 
         resource_count = 0
-        #test resource dns-names without a deployment name
+        # Test resource dns-names without a deployment name
         for k, resource in deployment['resources'].iteritems():
             if k != "connections":
                 regex = r"%s\d+.checkmate.local" % resource['service']
@@ -401,7 +400,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertIn("myResource", resources)
         expected = {
             'component': 'small_widget',
-            #dns-name with a deployment name
+            # dns-name with a deployment name
             'dns-name': 'sharedwidget.checkmate.local',
             'index': 'myResource',
             'instance': {},
@@ -520,7 +519,7 @@ class TestDeploymentRelationParser(unittest.TestCase):
         }
         connections = set()
         for resource in parsed['resources'].values():
-            if not 'relations' in resource:
+            if 'relations' not in resource:
                 continue
             for connection in resource['relations'].values():
                 connections.add((connection['name'], connection['interface']))
@@ -553,8 +552,8 @@ class TestComponentSearch(unittest.TestCase):
             """))
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
         cmdeps.Manager.plan(deployment, cmmid.RequestContext())
-        self.assertEquals(deployment['resources'].values()[0]['component'],
-                          'small_widget')
+        self.assertEqual(
+            deployment['resources'].values()[0]['component'], 'small_widget')
 
     def test_component_find_by_type_and_interface(self):
         deployment = cmdep.Deployment(utils.yaml_to_dict("""
@@ -673,8 +672,8 @@ class TestComponentSearch(unittest.TestCase):
             """))
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
         cmdeps.Manager.plan(deployment, cmmid.RequestContext())
-        self.assertEquals(deployment['resources'].values()[0]['component'],
-                          'small_widget')
+        self.assertEqual(
+            deployment['resources'].values()[0]['component'], 'small_widget')
 
 
 class TestDeploymentSettings(unittest.TestCase):
@@ -907,7 +906,7 @@ class TestDeploymentSettings(unittest.TestCase):
                                        provider_key=case.get('provider'),
                                        resource_type=case.get('type'),
                                        relation=case.get('relation'))
-            self.assertEquals(value, case['expected'], msg=case['case'])
+            self.assertEqual(value, case['expected'], msg=case['case'])
             LOG.debug("Test '%s' success=%s", case['case'],
                       value == case['expected'])
 
@@ -1045,7 +1044,7 @@ class TestDeploymentSettings(unittest.TestCase):
                                        provider_key=case.get('provider'),
                                        resource_type=case.get('type'),
                                        relation=case.get('relation'))
-            self.assertEquals(value, case['expected'], msg=case['case'])
+            self.assertEqual(value, case['expected'], msg=case['case'])
             LOG.debug("Test '%s' success=%s", case['case'],
                       value == case['expected'])
 
@@ -1373,8 +1372,8 @@ class TestCloneDeployments(unittest.TestCase):
     def test_clone_deployment_failure_path(self):
         manager = cmdeps.Manager()
         self._mox.StubOutWithMock(manager, "get_deployment")
-        manager.get_deployment('1234', tenant_id='T1000')\
-            .AndReturn(self._deployment)
+        manager.get_deployment(
+            '1234', tenant_id='T1000').AndReturn(self._deployment)
 
         self._mox.ReplayAll()
         try:
@@ -1388,15 +1387,15 @@ class TestCloneDeployments(unittest.TestCase):
 
         manager = cmdeps.Manager()
         self._mox.StubOutWithMock(manager, "get_deployment")
-        manager.get_deployment('1234', tenant_id='T1000')\
-            .AndReturn(self._deployment)
+        manager.get_deployment(
+            '1234', tenant_id='T1000').AndReturn(self._deployment)
 
         context = cmmid.RequestContext(simulation=False)
         self._mox.StubOutWithMock(manager, "deploy")
         manager.deploy(mox.IgnoreArg(), context)
 
-        manager.get_deployment(mox.IgnoreArg(), tenant_id='T1000')\
-            .AndReturn({'id': 'NEW'})
+        manager.get_deployment(
+            mox.IgnoreArg(), tenant_id='T1000').AndReturn({'id': 'NEW'})
         self._mox.ReplayAll()
         manager.clone('1234', context, tenant_id='T1000')
         self._mox.VerifyAll()
@@ -1406,15 +1405,15 @@ class TestCloneDeployments(unittest.TestCase):
 
         manager = cmdeps.Manager()
         self._mox.StubOutWithMock(manager, "get_deployment")
-        manager.get_deployment('1234', tenant_id='T1000')\
-            .AndReturn(self._deployment)
+        manager.get_deployment(
+            '1234', tenant_id='T1000').AndReturn(self._deployment)
 
         context = cmmid.RequestContext(simulation=True)
         self._mox.StubOutWithMock(manager, "deploy")
         manager.deploy(mox.IgnoreArg(), context)
 
-        manager.get_deployment(mox.IgnoreArg(), tenant_id='T1000')\
-            .AndReturn(self._deployment)
+        manager.get_deployment(
+            mox.IgnoreArg(), tenant_id='T1000').AndReturn(self._deployment)
 
         self._mox.ReplayAll()
         manager.clone('1234', context, tenant_id='T1000')
@@ -1491,16 +1490,18 @@ class TestDeleteDeployments(unittest.TestCase):
 
         self._mox.StubOutWithMock(workflow_spec.WorkflowSpec,
                                   "create_delete_dep_wf_spec")
+
         workflow_spec.WorkflowSpec.create_delete_dep_wf_spec(
-            self._deployment, bottle.request.environ['context'])\
-            .AndReturn(mock_spec)
-        self._mox.StubOutWithMock(workflow,
-                                  "create_workflow")
-        workflow.create_workflow(mock_spec, self._deployment,
-                                 bottle.request.environ['context'],
-                                 driver=mock_driver,
-                                 wf_type="DELETE")\
-            .AndReturn(mock_spiff_wf)
+            self._deployment, bottle.request.environ['context']
+        ).AndReturn(mock_spec)
+
+        self._mox.StubOutWithMock(workflow, "create_workflow")
+
+        workflow.create_workflow(
+            mock_spec, self._deployment, bottle.request.environ['context'],
+            driver=mock_driver, wf_type="DELETE"
+        ).AndReturn(mock_spiff_wf)
+
         self._mox.StubOutWithMock(common_tasks, "update_operation")
         common_tasks.update_operation.delay('1234', '1234', action='PAUSE',
                                             driver=mock_driver)
@@ -1509,8 +1510,8 @@ class TestDeleteDeployments(unittest.TestCase):
         self._mox.StubOutWithMock(wf_tasks, "cycle_workflow")
         wf_tasks.cycle_workflow.delay(
             'w_id',
-            bottle.request.environ['context'].get_queued_task_dict())\
-            .AndReturn(4)
+            bottle.request.environ['context'].get_queued_task_dict()
+        ).AndReturn(4)
 
         self._mox.ReplayAll()
         router.delete_deployment('1234', tenant_id="T1000")
@@ -1567,8 +1568,8 @@ class TestGetResourceStuff(unittest.TestCase):
     @mock.patch('checkmate.deployments.manager.db.get_driver')
     def test_happy_resources(self, mock_get_driver):
         mock_db = self._mox.CreateMockAnything()
-        mock_db.get_deployment('1234', with_secrets=False)\
-            .AndReturn(self._deployment)
+        mock_db.get_deployment(
+            '1234', with_secrets=False).AndReturn(self._deployment)
         mock_get_driver.return_value = mock_db
         manager = cmdeps.Manager()
         router = cmdeps.Router(bottle.default_app(), manager)
@@ -1579,8 +1580,8 @@ class TestGetResourceStuff(unittest.TestCase):
     @mock.patch('checkmate.deployments.manager.db.get_driver')
     def test_happy_status(self, mock_get_driver):
         mock_db = self._mox.CreateMockAnything()
-        mock_db.get_deployment('1234', with_secrets=False)\
-            .AndReturn(self._deployment)
+        mock_db.get_deployment(
+            '1234', with_secrets=False).AndReturn(self._deployment)
         mock_get_driver.return_value = mock_db
         manager = cmdeps.Manager()
         router = cmdeps.Router(bottle.default_app(), manager)
@@ -1589,15 +1590,15 @@ class TestGetResourceStuff(unittest.TestCase):
         self.assertNotIn('fake', ret)
         for key in ['1', '2', '3', '9']:
             self.assertIn(key, ret)
-        self.assertEquals('A certain error happened',
-                          ret.get('2', {}).get('error-message'))
+        self.assertEqual(
+            'A certain error happened', ret.get('2', {}).get('error-message'))
 
     @mock.patch('checkmate.deployments.manager.db.get_driver')
     def test_no_resources(self, mock_get_driver):
         del self._deployment['resources']
         mock_db = self._mox.CreateMockAnything()
-        mock_db.get_deployment('1234', with_secrets=False)\
-            .AndReturn(self._deployment)
+        mock_db.get_deployment(
+            '1234', with_secrets=False).AndReturn(self._deployment)
         mock_get_driver.return_value = mock_db
         manager = cmdeps.Manager()
         router = cmdeps.Router(bottle.default_app(), manager)
@@ -1612,8 +1613,8 @@ class TestGetResourceStuff(unittest.TestCase):
     def test_no_res_status(self, mock_get_driver):
         del self._deployment['resources']
         mock_db = self._mox.CreateMockAnything()
-        mock_db.get_deployment('1234', with_secrets=False)\
-            .AndReturn(self._deployment)
+        mock_db.get_deployment(
+            '1234', with_secrets=False).AndReturn(self._deployment)
 
         mock_get_driver.return_value = mock_db
         manager = cmdeps.Manager()
@@ -1712,12 +1713,12 @@ class TestPostbackHelpers(unittest.TestCase):
         res = ret['resources']
         self.assertIn('1', res)
         self.assertIn('9', res)
-        self.assertEquals('NEW', res.get('1', {}).get('status'))
-        self.assertEquals('NEW', res.get('9', {}).get('status'))
-        self.assertEquals('I test u', res.get('1',
-                                              {}).get('status-message'))
-        self.assertEquals('I test u', res.get('9',
-                                              {}).get('status-message'))
+        self.assertEqual('NEW', res.get('1', {}).get('status'))
+        self.assertEqual('NEW', res.get('9', {}).get('status'))
+        self.assertEqual(
+            'I test u', res.get('1', {}).get('status-message'))
+        self.assertEqual(
+            'I test u', res.get('9', {}).get('status-message'))
 
 
 class TestDeploymentAddNodes(unittest.TestCase):
@@ -1938,11 +1939,11 @@ class TestDeploymentMigrate(unittest.TestCase):
         self.mox.ReplayAll()
 
         manager = cmdeps.Manager()
-        with self.assertRaises(CheckmateBadState) as context:
+        with self.assertRaises(exceptions.CheckmateBadState) as context:
             manager.mark_as_migrated('test')
 
         expected_message = "Deployment is already Migrated!"
-        self.assertEquals(context.exception.message, expected_message)
+        self.assertEqual(context.exception.message, expected_message)
 
         self.mox.VerifyAll()
 
@@ -1964,16 +1965,18 @@ class TestDeploymentMigrate(unittest.TestCase):
         self.mox.ReplayAll()
 
         manager = cmdeps.Manager()
-        with self.assertRaises(CheckmateBadState) as context:
+        with self.assertRaises(exceptions.CheckmateBadState) as context:
             manager.mark_as_migrated('test')
 
         expected_message = "Cannot change deployment (test) status to MIGRATED"
-        self.assertEquals(context.exception.message, expected_message)
+        self.assertEqual(context.exception.message, expected_message)
 
         self.mox.VerifyAll()
 
 
 if __name__ == '__main__':
-    from checkmate import test
     import sys
+
+    from checkmate import test
+
     test.run_with_params(sys.argv[:])

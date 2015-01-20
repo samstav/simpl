@@ -16,9 +16,11 @@
 """Module for testing loadbalancer manager."""
 
 import logging
-import mock
-import requests
 import unittest
+
+import mock
+from novaclient import exceptions as nvexc
+import requests
 
 from checkmate import exceptions as cmexc
 from checkmate.providers.rackspace import compute
@@ -26,7 +28,6 @@ from checkmate.providers.rackspace.compute import manager as manager
 from checkmate import rdp
 from checkmate import ssh
 from checkmate import utils
-from novaclient import exceptions as nvexc
 
 
 LOG = logging.getLogger(__name__)
@@ -236,7 +237,7 @@ class TestWaitOnBuild(unittest.TestCase):
                                           api=mock_api)
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exception:
-            self.assertEquals(exception.options, cmexc.CAN_RESET)
+            self.assertEqual(exception.options, cmexc.CAN_RESET)
         callback.assert_called_once_with({
             "status": "ERROR",
             "status-message": 'Server SERVER_ID build failed'
@@ -268,7 +269,7 @@ class TestWaitOnBuild(unittest.TestCase):
                                           api=mock_api)
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exception:
-            self.assertEquals(exception.options, cmexc.CAN_RESUME)
+            self.assertEqual(exception.options, cmexc.CAN_RESUME)
         callback.assert_called_once_with({
             "id": "SERVER_ID",
             "status": "BUILD",
@@ -361,7 +362,7 @@ class TestWaitOnBuild(unittest.TestCase):
                                           api=mock_api)
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exc:
-            self.assertEquals(exc.options, 0)
+            self.assertEqual(exc.options, 0)
 
         callback.assert_called_once_with({
             "id": "SERVER_ID",
@@ -464,7 +465,7 @@ class TestWaitOnBuild(unittest.TestCase):
                                           api=mock_api)
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exc:
-            self.assertEquals(exc.options, cmexc.CAN_RESUME)
+            self.assertEqual(exc.options, cmexc.CAN_RESUME)
         callback.assert_called_once_with({
             "id": "SERVER_ID",
             "status": "ACTIVE",
@@ -509,7 +510,7 @@ class TestWaitOnBuild(unittest.TestCase):
                                           api=mock_api)
             self.fail("Should have thrown an exception")
         except cmexc.CheckmateException as exc:
-            self.assertEquals(exc.options, cmexc.CAN_RESUME)
+            self.assertEqual(exc.options, cmexc.CAN_RESUME)
         callback.assert_called_once_with({
             "id": "SERVER_ID",
             "status": "ACTIVE",
@@ -550,9 +551,9 @@ class TestWaitOnBuild(unittest.TestCase):
                                           api=mock_api)
             self.fail("Should have thrown an exception")
         except cmexc.CheckmateException as exc:
-            self.assertEquals(exc.options, cmexc.CAN_RESUME)
-            self.assertEquals(exc.message, "Could not find IP of server "
-                                           "SERVER_ID")
+            self.assertEqual(exc.options, cmexc.CAN_RESUME)
+            self.assertEqual(
+                exc.message, "Could not find IP of server SERVER_ID")
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
@@ -579,8 +580,8 @@ class TestVerifySSHConnectivity(unittest.TestCase):
                                                       "SERVER_IP",
                                                       api=mock_api)
 
-        self.assertEquals(True, is_up["status"])
-        self.assertEquals("", is_up["status-message"])
+        self.assertEqual(True, is_up["status"])
+        self.assertEqual("", is_up["status-message"])
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
@@ -613,8 +614,8 @@ class TestVerifySSHConnectivity(unittest.TestCase):
                                                       "SERVER_IP",
                                                       api=mock_api)
 
-        self.assertEquals(True, is_up["status"])
-        self.assertEquals("", is_up["status-message"])
+        self.assertEqual(True, is_up["status"])
+        self.assertEqual("", is_up["status-message"])
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
@@ -640,10 +641,10 @@ class TestVerifySSHConnectivity(unittest.TestCase):
                                                        "SERVER_IP",
                                                        api=mock_api)
 
-        self.assertEquals(False, result["status"])
-        self.assertEquals("Server 'SERVER_ID' is ACTIVE but 'ssh "
-                          "root@SERVER_IP -p 22' is failing to connect.",
-                          result["status-message"])
+        self.assertEqual(False, result["status"])
+        self.assertEqual("Server 'SERVER_ID' is ACTIVE but 'ssh "
+                         "root@SERVER_IP -p 22' is failing to connect.",
+                         result["status-message"])
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
@@ -676,10 +677,9 @@ class TestVerifySSHConnectivity(unittest.TestCase):
                                                        "SERVER_IP",
                                                        api=mock_api)
 
-        self.assertEquals(False, result["status"])
-        self.assertEquals("Server 'SERVER_ID' is ACTIVE but is not "
-                          "responding to ping attempts",
-                          result["status-message"])
+        self.assertEqual(False, result["status"])
+        self.assertEqual("Server 'SERVER_ID' is ACTIVE but is not responding "
+                         "to ping attempts", result["status-message"])
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
         mock_api.images.find.assert_called_once_with(id="IMAGE_ID")
@@ -698,7 +698,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
                                                   api=mock_api)
             self.fail("Should have thrown an exception")
         except cmexc.CheckmateException as exc:
-            self.assertEquals(exc.options, 0)
+            self.assertEqual(exc.options, 0)
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
@@ -715,7 +715,7 @@ class TestVerifySSHConnectivity(unittest.TestCase):
                                                   api=mock_api)
             self.fail("Should have thrown an exception")
         except cmexc.CheckmateException as exc:
-            self.assertEquals(exc.options, cmexc.CAN_RESUME)
+            self.assertEqual(exc.options, cmexc.CAN_RESUME)
 
         mock_api.servers.find.assert_called_once_with(id="SERVER_ID")
 
@@ -798,7 +798,7 @@ class TestWaitOnDelete(unittest.TestCase):
                                                   mock_callback)
             self.fail("Should have thrown an exception!")
         except cmexc.CheckmateException as exc:
-            self.assertEquals(cmexc.CAN_RESUME, exc.options)
+            self.assertEqual(cmexc.CAN_RESUME, exc.options)
 
         mock_callback.assert_called_once_with({
             'status': 'DELETING',
@@ -889,7 +889,7 @@ class TestDeleteServer(unittest.TestCase):
                               'Waiting on resource deletion'},
                              results)
         mock_api.servers.get.assert_called_once_with("INST_ID")
-        self.assertEquals(True, mock_server.delete.called)
+        self.assertEqual(True, mock_server.delete.called)
 
     def test_server_is_in_build_status(self):
         context = {
@@ -912,7 +912,7 @@ class TestDeleteServer(unittest.TestCase):
                                                mock_callback)
             self.fail("Should have thrown an exception")
         except cmexc.CheckmateException as exc:
-            self.assertEquals(exc.options, cmexc.CAN_RESUME)
+            self.assertEqual(exc.options, cmexc.CAN_RESUME)
         mock_callback.assert_called_once_with({
             'status': 'DELETING',
             'status-message': 'Instance is in state BUILD. Waiting on ACTIVE '
@@ -933,7 +933,7 @@ class TestOnFailure(unittest.TestCase):
         failure(Exception("Something has gone wrong"),
                 "TASK_ID", [mock_context], None, None)
 
-        self.assertEquals(True, callback.called)
+        self.assertEqual(True, callback.called)
         callback.assert_called_with({
             'status': 'ERROR',
             'status-message': 'Unexpected error action compute instance 1',

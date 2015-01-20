@@ -397,7 +397,7 @@ class TestDeleteNodes(TestDeploymentRouter):
         self.app.post(url, json.dumps(data), content_type='application/json')
         call_args, _ = self.manager.deploy_workflow.call_args
         context = call_args[0]
-        self.assertEquals(context.simulation, True)
+        self.assertEqual(context.simulation, True)
         mock_delay.assert_called_once_with('scale_down_wf_id',
                                            {'fake_dict': True})
 
@@ -417,8 +417,8 @@ class TestDeleteNodes(TestDeploymentRouter):
         response = self.app.post(url, json.dumps(data),
                                  content_type='application/json')
         deployment = json.loads(response.body)
-        self.assertEquals(response.status, '202 Accepted')
-        self.assertEquals(deployment['id'], '99')
+        self.assertEqual(response.status, '202 Accepted')
+        self.assertEqual(deployment['id'], '99')
         self.manager.deploy_workflow.assert_called_once_with(
             self.filters.context, deployment, "123", "SCALE DOWN",
             victim_list=["1", "2"])
@@ -543,7 +543,7 @@ class TestValidateDeleteNodeRequest(TestDeploymentRouter):
         victim_list = ['r1', 'r2', 'r3']
         result = self.validate_fn(api_id, deployment_info, deployment,
                                   service_name, count, victim_list)
-        self.assertEquals(result, True)
+        self.assertEqual(result, True)
 
 
 class TestUpdateDeployment(TestDeploymentRouter):
