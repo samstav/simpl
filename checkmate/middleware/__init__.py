@@ -763,6 +763,23 @@ class ContextMiddleware(object):
         environ['context'] = old_context
         LOG.debug("BASE URL IS %s", old_context.base_url)
         return self.app(environ, start_response)
+
+
+class GitHubTokenMiddleware(object):
+
+    """Takes github credentials and adds them to context."""
+
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, environ, start_response):
+        request = webob.Request(environ)
+        token = request.cookies.get("github_access_token")
+        if token:
+            environ['context']['github_token'] = token
+            # TODO(zns): remove duplicate context logic
+            new_context = threadlocal.get_context()
+            new_context['github_token'] = token
         return self.app(environ, start_response)
 
 
