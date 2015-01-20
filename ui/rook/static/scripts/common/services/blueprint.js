@@ -499,9 +499,18 @@ angular.module('checkmate.Blueprint')
       },
       getComponent: function(serviceId, componentId) {
         var service = ((this.data.services || {})[serviceId] || {});
-        var components = service.components || [service.component] || [];
+        var components = [];
+
+        if(service.components) {
+          components = service.components;
+        } else if (service.component) {
+          components = service.component;
+        }
 
         var component = _.find(components, function(_component) {
+          if(!_component) {
+            return;
+          }
           return _component.id == componentId || _component.name == componentId;
         });
 
