@@ -8,11 +8,15 @@
   bottom: 35px;
   overflow: hidden;
 }
-.rs-app-launch-container * {
-  transition: opacity 0.3s ease, width 0.5s ease, height 0.5s ease, transform 0.5s ease, top 0.5s ease, right 0.5s ease, bottom 0.5s ease, left 0.5s ease;
+.rs-app-launch-container .rs-app-launch-sidebar {
+  transition: width 0.5s ease, height 0.5s ease, transform 0.5s ease, top 0.5s ease, right 0.5s ease, bottom 0.5s ease, left 0.5s ease;
 }
-.rs-app-launch-container button {
-  transition: background-color 0.3s ease, color 0.3s ease
+.rs-app-launch-container button,
+.rs-app-launch-container a {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+.rs-app-launch-container .blueprint-topology * {
+  transition: width 0.5s ease, height 0.5s ease, transform 0.5s ease, opacity 0.3s ease;
 }
 
 /* Sidebar */
@@ -439,4 +443,16 @@
 }
 .deployment-editor {
   bottom: 40px;
+}
+
+body .cm-s-lesser-dark ::-webkit-scrollbar {
+  height: 16px;
+  overflow: visible;
+  width: 16px;
+}
+body .cm-s-lesser-dark ::-webkit-scrollbar-thumb {
+  background-color: rgba(120, 120, 120, .5);
+}
+body .cm-s-lesser-dark ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(120, 120, 120, .7);
 }
