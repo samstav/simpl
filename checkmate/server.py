@@ -193,12 +193,12 @@ def error_formatter(error):
 
 def main():
     """Start the server based on passed in arguments. Called by __main__."""
-    from checkmate import entry_points
-    entry_points.preconfigure()
+    checkmate.preconfigure()
     global LOG
     if (CONFIG.bottle_reloader and not CONFIG.eventlet
             and not os.environ.get('BOTTLE_CHILD')):
         # bottle spawns 2 processes when in reloader mode
+        print "Starting bottle autoreloader..."
         LOG.setLevel(logging.ERROR)
     resources = ['version']
     anonymous_paths = ['^[/]?version']

@@ -15,7 +15,6 @@
 """Things that should happen first (on app entry) go here."""
 
 import os
-import sys
 
 # start tracer - pylint/flakes friendly
 # NOTE: this will load checkmate which will monkeypatch if eventlet is
@@ -23,40 +22,11 @@ import sys
 #       possible. So position is important.  KEEP THIS FIRST
 __import__('checkmate.common.tracer')
 
-
-def preconfigure(args=None):
-    """Common configuration to be done before everything else."""
-    if os.getpid() == os.getpgid(os.getpid()):
-        import checkmate
-        strargv = " ".join(sys.argv)
-        role = ''
-        if 'checkmate-queue START' in strargv:
-            role = 'Worker'
-        elif 'server.py START' or 'checkmate-server START' in strargv:
-            role = 'API'
-        print("\n*** Staring Checkmate %s v%s Commit %s ***\n"
-              % (role, checkmate.__version__, checkmate.__commit__[:8]))
-    from checkmate.common import config
-
-    args = args or sys.argv
-    conf = config.current()
-    conf.parse()
-    if (conf.bottle_reloader and not conf.eventlet
-            and not os.environ.get('BOTTLE_CHILD')):
-        conf.quiet = True
-        import logging
-        logging.getLogger().setLevel(logging.ERROR)
-    else:
-        conf.init_logging(
-            default_config='/etc/default/checkmate-svr-log.conf')
-
-    if not conf.quiet:
-        print(conf.display())
+import checkmate
 
 
 def client():
     """Entry point for Checkmate client."""
-
     print """
 *** Checkmate Command-Line Client Utility ***
 
@@ -78,20 +48,20 @@ Settings:
 
 def queue():
     """Entry point for Checkmate queue."""
-    preconfigure()
+    checkmate.preconfigure()
     from checkmate import checkmate_queue
     checkmate_queue.main_func()
 
 
 def server():
     """Entry point for Checkmate server."""
-    preconfigure()
+    checkmate.preconfigure()
     from checkmate import server as cmserver
     cmserver.main()
 
 
 def simulation():
     """Entry point for Checkmate simulation."""
-    preconfigure()
+    checkmate.preconfigure()
     from checkmate.sample import checkmate_simulation
     checkmate_simulation.main_func()

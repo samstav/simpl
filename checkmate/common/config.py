@@ -302,6 +302,12 @@ class Config(config.Config):
         else:
             return logging.INFO
 
+    @property
+    def bottle_parent(self):
+        """Detect if running as a bottle autoreload parent."""
+        return (self.eventlet is False and 'BOTTLE_CHILD' not in os.environ
+            and self.bottle_reloader)
+
     def init_logging(self, default_config=None):
         """Configure logging based on log config file.
 
@@ -395,7 +401,7 @@ def find_console_handler(logger):
             return handler
 
 checkmateini = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '%s/checkmate.cfg' % os.pardir))
+    os.path.dirname(__file__), os.pardir, 'checkmate.cfg'))
 CURRENT_CONFIG = Config(options=OPTIONS, ini_paths=[checkmateini])
 
 

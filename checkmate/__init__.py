@@ -42,9 +42,8 @@ except ImportError:
     pass  # OK if running setup.py or not using eventlet somehow
 # END: ignore style guide
 
-import os
-
 import gettext
+import os
 
 
 # This installs the _(...) function as a built-in so all other modules
@@ -54,15 +53,32 @@ gettext.install('checkmate')
 
 def preconfigure(args=None):
     """Common configuration to be done before everything else."""
-
-    # make this match most of waldo.entry_points.start()
+    args = args or sys.argv
+    if not os.environ.get('BOTTLE_CHILD'):
+        import checkmate
+        strargv = " ".join(sys.argv)
+        role = ''
+        if 'checkmate-queue START' in strargv:
+            role = 'Worker'
+        elif 'server.py START' or 'checkmate-server START' in strargv:
+            role = 'API'
+        print("\n*** Staring Checkmate %s v%s Commit %s ***\n"
+              % (role, checkmate.__version__, checkmate.__commit__[:8]))
     from checkmate.common import config
 
     args = args or sys.argv
     conf = config.current()
     conf.parse()
-    conf.init_logging()
-    print conf.quiet
+    if (conf.bottle_reloader and not conf.eventlet
+            and not os.environ.get('BOTTLE_CHILD')):
+        conf.quiet = True
+        import logging
+        logging.getLogger().setLevel(logging.ERROR)
+    else:
+        # this is the bottle child OR reloader is off
+        conf.init_logging(
+            default_config='/etc/default/checkmate-svr-log.conf')
+
     if not conf.quiet:
         print(conf.display())
 
@@ -70,7 +86,7 @@ def preconfigure(args=None):
 def _get_commit():
     """Get HEAD commit sha-1 from ../.git/HEAD ."""
     directory = os.path.dirname(os.path.realpath(__file__))
-    path = os.path.abspath(os.path.join(directory, "%s/.git" % os.pardir))
+    path = os.path.abspath(os.path.join(directory, os.pardir, ".git"))
     if not os.path.exists(path):
         return
     with open(os.path.join(path, 'HEAD')) as head:
