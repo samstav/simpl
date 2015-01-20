@@ -215,7 +215,7 @@ class TestDeployments(unittest.TestCase):
 
     def test_get_non_deleted_resources_for_service(self):
         resources = self.deployment.get_resources_for_service('web')
-        self.assertListEqual(resources.keys(), ["2"])
+        self.assertEqual(resources.keys(), ["2"])
 
     def test_get_planned_resources(self):
         self.deployment["resources"] = {"1": {"status": "PLANNED",

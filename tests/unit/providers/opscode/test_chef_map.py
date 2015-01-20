@@ -354,28 +354,28 @@ class TestChefMap(unittest.TestCase):
         schemes = ['databags']
         result = chef_map.ChefMap.filter_maps_by_schemes(
             maps, target_schemes=schemes)
-        self.assertListEqual(result, maps[0:2], msg=expect)
+        self.assertItemsEqual(result, maps[0:2], msg=expect)
 
         expect = "Should detect only map with roles target"
         schemes = ['roles']
         result = chef_map.ChefMap.filter_maps_by_schemes(
             maps, target_schemes=schemes)
-        self.assertListEqual(result, [maps[1]], msg=expect)
+        self.assertItemsEqual(result, [maps[1]], msg=expect)
 
         expect = "Should detect all maps once"
         schemes = ['databags', 'attributes', 'roles']
         result = chef_map.ChefMap.filter_maps_by_schemes(
             maps, target_schemes=schemes)
-        self.assertListEqual(result, maps, msg=expect)
+        self.assertItemsEqual(result, maps, msg=expect)
 
         expect = "Should return all maps"
         result = chef_map.ChefMap.filter_maps_by_schemes(maps)
-        self.assertListEqual(result, maps, msg=expect)
+        self.assertItemsEqual(result, maps, msg=expect)
 
         expect = "Should return all maps"
         result = chef_map.ChefMap.filter_maps_by_schemes(maps,
                                                          target_schemes=[])
-        self.assertListEqual(result, maps, msg=expect)
+        self.assertItemsEqual(result, maps, msg=expect)
 
 
 TEMPLATE = \

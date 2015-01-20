@@ -286,7 +286,7 @@ class TestWorkflow(unittest.TestCase):
         self.mox.ReplayAll()
         matched = workflow.find_tasks(self.mocked_workflow)
         self.mox.VerifyAll()
-        self.assertListEqual(matched, [])
+        self.assertEqual(matched, [])
 
     def test_find_tasks_with_tasks_matching_filter(self):
         task1 = self.mox.CreateMockAnything()
@@ -302,7 +302,7 @@ class TestWorkflow(unittest.TestCase):
                                       state=Task.ANY_MASK,
                                       tag='tag1')
         self.mox.VerifyAll()
-        self.assertListEqual(matched, [task1])
+        self.assertEqual(matched, [task1])
 
     def test_get_failed_tasks_with_valid_exception(self):
         task_state = {
@@ -820,9 +820,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Add Node 2 to LB 0'
         ]
 
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertItemsEqual(task_list, expected, msg=task_list)
 
     def test_workflow_task_generation_with_allow_unencrypted_setting(self):
         dep_with_allow_unencrypted = cmdep.Deployment(
@@ -913,9 +911,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Add Node 2 to LB 0',
             'Add Node 2 to LB 1',
         ]
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertItemsEqual(task_list, expected, msg=task_list)
 
     def test_workflow_task_generation_caching(self):
         """Verifies workflow tasks with caching enabled."""
@@ -982,9 +978,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Wait for Loadbalancer 0 (lb) build',
             'Enable content caching for Load balancer 0 (lb)'
         ]
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected)
+        self.assertItemsEqual(task_list, expected)
 
     def test_workflow_task_generation(self):
         wf_spec = workflow_spec.WorkflowSpec.create_build_spec(
@@ -1003,9 +997,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             'Add monitor to Loadbalancer 0 (lb) build',
             'Wait for Loadbalancer 0 (lb) build'
         ]
-        task_list.sort()
-        expected.sort()
-        self.assertListEqual(task_list, expected, msg=task_list)
+        self.assertItemsEqual(task_list, expected, msg=task_list)
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow."""

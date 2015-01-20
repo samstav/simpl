@@ -1110,7 +1110,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                                              'master',
                                              context, 1, provider.key, None)
 
-        self.assertListEqual(results, expected)
+        self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
 
     def test_catalog_and_deployment_diff(self):

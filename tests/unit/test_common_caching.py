@@ -39,7 +39,7 @@ class TestCaching(unittest.TestCase):
     def test_decorating(self):
         fxn = caching.Cache()(sample_method)
         args, kwargs = fxn(1, x='2')
-        self.assertListEqual(args, [1])
+        self.assertEqual(args, [1])
         self.assertDictEqual(kwargs, dict(x='2'))
 
     def test_caching(self):
@@ -84,7 +84,7 @@ class TestCaching(unittest.TestCase):
         # In second round, only last two will be called. First two are cached
         results = [fxn(i) for i in range(4)] + [fxn(i) for i in range(4)]
         self.assertEqual(increment.counter, 6)
-        self.assertListEqual(results, [1, 2, 3, 4, 1, 2, 5, 6])
+        self.assertItemsEqual(results, [1, 2, 3, 4, 1, 2, 5, 6])
 
     def test_caching_timeout(self):
         def increment():
@@ -97,11 +97,11 @@ class TestCaching(unittest.TestCase):
         increment.counter = 0
         fxn = cache(increment)
         results = [fxn() for _ in range(4)]
-        self.assertListEqual(results, [1, 2, 3, 4])  # none cached
+        self.assertItemsEqual(results, [1, 2, 3, 4])  # none cached
 
         cache.max_age = 100
         results = [fxn() for _ in range(4)]
-        self.assertListEqual(results, [4, 4, 4, 4])  # cached
+        self.assertItemsEqual(results, [4, 4, 4, 4])  # cached
 
 
 class TestHashing(unittest.TestCase):

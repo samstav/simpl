@@ -34,7 +34,7 @@ class TestRackspaceProviderBase(unittest.TestCase):
     def test_get_regions_multiple(self):
         regions = base.RackspaceProviderBase.get_regions(
             [{'endpoints': [{'region': 'A'}, {'region': 'B'}]}])
-        self.assertEqual(regions, ['A', 'B'])
+        self.assertItemsEqual(regions, ['A', 'B'])
 
     def test_get_regions_filter_by_resource(self):
         regions = base.RackspaceProviderBase.get_regions(
@@ -162,7 +162,7 @@ class TestConnect(unittest.TestCase):
             mock.call('auth_endpoint', 'localhost:8080')
         ]
         base.RackspaceProviderBase._connect(self.context)
-        self.assertEqual(mock_pyrax.set_setting.mock_calls, expected)
+        self.assertItemsEqual(mock_pyrax.set_setting.mock_calls, expected)
 
 
 if __name__ == '__main__':

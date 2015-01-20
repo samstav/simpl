@@ -147,7 +147,7 @@ class TestEnvParser(unittest.TestCase):
     @unittest.skip('No conflicts yet')
     def test_argument_wins(self):
         """Check that command-line arguments win over environemnt variables."""
-        pass  # TODO(any): write this test whn we start the first conflict
+        pass  # TODO(any): write this test when we start the first conflict
 
 
 if __name__ == '__main__':

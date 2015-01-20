@@ -83,7 +83,7 @@ class TestGetRegions(unittest.TestCase):
         expected = ['ORD', 'SYD']
         results = rs_base.RackspaceProviderBase.get_regions(
             self.catalog, service_name='test_service')
-        self.assertEqual(results, expected)
+        self.assertItemsEqual(results, expected)
 
 
 if __name__ == '__main__':

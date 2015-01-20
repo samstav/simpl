@@ -193,9 +193,9 @@ class TestKnife(unittest.TestCase):
 
         self.knife.get_data_bag.assert_called_once_with("web")
         self.knife.run_command.assert_called_once_with(
-            ['knife', 'solo', 'data', 'bag', 'create', "web", "server",
-             '-d', '-c', self.knife.config_path, '--json',
-             '{"foo": "bar", "id": "server"}', '--secret-file', 'secret_file']
+            ['knife', 'solo', 'data', 'bag', 'create', "web", "server", '-d',
+             '-c', self.knife.config_path, '--json', mock.ANY, '--secret-file',
+             'secret_file']
         )
 
     def test_create_existing_data_bag_item(self):
@@ -210,10 +210,9 @@ class TestKnife(unittest.TestCase):
         self.knife.get_data_bag_item.assert_called_once_with(
             "web", "server", secret_file="secret_file")
         self.knife.run_command.assert_called_once_with(
-            ['knife', 'solo', 'data', 'bag', 'create', "web", "server",
-             '-d', '-c', self.knife.config_path, '--json',
-             '{"item": "data", "foo": "bar", "id": "server"}',
-             '--secret-file', 'secret_file']
+            ['knife', 'solo', 'data', 'bag', 'create', "web", "server", '-d',
+             '-c', self.knife.config_path, '--json', mock.ANY, '--secret-file',
+             'secret_file']
         )
 
     def test_create_data_bag_with_id(self):

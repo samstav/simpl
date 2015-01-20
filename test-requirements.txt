@@ -6,15 +6,21 @@
 # -e ./
 #
 
+# Install first to avoid version conflicts
+mccabe==0.2.1
+pep8==1.5.6
+
+# Alphabetical order
+
 coverage==4.0a1
 fakeredis==0.5.1
-flake8==2.2.5
+flake8==2.1.0
 hacking==0.9.5
 mock==1.0.1
 mongobox==0.1.4
 nose==1.3.4
 nosexcover==1.0.10
-pylint==1.4.0
+pylint==1.4.1
 vcrpy==1.1.4
 webtest==2.0.16
 
