@@ -270,8 +270,7 @@ def main():
     # Load routes from other modules
     LOG.info("Loading Checkmate API")
     bottle.load("checkmate.api")
-    bottle.load("checkmate.api.version")
-
+    #bottle.load("checkmate.api.version")
 
     DRIVERS['default'] = db.get_driver()
     DRIVERS['simulation'] = db.get_driver(
