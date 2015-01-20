@@ -85,13 +85,26 @@ def preconfigure(args=None):
 
 def _get_commit():
     """Get HEAD commit sha-1 from ../.git/HEAD ."""
-    directory = os.path.dirname(os.path.realpath(__file__))
-    path = os.path.abspath(os.path.join(directory, os.pardir, ".git"))
-    if not os.path.exists(path):
+    cfd = os.path.dirname(os.path.realpath(__file__))
+    dotgitpath = os.path.abspath(os.path.join(cfd, os.pardir, ".git"))
+    if not os.path.exists(dotgitpath):
         return
-    with open(os.path.join(path, 'HEAD')) as head:
-        headref = head.read().partition('ref:')[-1].strip()
-    with open(os.path.join(path, headref)) as href:
+    headfile = os.path.join(dotgitpath, 'HEAD')
+    if not os.path.isfile(headfile):
+        return
+    with open(headfile) as head:
+        headref= head.read().strip()
+        if 'ref:' in headref:
+            headref = headref.partition('ref:')[-1].strip()
+        elif len(headref) == 40:
+            return headref
+        else:
+            raise StandardError(
+                "Cannot read %s for HEAD sha-1." % os.path.join(path, 'HEAD'))
+    headreffile = os.path.join(dotgitpath, headref)
+    if not os.path.isfile(headreffile):
+        return
+    with open(headreffile) as href:
         return href.read().strip()
 
 __commit__ = _get_commit()
