@@ -31,6 +31,7 @@
                  x-lvl-draggable="true"
                  ng-show="config.id.indexOf(search) > -1 || config.display_name.indexOf(search) > -1 || config.name.indexOf(search) > -1 || !search"
                  ng-mousedown="select(config)"
+                 ng-dblclick="add(config)"
                  ng-click="viewDetails()">
                 <div class="rs-app-list-item-icon">
                   <img ng-attr-src="{{config['meta-data']['display-hints']['icon-20x20']}}"

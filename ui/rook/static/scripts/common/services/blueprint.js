@@ -470,6 +470,8 @@ angular.module('checkmate.Blueprint')
         }
       },
       addComponentSingletons: function(component, serviceName) {  // Add each component in its own service
+        if(!this.data.services) this.data.services = {};
+
         if (serviceName in this.data.services) {
           // disabling this for now: this.addComponentToService(component, serviceName);
           for(var i=2;i<25;i++) {
@@ -483,6 +485,8 @@ angular.module('checkmate.Blueprint')
         }
       },
       addComponent: function(component, serviceName) { // Add each component allowing more than on in a service
+        if(!this.data.services) this.data.services = {};
+        
         if (serviceName in this.data.services) {
           if (!this.componentInService(component, serviceName)) {
             this.addComponentToService(component, serviceName);
@@ -499,9 +503,18 @@ angular.module('checkmate.Blueprint')
       },
       getComponent: function(serviceId, componentId) {
         var service = ((this.data.services || {})[serviceId] || {});
-        var components = service.components || [service.component] || [];
+        var components = [];
+
+        if(service.components) {
+          components = service.components;
+        } else if (service.component) {
+          components = service.component;
+        }
 
         var component = _.find(components, function(_component) {
+          if(!_component) {
+            return;
+          }
           return _component.id == componentId || _component.name == componentId;
         });
 

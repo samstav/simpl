@@ -18,9 +18,9 @@ angular.module('checkmate.applications-configure')
     };
 
     // This triggers when something is dropped on the drop target.
-    $scope.add = function() {
-      var source = Drag.source.get();
-      var target = Drag.target.get();
+    $scope.add = function(source, target) {
+      source = source || Drag.source.get();
+      target = target || Drag.target.get();
 
       Blueprint.add(source, target);
       Drag.reset();
