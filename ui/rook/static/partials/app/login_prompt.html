@@ -9,7 +9,7 @@
     <!-- ANNOUNCEMENT -->
     <div class="announcement" ng-show="display_announcement()">
       <img src="/img/announcement-arrow.png" />
-      You can now impersonate users!
+      Log in as a Racker and impersonate users.
     </div>
   </div>
   <div class="modal-body">
@@ -31,13 +31,6 @@
             <input type="text" class="input-xlarge" id="username" ng-model="bound_creds.username" cm-password-manager />
           </div>
         </div>
-        <div class="control-group">
-          <label class="control-label" for="password">Password</label>
-          <div class="controls">
-            <input type="password" class="input-xlarge" id="password" ng-model="bound_creds.password" cm-password-manager />
-          </div>
-        </div>
-        <p style="text-align: center">or</p>
         <div class="control-group" ng-hide="uses_pin_rsa()">
           <label class="control-label" for="apikey">API Key</label>
           <div class="controls">
@@ -48,6 +41,13 @@
           <label class="control-label" for="pin_rsa">PIN+RSA Key</label>
           <div class="controls">
             <input type="password" class="input-xlarge" id="pin_rsa" ng-model="bound_creds.pin_rsa" cm-password-manager />
+          </div>
+        </div>
+        <p style="text-align: center">or</p>
+        <div class="control-group">
+          <label class="control-label" for="password">Password</label>
+          <div class="controls">
+            <input type="password" class="input-xlarge" id="password" ng-model="bound_creds.password" cm-password-manager />
           </div>
         </div>
         <hr/>

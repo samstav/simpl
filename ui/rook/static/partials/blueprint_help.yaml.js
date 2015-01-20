@@ -12,7 +12,7 @@ _: |
 
   **Action Item**: determine the need for global inputs. Do we really need them? Or at least put them in a "globals" category
 
-  Minimal, canonical deployment (hello world) available [here](https://github.rackspace.com/Blueprints/helloworld/).
+  Minimal, canonical deployment (hello world) available [here](https://github.com/checkmate/helloworld/).
 
   **Action Item**: define how we reference blueprints and environments in deployments without including full copies.  Reference UUID?  URL to file in git or local reference? etc.
 

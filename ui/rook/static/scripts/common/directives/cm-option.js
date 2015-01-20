@@ -118,7 +118,7 @@ angular.module('waldo.options', [])
         region_option = option;
 
       var group;
-      if (dh !== undefined) {
+      if (typeof dh !== 'undefined') {
         option.order = dh.order || 'XXX';
         if ('group' in dh) {
           group = dh.group;

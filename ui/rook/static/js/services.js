@@ -2639,7 +2639,8 @@ angular.module('checkmate.services').factory('DeploymentTree', [function() {
     magento: 1,
     'session-cache': 2,
     'object-cache': 3,
-    data: 4,
+    'page-cache': 4,
+    data: 5,
 
     // Editor
     application: 1,
