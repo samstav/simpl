@@ -175,8 +175,9 @@ def get_provider_environment_catalog(environment_id, provider_id,
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
     if 'type' in bottle.request.query:
-        catalog = (provider.get_catalog(bottle.request.environ['context'],
-                   type_filter=bottle.request.query['type']))
+        catalog = provider.get_catalog(
+            bottle.request.environ['context'],
+            type_filter=bottle.request.query['type'])
     else:
         catalog = provider.get_catalog(bottle.request.environ['context'])
 
@@ -250,7 +251,8 @@ def get_provider_catalog(provider_id, tenant_id=None):
         if len(bottle.request.query) > 16:
             bottle.abort(403, "Invalid url parameters.")
         if 'source' in bottle.request.query:
-            catalog = provider.get_remote_catalog(**bottle.request.query)
+            catalog = provider.get_remote_catalog(
+                bottle.request.environ['context'], **bottle.request.query)
         else:
             catalog = provider.get_catalog(bottle.request.environ['context'],
                                            **bottle.request.query)
