@@ -20,14 +20,13 @@
 - Supports Rackspace Open Cloud Compute Extensions and Auth
 """
 
-import eventlet
-import os
-
 import copy
 import logging
+import os
+
+import eventlet
 import pyrax
 import redis
-
 from SpiffWorkflow import operators as swops
 from SpiffWorkflow import specs
 
@@ -57,8 +56,9 @@ IMAGE_MAP = {
     'beefy miracle': 'Fedora 17',
     'spherical cow': 'Fedora 18',
     'schroedinger': 'Fedora 19',
+    'heisenbug': 'Fedora 20',
     'opensuse': 'openSUSE',
-    'coreos': 'CoreOS (Stable)',
+    'coreos': 'CoreOS',
 }
 KNOWN_OSES = {
     'ubuntu': ['10.04', '10.12', '11.04', '11.10', '12.04', '12.10', '13.04',
@@ -66,7 +66,8 @@ KNOWN_OSES = {
     'centos': ['5.11', '6.4', '6.5', '7'],
     'cirros': ['0.3'],
     'debian': ['6', '7'],
-    'fedora': ['17', '18', '19'],
+    'fedora': ['17', '18', '19', '20', '21'],
+    'coreos': ['Stable', 'Alpha', 'Beta'],
 }
 LOG = logging.getLogger(__name__)
 RACKSPACE_DISTRO_KEY = 'os_distro'

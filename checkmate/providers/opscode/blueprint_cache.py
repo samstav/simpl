@@ -54,13 +54,13 @@ class BlueprintCache(object):
     def update(self):
         """Cache a blueprint repo or update an existing cache, if necessary."""
         cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
-        if not cache_expire_time:
+        if cache_expire_time is None:
             cache_expire_time = 3600
             LOG.info("(cache) CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not "
                      "set. Defaulting to %s", cache_expire_time)
         cache_expire_time = int(cache_expire_time)
         if "#" in self.source_repo:
-            url, branch = self.source_repo.split("#")
+            url, branch = self.source_repo.split("#", 1)
         else:
             url = self.source_repo
             branch = "master"
