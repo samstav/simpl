@@ -14,18 +14,16 @@
 
 """REST API for Checkmate server."""
 
-import os
 import logging
+import os
 
-# pylint: disable=W0611,W0402
-import bottle
+import bottle  # noqa
 
-import checkmate
-from checkmate import environments  # loads /providers routes too
+import checkmate  # noqa
 from checkmate.common import config
+from checkmate import environments  # noqa
 from checkmate import utils
-
-from checkmate import workflows
+from checkmate import workflows  # noqa
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)
@@ -52,12 +50,12 @@ def get_api_version():
         "wadl": "./version.wadl",
     }
     if not results['git-commit']:
-        shafile = os.path.abspath(os.path.join(
+        hashfile = os.path.abspath(os.path.join(
             os.path.dirname(os.path.realpath(__file__)),
             os.pardir, 'commit.txt'))
-        if os.path.isfile(shafile):
-            with open(shafile) as f:
-                results['git-commit'] = f.read().strip()
+        if os.path.isfile(hashfile):
+            with open(hashfile) as head:
+                results['git-commit'] = head.read().strip()
     if not results['git-commit']:
         # dont be a heartbreaker
         results.pop('git-commit')

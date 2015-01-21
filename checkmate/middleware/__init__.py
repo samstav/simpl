@@ -18,6 +18,8 @@
 This needs to be changed so the middleware is loaded by configuration.
 """
 
+from __future__ import print_function
+
 import base64
 import copy
 import json
@@ -98,6 +100,7 @@ class TenantMiddleware(object):
 
     def __init__(self, app, resources=None):
         """Init for TenantMiddleware.
+
         :param resources: REST resources that are NOT tenants
         """
         self.app = app
@@ -272,8 +275,8 @@ class TokenAuthMiddleware(object):
             params.extend([(k, v) for k, v in endpoint['kwargs'].items()
                            if k not in ['realm', 'protocol']])
             extras = ' '.join(['%s="%s"' % (k, v) for (k, v) in params])
-            self.auth_header = str('Keystone uri="%s" %s' % (
-                                   endpoint['uri'], extras))
+            self.auth_header = str('Keystone uri="%s" %s'
+                                   % (endpoint['uri'], extras))
         self.service_token = None
         self.service_username = None
         if 'kwargs' in endpoint:
@@ -297,8 +300,6 @@ class TokenAuthMiddleware(object):
 
     def __call__(self, environ, start_response):
         """Authenticate calls with X-Auth-Token to the source auth service."""
-        path_parts = environ['PATH_INFO'].split('/')
-        root = path_parts[1] if len(path_parts) > 1 else None
         request = webob.Request(environ)
         if any(path.match(request.path) for path in self.anonymous_paths):
             LOG.info("Allow anonymous path: %s", request.path)
@@ -310,7 +311,7 @@ class TokenAuthMiddleware(object):
         if 'HTTP_X_AUTH_TOKEN' in environ:
             context = environ['context']
             if context.authenticated is True:
-                #Auth has been handled by some other middleware
+                # Auth has been handled by some other middleware
                 pass
             else:
                 token = environ['HTTP_X_AUTH_TOKEN']
@@ -399,8 +400,7 @@ class TokenAuthMiddleware(object):
 
 class AuthorizationMiddleware(object):
 
-    """Checks that call is authenticated and authorized to access the resource
-    requested.
+    """Checks that call is authenticated and authorized to access.
 
     - Allows all calls to anonymous_paths
     - Allows all calls that have been validated
@@ -418,8 +418,6 @@ class AuthorizationMiddleware(object):
         self.admin_paths = admin_paths
 
     def __call__(self, environ, start_response):
-        path_parts = environ['PATH_INFO'].split('/')
-        root = path_parts[1] if len(path_parts) > 1 else None
         request = webob.Request(environ)
         if any(path.match(request.path) for path in self.anonymous_paths):
             # Allow anonymous calls
@@ -531,13 +529,13 @@ class DebugMiddleware(object):
         """Iterator that prints the contents of a wrapper string."""
         LOG.debug('%s %s %s', ('*' * 20), 'RESPONSE BODY', ('*' * 20))
         isimage = bottle.response.content_type.startswith("image")
-        if (isimage):
+        if isimage:
             LOG.debug("(image)")
         for part in app_iter:
-            if (not isimage):
+            if not isimage:
                 LOG.debug(part)
             yield part
-        print
+        print()
 
 
 class ExceptionMiddleware(object):
@@ -576,8 +574,10 @@ class ExceptionMiddleware(object):
 # TODO(any): Get this from openstack common?
 class RequestContext(object):
 
-    """Stores information about the security context under which the user
-    accesses the system, as well as additional request information related to
+    """Stores information about the security context.
+
+    The user accesses the system under this security context.
+    Also sets additional request information related to
     the current call, such as scope (which object, resource, etc).
     """
 
@@ -620,8 +620,9 @@ class RequestContext(object):
         new_context.update(self.get_queued_task_dict())
 
     def get_queued_task_dict(self, **kwargs):
-        """Get a serializable dict of this context for use with remote, queued
-        tasks.
+        """Get a serializable dict of this context.
+
+        For use with remote, queued tasks.
 
         :param kwargs: any additional kwargs get added to the context
 
@@ -641,7 +642,7 @@ class RequestContext(object):
         If no tenant is specified, the check will be done against the current
         context's tenant.
         """
-        return (tenant_id or self.tenant) in (self.user_tenants or [])
+        return tenant_id or self.tenant in self.user_tenants or []
 
     def set_context(self, content):
         """Updates context with current auth data."""
@@ -923,8 +924,8 @@ class AuthTokenRouterMiddleware(object):
 
             # Call default endpoint if not already called and if source was not
             # specified
-            if 'HTTP_X_AUTH_SOURCE' not in environ and self.default_endpoint \
-                    not in sources.values():
+            if ('HTTP_X_AUTH_SOURCE' not in environ
+                    and self.default_endpoint not in sources.values()):
                 result = self.default_middleware.__call__(environ,
                                                           sr_intercept)
                 if not self.last_status.startswith('401 '):

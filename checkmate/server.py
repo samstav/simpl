@@ -23,6 +23,8 @@ eventlet, then we'll monkey_patch ASAP. If not, then we won't monkey_patch at
 all as that breaks reloading.
 """
 
+from __future__ import print_function
+
 # start tracer - pylint/flakes friendly
 # NOTE: this will load checklmate which wil monkeypatch if eventlet is
 #       requested. We also load this ASAP so we can trace as much code as
@@ -36,8 +38,8 @@ import operator
 import os
 import sys
 
-import bottle
-import celery
+import bottle  # noqa
+import celery  # noqa
 import eventlet
 from eventlet import debug
 from eventlet.green import threading
@@ -49,27 +51,16 @@ from checkmate import blueprints
 from checkmate import celeryconfig
 from checkmate.common import config
 from checkmate.common import eventlet_backdoor
+from checkmate.common.git import middleware as git_middleware
 from checkmate.common import gzip_middleware
 from checkmate import db
 from checkmate import deployments
+from checkmate import exceptions as cmexc
+from checkmate import middleware
 from checkmate import resources as deployment_resources
 from checkmate import stacks
-from checkmate import workflows
-from checkmate.exceptions import (
-    CheckmateBadState,
-    CheckmateDatabaseConnectionError,
-    CheckmateDoesNotExist,
-    CheckmateException,
-    CheckmateHOTTemplateException,
-    CheckmateInvalidParameterError,
-    CheckmateNoData,
-    CheckmateNoMapping,
-    CheckmateValidationException,
-    UNEXPECTED_ERROR,
-)
-from checkmate.common.git import middleware as git_middleware
-from checkmate import middleware
 from checkmate import utils
+from checkmate import workflows
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)
@@ -135,34 +126,34 @@ def error_formatter(error):
     else:  # default to JSON
         error.headers.update({"content-type": "application/json"})
 
-    if isinstance(error.exception, CheckmateNoMapping):
+    if isinstance(error.exception, cmexc.CheckmateNoMapping):
         error.status = error.exception.http_status or 406
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateInvalidParameterError):
+    elif isinstance(error.exception, cmexc.CheckmateInvalidParameterError):
         error.status = error.exception.http_status or 406
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateHOTTemplateException):
+    elif isinstance(error.exception, cmexc.CheckmateHOTTemplateException):
         error.status = error.exception.http_status or 406
         # TODO(zns): move this to exception.py
         error.output = error.exception.friendly_message or (
             "Operation not supported with HOT template")
-    elif isinstance(error.exception, CheckmateDoesNotExist):
+    elif isinstance(error.exception, cmexc.CheckmateDoesNotExist):
         error.status = error.exception.http_status or 404
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateValidationException):
+    elif isinstance(error.exception, cmexc.CheckmateValidationException):
         error.status = error.exception.http_status or 400
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateNoData):
+    elif isinstance(error.exception, cmexc.CheckmateNoData):
         error.status = error.exception.http_status or 400
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateBadState):
+    elif isinstance(error.exception, cmexc.CheckmateBadState):
         error.status = error.exception.http_status or 409
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateDatabaseConnectionError):
+    elif isinstance(error.exception, cmexc.CheckmateDatabaseConnectionError):
         error.status = error.exception.http_status or 500
         # TODO(zns): move this to exception.py
         error.output = "Database connection error on server."
-    elif isinstance(error.exception, CheckmateException):
+    elif isinstance(error.exception, cmexc.CheckmateException):
         error.status = error.exception.http_status or 500
         error.output = error.exception.friendly_message
         LOG.exception(error.exception)
@@ -175,7 +166,7 @@ def error_formatter(error):
         # For other errors, log underlying cause
         if error.exception:
             error.status = 500
-            error.output = UNEXPECTED_ERROR
+            error.output = cmexc.UNEXPECTED_ERROR
             LOG.error(error.exception)
 
     if hasattr(error.exception, 'args'):
@@ -194,11 +185,10 @@ def error_formatter(error):
 def main():
     """Start the server based on passed in arguments. Called by __main__."""
     checkmate.preconfigure()
-    global LOG
     if (CONFIG.bottle_reloader and not CONFIG.eventlet
             and not os.environ.get('BOTTLE_CHILD')):
         # bottle spawns 2 processes when in reloader mode
-        print "Starting bottle autoreloader..."
+        print("Starting bottle autoreloader...")
         LOG.setLevel(logging.ERROR)
     resources = ['version']
     anonymous_paths = ['^[/]?version']
@@ -239,8 +229,8 @@ def main():
     # Register built-in providers
     LOG.info("Loading checkmate providers")
     provider_path = '%s/providers' % (checkmate.__path__[0])
-    #import all providers in providers dir
-    for prvder in (os.walk(provider_path).next()[1]):
+    # import all providers in providers dir
+    for prvder in os.walk(provider_path).next()[1]:
         try:
             LOG.info("Registering provider %s", prvder)
             provider = __import__("checkmate.providers.%s" % (prvder),
@@ -252,7 +242,6 @@ def main():
         except AttributeError as exc:
             LOG.error("%s has no register method", prvder)
             LOG.exception(exc)
-
 
     # Build WSGI Chain:
     next_app = root_app = bottle.default_app()  # the main checkmate app
@@ -377,7 +366,7 @@ def main():
             msg = ("Unable to load the UI (rook.middleware). Make sure rook "
                    "is installed or run without the --with-ui argument.")
             LOG.error(msg)
-            print msg
+            print(msg)
             sys.exit(1)
 
     # Load Git if requested
@@ -399,12 +388,13 @@ def main():
             msg = ("The newrelic python agent could not be loaded. Make sure "
                    "it is installed or run without the --newrelic argument")
             LOG.error(msg)
-            print msg
+            print(msg)
             sys.exit(1)
         LOG.info("Loading NewRelic agent")
-        newrelic.agent.initialize(os.path.normpath(os.path.join(
-                                  os.path.dirname(__file__), os.path.pardir,
-                                  'newrelic.ini')))  # optional param
+        newrelic.agent.initialize(
+            os.path.normpath(os.path.join(os.path.dirname(__file__),
+                                          os.path.pardir,
+                                          'newrelic.ini')))  # optional param
         next_app = newrelic.agent.wsgi_application()(next_app)
 
     # Load request/response dumping if debugging enabled
@@ -457,7 +447,7 @@ def main():
         eventlet.wsgi.MAX_HEADER_LINE = 32768  # to accept x-catalog
     else:
         if CONFIG.access_log:
-            print "--access-log only works with --eventlet"
+            print("--access-log only works with --eventlet")
             sys.exit(1)
 
     if kwargs['reloader']:
@@ -470,15 +460,15 @@ def main():
     try:
         bottle.run(app=next_app, host=ip_address, port=port, **kwargs)
     except StandardError as exc:
-        print "Unexpected Exception Caught:", exc
+        print("Unexpected Exception Caught:", exc)
         sys.exit(1)
     finally:
         try:
             if worker:
                 worker.stop()
-            print "Shutdown complete..."
+            print("Shutdown complete...")
         except StandardError:
-            print "Unexpected error shutting down worker:", exc
+            print("Unexpected error shutting down worker:", exc)
 
 
 class CustomEventletServer(bottle.ServerAdapter):
@@ -533,10 +523,10 @@ def run_with_profiling():
     finally:
         yappi.stop()
         stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
-        print "tsub   ttot   count  function"
+        print("tsub   ttot   count  function")
         for stat in stats.func_stats:
-            print str(stat[3]).ljust(6), str(stat[2]).ljust(6), \
-                str(stat[1]).ljust(6), stat[0]
+            print(str(stat[3]).ljust(6), str(stat[2]).ljust(6),
+                  str(stat[1]).ljust(6), stat[0])
 
 
 #

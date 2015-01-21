@@ -14,6 +14,8 @@
 
 """Things that should happen first (on app entry) go here."""
 
+from __future__ import print_function
+
 import os
 
 # start tracer - pylint/flakes friendly
@@ -22,12 +24,12 @@ import os
 #       possible. So position is important.  KEEP THIS FIRST
 __import__('checkmate.common.tracer')
 
-import checkmate
+import checkmate  # noqa
 
 
 def client():
     """Entry point for Checkmate client."""
-    print """
+    print("""
 *** Checkmate Command-Line Client Utility ***
 
 This tool is not ready yet. This file is being used to
@@ -39,11 +41,11 @@ Too run the server, use one of these:
 - checkmate-server: to manage the REST server
 
 Settings:
-"""
+""")
 
     for key in os.environ:
         if key.startswith('CHECKMATE_CLIENT'):
-            print key, '=', os.environ[key]
+            print((key, '=', os.environ[key]))
 
 
 def queue():

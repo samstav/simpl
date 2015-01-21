@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# pylint: disable=C0103,W0603
 """Checkmate Server.
 
 Note: To support running with a wsgiref server with auto reloading and also
@@ -21,6 +20,8 @@ full eventlet support, we need to handle eventlet up front. If we are using
 eventlet, then we'll monkey_patch ASAP. If not, then we won't monkey_patch at
 all as that breaks reloading.
 """
+
+from __future__ import print_function
 
 __title__ = 'checkmate'
 __version__ = '2.0.0'
@@ -55,7 +56,6 @@ def preconfigure(args=None):
     """Common configuration to be done before everything else."""
     args = args or sys.argv
     if not os.environ.get('BOTTLE_CHILD'):
-        import checkmate
         strargv = " ".join(sys.argv)
         role = ''
         if 'checkmate-queue START' in strargv:
@@ -63,7 +63,7 @@ def preconfigure(args=None):
         elif 'server.py START' or 'checkmate-server START' in strargv:
             role = 'API'
         print("\n*** Staring Checkmate %s v%s Commit %s ***\n"
-              % (role, checkmate.__version__, checkmate.__commit__[:8]))
+              % (role, __version__, __commit__[:8]))
     from checkmate.common import config
 
     args = args or sys.argv
@@ -84,26 +84,27 @@ def preconfigure(args=None):
 
 
 def _get_commit():
-    """Get HEAD commit sha-1 from ../.git/HEAD ."""
+    """Get HEAD commit sha-1 hash from .git/HEAD ."""
     cfd = os.path.dirname(os.path.realpath(__file__))
     dotgitpath = os.path.abspath(os.path.join(cfd, os.pardir, ".git"))
     if not os.path.exists(dotgitpath):
-        return
+        return ''
     headfile = os.path.join(dotgitpath, 'HEAD')
     if not os.path.isfile(headfile):
-        return
+        return ''
     with open(headfile) as head:
-        headref= head.read().strip()
+        headref = head.read().strip()
         if 'ref:' in headref:
             headref = headref.partition('ref:')[-1].strip()
         elif len(headref) == 40:
             return headref
         else:
             raise StandardError(
-                "Cannot read %s for HEAD sha-1." % os.path.join(path, 'HEAD'))
+                "Cannot read %s for HEAD sha-1."
+                % os.path.join(dotgitpath, 'HEAD'))
     headreffile = os.path.join(dotgitpath, headref)
     if not os.path.isfile(headreffile):
-        return
+        return ''
     with open(headreffile) as href:
         return href.read().strip()
 

@@ -71,28 +71,28 @@ def package_meta():
     _url_re = re.compile(r'__url__\s+=\s+(.*)')
     _license_re = re.compile(r'__license__\s+=\s+(.*)')
 
-    with open('checkmate/__init__.py', 'rb') as f:
-        f = f.read()
+    with open('checkmate/__init__.py', 'rb') as chkinit:
+        initcontent = chkinit.read()
         version = str(ast.literal_eval(_version_re.search(
-            f.decode('utf-8')).group(1)))
+            initcontent.decode('utf-8')).group(1)))
         url = str(ast.literal_eval(_url_re.search(
-            f.decode('utf-8')).group(1)))
-        license = str(ast.literal_eval(_license_re.search(
-            f.decode('utf-8')).group(1)))
+            initcontent.decode('utf-8')).group(1)))
+        licencia = str(ast.literal_eval(_license_re.search(
+            initcontent.decode('utf-8')).group(1)))
     return {
         'version': version,
-        'license': license,
+        'license': licencia,
         'url': url,
     }
 
-checkmeta = package_meta()
+_check_meta = package_meta()
 
 
 setuptools.setup(
     name='checkmate',
     description='Configuration management and orchestration',
     keywords='orchestration configuration automation rackspace openstack',
-    version=checkmeta['version'],
+    version=_check_meta['version'],
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
     dependency_links=DEPENDENCYLINKS,
@@ -114,7 +114,7 @@ setuptools.setup(
         '': ['*.yaml'],
     },
     data_files=[('checkmate', ['checkmate/patterns.yaml'])],
-    license=checkmeta['license'],
+    license=_check_meta['license'],
     classifiers=["Programming Language :: Python"],
-    url=checkmeta['url'],
+    url=_check_meta['url'],
 )

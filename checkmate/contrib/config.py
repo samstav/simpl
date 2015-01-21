@@ -11,6 +11,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# pylint: disable=W0212
 
 r"""Configuration Parser.
 
@@ -180,6 +182,8 @@ class Option(object):
         """Initialize options."""
         self.args = args or []
         self.kwargs = kwargs or {}
+        self._megroup = None
+        self._action = None
 
     def add_argument(self, parser, permissive=False, **override_kwargs):
         """Add an option to a an argparse parser.
@@ -438,7 +442,7 @@ class Config(collections.MutableMapping):
     def parse(self, argv=None, keyring_namespace=None):
         """Find settings from all sources."""
         results = self.load_options(argv=argv,
-                                   keyring_namespace=keyring_namespace)
+                                    keyring_namespace=keyring_namespace)
         # Run validation
         raise_for_group = {}
         for option in self._options:
