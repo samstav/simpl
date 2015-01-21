@@ -21,7 +21,9 @@ import bottle
 import webtest
 import yaml
 
+import checkmate
 from checkmate import test
+
 
 
 class TestBaseRESTResponses(unittest.TestCase):
@@ -35,8 +37,11 @@ class TestBaseRESTResponses(unittest.TestCase):
         unittest.TestCase.setUp(self)
 
     def test_version_json(self):
+        from checkmate.common import config
         expected = {
-            'version': 'Version not set.',  # standard unpackaged/dev response
+            'version': checkmate.__version__,
+            'environment': config.current().app_environment,
+            'git-commit': checkmate.__commit__,
             'wadl': './version.wadl',
         }
         res = self.app.get('/version',
@@ -46,8 +51,11 @@ class TestBaseRESTResponses(unittest.TestCase):
         self.assertEqual(json.loads(res.body), expected)
 
     def test_version_yaml(self):
+        from checkmate.common import config
         expected = {
-            'version': 'Version not set.',  # standard unpackaged/dev response
+            'version': checkmate.__version__,
+            'environment': config.current().app_environment,
+            'git-commit': checkmate.__commit__,
             'wadl': './version.wadl',
         }
         res = self.app.get('/version',

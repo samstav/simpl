@@ -24,6 +24,11 @@ from checkmate import exceptions as cmexc
 
 
 class TestPostDeployment_content_to_deployment(unittest.TestCase):
+
+    def tearDown(self):
+        from checkmate.common import config
+        reload(config)
+
     @staticmethod
     def expected_deployment(d_id='Dtest'):
         """Default expected deployment."""
