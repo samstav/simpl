@@ -25,7 +25,7 @@ class TestDbBase(unittest.TestCase):
 
     def test_instantiation(self):
         dbb = db.DbBase("connection-string://")
-        self.assertEquals(dbb.connection_string, "connection-string://")
+        self.assertEqual(dbb.connection_string, "connection-string://")
 
     def test_serialization(self):
         dbb = db.DbBase("connection-string://")

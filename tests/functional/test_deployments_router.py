@@ -42,7 +42,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
         request = mock.Mock()
         request.headers = {}
-        self.assertEquals(
+        self.assertEqual(
             self.expected_deployment(),
             router._content_to_deployment(
                 request=request, deployment_id='Dtest', tenant_id='Ttest')
@@ -59,7 +59,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
             '{12345678123456781234567812345678}')
         request = mock.Mock()
         request.headers = {}
-        self.assertEquals(
+        self.assertEqual(
             self.expected_deployment('12345678123456781234567812345678'),
             router._content_to_deployment(
                 request=request, tenant_id='Ttest'))
@@ -109,7 +109,7 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         mock_get_time_string.return_value = '2013-07-15 21:07:00 +0000'
         request = mock.Mock()
         request.headers = {}
-        self.assertEquals(
+        self.assertEqual(
             self.expected_deployment(),
             router._content_to_deployment(
                 request=request, deployment_id='Dtest', tenant_id='Ttest')

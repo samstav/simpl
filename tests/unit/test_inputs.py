@@ -25,12 +25,12 @@ class TestInput(unittest.TestCase):
         self.assertIsInstance(inputs.Input({}), inputs.Input)
 
     def test_string_functionality(self):
-        self.assertEquals(inputs.Input('test'), 'test')
+        self.assertEqual(inputs.Input('test'), 'test')
         self.assertTrue(inputs.Input('test').startswith('t'))
         self.assertEqual(inputs.Input('A') + inputs.Input('B'), 'AB')
 
     def test_integer_functionality(self):
-        self.assertEquals(inputs.Input('1'), '1')
+        self.assertEqual(inputs.Input('1'), '1')
         self.assertIsInstance(inputs.Input(1), int)
         self.assertEqual(inputs.Input('1') + inputs.Input('2'), '12')
         self.assertEqual(inputs.Input(1) + inputs.Input(2), 3)

@@ -352,7 +352,7 @@ class TestProviderBaseParser(unittest.TestCase):
             [" 100 ", 100],
         ]
         for case in cases:
-            self.assertEquals(
+            self.assertEqual(
                 cmbase.ProviderBase.parse_memory_setting(case[0]),
                 case[1], "'%s' setting should return %s" % (case[0], case[1])
             )

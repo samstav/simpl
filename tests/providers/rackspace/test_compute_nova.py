@@ -125,11 +125,11 @@ class TestNovaCompute(test.ProviderTester):
         server.private_ip = '5.6.7.8'
         server.adminPass = 'password'
 
-        #Mock image
+        # Mock image
         image = mock.MagicMock()
         image.id = '00000000-0000-0000-0000-000000000000'
 
-        #Mock flavor
+        # Mock flavor
         flavor = mock.MagicMock()
         flavor.id = '2'
 
@@ -148,7 +148,7 @@ class TestNovaCompute(test.ProviderTester):
             },
         }
 
-        #Create appropriate api mocks
+        # Create appropriate api mocks
         openstack_api_mock = mock.MagicMock()
         openstack_api_mock.servers = mock.MagicMock()
         openstack_api_mock.images = mock.MagicMock()
@@ -179,18 +179,14 @@ class TestNovaCompute(test.ProviderTester):
             }
         }
 
-        results = compute.tasks.create_server(context, 'fake_server',
-                                              region="North",
-                                              api=openstack_api_mock,
-                                              flavor='2', files=None,
-                                              image=image.id,
-                                              tags=
-                                              provider.generate_resource_tag(
-                                                  context['base_url'],
-                                                  context['tenant'],
-                                                  context['deployment_id'],
-                                                  context['resource_key']))
-
+        results = compute.tasks.create_server(
+            context, 'fake_server', region="North", api=openstack_api_mock,
+            flavor='2', files=None, image=image.id,
+            tags=provider.generate_resource_tag(context['base_url'],
+                                                context['tenant'],
+                                                context['deployment_id'],
+                                                context['resource_key'])
+        )
         self.assertDictEqual(results, expected)
         self.mox.VerifyAll()
 
@@ -273,11 +269,11 @@ class TestNovaCompute(test.ProviderTester):
         server.adminPass = 'password'
         server.metadata = {}
 
-        #Stub out postback call
+        # Stub out postback call
         self.mox.StubOutWithMock(cm_deps.tasks.resource_postback, 'delay')
         self.mox.StubOutWithMock(ssh, 'test_connection')
 
-        #Create appropriate api mocks
+        # Create appropriate api mocks
         openstack_api_mock = self.mox.CreateMockAnything()
         openstack_api_mock.client = self.mox.CreateMockAnything()
         openstack_api_mock.client.region_name = 'North'
@@ -327,7 +323,7 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {'rackconnect_automation_status': 'DEPLOYED'}
         server.accessIPv4 = "8.8.8.8"
 
-        #Create appropriate api mocks
+        # Create appropriate api mocks
         openstack_api_mock = mock.MagicMock()
         openstack_api_mock.client = mock.MagicMock
         openstack_api_mock.client.region_name = 'North'
@@ -343,20 +339,23 @@ class TestNovaCompute(test.ProviderTester):
                 'instance': {
                     'status': 'ACTIVE',
                     'addresses': {
-                    'public': [
-                        {
-                            'version': 4,
-                            'addr': '4.4.4.4'
-                        },
-                        {
-                            'version': 6,
-                            'addr': '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
-                        }],
-                    'private': [
-                        {
-                            'version': 4,
-                            'addr': '10.10.10.10'
-                        }]},
+                        'public': [
+                            {
+                                'version': 4,
+                                'addr': '4.4.4.4'
+                            },
+                            {
+                                'version': 6,
+                                'addr':
+                                '2001:4800:780e:0510:d87b:9cbc:ff04:513a'
+                            }
+                        ],
+                        'private': [
+                            {
+                                'version': 4,
+                                'addr': '10.10.10.10'
+                            }
+                        ]},
                     'ip': '8.8.8.8',
                     'region': 'North',
                     'public_ip': '4.4.4.4',
@@ -404,7 +403,7 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {'rackconnect_automation_status': 'FAILED'}
         server.accessIPv4 = "8.8.8.8"
 
-        #Create appropriate api mocks
+        # Create appropriate api mocks
         openstack_api_mock = mock.MagicMock()
         openstack_api_mock.client = mock.MagicMock()
         openstack_api_mock.client.region_name = 'North'
@@ -480,7 +479,7 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {'rackconnect_automation_status': 'UNPROCESSABLE'}
         server.accessIPv4 = "8.8.8.8"
 
-        #Create appropriate api mocks
+        # Create appropriate api mocks
         openstack_api_mock = mock.MagicMock()
         openstack_api_mock.client = mock.MagicMock()
         openstack_api_mock.client.region_name = 'North'
@@ -561,7 +560,7 @@ class TestNovaCompute(test.ProviderTester):
         server.metadata = {}
         server.accessIPv4 = "4.4.4.4"
 
-        #Create appropriate api mocks
+        # Create appropriate api mocks
         openstack_api_mock = mock.MagicMock()
         openstack_api_mock.client = mock.MagicMock()
         openstack_api_mock.client.region_name = 'North'
@@ -620,10 +619,10 @@ class TestNovaCompute(test.ProviderTester):
         server = self.mox.CreateMockAnything()
         server.image = {'id': 1}
 
-        #Stub out postback call
+        # Stub out postback call
         self.mox.StubOutWithMock(ssh, 'test_connection')
 
-        #Create appropriate api mocks
+        # Create appropriate api mocks
         openstack_api_mock = self.mox.CreateMockAnything()
         openstack_api_mock.client = self.mox.CreateMockAnything()
         openstack_api_mock.client.region_name = 'North'
@@ -649,10 +648,10 @@ class TestNovaCompute(test.ProviderTester):
         server = self.mox.CreateMockAnything()
         server.image = {'id': 1}
 
-        #Stub out postback call
+        # Stub out postback call
         self.mox.StubOutWithMock(rdp, 'test_connection')
 
-        #Create appropriate api mocks
+        # Create appropriate api mocks
         openstack_api_mock = self.mox.CreateMockAnything()
         openstack_api_mock.client = self.mox.CreateMockAnything()
         openstack_api_mock.client.region_name = 'North'
@@ -677,7 +676,7 @@ class TestNovaCompute(test.ProviderTester):
     def test_wait_on_build_connect_error(self):
         server = self.mox.CreateMockAnything()
         server.id = 'fake_server_id'
-        #Create appropriate api mocks
+        # Create appropriate api mocks
         openstack_api_mock = self.mox.CreateMockAnything()
         openstack_api_mock.client = self.mox.CreateMockAnything()
         openstack_api_mock.client.region_name = 'North'
@@ -1055,37 +1054,40 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         }
         provider = compute.Provider({})
 
-        #Mock Base Provider, context and deployment
+        # Mock Base Provider, context and deployment
         mock_rs_compute_provider_base = self.mox.CreateMockAnything()
         context = cm_mid.RequestContext()
         context2 = cm_mid.RequestContext(region='ORD')
         mock_rs_compute_provider_base.generate_template.AndReturn(True)
 
-        #Stub out provider calls
+        # Stub out provider calls
         self.mox.StubOutWithMock(copy, 'deepcopy')
         self.mox.StubOutWithMock(provider, 'get_catalog')
 
-        self.deployment.get_setting('region', resource_type='compute',
-                                    service_name='master',
-                                    provider_key=provider.key).AndReturn('ORD')
-        self.deployment.get_setting('os', resource_type='compute',
-                                    service_name='master',
-                                    provider_key=provider.key,
-                                    default="Ubuntu 12.04") \
-            .AndReturn("Ubuntu 12.04")
-        self.deployment.get_setting('memory', resource_type='compute',
-                                    service_name='master',
-                                    provider_key=provider.key, default=512) \
-            .AndReturn('512')
-        self.deployment.get_setting('userdata', resource_type='compute',
-                                    service_name='master',
-                                    provider_key=provider.key) \
-            .AndReturn(None)
+        self.deployment.get_setting(
+            'region', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn('ORD')
 
-        self.deployment.get_setting('networks', resource_type='compute',
-                                    service_name='master',
-                                    provider_key=provider.key)  \
-            .AndReturn(None)
+        self.deployment.get_setting(
+            'os', resource_type='compute', service_name='master',
+            provider_key=provider.key, default="Ubuntu 12.04"
+        ).AndReturn("Ubuntu 12.04")
+
+        self.deployment.get_setting(
+            'memory', resource_type='compute', service_name='master',
+            provider_key=provider.key, default=512
+        ).AndReturn('512')
+
+        self.deployment.get_setting(
+            'userdata', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'networks', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
 
         expected = [{
             'instance': {},
@@ -1140,32 +1142,33 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         context = cm_mid.RequestContext()
         context2 = cm_mid.RequestContext(**{'region': 'ORD'})
 
-        #Stub out provider calls
+        # Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
         self.mox.StubOutWithMock(copy, 'deepcopy')
         self.deployment.get_setting(
             'region', resource_type='compute',
             service_name='master', provider_key=provider.key
         ).AndReturn('dallas')
-        self.deployment.get_setting('os', resource_type='compute',
-                                    service_name='master',
-                                    provider_key=provider.key,
-                                    default="Ubuntu 12.04") \
-            .AndReturn("Ubuntu 12.04")
-        self.deployment.get_setting('memory', resource_type='compute',
-                                    service_name='master',
-                                    provider_key=provider.key, default=512) \
-            .AndReturn('512')
 
-        self.deployment.get_setting('userdata', resource_type='compute',
-                                    service_name='master',
-                                    provider_key=provider.key) \
-            .AndReturn(None)
+        self.deployment.get_setting(
+            'os', resource_type='compute', service_name='master',
+            provider_key=provider.key, default="Ubuntu 12.04"
+        ).AndReturn("Ubuntu 12.04")
 
-        self.deployment.get_setting('networks', provider_key='rackspace.nova',
-                                    resource_type='compute',
-                                    service_name='master') \
-            .AndReturn(None)
+        self.deployment.get_setting(
+            'memory', resource_type='compute', service_name='master',
+            provider_key=provider.key, default=512
+        ).AndReturn('512')
+
+        self.deployment.get_setting(
+            'userdata', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'networks', provider_key='rackspace.nova', resource_type='compute',
+            service_name='master'
+        ).AndReturn(None)
 
         copy.deepcopy(context).AndReturn(context2)
         provider.get_catalog(context2).AndReturn(catalog)
@@ -1176,7 +1179,6 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                                        'master', context, 1, provider.key,
                                        None)
         except exceptions.CheckmateException:
-            #pass
             self.mox.VerifyAll()
 
 

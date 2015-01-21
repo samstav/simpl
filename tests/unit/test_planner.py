@@ -127,7 +127,7 @@ class TestPlanner(unittest.TestCase):
         }
         planner = cmdeps.Planner(deployment, False, deployment['plan'])
         planner.plan_additional_nodes(context, "web", 2)
-        self.assertEquals(len(planner.resources), 4)
+        self.assertEqual(len(planner.resources), 4)
         self.assertDictEqual(planner.resources, expected_resources)
 
     def test_add_resource_updates_vip(self):

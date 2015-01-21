@@ -51,7 +51,7 @@ class TestExceptionHandlersBase(unittest.TestCase):
         mock_wf.get_task(100).task_spec.get_property.return_value = None
         handlers = cmexch.get_handlers(mock_wf, [100], mock_context,
                                        mock_driver)
-        self.assertEquals(0, len(handlers))
+        self.assertEqual(0, len(handlers))
 
     @mock.patch.object(cmexch, 'HANDLERS')
     def test_select_handlers(self, mock_handlers):
@@ -69,7 +69,7 @@ class TestExceptionHandlersBase(unittest.TestCase):
         mock_wf.get_task(100).task_spec.get_property.return_value = None
         handlers = cmexch.get_handlers(mock_wf, [100], mock_context,
                                        mock_driver)
-        self.assertEquals(1, len(handlers))
+        self.assertEqual(1, len(handlers))
         self.assertIsInstance(handlers[0], PositiveHandler)
 
 

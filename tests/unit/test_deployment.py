@@ -37,88 +37,88 @@ class TestSchema(unittest.TestCase):
 class TestDeploymentStateTransitions(unittest.TestCase):
     def test_deployment_states_fail_to_plan(self):
         deployment = cmdep.Deployment({'id': 'test'})
-        self.assertEquals('NEW', deployment.fsm.current)
+        self.assertEqual('NEW', deployment.fsm.current)
 
         deployment.fsm.change_to('FAILED')
-        self.assertEquals('FAILED', deployment.fsm.current)
+        self.assertEqual('FAILED', deployment.fsm.current)
 
         deployment.fsm.change_to('DELETED')
-        self.assertEquals('DELETED', deployment.fsm.current)
+        self.assertEqual('DELETED', deployment.fsm.current)
 
     def test_deployment_states_fail_to_build(self):
         deployment = cmdep.Deployment({'id': 'test'})
-        self.assertEquals('NEW', deployment.fsm.current)
+        self.assertEqual('NEW', deployment.fsm.current)
 
         deployment.fsm.change_to('PLANNED')
-        self.assertEquals('PLANNED', deployment.fsm.current)
+        self.assertEqual('PLANNED', deployment.fsm.current)
 
         deployment.fsm.change_to('FAILED')
-        self.assertEquals('FAILED', deployment.fsm.current)
+        self.assertEqual('FAILED', deployment.fsm.current)
 
     def test_deployment_states_build(self):
         deployment = cmdep.Deployment({'id': 'test', 'status': 'PLANNED'})
-        self.assertEquals('PLANNED', deployment.fsm.current)
+        self.assertEqual('PLANNED', deployment.fsm.current)
 
         deployment.fsm.change_to('UP')
-        self.assertEquals('UP', deployment.fsm.current)
+        self.assertEqual('UP', deployment.fsm.current)
 
     def test_deployment_states_alert_and_fix(self):
         deployment = cmdep.Deployment({'id': 'test', 'status': 'UP'})
-        self.assertEquals('UP', deployment.fsm.current)
+        self.assertEqual('UP', deployment.fsm.current)
 
         deployment.fsm.change_to('ALERT')
-        self.assertEquals('ALERT', deployment.fsm.current)
+        self.assertEqual('ALERT', deployment.fsm.current)
 
         deployment.fsm.change_to('UP')
-        self.assertEquals('UP', deployment.fsm.current)
+        self.assertEqual('UP', deployment.fsm.current)
 
     def test_deployment_states_reconnect(self):
         deployment = cmdep.Deployment({'id': 'test', 'status': 'UP'})
-        self.assertEquals('UP', deployment.fsm.current)
+        self.assertEqual('UP', deployment.fsm.current)
 
         deployment.fsm.change_to('UNREACHABLE')
-        self.assertEquals('UNREACHABLE', deployment.fsm.current)
+        self.assertEqual('UNREACHABLE', deployment.fsm.current)
 
         deployment.fsm.change_to('UP')
-        self.assertEquals('UP', deployment.fsm.current)
+        self.assertEqual('UP', deployment.fsm.current)
 
     def test_deployment_states_reconnect_to_alert(self):
         deployment = cmdep.Deployment({'id': 'test', 'status': 'UNREACHABLE'})
-        self.assertEquals('UNREACHABLE', deployment.fsm.current)
+        self.assertEqual('UNREACHABLE', deployment.fsm.current)
 
         deployment.fsm.change_to('ALERT')
-        self.assertEquals(deployment.fsm.current, 'ALERT')
+        self.assertEqual(deployment.fsm.current, 'ALERT')
 
     def test_deployment_states_reconnect_to_down(self):
         deployment = cmdep.Deployment({'id': 'test', 'status': 'UNREACHABLE'})
-        self.assertEquals('UNREACHABLE', deployment.fsm.current)
+        self.assertEqual('UNREACHABLE', deployment.fsm.current)
 
         deployment.fsm.change_to('DOWN')
-        self.assertEquals('DOWN', deployment.fsm.current)
+        self.assertEqual('DOWN', deployment.fsm.current)
 
     def test_deployment_states_up_down(self):
         deployment = cmdep.Deployment({'id': 'test', 'status': 'UP'})
-        self.assertEquals('UP', deployment.fsm.current)
+        self.assertEqual('UP', deployment.fsm.current)
 
         deployment.fsm.change_to('DOWN')
-        self.assertEquals('DOWN', deployment.fsm.current)
+        self.assertEqual('DOWN', deployment.fsm.current)
 
         deployment.fsm.change_to('UP')
-        self.assertEquals('UP', deployment.fsm.current)
+        self.assertEqual('UP', deployment.fsm.current)
 
     def test_deployment_states_delete_broken(self):
         deployment = cmdep.Deployment({'id': 'test', 'status': 'DOWN'})
-        self.assertEquals('DOWN', deployment.fsm.current)
+        self.assertEqual('DOWN', deployment.fsm.current)
 
         deployment.fsm.change_to('DELETED')
-        self.assertEquals(deployment.fsm.current, 'DELETED')
+        self.assertEqual(deployment.fsm.current, 'DELETED')
 
     def test_deployment_states_delete(self):
         deployment = cmdep.Deployment({'id': 'test', 'status': 'UP'})
-        self.assertEquals('UP', deployment.fsm.current)
+        self.assertEqual('UP', deployment.fsm.current)
 
         deployment.fsm.change_to('DELETED')
-        self.assertEquals('DELETED', deployment.fsm.current)
+        self.assertEqual('DELETED', deployment.fsm.current)
 
     @mock.patch.object(cmdep.LOG, 'info')
     def test_deployment_status_logging(self, mock_logger):

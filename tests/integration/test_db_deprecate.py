@@ -232,7 +232,7 @@ class TestDatabase(unittest.TestCase):
         ).first()
 
         #check unlocked
-        self.assertEquals(deployment.locked, 0)
+        self.assertEqual(deployment.locked, 0)
 
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
@@ -269,7 +269,7 @@ class TestDatabase(unittest.TestCase):
             id=self.default_deployment['id']).first()
 
         #check for unlocked
-        self.assertEquals(deployment.locked, 0)
+        self.assertEqual(deployment.locked, 0)
 
         self.driver.session.query(self.klass).filter_by(
             id=self.default_deployment['id']).delete()
@@ -288,15 +288,15 @@ class TestDatabase(unittest.TestCase):
 class TestDriverCreation(unittest.TestCase):
     def test_driver_creation(self):
         driver = db.get_driver(connection_string='sqlite://')
-        self.assertEquals(driver.connection_string, 'sqlite://')
-        self.assertEquals(driver.__class__.__name__, 'Driver')
+        self.assertEqual(driver.connection_string, 'sqlite://')
+        self.assertEqual(driver.__class__.__name__, 'Driver')
 
     def test_driver_creation_multiple(self):
         driver1 = db.get_driver(connection_string='sqlite://')
         driver2 = db.get_driver(connection_string='mongodb://fake')
         self.assertNotEqual(driver1, driver2)
-        self.assertEquals(driver1.connection_string, 'sqlite://')
-        self.assertEquals(driver2.connection_string, 'mongodb://fake')
+        self.assertEqual(driver1.connection_string, 'sqlite://')
+        self.assertEqual(driver2.connection_string, 'mongodb://fake')
 
     def test_create_multiple_same_class(self):
         driver1 = db.get_driver(connection_string='mongodb://fake1')

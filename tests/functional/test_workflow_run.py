@@ -293,18 +293,18 @@ class TestWordpressWorkflow(cmtest.StubbedWorkflowBase):
     #    count = 0
     #    for resource in self.deployment['resources'].values():
     #        if resource.get('provider') == 'nova':
-    #            self.assertEquals(resource['image'], "125")
+    #            self.assertEqual(resource['image'], "125")
     #            count += 1
     #    for key in self.deployment['blueprint']['services']['web']\
     #            ['instances']:
     #        resource = self.deployment['resources'][key]
     #        if resource['provider'] == 'nova':
-    #            self.assertEquals(resource['flavor'], "4")  # 2Gb for web
+    #            self.assertEqual(resource['flavor'], "4")  # 2Gb for web
     #    for key in self.deployment['blueprint']['services']['master']\
     #            ['instances']:
     #        resource = self.deployment['resources'][key]
     #        if resource['provider'] == 'nova':
-    #            self.assertEquals(resource['flavor'], "2")  # 1Gb for master
+    #            self.assertEqual(resource['flavor'], "2")  # 1Gb for master
     #    self.assertEqual(count, 3)  # 1 master, 2 webs
 
 

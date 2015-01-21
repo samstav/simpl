@@ -141,7 +141,7 @@ class TestParseDomain(unittest.TestCase):
         domain, expected = self.sample_domain
 
         answer = provider.parse_domain(domain)
-        self.assertEquals(answer, expected)
+        self.assertEqual(answer, expected)
 
     def test_parse_domain_with_custom_cache(self):
         if os.path.exists(self.custom_tld_cache_file):
@@ -149,13 +149,13 @@ class TestParseDomain(unittest.TestCase):
         os.environ[self.tld_cache_env] = self.custom_tld_cache_file
         domain, expected = self.sample_domain
         answer = provider.parse_domain(domain)
-        self.assertEquals(answer, expected)
+        self.assertEqual(answer, expected)
         self.assertTrue(os.path.exists(self.custom_tld_cache_file))
 
     def test_sample_data(self):
         for domain, expected in self.sample_data:
             answer = provider.parse_domain(domain)
-            self.assertEquals(answer, expected)
+            self.assertEqual(answer, expected)
 
 
 if __name__ == '__main__':

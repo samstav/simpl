@@ -165,7 +165,7 @@ class TestRequestContext(unittest.TestCase):
         os.environ['CHECKMATE_OVERRIDE_URL'] = 'http://OVERRIDDEN'
         env = {}
         self.filter(env, _start_response)
-        self.assertEquals('http://OVERRIDDEN', env['context'].base_url)
+        self.assertEqual('http://OVERRIDDEN', env['context'].base_url)
 
     def test_no_url_scheme(self):
         with self.assertRaises(KeyError):
@@ -189,7 +189,7 @@ class TestRequestContext(unittest.TestCase):
                'wsgi.url_scheme': 'http',
                'HTTP_HOST': 'MOCK'}
         self.filter(env, _start_response)
-        self.assertEquals('http://MOCK', env['context'].base_url)
+        self.assertEqual('http://MOCK', env['context'].base_url)
 
     def test_server_name(self):
         env = {'PATH_INFO': '/',
@@ -197,7 +197,7 @@ class TestRequestContext(unittest.TestCase):
                'SERVER_NAME': 'MOCK',
                'SERVER_PORT': '80'}
         self.filter(env, _start_response)
-        self.assertEquals('http://MOCK', env['context'].base_url)
+        self.assertEqual('http://MOCK', env['context'].base_url)
 
     def test_https_weird_port(self):
         env = {'PATH_INFO': '/',
@@ -205,7 +205,7 @@ class TestRequestContext(unittest.TestCase):
                'SERVER_NAME': 'MOCK',
                'SERVER_PORT': '444'}
         self.filter(env, _start_response)
-        self.assertEquals('https://MOCK:444', env['context'].base_url)
+        self.assertEqual('https://MOCK:444', env['context'].base_url)
 
     def test_http_weird_port(self):
         env = {'PATH_INFO': '/',
@@ -213,7 +213,7 @@ class TestRequestContext(unittest.TestCase):
                'SERVER_NAME': 'MOCK',
                'SERVER_PORT': '81'}
         self.filter(env, _start_response)
-        self.assertEquals('http://MOCK:81', env['context'].base_url)
+        self.assertEqual('http://MOCK:81', env['context'].base_url)
 
 
 if __name__ == '__main__':
