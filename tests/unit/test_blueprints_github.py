@@ -24,7 +24,8 @@ from checkmate.common import config
 
 class TestGitHubManager(unittest.TestCase):
     def setUp(self):
-        self.config = config.Config.init({
+        self.config = config.current()
+        self.config.update({
             'github_api': 'http://localhost',
             'organization': 'Blueprints',
             'ref': 'master',

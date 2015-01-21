@@ -376,7 +376,7 @@ class Config(collections.MutableMapping):
         for option in self._options:
             env_var = option.kwargs.get('env')
             if env_var and env_var in env:
-                value = os.environ[env_var]
+                value = env[env_var]
                 results[option.dest] = option.type(value)
         return results
 
