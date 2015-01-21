@@ -40,7 +40,7 @@ OPTIONS = [
     #
     # General Options
     #
-    config.Option("--address",
+    config.Option("address",
                   help="address and optional port to start server on "
                   "[address[:port]]",
                   nargs='?',
@@ -248,7 +248,7 @@ OPTIONS = [
     config.Option("--github-client-secret",
                   help="Github Client Secret for Github Auth"
                   ),
-    config.Option("--github-use-https",
+    config.Option("--git-use-https",
                   action="store_true",
                   default=False,
                   help="Communicate with GitHub over https."
