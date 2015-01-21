@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import traceback
+import uuid
 
 # some distros install as PAM (Ubuntu, SuSE)
 try:
@@ -37,6 +38,7 @@ import webob.dec
 import webob.exc as webexc
 
 from checkmate.common import caching
+from checkmate.common import threadlocal
 from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import BLUEPRINT_ERROR
 from checkmate.exceptions import CheckmateException
@@ -596,6 +598,15 @@ class RequestContext(object):
         self.region = region
         self.resource = resource
         self.kwargs = kwargs  # store extra args and retrieve them when needed
+        self.update_local_context()
+
+    def update_local_context(self):
+        """Replicate data to threadlocal context.
+
+        This method is here temporarily until we get rid of RequestContext.
+        """
+        new_context = threadlocal.get_context()
+        new_context.update(self.get_queued_task_dict())
 
     def get_queued_task_dict(self, **kwargs):
         """Get a serializable dict of this context for use with remote, queued
@@ -635,6 +646,7 @@ class RequestContext(object):
             self.user_id = content['access']['user'].get('id')
         except KeyError:
             pass
+        self.update_local_context()
 
     @staticmethod
     def get_service_catalog(content):
@@ -742,9 +754,32 @@ class ContextMiddleware(object):
                         url += ':' + environ['SERVER_PORT']
 
         # Use a default empty context
-        context = RequestContext(base_url=url)
-        environ['context'] = context
-        LOG.debug("BASE URL IS %s", context.base_url)
+        transaction_id = uuid.uuid4().hex
+        # TODO(zns): remove duplicate context logic
+        new_context = threadlocal.get_context()
+        new_context['base_url'] = url
+        new_context['transaction_id'] = transaction_id
+        old_context = RequestContext(base_url=url)
+        environ['context'] = old_context
+        LOG.debug("BASE URL IS %s", old_context.base_url)
+        return self.app(environ, start_response)
+
+
+class GitHubTokenMiddleware(object):
+
+    """Takes github credentials and adds them to context."""
+
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, environ, start_response):
+        request = webob.Request(environ)
+        token = request.cookies.get("github_access_token")
+        if token:
+            environ['context']['github_token'] = token
+            # TODO(zns): remove duplicate context logic
+            new_context = threadlocal.get_context()
+            new_context['github_token'] = token
         return self.app(environ, start_response)
 
 

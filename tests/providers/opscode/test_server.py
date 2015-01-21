@@ -20,6 +20,7 @@ import logging
 import unittest
 import uuid
 
+import mock
 import mox
 from SpiffWorkflow import specs
 import yaml
@@ -502,13 +503,9 @@ class TestMapfileWithoutMaps(test.StubbedWorkflowBase):
                 maps: []  # blank map should be ignored as well
             """
 
-    def test_workflow_task_generation(self):
-        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
-        chefmap = chef_map.ChefMap(mox.IgnoreArg())
-        chefmap.get_map_file().AndReturn(self.map_file)
-
-        self.mox.ReplayAll()
-
+    @mock.patch.object(chef_map.ChefMap, "get_map_file")
+    def test_workflow_task_generation(self, mock_get_map_file):
+        mock_get_map_file.return_value = self.map_file
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
@@ -632,12 +629,9 @@ interfaces/mysql/host
                             username: {{ setting('username') }}
             """
 
-    def test_workflow_task_creation(self):
-        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
-        chefmap = chef_map.ChefMap(mox.IgnoreArg())
-        chefmap.get_map_file().AndReturn(self.map_file)
-
-        self.mox.ReplayAll()
+    @mock.patch.object(chef_map.ChefMap, "get_map_file")
+    def test_workflow_task_creation(self, mock_get_map_file):
+        mock_get_map_file.return_value = self.map_file
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
@@ -659,23 +653,19 @@ interfaces/mysql/host
             'Configure mysql: 0 (db)',
         ]
         self.assertItemsEqual(task_list, expected, msg=task_list)
-        self.mox.VerifyAll()
+        mock_get_map_file.has_calls()
 
         # Make sure hash value was generated
         instance = self.deployment['resources']['admin']['instance']
         self.assertEqual(12, len(instance['password']))
         self.assertIn('admin', instance['name'])
 
-    def test_workflow_execution(self):
-        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
-        chefmap = chef_map.ChefMap(mox.IgnoreArg())
-        chefmap.get_map_file().AndReturn(self.map_file)
-
-        self.mox.ReplayAll()
+    @mock.patch.object(chef_map.ChefMap, "get_map_file")
+    def test_workflow_execution(self, mock_get_map_file):
+        mock_get_map_file.return_value = self.map_file
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
-        self.mox.VerifyAll()
 
         # Create new mox queue for running workflow
 
@@ -989,12 +979,10 @@ interfaces/mysql/database_name
                   - attributes://connections
             """
 
-    def test_workflow_task_creation(self):
-        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
-        chefmap = chef_map.ChefMap(mox.IgnoreArg())
-        chefmap.get_map_file().AndReturn(self.map_file)
+    @mock.patch.object(chef_map.ChefMap, "get_map_file")
+    def test_workflow_task_creation(self, mock_get_map_file):
+        mock_get_map_file.return_value = self.map_file
 
-        self.mox.ReplayAll()
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
@@ -1027,7 +1015,7 @@ interfaces/mysql/database_name
             'Write Role foo-master for 0',
         ]
         self.assertItemsEqual(task_list, expected, msg=task_list)
-        self.mox.VerifyAll()
+        mock_get_map_file.has_calls()
 
         # Make sure maps are correct
         transmerge = workflow.spec.task_specs['Collect Chef Data for 0']
@@ -1136,12 +1124,10 @@ interfaces/mysql/database_name
         expected = ['recipe[apt]', 'recipe[foo::server]']
         self.assertItemsEqual(role.kwargs['run_list'], expected)
 
-    def test_manage_role_task_should_have_merge_results_set_to_true(self):
-        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
-        chefmap = chef_map.ChefMap(mox.IgnoreArg())
-        chefmap.get_map_file().AndReturn(self.map_file)
-
-        self.mox.ReplayAll()
+    @mock.patch.object(chef_map.ChefMap, "get_map_file")
+    def test_manage_role_task_should_have_merge_results_set_to_true(
+            self, mock_get_map_file):
+        mock_get_map_file.return_value = self.map_file
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
@@ -1154,12 +1140,10 @@ interfaces/mysql/database_name
             'Write Role foo-master for 0']
         self.assertTrue(manage_role_task.merge_results)
 
-    def test_cook_tasks_should_have_merge_results_set_to_true(self):
-        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
-        chefmap = chef_map.ChefMap(mox.IgnoreArg())
-        chefmap.get_map_file().AndReturn(self.map_file)
-
-        self.mox.ReplayAll()
+    @mock.patch.object(chef_map.ChefMap, "get_map_file")
+    def test_cook_tasks_should_have_merge_results_set_to_true(
+            self, mock_get_map_file):
+        mock_get_map_file.return_value = self.map_file
         context = middleware.RequestContext(auth_token='MOCK_TOKEN',
                                             username='MOCK_USER')
         deployments.Manager.plan(self.deployment, context)
@@ -1183,10 +1167,9 @@ interfaces/mysql/database_name
         self.assertFalse(workflow.spec.task_specs[
             'Write Data Bag for 0'].merge_results)
 
-    def test_workflow_execution(self):
-        self.mox.StubOutWithMock(chef_map.ChefMap, "get_map_file")
-        chefmap = chef_map.ChefMap(mox.IgnoreArg())
-        chefmap.get_map_file().AndReturn(self.map_file)
+    @mock.patch.object(chef_map.ChefMap, "get_map_file")
+    def test_workflow_execution(self, mock_get_map_file):
+        mock_get_map_file.return_value = self.map_file
 
         # Plan deployment
         self.mox.ReplayAll()

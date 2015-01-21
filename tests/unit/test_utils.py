@@ -755,6 +755,28 @@ class TestFormatCheck(unittest.TestCase):
             expected['resources']['1'], result['resources']['1'])
 
 
+class TestSetUrlCreds(unittest.TestCase):
+
+    def test_set_empty(self):
+        url = utils.set_url_creds("http://usr:px@fqdn:80/path#fr?q=1")
+        self.assertEqual(url, "http://fqdn:80/path#fr?q=1")
+
+    def test_set_username(self):
+        url = utils.set_url_creds("http://usr:px@fqdn/path#fr?q=1",
+                                  username="new")
+        self.assertEqual(url, "http://new@fqdn/path#fr?q=1")
+
+    def test_set_password(self):
+        url = utils.set_url_creds("http://usr:px@fqdn/path#fr?q=1",
+                                  password="new")
+        self.assertEqual(url, "http://new@fqdn/path#fr?q=1")
+
+    def test_set_both(self):
+        url = utils.set_url_creds("http://usr:px@fqdn/path#fr?q=1",
+                                  password="new", username="bob")
+        self.assertEqual(url, "http://bob:new@fqdn/path#fr?q=1")
+
+
 if __name__ == '__main__':
     from checkmate import test
     test.run_with_params()

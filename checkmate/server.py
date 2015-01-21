@@ -338,6 +338,7 @@ def main():
         anonymous_paths=anonymous_paths
     )
 
+    next_app = middleware.GitHubTokenMiddleware(next_app)
     next_app = middleware.TenantMiddleware(next_app, resources=resources)
     next_app = middleware.StripPathMiddleware(next_app)
     next_app = middleware.ExtensionsMiddleware(next_app)

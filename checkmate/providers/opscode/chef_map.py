@@ -85,7 +85,7 @@ class ChefMap(object):
 
     """Retrieves and parses Chefmap files."""
 
-    def __init__(self, url=None, raw=None, parsed=None):
+    def __init__(self, url=None, raw=None, parsed=None, github_token=None):
         """Create a new Chefmap instance.
 
         :param url: is the path to the root git repo. Supported protocols
@@ -97,10 +97,12 @@ class ChefMap(object):
                 map_file = ChefMap("git://github.com/user/repo#master")
         :param raw: provide the raw content of the map file
         :param parsed: provide parsed content of the map file
+        :param github_token: for private repos, supply a github oauth token
 
         :return: opscode.ChefMap
         """
         self.url = url
+        self.github_token = github_token
         self._raw = raw
         self._parsed = parsed
 
@@ -127,7 +129,7 @@ class ChefMap(object):
             with open(chefmap_path) as chefmap:
                 return chefmap.read()
         else:
-            cache = BlueprintCache(self.url)
+            cache = BlueprintCache(self.url, github_token=self.github_token)
             cache.update()
             if os.path.exists(os.path.join(cache.cache_path, "Chefmap")):
                 with open(os.path.join(cache.cache_path,
@@ -161,7 +163,7 @@ class ChefMap(object):
             extra_globals['source'] = functools.partial(
                 self.source, kwargs.get('deployment'), kwargs.get('resource'))
         parsed = templating.parse(self.raw, **kwargs)
-        return ChefMap(parsed=parsed)
+        return ChefMap(parsed=parsed, github_token=self.github_token)
 
     def source(self, deployment, resource, url):
         """Parse and return the value of a 'source' entry."""

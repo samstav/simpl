@@ -35,10 +35,15 @@ class BlueprintCache(object):
 
     """Blueprints cache."""
 
-    def __init__(self, source_repo):
+    def __init__(self, source_repo, github_token=None):
         prefix = CONFIG.deployments_path
-        suffix = hashlib.md5(source_repo).hexdigest()
+        if github_token:
+            ident = "%s:%s" % (github_token, source_repo)
+        else:
+            ident = source_repo
+        suffix = hashlib.md5(ident).hexdigest()
         self.source_repo = source_repo
+        self.github_token = github_token
         self._cache_path = os.path.join(prefix, "cache", "blueprints", suffix)
 
     @property
@@ -49,16 +54,21 @@ class BlueprintCache(object):
     def update(self):
         """Cache a blueprint repo or update an existing cache, if necessary."""
         cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
-        if not cache_expire_time:
+        if cache_expire_time is None:
             cache_expire_time = 3600
             LOG.info("(cache) CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not "
                      "set. Defaulting to %s", cache_expire_time)
         cache_expire_time = int(cache_expire_time)
         if "#" in self.source_repo:
-            url, branch = self.source_repo.split("#")
+            url, branch = self.source_repo.split("#", 1)
         else:
             url = self.source_repo
             branch = "master"
+        token_remote = None
+        if self.github_token:
+            token_remote = utils.set_url_creds(url, username=self.github_token,
+                                               password='x-oauth-basic')
+
         if os.path.exists(self.cache_path):  # Cache exists
             # The mtime of .git/FETCH_HEAD changes upon every "git
             # fetch".  FETCH_HEAD is only created after the first
@@ -79,7 +89,11 @@ class BlueprintCache(object):
                     tag = branch
                     refspec = "refs/tags/" + tag + ":refs/tags/" + tag
                     try:
-                        utils.git_fetch(self.cache_path, refspec)
+                        if token_remote:
+                            utils.git_fetch(self.cache_path, refspec,
+                                            remote=token_remote)
+                        else:
+                            utils.git_fetch(self.cache_path, refspec)
                         utils.git_checkout(self.cache_path, tag)
                     except subprocess.CalledProcessError:
                         LOG.info("Unable to update git tags from the git "
@@ -87,7 +101,11 @@ class BlueprintCache(object):
                                  "repository", url)
                 else:
                     try:
-                        utils.git_pull(self.cache_path, branch)
+                        if token_remote:
+                            utils.git_pull(self.cache_path, branch,
+                                           remote=token_remote)
+                        else:
+                            utils.git_pull(self.cache_path, branch)
                     except subprocess.CalledProcessError:
                         LOG.info("Unable to pull from git repository at %s.  "
                                  "Using the cached repository", url)
@@ -97,7 +115,12 @@ class BlueprintCache(object):
             LOG.debug("(cache) Cloning repo to %s", self.cache_path)
             os.makedirs(self.cache_path)
             try:
-                utils.git_clone(self.cache_path, url, branch=branch)
+                if token_remote:
+                    utils.git_init(self.cache_path)
+                    utils.git_pull(self.cache_path, branch,
+                                   remote=token_remote)
+                else:
+                    utils.git_clone(self.cache_path, url, branch=branch)
             except subprocess.CalledProcessError as exc:
                 error_message = ("Git repository could not be cloned from "
                                  "'%s'. The error returned was '%s'" % (url,

@@ -175,8 +175,9 @@ def get_provider_environment_catalog(environment_id, provider_id,
     except KeyError:
         bottle.abort(404, "Invalid provider: %s" % provider_id)
     if 'type' in bottle.request.query:
-        catalog = (provider.get_catalog(bottle.request.environ['context'],
-                   type_filter=bottle.request.query['type']))
+        catalog = provider.get_catalog(
+            bottle.request.environ['context'],
+            type_filter=bottle.request.query['type'])
     else:
         catalog = provider.get_catalog(bottle.request.environ['context'])
 
@@ -204,8 +205,8 @@ def get_environment_component(environment_id, provider_id, component_id,
             component._data, bottle.request, bottle.response)
     else:
         bottle.abort(404, "Component %s not found or not available under this "
-                     "provider and environment (%s/%s)", component_id,
-                     environment_id, provider_id)
+                     "provider and environment (%s/%s)" %
+                     (component_id, environment_id, provider_id))
 
 
 #
@@ -234,8 +235,8 @@ def get_provider_catalog(provider_id, tenant_id=None):
     if "." in provider_id:
         vendor = provider_id.split(".")[0]
         provider_id = provider_id.split(".")[1]
-    environment = cm_env.Environment(dict(providers={provider_id:
-                                     dict(vendor=vendor)}))
+    environment = cm_env.Environment(
+        dict(providers={provider_id: dict(vendor=vendor)}))
     try:
         provider = environment.get_provider(provider_id)
     except KeyError:
@@ -245,12 +246,13 @@ def get_provider_catalog(provider_id, tenant_id=None):
         type_filter = bottle.request.query.pop('type')
     if type_filter:
         catalog = (provider.get_catalog(bottle.request.environ['context'],
-                   type_filter=type_filter))
+                                        type_filter=type_filter))
     else:
         if len(bottle.request.query) > 16:
             bottle.abort(403, "Invalid url parameters.")
         if 'source' in bottle.request.query:
-            catalog = provider.get_remote_catalog(**bottle.request.query)
+            catalog = provider.get_remote_catalog(
+                bottle.request.environ['context'], **bottle.request.query)
         else:
             catalog = provider.get_catalog(bottle.request.environ['context'],
                                            **bottle.request.query)
@@ -266,8 +268,8 @@ def get_provider_component(provider_id, component_id, tenant_id=None):
     if "." in provider_id:
         vendor = provider_id.split(".")[0]
         provider_id = provider_id.split(".")[1]
-    environment = cm_env.Environment(dict(providers={provider_id:
-                                     dict(vendor=vendor)}))
+    environment = cm_env.Environment(
+        dict(providers={provider_id: dict(vendor=vendor)}))
     try:
         provider = environment.get_provider(provider_id)
     except KeyError:
@@ -292,8 +294,8 @@ def provider_get_resources(provider_id, tenant_id=None):
     if "." in provider_id:
         vendor = provider_id.split(".")[0]
         provider_id = provider_id.split(".")[1]
-    environment = cm_env.Environment(dict(providers={provider_id:
-                                     dict(vendor=vendor)}))
+    environment = cm_env.Environment(
+        dict(providers={provider_id: dict(vendor=vendor)}))
     try:
         provider = environment.get_provider(provider_id)
     except KeyError:

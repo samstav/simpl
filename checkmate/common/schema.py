@@ -1010,8 +1010,8 @@ def load_catalog(path):
                     '%s in %s' % (exc, doc))
             resource_type = doc.get('is', 'application')
             category = catalog.setdefault(resource_type, {})
-            category[doc['id']] = doc
-        LOG.debug('Loaded catalog from %s', path)
+            category[doc.get('id') or doc['name']] = doc
+        LOG.debug("Loaded catalog from '%s'", path)
     except ValueError:
         msg = 'Catalog source did not return parsable content'
         raise exceptions.CheckmateException(msg)

@@ -961,6 +961,11 @@ def get_id(is_sim):
         return uuid.uuid4().hex
 
 
+def git_init(repo_dir):
+    """Do a git init in `repo_dir'."""
+    return subprc.check_output(['git', 'init'], cwd=repo_dir)
+
+
 def git_clone(repo_dir, url, branch="master"):
     """Do a git checkout of `head' in `repo_dir'."""
     return subprc.check_output(
@@ -1125,6 +1130,18 @@ def hide_url_password(url):
     except StandardError:
         pass
     return url
+
+
+def set_url_creds(url, username=None, password=None):
+    """Return url with credentials set as supplied."""
+    parsed = urlparse.urlsplit(url)
+    scheme, netloc, path, query, fragment = parsed
+    netloc = "%s:%s@%s:%s" % (username or '', password or '',
+                              parsed.hostname, parsed.port or '')
+    netloc = netloc.replace(":@", "@").strip(':@')
+    result = urlparse.SplitResult(scheme=scheme, netloc=netloc, path=path,
+                                  query=query, fragment=fragment)
+    return urlparse.urlunsplit(result)
 
 
 def format_check(data):

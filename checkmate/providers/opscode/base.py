@@ -331,7 +331,7 @@ class BaseOpscodeProvider(base.ProviderBase):
 
         if self.source:
             # Get remote catalog
-            catalog = self.get_remote_catalog()
+            catalog = self.get_remote_catalog(context, source=self.source)
 
             # Validate and cache catalog
             self.validate_catalog(catalog)
@@ -339,14 +339,16 @@ class BaseOpscodeProvider(base.ProviderBase):
                 self._dict['catalog'] = catalog
             return catalog
 
-    def get_remote_catalog(self, source=None):
+    def get_remote_catalog(self, context, source=None):
         """Get the remote catalog from a repo by obtaining a Chefmap file, if
         it exists, and parsing it.
 
-        NOTE: copied in chef-server Provider
+        :param context: call context
+        :keyword source: url (supports file:/// also) of a remote catalog
         """
         if source:
-            map_file = ChefMap(url=source)
+            map_file = ChefMap(url=source,
+                               github_token=context.get('github_token'))
         else:
             map_file = self.map_file
         catalog = {}
