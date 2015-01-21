@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -14,6 +14,8 @@
 
 """Things that should happen first (on app entry) go here."""
 
+from __future__ import print_function
+
 import os
 
 # start tracer - pylint/flakes friendly
@@ -22,17 +24,12 @@ import os
 #       possible. So position is important.  KEEP THIS FIRST
 __import__('checkmate.common.tracer')
 
-
-def preconfigure():
-    """Common configuration to be done before everything else."""
-    from checkmate.common import config
-    config.current().initialize()
+import checkmate  # noqa
 
 
 def client():
     """Entry point for Checkmate client."""
-
-    print """
+    print("""
 *** Checkmate Command-Line Client Utility ***
 
 This tool is not ready yet. This file is being used to
@@ -44,29 +41,29 @@ Too run the server, use one of these:
 - checkmate-server: to manage the REST server
 
 Settings:
-"""
+""")
 
     for key in os.environ:
         if key.startswith('CHECKMATE_CLIENT'):
-            print key, '=', os.environ[key]
+            print((key, '=', os.environ[key]))
 
 
 def queue():
     """Entry point for Checkmate queue."""
-    preconfigure()
+    checkmate.preconfigure()
     from checkmate import checkmate_queue
     checkmate_queue.main_func()
 
 
 def server():
     """Entry point for Checkmate server."""
-    preconfigure()
+    checkmate.preconfigure()
     from checkmate import server as cmserver
     cmserver.main()
 
 
 def simulation():
     """Entry point for Checkmate simulation."""
-    preconfigure()
+    checkmate.preconfigure()
     from checkmate.sample import checkmate_simulation
     checkmate_simulation.main_func()

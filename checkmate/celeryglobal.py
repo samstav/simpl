@@ -1,6 +1,6 @@
 # pylint: disable=E1101,W0613,R0904,R0913
 
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -63,8 +63,8 @@ signals.after_setup_task_logger.connect(after_setup_logger_handler)
 def init_checkmate_worker(sender=None, conf=None, **kwargs):
     """Initialize Configuration."""
     LOG.info("Initializing Checkmate worker")
-    CONFIG.update(config.parse_environment(env=os.environ))
-    LOG.debug("Initialized config: %s", CONFIG.__dict__)
+    CONFIG.parse_env()
+    LOG.debug("Initialized config: %s", CONFIG)
 
 
 class SingleTask(celery.Task):

@@ -1,6 +1,6 @@
 # pylint: disable=E1103, C0302, R0913
 
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may

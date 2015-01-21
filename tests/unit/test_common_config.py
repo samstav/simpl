@@ -1,6 +1,6 @@
 # pylint: disable=R0904,W0212
 
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -18,11 +18,12 @@
 import unittest
 
 from checkmate.common import config
+from checkmate.contrib import config as contrib_config
 
 
 class TestConfig(unittest.TestCase):
     def test_defaults(self):
-        default = config.Config()
+        default = config.current()
         self.assertIsInstance(default, config.Config)
 
         self.assertIsNone(default.logconfig)
@@ -46,12 +47,12 @@ class TestConfig(unittest.TestCase):
 
         self.assertFalse(default.webhook)
         self.assertIsNone(default.github_api)
-        self.assertIsNone(default.organization)
-        self.assertEqual(default.ref, 'stable')
+        self.assertEqual(default.organization, 'Blueprints')
+        self.assertEqual(default.ref, 'master')
         self.assertIsNone(default.cache_dir)
-        self.assertEqual(default.preview_ref, 'master')
+        self.assertIsNone(default.preview_ref)
         self.assertIsNone(default.preview_tenants)
-        self.assertEqual(default.group_refs, {})
+        self.assertIsNone(default.group_refs)
 
         self.assertEqual(default.deployments_path,
                          '/var/local/checkmate/deployments')
@@ -63,7 +64,7 @@ class TestConfig(unittest.TestCase):
 
     def test_update_iterables(self):
         current = config.Config()
-        current.update({'quiet': True}, {'verbose': True})
+        current.update({'quiet': True, 'verbose': True})
         self.assertTrue(current.quiet)
         self.assertTrue(current.verbose)
 
@@ -76,72 +77,92 @@ class TestConfig(unittest.TestCase):
 class TestParsers(unittest.TestCase):
     def test_comma_separated_strs(self):
         expected = ['1', '2', '3']
-        result = config._comma_separated_strs("1,2,3")
+        result = contrib_config.comma_separated_strings("1,2,3")
         self.assertItemsEqual(result, expected)
 
     def test_format_comma_separated(self):
         expected = dict(A='1', B='2', C='3')
-        result = config._comma_separated_key_value_pairs("A=1,B=2,C=3")
+        result = contrib_config.comma_separated_pairs("A=1,B=2,C=3")
         self.assertEqual(result, expected)
 
 
 class TestArgParser(unittest.TestCase):
+
+    def setUp(self):
+        self.parsed = config.current()
+
+    def tearDown(self):
+        del self.parsed
+        reload(config)
+
     def test_default(self):
-        parsed = config.parse_arguments(['/prog'])
-        self.assertFalse(parsed.with_admin)
-        self.assertFalse(parsed.eventlet)
+        self.parsed.update(
+            self.parsed.parse_cli(argv=['/prog']))
+        self.assertFalse(self.parsed.with_admin)
+        self.assertFalse(self.parsed.eventlet)
 
     def test_flag(self):
-        parsed = config.parse_arguments(['/prog', '--with-admin'])
-        self.assertTrue(parsed.with_admin)
+        self.parsed.update(
+            self.parsed.parse_cli(argv=['/prog', '--with-admin']))
+        self.assertTrue(self.parsed.with_admin)
 
     def test_flag_singlechar(self):
-        parsed = config.parse_arguments(['/prog', '-e'])
-        self.assertTrue(parsed.eventlet)
+        self.parsed.update(
+            self.parsed.parse_cli(argv=['/prog', '-e']))
+        self.assertTrue(self.parsed.eventlet)
 
     def test_ignore_start(self):
         """Ignore unused/old START position."""
-        parsed = config.parse_arguments(['/prog', 'START', '-e'])
-        self.assertTrue(parsed.eventlet)
+        self.parsed.update(
+            self.parsed.parse_cli(argv=['/prog', 'START', '-e']))
+        self.assertTrue(self.parsed.eventlet)
 
     def test_start_as_address(self):
         """Ensure START is not picked up as address."""
-        parsed = config.parse_arguments(['/prog', 'START', '-e'])
-        self.assertEqual(parsed.address, '127.0.0.1:8080')
+        self.parsed.update(
+            self.parsed.parse_cli(argv=['/prog', 'START', '-e']))
+        self.assertEqual(self.parsed.address, '127.0.0.1:8080')
 
     def test_address(self):
-        parsed = config.parse_arguments(['/prog', '10.1.1.1'])
-        self.assertEqual(parsed.address, '10.1.1.1')
+        self.parsed.update(
+            self.parsed.parse_cli(argv=['/prog', '10.1.1.1']))
+        self.assertEqual(self.parsed.address, '10.1.1.1')
 
     def test_port(self):
-        parsed = config.parse_arguments(['/prog', '10.1.1.1:10000'])
-        self.assertEqual(parsed.address, '10.1.1.1:10000')
+        self.parsed.update(
+            self.parsed.parse_cli(argv=['/prog', '10.1.1.1:10000']))
+        self.assertEqual(self.parsed.address, '10.1.1.1:10000')
 
     def test_allow_extras(self):
-        parsed = config.parse_arguments(['/prog', '-e', '--concurrency'])
-        self.assertFalse(hasattr(parsed, 'concurrency'))
+        self.parsed.update(
+            self.parsed.parse_cli(argv=['/prog', '-e', '--concurrency'],
+                                  permissive=True))
+        self.assertFalse(hasattr(self.parsed, 'concurrency'))
 
 
 class TestEnvParser(unittest.TestCase):
     def test_blank(self):
-        parsed = config.parse_environment({})
+        parsed = config.Config().parse_env(env={})
         self.assertIsInstance(parsed, dict)
         self.assertEqual(parsed, {})
 
     def test_one_value(self):
-        parsed = config.parse_environment({
-            'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
+        parsed = config.current()
+        parsed.update(parsed.parse_env(
+            env={'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
+        )
         self.assertIn('deployments_path', parsed)
         self.assertEqual(parsed['deployments_path'], '/tmp/not_default')
 
     def test_applying_config(self):
         """Check that we can take an env and apply it as a config."""
-        current = config.Config()
+        current = config.current()
         self.assertEqual(current.deployments_path,
                          '/var/local/checkmate/deployments')
-        parsed = config.parse_environment({
-            'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
-        current.update(parsed)
+        current.update(
+            current.parse_env(
+                env={'CHECKMATE_CHEF_LOCAL_PATH': '/tmp/not_default'})
+        )
         self.assertEqual(current.deployments_path, '/tmp/not_default')
 
     @unittest.skip('No conflicts yet')

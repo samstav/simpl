@@ -1,6 +1,6 @@
 # pylint: disable=C0103,W0212
 
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -24,6 +24,11 @@ from checkmate import exceptions as cmexc
 
 
 class TestPostDeployment_content_to_deployment(unittest.TestCase):
+
+    def tearDown(self):
+        from checkmate.common import config
+        reload(config)
+
     @staticmethod
     def expected_deployment(d_id='Dtest'):
         """Default expected deployment."""

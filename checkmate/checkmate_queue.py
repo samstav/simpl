@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -20,6 +20,8 @@ import sys
 
 def main_func():
     "Called automatically when this module is executed."""
+    import checkmate
+    checkmate.preconfigure()
     if len(sys.argv) > 1 and sys.argv[1] == 'START':
         params = []
         if '--newrelic' in sys.argv:

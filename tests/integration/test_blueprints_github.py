@@ -29,7 +29,7 @@ from checkmate.common import config as cmcfg
 @unittest.skip("Not migrated from CrossCheck fully")
 class TestGitHubManager(unittest.TestCase):
     def setUp(self):
-        self.config = cmcfg.Config({
+        self.config = cmcfg.Config.init({
             'github_api': 'https://github.rackspace.com/api/v3',
             'organization': "Blueprints",
             'ref': 'v0.5',

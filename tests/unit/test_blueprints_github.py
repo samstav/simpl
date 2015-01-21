@@ -1,6 +1,6 @@
 # pylint: disable=C0103,C0111,E1103,R0904,W0212
 
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -24,7 +24,8 @@ from checkmate.common import config
 
 class TestGitHubManager(unittest.TestCase):
     def setUp(self):
-        self.config = config.Config({
+        self.config = config.current()
+        self.config.update({
             'github_api': 'http://localhost',
             'organization': 'Blueprints',
             'ref': 'master',

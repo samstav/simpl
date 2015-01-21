@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -14,20 +14,19 @@
 
 """REST API for Checkmate server."""
 
-import os
 import logging
+import os
 
-# pylint: disable=W0611,W0402
-import bottle
+import bottle  # noqa
 
-import checkmate
-from checkmate import environments  # loads /providers routes too
-from checkmate import workflows
+import checkmate  # noqa
+from checkmate.common import config
+from checkmate import environments  # noqa
 from checkmate import utils
+from checkmate import workflows  # noqa
 
+CONFIG = config.current()
 LOG = logging.getLogger(__name__)
-
-__version_string__ = None
 
 
 #
@@ -42,13 +41,23 @@ def get_api_version():
                                   root=os.path.dirname(__file__),
                                   mimetype='application/vnd.sun.wadl+xml')
 
-    global __version_string__
-    if not __version_string__:
-        __version_string__ = checkmate.version()
     LOG.debug('GET /version called and reported version %s',
-              __version_string__)
+              checkmate.__version__)
     results = {
-        "version": __version_string__,
+        "version": checkmate.__version__,
+        "environment": CONFIG.app_environment,
+        "git-commit": checkmate.__commit__,
         "wadl": "./version.wadl",
     }
+    if not results['git-commit']:
+        hashfile = os.path.abspath(os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            os.pardir, 'commit.txt'))
+        if os.path.isfile(hashfile):
+            with open(hashfile) as head:
+                results['git-commit'] = head.read().strip()
+    if not results['git-commit']:
+        # dont be a heartbreaker
+        results.pop('git-commit')
+
     return utils.write_body(results, bottle.request, bottle.response)

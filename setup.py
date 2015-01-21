@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -13,7 +13,7 @@
 #    under the License.
 
 """
-Setup for Checkmate
+Setup for Checkmate.
 
 All dependencies are listed in:
 
@@ -21,15 +21,16 @@ All dependencies are listed in:
 - test-requirements.txt for test and development
 """
 
-import os
+import ast
+import re
 import sys
 
-from ConfigParser import ConfigParser
-from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
+import setuptools
+from setuptools.command import test
 
 from checkmate.common import setup as setup_tools
 
+TestCommand = test.test
 
 REQUIRES = setup_tools.parse_requirements()
 if 'develop' in sys.argv:
@@ -42,12 +43,13 @@ else:
 
 
 class Tox(TestCommand):
+
     """Use Tox for setup.py test command."""
 
     def __init__(self, *args, **kwargs):
         self.test_args = []
         self.test_suite = True
-        TestCommand.__init__(self, *args, **kwargs)
+        test.test.__init__(self, *args, **kwargs)
 
     def finalize_options(self):
         TestCommand.finalize_options(self)
@@ -55,28 +57,42 @@ class Tox(TestCommand):
         self.test_suite = True
 
     def run_tests(self):
-        #import here, cause outside the eggs aren't loaded
+        # import here, cause outside the eggs aren't loaded
         import tox
         tox.cmdline(self.test_args)
 
 
-def get_config():
-    """Reads and parses the checkmate.cfg configuation file."""
-    import __main__
-    pwd = os.path.dirname(__file__)
-    configfile = 'checkmate/checkmate.cfg'
-    if pwd:
-        configfile = '%s/%s' % (pwd, configfile)
-    config = ConfigParser()
-    config.read(configfile)
-    return config
+def package_meta():
+    """Read __init__.py for global package metadata.
+
+    Do this without importing the package.
+    """
+    _version_re = re.compile(r'__version__\s+=\s+(.*)')
+    _url_re = re.compile(r'__url__\s+=\s+(.*)')
+    _license_re = re.compile(r'__license__\s+=\s+(.*)')
+
+    with open('checkmate/__init__.py', 'rb') as chkinit:
+        initcontent = chkinit.read()
+        version = str(ast.literal_eval(_version_re.search(
+            initcontent.decode('utf-8')).group(1)))
+        url = str(ast.literal_eval(_url_re.search(
+            initcontent.decode('utf-8')).group(1)))
+        licencia = str(ast.literal_eval(_license_re.search(
+            initcontent.decode('utf-8')).group(1)))
+    return {
+        'version': version,
+        'license': licencia,
+        'url': url,
+    }
+
+_check_meta = package_meta()
 
 
-setup(
+setuptools.setup(
     name='checkmate',
     description='Configuration management and orchestration',
     keywords='orchestration configuration automation rackspace openstack',
-    version=get_config().get("checkmate", "version"),
+    version=_check_meta['version'],
     author='Rackspace Cloud',
     author_email='checkmate@lists.rackspace.com',
     dependency_links=DEPENDENCYLINKS,
@@ -91,14 +107,14 @@ setup(
     },
     tests_require=['tox'],
     cmdclass={'test': Tox},
-    packages=find_packages(exclude=['tests', 'bin', 'examples',
-                                    'doc', 'checkmate.openstack.*']),
+    packages=setuptools.find_packages(
+        exclude=['tests', 'bin', 'examples', 'doc', 'checkmate.openstack.*']),
     include_package_data=True,
     package_data={
         '': ['*.yaml'],
     },
     data_files=[('checkmate', ['checkmate/patterns.yaml'])],
-    license='Apache License (2.0)',
+    license=_check_meta['license'],
     classifiers=["Programming Language :: Python"],
-    url='https://rackspace.github.com/checkmate/checkmate'
+    url=_check_meta['url'],
 )

@@ -31,7 +31,7 @@ import eventlet.backdoor
 import greenlet
 
 from checkmate.common import config
-CONF = config.current()
+CONFIG = config.current()
 
 
 def _dont_use_this():
@@ -65,7 +65,7 @@ def initialize_if_enabled():
         'pnt': _print_nativethreads,
     }
 
-    if CONF.backdoor_port is None:
+    if CONFIG.backdoor_port is None:
         return None
 
     # NOTE(johannes): The standard sys.displayhook will print the value of
@@ -78,7 +78,7 @@ def initialize_if_enabled():
             pprint.pprint(val)
     sys.displayhook = displayhook
 
-    sock = eventlet.listen(('localhost', int(CONF.backdoor_port)))
+    sock = eventlet.listen(('localhost', int(CONFIG.backdoor_port)))
     port = sock.getsockname()[1]
     eventlet.spawn_n(eventlet.backdoor.backdoor_server, sock,
                      locals=backdoor_locals)

@@ -1,4 +1,4 @@
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -13,7 +13,6 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-# pylint: disable=C0103,W0603
 """Checkmate Server.
 
 Note: To support running with a wsgiref server with auto reloading and also
@@ -21,6 +20,15 @@ full eventlet support, we need to handle eventlet up front. If we are using
 eventlet, then we'll monkey_patch ASAP. If not, then we won't monkey_patch at
 all as that breaks reloading.
 """
+
+from __future__ import print_function
+
+__title__ = 'checkmate'
+__version__ = '2.0.0'
+__license__ = 'Apache 2.0'
+__copyright__ = 'Copyright Rackspace US, Inc. (c) 2011-2015'
+__url__ = 'https://github.com/checkmate/checkmate'
+
 # BEGIN: ignore style guide
 # monkey_patch ASAP if we're using eventlet
 import sys
@@ -35,28 +43,69 @@ except ImportError:
     pass  # OK if running setup.py or not using eventlet somehow
 # END: ignore style guide
 
-import ConfigParser
 import gettext
 import os
 
-from checkmate.common import config
 
 # This installs the _(...) function as a built-in so all other modules
 # don't need to.
 gettext.install('checkmate')
 
-config.CURRENT_CONFIG.initialize()
+
+def preconfigure(args=None):
+    """Common configuration to be done before everything else."""
+    args = args or sys.argv
+    if not os.environ.get('BOTTLE_CHILD'):
+        strargv = " ".join(sys.argv)
+        role = ''
+        if 'checkmate-queue START' in strargv:
+            role = 'Worker'
+        elif 'server.py START' or 'checkmate-server START' in strargv:
+            role = 'API'
+        print("\n*** Staring Checkmate %s v%s Commit %s ***\n"
+              % (role, __version__, __commit__[:8]))
+    from checkmate.common import config
+
+    args = args or sys.argv
+    conf = config.current()
+    conf.parse()
+    if (conf.bottle_reloader and not conf.eventlet
+            and not os.environ.get('BOTTLE_CHILD')):
+        conf.quiet = True
+        import logging
+        logging.getLogger().setLevel(logging.ERROR)
+    else:
+        # this is the bottle child OR reloader is off
+        conf.init_logging(
+            default_config='/etc/default/checkmate-svr-log.conf')
+
+    if not conf.quiet:
+        print(conf.display())
 
 
-def _read_version():
-    configfile = os.path.join(os.path.dirname(__file__), 'checkmate.cfg')
-    parser = ConfigParser.ConfigParser()
-    parser.read(configfile)
-    return parser.get("checkmate", "version")
+def _get_commit():
+    """Get HEAD commit sha-1 hash from .git/HEAD ."""
+    cfd = os.path.dirname(os.path.realpath(__file__))
+    dotgitpath = os.path.abspath(os.path.join(cfd, os.pardir, ".git"))
+    if not os.path.exists(dotgitpath):
+        return ''
+    headfile = os.path.join(dotgitpath, 'HEAD')
+    if not os.path.isfile(headfile):
+        return ''
+    with open(headfile) as head:
+        headref = head.read().strip()
+        if 'ref:' in headref:
+            headref = headref.partition('ref:')[-1].strip()
+        elif len(headref) == 40:
+            return headref
+        else:
+            raise StandardError(
+                "Cannot read %s for HEAD sha-1."
+                % os.path.join(dotgitpath, 'HEAD'))
+    headreffile = os.path.join(dotgitpath, headref)
+    if not os.path.isfile(headreffile):
+        return ''
+    with open(headreffile) as href:
+        return href.read().strip()
 
-__version__ = _read_version()
-
-
-def version():
-    """Return checkmate server version as a string."""
-    return __version__
+__commit__ = _get_commit()

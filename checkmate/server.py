@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # pylint: disable=E1101
 
-# Copyright (c) 2011-2013 Rackspace Hosting
+# Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -23,6 +23,8 @@ eventlet, then we'll monkey_patch ASAP. If not, then we won't monkey_patch at
 all as that breaks reloading.
 """
 
+from __future__ import print_function
+
 # start tracer - pylint/flakes friendly
 # NOTE: this will load checklmate which wil monkeypatch if eventlet is
 #       requested. We also load this ASAP so we can trace as much code as
@@ -32,11 +34,12 @@ __import__('checkmate.common.tracer')
 import httplib
 import json
 import logging
+import operator
 import os
 import sys
 
-import bottle
-import celery
+import bottle  # noqa
+import celery  # noqa
 import eventlet
 from eventlet import debug
 from eventlet.green import threading
@@ -48,27 +51,16 @@ from checkmate import blueprints
 from checkmate import celeryconfig
 from checkmate.common import config
 from checkmate.common import eventlet_backdoor
+from checkmate.common.git import middleware as git_middleware
 from checkmate.common import gzip_middleware
 from checkmate import db
 from checkmate import deployments
+from checkmate import exceptions as cmexc
+from checkmate import middleware
 from checkmate import resources as deployment_resources
 from checkmate import stacks
-from checkmate import workflows
-from checkmate.exceptions import (
-    CheckmateBadState,
-    CheckmateDatabaseConnectionError,
-    CheckmateDoesNotExist,
-    CheckmateException,
-    CheckmateHOTTemplateException,
-    CheckmateInvalidParameterError,
-    CheckmateNoData,
-    CheckmateNoMapping,
-    CheckmateValidationException,
-    UNEXPECTED_ERROR,
-)
-from checkmate.common.git import middleware as git_middleware
-from checkmate import middleware
 from checkmate import utils
+from checkmate import workflows
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)
@@ -134,34 +126,34 @@ def error_formatter(error):
     else:  # default to JSON
         error.headers.update({"content-type": "application/json"})
 
-    if isinstance(error.exception, CheckmateNoMapping):
+    if isinstance(error.exception, cmexc.CheckmateNoMapping):
         error.status = error.exception.http_status or 406
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateInvalidParameterError):
+    elif isinstance(error.exception, cmexc.CheckmateInvalidParameterError):
         error.status = error.exception.http_status or 406
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateHOTTemplateException):
+    elif isinstance(error.exception, cmexc.CheckmateHOTTemplateException):
         error.status = error.exception.http_status or 406
         # TODO(zns): move this to exception.py
         error.output = error.exception.friendly_message or (
             "Operation not supported with HOT template")
-    elif isinstance(error.exception, CheckmateDoesNotExist):
+    elif isinstance(error.exception, cmexc.CheckmateDoesNotExist):
         error.status = error.exception.http_status or 404
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateValidationException):
+    elif isinstance(error.exception, cmexc.CheckmateValidationException):
         error.status = error.exception.http_status or 400
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateNoData):
+    elif isinstance(error.exception, cmexc.CheckmateNoData):
         error.status = error.exception.http_status or 400
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateBadState):
+    elif isinstance(error.exception, cmexc.CheckmateBadState):
         error.status = error.exception.http_status or 409
         error.output = error.exception.friendly_message
-    elif isinstance(error.exception, CheckmateDatabaseConnectionError):
+    elif isinstance(error.exception, cmexc.CheckmateDatabaseConnectionError):
         error.status = error.exception.http_status or 500
         # TODO(zns): move this to exception.py
         error.output = "Database connection error on server."
-    elif isinstance(error.exception, CheckmateException):
+    elif isinstance(error.exception, cmexc.CheckmateException):
         error.status = error.exception.http_status or 500
         error.output = error.exception.friendly_message
         LOG.exception(error.exception)
@@ -174,7 +166,7 @@ def error_formatter(error):
         # For other errors, log underlying cause
         if error.exception:
             error.status = 500
-            error.output = UNEXPECTED_ERROR
+            error.output = cmexc.UNEXPECTED_ERROR
             LOG.error(error.exception)
 
     if hasattr(error.exception, 'args'):
@@ -192,38 +184,53 @@ def error_formatter(error):
 
 def main():
     """Start the server based on passed in arguments. Called by __main__."""
-    global LOG
+    checkmate.preconfigure()
+    if (CONFIG.bottle_reloader and not CONFIG.eventlet
+            and not os.environ.get('BOTTLE_CHILD')):
+        # bottle spawns 2 processes when in reloader mode
+        print("Starting bottle autoreloader...")
+        LOG.setLevel(logging.ERROR)
     resources = ['version']
-    anonymous_paths = ['version']
+    anonymous_paths = ['^[/]?version']
     if CONFIG.webhook:
         resources.append('webhooks')
-        anonymous_paths.append('webhooks')
+        anonymous_paths.append('^[/]?webhooks')
 
-    # Init logging before we load the database, 3rd party, and 'noisy' modules
-    utils.init_logging(CONFIG,
-                       default_config="/etc/default/checkmate-svr-log.conf")
-    LOG = logging.getLogger(__name__)  # reload
-    LOG.info("*** Checkmate v%s ***", checkmate.__version__)
-    if utils.get_debug_level(CONFIG) == logging.DEBUG:
+    if CONFIG.debug:
         bottle.debug(True)
 
     if CONFIG.eventlet is True:
+        LOG.warn(">>> Loading multi-threaded eventlet server <<<")
+        if not CONFIG.quiet:
+            print("You've loaded Checkmate as a multi-threaded server "
+                  "with non-blocking HTTP io.")
         eventlet.monkey_patch()
     else:
         LOG.warn(">>> Loading single-threaded dev server <<<")
-        print ("You've loaded Checkmate as a single-threaded WSGIRef server. "
-               "The advantage is that it will autoreload when you edit any "
-               "files. However, it will block when performing background "
-               "operations or responding to requests. To run a multi-threaded "
-               "server start Checkmate with the '--eventlet' switch")
+        if not CONFIG.quiet:
+            if CONFIG.bottle_reloader:
+                msg = (
+                    "You've loaded Checkmate as a single-threaded WSGIRef "
+                    "server. The advantage is that it will autoreload when "
+                    "you edit any files. However, it will block when "
+                    "performing background operations or responding to "
+                    "requests. To run a multi-threaded server start "
+                    "Checkmate with the '--eventlet' switch.")
+            else:
+                msg = (
+                    "You've loaded Checkmate as a single-threaded WSGIRef "
+                    "server. It will block when performing background "
+                    "operations or responding to requests. To run a multi-"
+                    "threaded server start Checkmate with the '--eventlet' "
+                    "switch.")
 
     check_celery_config()
 
     # Register built-in providers
     LOG.info("Loading checkmate providers")
     provider_path = '%s/providers' % (checkmate.__path__[0])
-    #import all providers in providers dir
-    for prvder in (os.walk(provider_path).next()[1]):
+    # import all providers in providers dir
+    for prvder in os.walk(provider_path).next()[1]:
         try:
             LOG.info("Registering provider %s", prvder)
             provider = __import__("checkmate.providers.%s" % (prvder),
@@ -235,10 +242,6 @@ def main():
         except AttributeError as exc:
             LOG.error("%s has no register method", prvder)
             LOG.exception(exc)
-
-    # Load routes from other modules
-    LOG.info("Loading Checkmate API")
-    bottle.load("checkmate.api")
 
     # Build WSGI Chain:
     next_app = root_app = bottle.default_app()  # the main checkmate app
@@ -252,6 +255,10 @@ def main():
         415: error_formatter,
     }
     root_app.catchall = True
+
+    # Load routes from other modules
+    LOG.info("Loading Checkmate API")
+    bottle.load("checkmate.api")
 
     DRIVERS['default'] = db.get_driver()
     DRIVERS['simulation'] = db.get_driver(
@@ -359,7 +366,7 @@ def main():
             msg = ("Unable to load the UI (rook.middleware). Make sure rook "
                    "is installed or run without the --with-ui argument.")
             LOG.error(msg)
-            print msg
+            print(msg)
             sys.exit(1)
 
     # Load Git if requested
@@ -381,19 +388,24 @@ def main():
             msg = ("The newrelic python agent could not be loaded. Make sure "
                    "it is installed or run without the --newrelic argument")
             LOG.error(msg)
-            print msg
+            print(msg)
             sys.exit(1)
         LOG.info("Loading NewRelic agent")
-        newrelic.agent.initialize(os.path.normpath(os.path.join(
-                                  os.path.dirname(__file__), os.path.pardir,
-                                  'newrelic.ini')))  # optional param
+        newrelic.agent.initialize(
+            os.path.normpath(os.path.join(os.path.dirname(__file__),
+                                          os.path.pardir,
+                                          'newrelic.ini')))  # optional param
         next_app = newrelic.agent.wsgi_application()(next_app)
 
     # Load request/response dumping if debugging enabled
     if CONFIG.debug is True:
         next_app = middleware.DebugMiddleware(next_app)
-        LOG.debug("Routes: %s", ''.join(['\n    %s %s' % (r.method, r.rule)
-                                         for r in bottle.app().routes]))
+    if not CONFIG.quiet:
+        routes = [(r.method, r.rule) for r in bottle.app().routes]
+        routes = sorted(routes, key=operator.itemgetter(1))
+        print("Routes:\n" + "\n".join(
+            ["    {: <6} {}".format(method, rule)
+             for method, rule in routes]))
 
     next_app = gzip_middleware.Gzipper(next_app, compresslevel=8)
 
@@ -422,9 +434,11 @@ def main():
     kwargs = dict(
         server='wsgiref',
         quiet=CONFIG.quiet,
-        reloader=True,
+        reloader=CONFIG.bottle_reloader,
     )
     if CONFIG.eventlet is True:
+        if CONFIG.bottle_reloader:
+            LOG.warning("Bottle reloader not available with eventlet server.")
         kwargs['server'] = CustomEventletServer
         kwargs['reloader'] = False  # reload fails in bottle with eventlet
         kwargs['backlog'] = 100
@@ -433,22 +447,28 @@ def main():
         eventlet.wsgi.MAX_HEADER_LINE = 32768  # to accept x-catalog
     else:
         if CONFIG.access_log:
-            print "--access-log only works with --eventlet"
+            print("--access-log only works with --eventlet")
             sys.exit(1)
 
+    if kwargs['reloader']:
+        LOG.warning("Bottle auto-reloader is on. The main process will not "
+                    "start a server, but spawn a new child process using "
+                    "the same command line arguments used to start the main "
+                    "process. All module-level code is executed at least "
+                    "twice! Be careful.")
     # Start listening. Enable reload by default to pick up file changes
     try:
         bottle.run(app=next_app, host=ip_address, port=port, **kwargs)
     except StandardError as exc:
-        print "Unexpected Exception Caught:", exc
+        print("Unexpected Exception Caught:", exc)
         sys.exit(1)
     finally:
         try:
             if worker:
                 worker.stop()
-            print "Shutdown complete..."
+            print("Shutdown complete...")
         except StandardError:
-            print "Unexpected error shutting down worker:", exc
+            print("Unexpected error shutting down worker:", exc)
 
 
 class CustomEventletServer(bottle.ServerAdapter):
@@ -503,10 +523,10 @@ def run_with_profiling():
     finally:
         yappi.stop()
         stats = yappi.get_stats(sort_type=yappi.SORTTYPE_TSUB, limit=20)
-        print "tsub   ttot   count  function"
+        print("tsub   ttot   count  function")
         for stat in stats.func_stats:
-            print str(stat[3]).ljust(6), str(stat[2]).ljust(6), \
-                str(stat[1]).ljust(6), stat[0]
+            print(str(stat[3]).ljust(6), str(stat[2]).ljust(6),
+                  str(stat[1]).ljust(6), stat[0])
 
 
 #
