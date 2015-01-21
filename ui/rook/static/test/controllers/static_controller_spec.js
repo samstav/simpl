@@ -25,7 +25,7 @@ describe('StaticController', function(){
   });
 
   it('should set item base URL', function() {
-    expect($scope.item_base_url).toEqual('/deployments/new?blueprint=https:%2F%2Fgithub.rackspace.com%2FBlueprints%2F');
+    expect($scope.item_base_url).toEqual('/deployments/new?blueprint=https:%2F%2Fgithub.com%2Fcheckmate%2F');
   });
 
   describe('slides', function() {

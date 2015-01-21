@@ -88,9 +88,42 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
       }
     }
   })
+  .when('/:tenantId/blueprints/design/:owner?/:repo?', {
+    templateUrl: '/partials/blueprints/design.html',
+    controller: 'ConfigureCtrl',
+    resolve: {
+      deployment: function($route, github) {
+        var fragments = [];
+        var owner = $route.current.params.owner;
+        var repo = $route.current.params.repo;
+        var url;
+        var remote;
+
+        if(!owner || !repo) {
+          return null;
+        }
+
+        fragments.push('https://www.github.com/');
+        fragments.push(owner);
+        fragments.push('/');
+        fragments.push(repo);
+        fragments.push(window.location.hash || '#master');
+
+        url = fragments.join('');
+        remote = github.parse_url(url);
+
+        return github.get_blueprint(remote);
+      }
+    }
+  })
   .when('/:tenantId/blueprints/design', {
     templateUrl: '/partials/blueprints/design.html',
-    controller: 'ConfigureCtrl'
+    controller: 'ConfigureCtrl',
+    resolve: {
+      deployment: function(DeploymentData) {
+        return DeploymentData.get();
+      }
+    }
   })
   .when('/:tenantId/deployments/new', {
     templateUrl: '/partials/deployment-new-remote.html',
@@ -216,10 +249,10 @@ function StaticController($scope, $location) {
   $scope.item_base_url = "/deployments/new?blueprint=https:%2F%2Fgithub.rackspace.com%2FBlueprints%2F";
   $scope.devops_base_url = "/deployments/new?blueprint=https:%2F%2Fgithub.com%2FAutomationSupport%2F";
   $scope.items1 = [
-    {spot: "coming", show_name: true,  name: "Magento",  description: "Digital Magento",  url: $scope.devops_base_url + "magentostack", image: "magento1-6.png"},
     {spot: "ready", show_name: true,  name: "Wordpress", description: null,                   url: $scope.devops_base_url + "wordpress", image: "wordpress.png"},
     {spot: "ready", show_name: true,  name: "Drupal",    description: "Managed Cloud Drupal", url: $scope.item_base_url + "drupal%23" + $scope.blueprint_ref, image: "druplicon.small_.png"},
     {spot: "ready", show_name: false, name: "PHP",       description: null,                   url: $scope.item_base_url + "php_app-blueprint%23" + $scope.blueprint_ref, image: "php.png"},
+    {spot: "ready", show_name: true, name: "Magento",  description: "Digital Magento",      url: $scope.devops_base_url + "magentostack", image: "magento1-6.png"},
   ];
   $scope.items2 = [
     {spot: "ready", show_name: true,  name: "Cassandra", description: null,                   url: $scope.item_base_url + "cassandra%23" + $scope.blueprint_ref, image: "cassandra.png"},
@@ -929,7 +962,20 @@ function ActivityFeedController($scope, $http, items, github) {
   };
 
   $scope.load = function() {
-    if (github.config.url === 'https://github.rackspace.com') {
+    if (github.config.url === 'https://github.com') {
+      $scope.loading = true;
+      var path = (checkmate_server_base || '') + '/githubproxy/orgs/checkmate/events';
+      $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://api.github.com', 'accept': 'application/json'}}).
+        success(function(data, status, headers, config) {
+          var received_items = items.receive(data, $scope.parse_event);
+          $scope.count = received_items.count;
+          $scope.items = received_items.all;
+          $scope.loading = false;
+        }).
+        error(function(data, status, headers, config) {
+          $scope.loading = false;
+        });
+    } else if (github.config.url === 'https://github.rackspace.com') {
       $scope.loading = true;
       var path = (checkmate_server_base || '') + '/githubproxy/api/v3/orgs/Blueprints/events';
       $http({method: 'GET', url: path, headers: {'X-Target-Url': 'https://github.rackspace.com', 'accept': 'application/json'}}).
@@ -950,30 +996,30 @@ function ActivityFeedController($scope, $http, items, github) {
 function TestController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow) {
   $scope.prices = {
     single: {
-      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single.git',
+      blueprint: 'https://github.com/checkmate/wordpress-single.git',
       core_price: '87.60',
       managed_price: '275.20'
     },
     double_dbaas: {
-      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single-clouddb.git',
+      blueprint: 'https://github.com/checkmate/wordpress-single-clouddb.git',
       core_price: '240.90',
       managed_price: '428.50',
       db_spec: '2 Gb Cloud Database'
     },
     double_mysql: {
-      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-single-db.git',
+      blueprint: 'https://github.com/checkmate/wordpress-single-db.git',
       core_price: '262.80',
       managed_price: '538.00',
       db_spec: '4 Gb Database Server'
     },
     multi_dbaas: {
-      blueprint: 'https://github.rackspace.com/Blueprints/wordpress-clouddb.git',
+      blueprint: 'https://github.com/checkmate/wordpress-clouddb.git',
       core_price: '478.15',
       managed_price: '694.95',
       db_spec: '4 Gb Cloud Database'
     },
     multi_mysql: {
-      blueprint: 'https://github.rackspace.com/Blueprints/wordpress.git',
+      blueprint: 'https://github.com/checkmate/wordpress.git',
       core_price: '536.55',
       managed_price: '811.75',
       db_spec: '8 Gb Database Server'
@@ -1742,7 +1788,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     var data = localStorage.getItem('remotes');
     if (data !== undefined && data !== null)
       return JSON.parse(data);
-    return ['https://github.rackspace.com/Blueprints'];
+    return ['https://github.com/checkmate'];
   };
 
   $scope.remotes_used = $scope.load_remotes_used();
@@ -2451,12 +2497,12 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
   //Load the latest supported blueprints (tagged as stable) from github
   $scope.loadWordpressBlueprints = function(){
     $scope.items = [];
-    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#stable');
-    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#stable');
+    $scope.loadRemoteBlueprint('https://github.com/checkmate/wordpress#stable');
+    $scope.loadRemoteBlueprint('https://github.com/checkmate/wordpress-clouddb#stable');
 
     //Load the latest master from github
-    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress#master');
-    $scope.loadRemoteBlueprint('https://github.rackspace.com/Blueprints/wordpress-clouddb#master');
+    $scope.loadRemoteBlueprint('https://github.com/checkmate/wordpress#master');
+    $scope.loadRemoteBlueprint('https://github.com/checkmate/wordpress-clouddb#master');
   }
 
   $('#mcspec_list').css('top', $('.summaryHeader').outerHeight()); // Not sure if this is the right place for this. -Chris.Burrell (chri5089)
@@ -2467,7 +2513,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
 
   var blueprint = $location.search().blueprint;
   if (blueprint === undefined)
-    blueprint = "https://github.rackspace.com/Blueprints/helloworld";
+    blueprint = "https://github.com/checkmate/helloworld";
   var u = URI(blueprint);
   if (u.fragment() === "") {
     u.fragment($location.hash() || 'master');

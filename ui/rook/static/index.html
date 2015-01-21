@@ -157,6 +157,7 @@
                 <a href="#" class="dropdown-toggle">Blueprints<b class="caret"></b></a>
                 <ul class="dropdown-menu">
                   <li id="nav-designer"><a href="/blueprints/design">New (Designer)</a></li>
+                  <li id="nav-new"><a href="/blueprints/new">New (Text Editor)</a></li>
                   <li class="divider"></li>
                   <li id="nav-blueprints-github"><a href="/blueprints">Github</a></li>
                 </ul>
@@ -169,10 +170,10 @@
                   <li id="nav-support">
                     <a ng-click="open_modal('/partials/app/modal_sla.html')">General Info</a>
                   </li>
-                  <li id="nav-wiki"><a href="https://one.rackspace.com/display/Checkmate/" target="_blank">Checkmate Wiki</a></li>
+                  <li id="nav-docs"><a href="https://github.com/checkmate/checkmate/blob/master/README.md" target="_blank">Checkmate Docs</a></li>
 
                   <li class="divider"></li>
-                  <!-- <li nid="nav-feedback" class="dropdown-submenu">
+                  <li nid="nav-feedback" class="dropdown-submenu" ng-hide="1">
                     <a id="feedback-menu" class="dropdown-toggle" href="#">
                       Submit Feedback
                     </a>
@@ -201,13 +202,13 @@
                         </div>
                       </form>
                     </div>
-                  </li>-->
+                  </li>
                   <li class="dropdown-submenu">
                     <a tabindex="-1" href="#">Contact the team</a>
                     <ul class="dropdown-menu">
-                      <li><a href="mailto:checkmate@lists.rackspace.com" target="_blank">Email</a></li>
-                      <li><a href="irc://irc.intra.rackspace.com/#checkmate" target="_blank">IRC</a></li>
-                      <li><a href="http://github.rackspace.com/checkmate" target="_blank">Github</a></li>
+                      <li><a href="//rax.io/where" target="_blank">Team Info</a></li>
+                      <li><a href="mailto:devopsprodeng@lists.rackspace.com" target="_blank">Email</a></li>
+                      <li><a href="http://github.com/checkmate/checkmate" target="_blank">Github</a></li>
                     </ul>
                   </li>
                 </ul>
