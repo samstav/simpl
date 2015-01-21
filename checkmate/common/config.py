@@ -308,6 +308,16 @@ class Config(config.Config):
         return (self.eventlet is False and 'BOTTLE_CHILD' not in os.environ
             and self.bottle_reloader)
 
+    def parse_cli(self, argv=None, permissive=False):
+
+        fix = argv or sys.argv
+        try:
+            fix.remove('START')
+        except ValueError:
+            pass
+        return super(Config, self).parse_cli(
+            argv=argv, permissive=permissive)
+
     def init_logging(self, default_config=None):
         """Configure logging based on log config file.
 
