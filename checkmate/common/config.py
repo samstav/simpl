@@ -47,44 +47,47 @@ OPTIONS = [
                   nargs='?',
                   default="127.0.0.1:8080",
                   env="CHECKMATE_ADDRESS"
-                 ),
+                  ),
     config.Option("--deployments-path",
                   default="/var/local/checkmate/deployments",
                   env="CHECKMATE_CHEF_LOCAL_PATH",
-                 ),
+                  ),
     config.Option("--omnibus-version",
                   env="CHECKMATE_CHEF_OMNIBUS_VERSION",
-                 ),
+                  ),
+    config.Option("--berkshelf-path",
+                  env="BERKSHELF_PATH",
+                  ),
     config.Option("-m", "--connection-string",
                   help="URL to the database store (ex: mongodb://localhost)"
-                 ),
+                  ),
     config.Option("-c", "--cache-connection-string",
                   help="URL to a cache, ex: redis://localhost",
-                 ),
+                  ),
     config.Option("--app-environment",
                   default="dev",
                   help="Application environment, i.e. production, dev",
                   env='CHECKMATE_APP_ENV',
-                 ),
+                  ),
     config.Option("--bottle-reloader",
                   mutually_exclusive_group='bottle_reloader',
                   default=True,
                   dest='bottle_reloader',
                   action="store_true",
                   help="Use bottle reloader (default is True)"
-                 ),
+                  ),
     config.Option("--no-bottle-reloader",
                   mutually_exclusive_group='bottle_reloader',
                   action="store_false",
                   dest='bottle_reloader',
                   help="Do not use bottle reloader (default is False)"
-                 ),
+                  ),
     #
     # Verbosity, debugging, and monitoring
     #
     config.Option("--logconfig",
                   help="Optional logging configuration file"
-                 ),
+                  ),
     config.Option("-d", "--debug",
                   default=False,
                   action="store_true",
@@ -92,50 +95,50 @@ OPTIONS = [
                   "output including full HTTP requests and responses. "
                   "Log output includes source file path and line "
                   "numbers"
-                 ),
+                  ),
     config.Option("-v", "--verbose",
                   default=False,
                   action="store_true",
                   help="turn up logging to DEBUG (default is INFO)"
-                 ),
+                  ),
     config.Option("-q", "--quiet",
                   default=False,
                   action="store_true",
                   help="turn down logging to WARN (default is INFO)"
-                 ),
+                  ),
     config.Option("--newrelic",
                   action="store_true",
                   default=False,
                   help="enable newrelic monitoring (place newrelic.ini "
                   "in your directory)"
-                 ),
+                  ),
     config.Option("-t", "--trace-calls",
                   action="store_true",
                   default=False,
                   help="display call hierarchy and errors to stdout"
-                 ),
+                  ),
     config.Option("--statsd",
                   help="enable statsd server with [address[:port]]. "
                        "Overrides '--statsd-host' and '--statsd-port'.",
                   dest="statsd_url",
-                 ),
+                  ),
     config.Option("--statsd-host",
                   help="enable statsd server with hostname - use with "
                        "'--statsd-port'. Cannot be used with '--statsd'",
                   env="STATSD_HOST",
                   dest="statsd_host",
-                 ),
+                  ),
     config.Option("--statsd-port",
                   help="enable statsd server with port - use with "
                        "'--statsd-host'. Cannot be used with '--statsd'",
                   default=8125,
                   env="STATSD_PORT",
                   dest="statsd_port",
-                 ),
+                  ),
     config.Option("--access-log",
                   type=argparse.FileType('a', 0),
                   help="File to store access HTTP logs in"
-                 ),
+                  ),
     #
     # Optional Capabilities
     #
@@ -144,36 +147,36 @@ OPTIONS = [
                   default=False,
                   help="Enable git protocl support (git clone, push, "
                   "pull to deplpoyments.git URLs"
-                 ),
+                  ),
     config.Option("-u", "--with-ui",
                   action="store_true",
                   default=False,
                   help="enable support for browsers and HTML templates"
-                 ),
+                  ),
     config.Option("-s", "--with-simulator",
                   action="store_true",
                   default=False,
                   help="enable support for the deployment simulator"
-                 ),
+                  ),
     config.Option("--simulator-connection-string",
                   help="Connection string for the deployment simulator."
-                 ),
+                  ),
     config.Option("-a", "--with-admin",
                   action="store_true",
                   default=False,
                   help="enable /admin calls (authorized to admin users "
                   "only)"
-                 ),
+                  ),
     config.Option("-e", "--eventlet",
                   action="store_true",
                   default=False,
                   help="use the eventlet server (recommended in "
                   "production)"
-                 ),
+                  ),
     config.Option("--backdoor-port",
                   default=None,
                   help='port for eventlet backdoor to listen'
-                 ),
+                  ),
     #
     # Queue Options
     #
@@ -184,12 +187,12 @@ OPTIONS = [
                   "in-process. Use this for debugging only. There is no "
                   "need to start a queue instance when running eager.",
                   env="CHECKMATE_CELERY_ALWAYS_EAGER"
-                 ),
+                  ),
     config.Option("--worker",
                   action="store_true",
                   default=False,
                   help="Start the celery worker in-process as well"
-                 ),
+                  ),
 
     #
     # Blueprint handling (CrossCheck functionality)
@@ -198,84 +201,84 @@ OPTIONS = [
                   action="store_true",
                   default=False,
                   help="Enable blueprints GitHub webhook responder"
-                 ),
+                  ),
     config.Option("-g", "--github-api",
                   help="Root github API uri for the repository "
                        "containing blueprints. "
                        "ex: https://api.github.com/v3",
                   env="CHECKMATE_GITHUB_ENDPOINT",
-                 ),
+                  ),
     config.Option("-o", "--organization",
                   help="The github organization owning the "
                        "blueprint repositories",
                   default="Blueprints"
-                 ),
+                  ),
     config.Option("-r", "--ref",
                   help="Branch/tag/reference denoting the version of "
                   "blueprints to use.",
                   default="master"
-                 ),
+                  ),
     config.Option("--cache-dir",
                   help="blueprint cache directory"
-                 ),
+                  ),
     config.Option("--blueprint-cache-expiration",
                   env="CHECKMATE_BLUEPRINT_CACHE_EXPIRE",
-                 ),
+                  ),
     config.Option("--preview-ref",
                   help="version of deployment templates for preview",
                   default=None
-                 ),
+                  ),
     config.Option("--preview-tenants",
                   help="preview tenant IDs",
                   type=config.comma_separated_strings,
                   default=None
-                 ),
+                  ),
     config.Option("--group-refs",
                   help="Auth Groups and refs to associate with them as "
                   "a comma-delimited list. Ex. "
                   "--group-refs tester=master,prod=stable",
                   type=config.comma_separated_pairs,
                   default=None
-                 ),
+                  ),
     #
     # Networking
     #
     config.Option("--github-token",
                   help="Token for GitHub Auth."
-                 ),
+                  ),
     config.Option("--github-client-id",
                   help="Github Client ID for Github Auth"
-                 ),
+                  ),
     config.Option("--github-client-secret",
                   help="Github Client Secret for Github Auth"
-                 ),
+                  ),
     config.Option("--git-use-https",
                   action="store_true",
                   default=False,
                   help="Communicate with GitHub over https."
-                 ),
+                  ),
     config.Option("--bastion-address",
                   help="Bastion address for SSH/NetBIOS commands",
                   default=None
-                 ),
+                  ),
     config.Option("--bastion-username",
                   help="Username for bastion access",
                   default=None
-                 ),
+                  ),
     config.Option("--bastion-key-filename",
                   help="SSH Key file for bastion access",
                   default=None,
                   env="CHECKMATE_BASTION_PKEY_FILE",
-                 ),
+                  ),
     config.Option("--bastion-password",
                   help="SSH password for bastion access",
                   default=None
-                 ),
+                  ),
     config.Option("--knife-bastion-suffix",
                   help="A suffix to add to host name to route knife "
                   "calls through a ~/.ssh/config rule",
                   default=None
-                 ),
+                  ),
 
 ]
 
