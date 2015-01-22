@@ -12,6 +12,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# pylint: disable=C0330
 
 """Global configuration.
 
@@ -422,9 +424,9 @@ def find_console_handler(logger):
                 handler.stream == sys.stderr):
             return handler
 
-checkmateini = os.path.abspath(os.path.join(
+_checkmate_ini = os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.pardir, 'checkmate.cfg'))
-CURRENT_CONFIG = Config(options=OPTIONS, ini_paths=[checkmateini])
+CURRENT_CONFIG = Config(options=OPTIONS, ini_paths=[_checkmate_ini])
 
 
 def current():
@@ -442,6 +444,7 @@ def current():
         CONFIG.initialize()
     """
     return CURRENT_CONFIG
+
 
 @signals.worker_init.connect
 def preconfigure(*args, **kwargs):

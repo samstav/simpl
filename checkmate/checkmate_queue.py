@@ -13,6 +13,8 @@
 #    under the License.
 
 """Checkmate module that registers/configures Celery tasks."""
+from __future__ import print_function
+
 import os
 import subprocess
 import sys
