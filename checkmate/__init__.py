@@ -52,24 +52,26 @@ import os
 gettext.install('checkmate')
 
 
-def preconfigure(args=None):
+def preconfigure(args=None, quiet=False):
     """Common configuration to be done before everything else."""
     args = args or sys.argv
     if not os.environ.get('BOTTLE_CHILD'):
-        strargv = " ".join(sys.argv)
+        strargv = " ".join(sys.argv).lower()
         role = ''
-        if 'checkmate-queue START' in strargv:
+        if any(k in strargv
+               for k in ('checkmate-queue start', 'celery worker')):
             role = 'Worker'
-        elif 'server.py START' or 'checkmate-server START' in strargv:
+        elif any(k in strargv
+                 for k in ('server.py start', 'checkmate-server start')):
             role = 'API'
-        print("\n*** Staring Checkmate %s v%s Commit %s ***\n"
-              % (role, __version__, __commit__[:8]))
+        if not quiet:
+            print("\n*** Staring Checkmate %s v%s Commit %s ***\n"
+                  % (role, __version__, __commit__[:8]))
     from checkmate.common import config
 
-    args = args or sys.argv
     conf = config.current()
     conf.parse()
-    if (conf.bottle_reloader and not conf.eventlet
+    if (role == 'API' and conf.bottle_reloader and not conf.eventlet
             and not os.environ.get('BOTTLE_CHILD')):
         conf.quiet = True
         import logging
@@ -79,8 +81,9 @@ def preconfigure(args=None):
         conf.init_logging(
             default_config='/etc/default/checkmate-svr-log.conf')
 
-    if not conf.quiet:
+    if not conf.quiet and not quiet:
         print(conf.display())
+    return conf
 
 
 def _get_commit():
