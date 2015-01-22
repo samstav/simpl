@@ -5,14 +5,14 @@
     border-top:3px solid #ddd;
   }
 
-  h3 {
+  /*h3 {
       text-align:center;
       font-size:32px;
       line-height:40px;
       font-family: 'Open Sans', sans-serif;
       font-weight:400;
       margin:0 0 15px;
-  }
+  }*/
 
 
   .hand {
@@ -20,7 +20,7 @@
       font-weight:400;
       color:#4fb6e9;
   }
-
+/*
   h2 {
       text-align:center;
       font-size:48px;
@@ -28,19 +28,21 @@
       margin:15px 0;
       font-family: 'Open Sans', sans-serif;
       font-weight:400;
+  }*/
+  h2 {
+    margin-bottom: 0;
   }
-
 
   h2 strong {
       font-weight:700;
   }
 
-  h4 {
+  /*h4 {
       font-family:'Open Sans', sans-serif;
       font-weight:600;
       font-size:16px;
 
-  }
+  }*/
 
 
   /** FEATURE ***/
@@ -298,80 +300,188 @@
     border-top: 1px solid #e5e5e5;
     background-color: #f5f5f5;
   }
+  .entry {
+    box-shadow: none;
+  }
+  .container-narrow {
+    margin: 0 auto;
+    max-width: 850px;
+  }
+  p {
+    font-size: 14px;
+  }
+  .entries {
+    margin-top: 50px;
+  }
+  .entry {
+    margin-top: 40px;
+  }
+  .motto {
+    font-size: 43px;
+    color: #444;
+    margin-bottom: 10px;
+  }
+  .hand {
+    font-size: 24px;
+    color: #666;
+  }
+  .form-inline-fat {
+    margin-top: 20px;
+  }
+  .form-inline-fat p {
+    margin-bottom: 20px;
+  }
+  .form-inline-fat form {
+    font-size: 19px;
+    color: #999;
+    margin-top: 10px;
+    margin-bottom: 30px;
+  }
+  .form-inline-fat form.ng-submitted input.ng-invalid-required {
+    border-color: #c0392b;
+  }
+  .form-inline-fat form input {
+    height: 42px;
+    font-size: 16px;
+    margin-bottom: 0;
+    width: 160px;
+  }
+  .form-inline-fat form input,
+  .form-inline-fat form .btn {
+    margin-top: -5px;
+  }
+  table {
+    width: 32% !important;
+    float: left;
+    margin-right: 1%;
+  }
+  table td {
+    font-size: 14px;
+  }
+  table img {
+    width: auto;
+    height: 20px;
+    opacity: .5;
+    float: right;
+  }
 </style>
 <a href="http://github.com/checkmate">
   <img style="position: absolute; top: 0px; right: 0; border: 0;" src="/img/forkme.png" alt="Fork me on GitHub">
 </a>
-<section class="entries"><article class="entry">
-  <div class="container">
-    <div class="row-fluid">
-      <div class="span12">
-        <h2 class="motto">Racker <strong>solutions</strong> powering<br>customer
-        deployments<br></h2>
-      </div>
-    </div>
 
-    <div class="row-fluid">
-      <div class="span12">
-        <h3 class="hand">Design and Share Best Practice Deployments</h3>
-      </div>
-    </div>
+<section class="entries">
+  <article class="entry">
+    <div class="container-narrow">
 
-    <div id="applogos" class="row-fluid pricing">
-      <carousel interval="carousel_interval">
-
-        <slide ng-repeat="slide in slides" active="slide.active">
-          <ul class="thumbnails">
-
-            <li ng-repeat="item in slide" class="span3">
-              <div class="spot-padding">
-                <div ng-class="{spot: in_spot(item, 'ready'), spot2: in_spot(item, 'write', 'coming')}">
-                  <span ng-show="in_spot(item, 'ready')">Ready<br />Now</span>
-                  <span ng-show="in_spot(item, 'write')">
-                    <a target="_blank" ng-href="{{spot_write_url}}" class="nohover" style="color: #FFFFFF">Write<br />it!</a>
-                  </span>
-                  <span ng-show="in_spot(item, 'coming')">Coming<br />soon</span>
-                </div>
-                <div class="applogo well highlighted">
-                  <a ng-href="{{item.url}}">
-                    <img ng-class="item.name | lowercase" class="center hover-fade" alt="{{item.description || item.name}}" ng-src="/img/applications/{{item.image}}">
-                  </a>
-                  <h3><strong>{{display_name(item) || "&nbsp;"}}</strong></h3>
-                </div>
-              </div>
-            </li>
-
-          </ul>
-        </slide>
-
-      </carousel>
-    </div>
-
-    <div ng-show="github.config.url === 'https://github.com'" class="row pricing" ng-controller="ActivityFeedController" style="padding-top: 0px;">
-      <div class="span8 offset2" ng-show="!items &amp;&amp; !loading">
-
-        <div class="alert">Access to internal Rackspace GitHub server does not seem to be available from this Checkmate server. The list of blueprints available may be limited and some blueprint pages may not function.</div>
-        <ul>
-          <li>Check out the latest activity on <a href="https://github.com/checkmate" target="_blank">github</a></li>
-          <li><a target="_blank" href="https://github.com/checkmate/checkmate/blob/master/docs/Checkmatefile.md">Create your own</a> application blueprints.</li>
-          <li><a href="https://github.com/checkmate" target="_blank">Checkmate server &amp; UI code</a></li>
-          <li><a href="https://github.com/Blueprints" target="_blank">Blueprints</a></li>
-          <li><a href="https://github.com/Cookbooks" target="_blank">Chef Cookbooks</a></li>
-        </ul>
+      <div class="row-fluid">
+        <div class="span12">
+          <h2 class="motto text-center">Get enviornments up quicker.</h2>
+        </div>
       </div>
 
-      <div ng-show="items &amp;&amp; !loading" class="span10 offset1">
-        <h4>Join these Rackers and <a target="_blank" href="https://github.com/checkmate/checkmate/blob/master/docs/Checkmatefile.md">create your own</a> application Blueprints!</h4>
-        <div style="overflow: scroll; height: 620px;">
-          <table class="table table-condensed">
-            <tr ng-repeat="item in items">
-              <td style="width: 20px;"><img class="img-rounded pull-left" style="width:20px; height:20px;" ng-src="{{item.actor_avatar_url}}"></td>
-              <td><a ng-href="{{item.actor_url}}" target="_blank"> {{item.actor}}</a>
-              <span>{{item.verb}} {{item.subject_type}}<a ng-href="{{item.action_url}}" target="_blank">{{item.action | snippet:20}}</a></span> {{item.article}} <a ng-href="{{item.target_url}}" target="_blank">{{item.target}}</a> {{item.when | formattedDate}}</span></td>
-            </tr>
-          </table>
+      <div class="row-fluid">
+        <div class="span12">
+          <h3 class="hand text-center">Checkmate lets you quickly create and deploy application infrastructure.</h3>
+        </div>
+      </div>
+
+      <div class="row-fluid text-center form-inline-fat">
+        <div class="span12">
+          <p>Import and get started with a Checkmate.yaml file from a Github Repository.</p>
+          <form class="form-inline"
+                name="githubImport"
+                ng-submit="importGithubDeployment(githubImport)"
+                novalidate>
+            github.com/
+            <input type="text"
+                   class="input-medium"
+                   placeholder="Github Username"
+                   ng-model="githubImport.repo"
+                   required>
+            /
+            <input type="text"
+                   class="input-medium"
+                   placeholder="Repo Name"
+                   ng-model="githubImport.password"
+                   required>
+            <button type="submit" class="btn btn-large btn-primary">
+              Gimme!
+            </button>
+          </form>
         </div>
       </div>
     </div>
-  </div>
+  </article>
+
+
+  <article class="entry">
+    <div class="container-narrow">
+
+      <div class="row-fluid">
+        <div class="span12">
+          <h2 class="text-center">Powered by Rackers</h2>
+        </div>
+      </div>
+
+      <p class="lead text-center">Get started from one of our Blueprints that we've built, just for you.</p>
+
+      <table class="table" ng-repeat="column in deployments_list">
+        <thead>
+          <tr>
+            <th></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="item in column">
+            <td>
+              <img ng-class="item.name | lowercase"
+                   height="20"
+                   class="center hover-fade"
+                   alt="{{item.description || item.name}}"
+                   ng-src="/img/applications/{{item.image}}">
+            </td>
+            <td>
+              <a ng-href="{{item.url}}" ng-show="item.url">
+                {{item.name}}
+              </a>
+              <span ng-hide="item.url">{{item.name}}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="clear:both;">
+        <p class="text-center">If one isn't written yet, you should totally <a ng-href="spot_write_url" target="_blank">write it and contribute. <i class="fa fa-external-link"></i></a></p>
+      </div>
+
+
+      <div ng-show="github.config.url === 'https://github.com'" class="row-fluid pricing" ng-controller="ActivityFeedController" style="padding-top: 0px;">
+        <div class="span12" ng-show="!items &amp;&amp; !loading">
+
+          <div class="alert">Access to internal Rackspace GitHub server does not seem to be available from this Checkmate server. The list of blueprints available may be limited and some blueprint pages may not function.</div>
+          <ul>
+            <li>Check out the latest activity on <a href="https://github.com/checkmate" target="_blank">github</a></li>
+            <li><a target="_blank" href="https://github.com/checkmate/checkmate/blob/master/docs/Checkmatefile.md">Create your own</a> application blueprints.</li>
+            <li><a href="https://github.com/checkmate" target="_blank">Checkmate server &amp; UI code</a></li>
+            <li><a href="https://github.com/Blueprints" target="_blank">Blueprints</a></li>
+            <li><a href="https://github.com/Cookbooks" target="_blank">Chef Cookbooks</a></li>
+          </ul>
+        </div>
+
+        <div ng-show="items &amp;&amp; !loading" class="span10 offset1">
+          <h4>Join these Rackers and <a target="_blank" href="https://github.com/checkmate/checkmate/blob/master/docs/Checkmatefile.md">create your own</a> application Blueprints!</h4>
+          <div style="overflow: scroll; height: 620px;">
+            <table class="table table-condensed">
+              <tr ng-repeat="item in items">
+                <td style="width: 20px;"><img class="img-rounded pull-left" style="width:20px; height:20px;" ng-src="{{item.actor_avatar_url}}"></td>
+                <td><a ng-href="{{item.actor_url}}" target="_blank"> {{item.actor}}</a>
+                <span>{{item.verb}} {{item.subject_type}}<a ng-href="{{item.action_url}}" target="_blank">{{item.action | snippet:20}}</a></span> {{item.article}} <a ng-href="{{item.target_url}}" target="_blank">{{item.target}}</a> {{item.when | formattedDate}}</span></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
 </section>
