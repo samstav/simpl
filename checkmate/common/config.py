@@ -55,6 +55,9 @@ OPTIONS = [
     config.Option("--omnibus-version",
                   env="CHECKMATE_CHEF_OMNIBUS_VERSION",
                  ),
+    config.Option("--berkshelf-path",
+                  env="BERKSHELF_PATH",
+                  ),
     config.Option("-m", "--connection-string",
                   help="URL to the database store (ex: mongodb://localhost)"
                  ),
