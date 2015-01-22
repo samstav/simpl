@@ -31,6 +31,9 @@ import logging
 import os
 import sys
 
+from celery import signals
+
+import checkmate
 from checkmate.contrib import config
 from checkmate import utils
 
@@ -307,6 +310,11 @@ class Config(config.Config):
             return logging.INFO
 
     @property
+    def prog(self):
+        """Program name."""
+        return 'checkmate'
+
+    @property
     def bottle_parent(self):
         """Detect if running as a bottle autoreload parent."""
         return (self.eventlet is False and 'BOTTLE_CHILD' not in os.environ
@@ -434,3 +442,8 @@ def current():
         CONFIG.initialize()
     """
     return CURRENT_CONFIG
+
+@signals.worker_init.connect
+def preconfigure(*args, **kwargs):
+    """Ensure that the process of the worker has a loaded config."""
+    checkmate.preconfigure()
