@@ -249,7 +249,7 @@ function StaticController($scope, $location, github) {
 
   $scope.importGithubDeployment = function(form) {
     if(form.$valid) {
-      var blueprint = github.get_public_blueprint(form.username, form.repo);
+      $location.path("/blueprints/design/"+form.owner+"/"+form.repo);
     }
   };
 

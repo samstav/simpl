@@ -71,16 +71,23 @@ angular.module('checkmate.applications-configure')
     };
 
     $scope.prompts = {
+      emptyRepo: {
+        isVisible: false,
+        action: function() {
+          $location.url('/blueprints/design');
+        }
+      },
       github: {
         isVisible: false,
         action: function() {
           var url = [];
+          var redirect_uri = $location.protocol() +'://'+ $location.host() + ':' + $location.port() + '/webhooks/github_auth';
 
           url.push('https://github.com/login/oauth/authorize');
           url.push('?');
           url.push('scope=user:email,repo');
           url.push('&client_id='+$scope.$root.clientId);
-          // url.push('&redirect_uri='+$location.absUrl());
+          url.push('&redirect_uri='+redirect_uri+$location.path());
 
           $window.location.href = url.join('');
         }
@@ -149,9 +156,12 @@ angular.module('checkmate.applications-configure')
     };
 
     // If there's a deployment object resolved, let's use it.
-    if(!_.isNull(deployment)) {
+    if(!_.isUndefined(deployment)) {
       if(!deployment && !github.config.accessToken && $scope.$root.clientId) {
         $scope.prompts.github.isVisible = true;
+      } else if (!deployment && github.config.accessToken) {
+        console.log('ye');
+        $scope.prompts.emptyRepo.isVisible = true;
       } else {
         $timeout(function(){
           DeploymentData.set(deployment);
