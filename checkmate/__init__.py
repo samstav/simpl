@@ -55,18 +55,19 @@ gettext.install('checkmate')
 def preconfigure(args=None, quiet=False):
     """Common configuration to be done before everything else."""
     args = args or sys.argv
-    if not os.environ.get('BOTTLE_CHILD'):
-        strargv = " ".join(sys.argv).lower()
-        role = ''
-        if any(k in strargv
-               for k in ('checkmate-queue start', 'celery worker')):
-            role = 'Worker'
-        elif any(k in strargv
-                 for k in ('server.py start', 'checkmate-server start')):
-            role = 'API'
-        if not quiet:
-            print("\n*** Staring Checkmate %s v%s Commit %s ***\n"
-                  % (role, __version__, __commit__[:8]))
+    strargv = " ".join(args).lower()
+    role = ''
+    if any(k in strargv
+           for k in ('checkmate-queue start', 'celery worker')):
+        role = 'Worker'
+    elif any(k in strargv
+             for k in ('server.py start', 'checkmate-server start')):
+        role = 'API'
+
+    if not os.environ.get('BOTTLE_CHILD') and not quiet:
+        print("\n*** Staring Checkmate %s v%s Commit %s ***\n"
+              % (role, __version__, __commit__[:8]))
+
     from checkmate.common import config
 
     conf = config.current()
