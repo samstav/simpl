@@ -33,6 +33,15 @@ from checkmate import utils
 LOG = logging.getLogger(__name__)
 
 
+@task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=2,
+      provider=Provider)
+@statsd.collect
+def create_configuration(context, db_type, db_version, config_params):
+    return dbaas.create_configuration(context.region, context.tenant,
+                                      context.auth_token, db_type, db_version,
+                                      config_params)
+
+
 # Disable pylint on api and callback as their passed in from ProviderTask
 # pylint: disable=W0613
 @task(base=RackspaceProviderTask, default_retry_delay=30, max_retries=120,

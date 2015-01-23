@@ -89,7 +89,6 @@ class TestCloudDatabases(unittest.TestCase):
                 if 'instance' in get_response:
                     status = get_response['instance'].get('status')
 
-
             del_response = dbaas.delete_instance(self.region,
                                                  self.tenant, self.token,
                                                  create_response.get('id'))
@@ -97,17 +96,13 @@ class TestCloudDatabases(unittest.TestCase):
 
     def test_successful_configuration_create_retrieve_delete(self):
         """Successfully create/retrieve/delete a database configuration."""
-        details = {
-            'datastore': {'type': 'mysql', 'version': '5.6'},
-            'description': 'Created by integration test. Please delete!',
-            'name': 'integration-test-please-delete',
-            'values': {'connect_timeout': 60, 'expire_logs_days': 90}
-        }
+        values = {'connect_timeout': 60, 'expire_logs_days': 90}
         with self.vcr.use_cassette('vcr-cdb-db-config.yaml'):
             create_response = dbaas.create_configuration(self.region,
                                                          self.tenant,
                                                          self.token,
-                                                         details)
+                                                         'mysql', '5.6',
+                                                         values)
             validated = dbaas.validate_db_config(create_response)
             self.assertEqual(validated, create_response)
             config_id = create_response['configuration']['id']
@@ -127,17 +122,15 @@ class TestCloudDatabases(unittest.TestCase):
         with self.vcr.use_cassette('vcr-cdb-get-config-params.yaml'):
             get_response = dbaas.get_config_params(self.region, self.tenant,
                                                    self.token, 'mysql', '5.6')
-            expected_keys = ['configuration-parameters', 'expires',
-                             'version_id']
-            self.assertEqual(expected_keys, get_response.keys())
+            self.assertTrue(isinstance(get_response, list))
 
-    def test_get_datastore_version_id(self):
+    def test_datastore_version_id(self):
         """Retrieve datastore version id for MySQL version 5.6."""
         with self.vcr.use_cassette('vcr-cdb-get-datastore-version-id.yaml'):
-            get_response = dbaas.get_datastore_version_id(self.region,
-                                                          self.tenant,
-                                                          self.token,
-                                                          'mysql', '5.6')
+            get_response = dbaas.datastore_version_id(self.region,
+                                                      self.tenant,
+                                                      self.token,
+                                                      'mysql', '5.6')
             expected_id = '14069833-2efd-4d3a-b7e7-d57b51fc7dc4'
             self.assertEqual(expected_id, get_response)
 

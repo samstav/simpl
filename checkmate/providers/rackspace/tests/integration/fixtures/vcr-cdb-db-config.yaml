@@ -1,28 +1,28 @@
 interactions:
 - request:
-    body: '{"configuration": {"datastore": {"version": "5.6", "type": "mysql"}, "values":
-      {"connect_timeout": 60, "expire_logs_days": 90}, "description": "Created by
-      integration test. Please delete!", "name": "integration-test-please-delete"}}'
+    body: '{"configuration": {"datastore": {"version": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4",
+      "type": "10000000-0000-0000-0000-000000000001"}, "values": {"connect_timeout":
+      60, "expire_logs_days": 90}, "name": "checkmate:IAD:mysql:5.6"}}'
     headers:
       Accept: [application/json]
       Accept-Encoding: ['gzip, deflate']
       Connection: [keep-alive]
-      Content-Length: ['232']
+      Content-Length: ['227']
       Content-Type: [application/json]
     method: POST
     uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations
   response:
     body: {string: !!python/unicode '{"configuration": {"datastore_name": "mysql",
-        "updated": "2015-01-15T18:23:39", "values": {"connect_timeout": 60, "expire_logs_days":
-        90}, "name": "integration-test-please-delete", "created": "2015-01-15T18:23:39",
-        "datastore_version_name": "5.6", "instance_count": 0, "id": "5a413d67-60e8-4689-93af-f7c816d61363",
+        "updated": "2015-01-23T05:33:24", "values": {"connect_timeout": 60, "expire_logs_days":
+        90}, "name": "checkmate:IAD:mysql:5.6", "created": "2015-01-23T05:33:24",
+        "datastore_version_name": "5.6", "instance_count": 0, "id": "94857165-a439-4b88-834e-dab67454ccf9",
         "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "description":
-        "Created by integration test. Please delete!"}}'}
+        null}}'}
     headers:
       connection: [close]
-      content-length: ['441']
+      content-length: ['393']
       content-type: [application/json]
-      date: ['Thu, 15 Jan 2015 18:23:39 GMT']
+      date: ['Fri, 23 Jan 2015 05:33:24 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}
@@ -34,19 +34,19 @@ interactions:
       Connection: [keep-alive]
       Content-Type: [application/json]
     method: GET
-    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations/5a413d67-60e8-4689-93af-f7c816d61363
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations/94857165-a439-4b88-834e-dab67454ccf9
   response:
     body: {string: !!python/unicode '{"configuration": {"datastore_name": "mysql",
-        "updated": "2015-01-15T18:23:39", "values": {"connect_timeout": 60, "expire_logs_days":
-        90}, "name": "integration-test-please-delete", "created": "2015-01-15T18:23:39",
-        "datastore_version_name": "5.6", "instance_count": 0, "id": "5a413d67-60e8-4689-93af-f7c816d61363",
+        "updated": "2015-01-23T05:33:24", "values": {"connect_timeout": 60, "expire_logs_days":
+        90}, "name": "checkmate:IAD:mysql:5.6", "created": "2015-01-23T05:33:24",
+        "datastore_version_name": "5.6", "instance_count": 0, "id": "94857165-a439-4b88-834e-dab67454ccf9",
         "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "description":
-        "Created by integration test. Please delete!"}}'}
+        null}}'}
     headers:
       connection: [close]
-      content-length: ['441']
+      content-length: ['393']
       content-type: [application/json]
-      date: ['Thu, 15 Jan 2015 18:23:40 GMT']
+      date: ['Fri, 23 Jan 2015 05:33:24 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}
@@ -59,14 +59,14 @@ interactions:
       Content-Length: ['0']
       Content-Type: [application/json]
     method: DELETE
-    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations/5a413d67-60e8-4689-93af-f7c816d61363
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations/94857165-a439-4b88-834e-dab67454ccf9
   response:
     body: {string: !!python/unicode ''}
     headers:
       connection: [close]
       content-length: ['0']
       content-type: [application/json]
-      date: ['Thu, 15 Jan 2015 18:23:40 GMT']
+      date: ['Fri, 23 Jan 2015 05:33:24 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 202, message: Accepted}

@@ -17,7 +17,7 @@ interactions:
       connection: [close]
       content-length: ['264']
       content-type: [application/json]
-      date: ['Fri, 09 Jan 2015 01:01:42 GMT']
+      date: ['Fri, 23 Jan 2015 05:33:25 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}
@@ -33,11 +33,11 @@ interactions:
     method: POST
     uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances
   response:
-    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-01-09T01:01:43",
-        "name": "test-delete-me", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/ef9d75a6-c968-4747-a434-ecbfc16f99d5",
-        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/ef9d75a6-c968-4747-a434-ecbfc16f99d5",
-        "rel": "bookmark"}], "created": "2015-01-09T01:01:43", "hostname": "redacted",
-        "id": "ef9d75a6-c968-4747-a434-ecbfc16f99d5", "flavor": {"id": "101", "links":
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-01-23T05:33:26",
+        "name": "test-delete-me", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/5a33be0c-7930-4011-8153-41f9fbe4e061",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/5a33be0c-7930-4011-8153-41f9fbe4e061",
+        "rel": "bookmark"}], "created": "2015-01-23T05:33:26", "hostname": "redacted",
+        "id": "5a33be0c-7930-4011-8153-41f9fbe4e061", "flavor": {"id": "101", "links":
         [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/101",
         "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/101",
         "rel": "bookmark"}]}, "password": "redacted", "datastore": {"version": "2.8",
@@ -46,7 +46,7 @@ interactions:
       connection: [close]
       content-length: ['841']
       content-type: [application/json]
-      date: ['Fri, 09 Jan 2015 01:01:43 GMT']
+      date: ['Fri, 23 Jan 2015 05:33:26 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}
@@ -58,13 +58,13 @@ interactions:
       Connection: [keep-alive]
       Content-Type: [application/json]
     method: GET
-    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/ef9d75a6-c968-4747-a434-ecbfc16f99d5
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/5a33be0c-7930-4011-8153-41f9fbe4e061
   response:
-    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-01-09T01:01:44",
-        "name": "test-delete-me", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/ef9d75a6-c968-4747-a434-ecbfc16f99d5",
-        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/ef9d75a6-c968-4747-a434-ecbfc16f99d5",
-        "rel": "bookmark"}], "created": "2015-01-09T01:01:43", "hostname": "redacted",
-        "id": "ef9d75a6-c968-4747-a434-ecbfc16f99d5", "flavor": {"id": "101", "links":
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-01-23T05:33:27",
+        "name": "test-delete-me", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/5a33be0c-7930-4011-8153-41f9fbe4e061",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/5a33be0c-7930-4011-8153-41f9fbe4e061",
+        "rel": "bookmark"}], "created": "2015-01-23T05:33:26", "hostname": "redacted",
+        "id": "5a33be0c-7930-4011-8153-41f9fbe4e061", "flavor": {"id": "101", "links":
         [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/101",
         "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/101",
         "rel": "bookmark"}]}, "datastore": {"version": "2.8", "type": "redis"}}}'}
@@ -72,7 +72,7 @@ interactions:
       connection: [close]
       content-length: ['789']
       content-type: [application/json]
-      date: ['Fri, 09 Jan 2015 01:02:14 GMT']
+      date: ['Fri, 23 Jan 2015 05:33:57 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}
@@ -84,21 +84,21 @@ interactions:
       Connection: [keep-alive]
       Content-Type: [application/json]
     method: GET
-    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/ef9d75a6-c968-4747-a434-ecbfc16f99d5
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/5a33be0c-7930-4011-8153-41f9fbe4e061
   response:
     body: {string: !!python/unicode '{"instance": {"status": "ACTIVE", "updated":
-        "2015-01-09T01:01:44", "name": "test-delete-me", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/ef9d75a6-c968-4747-a434-ecbfc16f99d5",
-        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/ef9d75a6-c968-4747-a434-ecbfc16f99d5",
-        "rel": "bookmark"}], "created": "2015-01-09T01:01:43", "local_storage": {"used":
-        0.5}, "hostname": "redacted", "id": "ef9d75a6-c968-4747-a434-ecbfc16f99d5",
+        "2015-01-23T05:33:27", "name": "test-delete-me", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/5a33be0c-7930-4011-8153-41f9fbe4e061",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/5a33be0c-7930-4011-8153-41f9fbe4e061",
+        "rel": "bookmark"}], "created": "2015-01-23T05:33:26", "local_storage": {"used":
+        0.48999999999999999}, "hostname": "redacted", "id": "5a33be0c-7930-4011-8153-41f9fbe4e061",
         "flavor": {"id": "101", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/101",
         "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/101",
         "rel": "bookmark"}]}, "datastore": {"version": "2.8", "type": "redis"}}}'}
     headers:
       connection: [close]
-      content-length: ['822']
+      content-length: ['838']
       content-type: [application/json]
-      date: ['Fri, 09 Jan 2015 01:02:44 GMT']
+      date: ['Fri, 23 Jan 2015 05:34:27 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}
@@ -111,14 +111,14 @@ interactions:
       Content-Length: ['0']
       Content-Type: [application/json]
     method: DELETE
-    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/ef9d75a6-c968-4747-a434-ecbfc16f99d5
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/5a33be0c-7930-4011-8153-41f9fbe4e061
   response:
     body: {string: !!python/unicode ''}
     headers:
       connection: [close]
       content-length: ['0']
       content-type: [application/json]
-      date: ['Fri, 09 Jan 2015 01:02:44 GMT']
+      date: ['Fri, 23 Jan 2015 05:34:28 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 202, message: Accepted}

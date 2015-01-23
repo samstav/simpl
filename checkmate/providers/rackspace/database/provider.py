@@ -36,6 +36,7 @@ from checkmate.exceptions import (
 from checkmate import middleware
 from checkmate.providers import base as cmbase
 from checkmate.providers.rackspace import base
+from checkmate.providers.rackspace.database import dbaas
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -122,10 +123,41 @@ class Provider(cmbase.ProviderBase):
                 raise CheckmateException(message,
                                          friendly_message=BLUEPRINT_ERROR)
 
+            datastore_type = deployment.get_setting(
+                'flavor',
+                resource_type=resource_type,
+                service_name=service,
+                provider_key=self.key
+            ) or 'mysql'
+            datastore_ver = deployment.get_setting(
+                'version',
+                resource_type=resource_type,
+                service_name=service,
+                provider_key=self.key
+            ) or '5.6'
+
+            params = dbaas.get_config_params(region, context.tenant,
+                                             context.auth_token,
+                                             datastore_type,
+                                             datastore_ver)
+            config_params = {}
+            for param in params:
+                option = deployment.get_setting(param['name'],
+                                                resource_type=resource_type,
+                                                service_name=service,
+                                                provider_key=self.key)
+                if option:
+                    config_params[param['name']] = option
+
             for template in templates:
                 template['desired-state']['flavor'] = flavor
                 template['desired-state']['disk'] = volume
                 template['desired-state']['region'] = region
+                template['desired-state']['datastore-type'] = datastore_type
+                template['desired-state']['datastore-version'] = datastore_ver
+                if config_params:
+                    template['desired-state']['config-params'] = config_params
+
         elif resource_type == 'database':
             pass
         return templates
@@ -314,6 +346,30 @@ class Provider(cmbase.ProviderBase):
                 name = 'cache'
             else:
                 name = resource.get('interface') or 'database'
+
+            # Create resource tasks
+            root = None
+            if 'config-params' in resource.get('desired-state', {}):
+                create_config_task = specs.Celery(
+                    wfspec,
+                    'Create Configuration %s' % name,
+                    'checkmate.providers.rackspace.database.tasks.'
+                    'create_configuration',
+                    call_args=[
+                        context.get_queued_task_dict(
+                            deployment_id=deployment['id'],
+                            resource_key=key
+                        ),
+                        resource['desired-state']['datastore-type'],
+                        resource['desired-state']['datastore-version'],
+                        resource['desired-state']['config-params']
+                    ],
+                    merge_results=True,
+                    defines=defines,
+                    properties={'estimated_duration': 10}
+                )
+                root = wfspec.wait_for(create_config_task, wait_on)
+
             create_instance_task = specs.Celery(
                 wfspec,
                 'Create %s Server %s' % (name.capitalize(), key),
@@ -333,7 +389,12 @@ class Provider(cmbase.ProviderBase):
                 defines=defines,
                 properties={'estimated_duration': 80}
             )
-            root = wfspec.wait_for(create_instance_task, wait_on)
+
+            if root:
+                create_instance_task.follow(create_config_task)
+            else:
+                root = wfspec.wait_for(create_instance_task, wait_on)
+
             wait_task = specs.Celery(
                 wfspec,
                 'Wait on %s Instance %s' % (name.capitalize(), key),
