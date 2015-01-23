@@ -4,12 +4,28 @@ angular.module('checkmate.DeploymentData')
       restrict: 'E',
       replace: true,
       scope: {},
-      template: '<checkmate-codemirror checkmate-codemirror-opts="codemirror.options" ng-model="deployment"></checkmate-codemirror>',
+      template: '<div class="deployment-editor">\
+                  <checkmate-codemirror checkmate-codemirror-opts="codemirror.options" ng-model="deployment" ui-refresh="codemirror.options.mode"></checkmate-codemirror>\
+                  <div class="toggle-editor btn-group">\
+                    <button class="btn btn-mini" \
+                            ng-click="codemirror.toggleMode()"\
+                            ng-disabled="codemirror.options.mode == \'text/x-yaml\'"\
+                            disabled="disabled">\
+                      YAML\
+                    </button>\
+                    <button class="btn btn-mini"\
+                            ng-click="codemirror.toggleMode()"\
+                            ng-disabled="codemirror.options.mode == \'application/json\'">\
+                    JSON\
+                    </button>\
+                  </div>\
+                </div>',
       controller: function($scope) {
+        var getLineLabel = function(line) {
+          return line.text.replace(/[^a-zA-Z0-9_-]+/g, "");
+        };
+
         $scope.deployment = '';
-        $scope.valid = true; // Is the YAML valid?
-        $scope.dirty = false; // Out of sync with topology
-        $scope.submitting = false; // Waiting on response?
 
         $scope.codemirror = {
           editor: null,
@@ -18,20 +34,37 @@ angular.module('checkmate.DeploymentData')
           markAltered: function() {
             $scope.codemirror.editorAltered = true;
           },
+          toggleMode: function() {
+            try {
+              if ($scope.codemirror.options.mode == 'application/json') {
+                $scope.deployment = jsyaml.safeDump(JSON.parse($scope.deployment));
+                $scope.codemirror.options.mode = 'text/x-yaml';
+                $scope.codemirror.foldFunction = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
+              } else {
+                $scope.deployment = JSON.stringify(jsyaml.safeLoad($scope.deployment), undefined, 2);
+                $scope.codemirror.options.mode = 'application/json';
+                $scope.codemirror.foldFunction = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
+              }
+            } catch(e) {
+              console.error(e);
+            }
+          },
+          trackedFolds: [
+             'blueprint', 'environment', 'inputs', 'meta-data', 'options', 'services'
+          ],
+          folds: {
+            'meta-data': { folded: true },
+            'options': { folded: true },
+            'environment': { folded: true }
+          },
           foldFunction: CodeMirror.newFoldFunction(CodeMirror.fold.indent),
           foldDefault: function(editor) {
-            var inBlueprint = false;
+            var that = this;
+
             editor.eachLine(function(line) {
-              if (line.text.substring(0, 1) !== ' ') {
-                if (line.text.substring(0, 10) == 'blueprint:') {
-                  inBlueprint = true;
-               } else {
-                  inBlueprint = false;
-                  $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
-                }
-              } else if (inBlueprint && line.text.substring(0, 10) === '  options:') {
-                $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
-              } else if (inBlueprint && line.text.substring(0, 12) === '  meta-data:') {
+              var prop = getLineLabel(line);
+
+              if(that.folds[prop] && that.folds[prop].folded) {
                 $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
               }
             });
@@ -42,8 +75,8 @@ angular.module('checkmate.DeploymentData')
         };
 
         $scope.codemirror.options = {
-          lint: typeof CodeMirror.lint.yaml !== 'undefined',
-          mode: 'yaml',
+          lint: true,
+          mode: 'text/x-yaml',
           theme: 'lesser-dark',
           lineNumbers: true,
           autoFocus: true,
@@ -54,6 +87,24 @@ angular.module('checkmate.DeploymentData')
           extraKeys: {"Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); }},
           gutters: ['CodeMirror-lint-markers','CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
           onGutterClick: function(editor, start) {
+            var line = editor.lineInfo(start);
+            var prop = getLineLabel(line);
+            var fold;
+
+            if(prop && $scope.codemirror.trackedFolds.indexOf(prop) > -1) {
+              fold = $scope.codemirror.folds[prop];
+
+              if(!fold) {
+                $scope.codemirror.folds[prop] = {
+                  folded: false
+                };
+
+                fold = $scope.codemirror.folds[prop]
+              }
+
+              fold.folded = !fold.folded;
+            }
+
             $scope.codemirror.markAltered();
             return $scope.codemirror.foldFunction(editor, start);
           },
@@ -86,11 +137,17 @@ angular.module('checkmate.DeploymentData')
 
         $scope.$on('deployment:update', function(event, data) {
           if(!$scope.codemirror.isFocused) {
-            var yamlData = jsyaml.safeDump(data);
+            var newDeployment;
 
-            if ($scope.deployment != yamlData) {
+            if($scope.codemirror.options.mode == 'application/json') {
+              newDeployment = JSON.stringify(data, undefined, 2);
+            } else {
+              newDeployment = jsyaml.safeDump(data);
+            }
+
+            if ($scope.deployment != newDeployment) {
               $timeout(function() {
-                $scope.deployment = yamlData;
+                $scope.deployment = newDeployment;
               });
             }
           }
