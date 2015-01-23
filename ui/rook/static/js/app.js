@@ -65,26 +65,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: 'ConfigureCtrl',
     resolve: {
       deployment: function($route, github) {
-        var fragments = [];
         var owner = $route.current.params.owner;
         var repo = $route.current.params.repo;
-        var url;
-        var remote;
 
-        if(!owner || !repo) {
-          return null;
-        }
-
-        fragments.push('https://www.github.com/');
-        fragments.push(owner);
-        fragments.push('/');
-        fragments.push(repo);
-        fragments.push(window.location.hash || '#master');
-
-        url = fragments.join('');
-        remote = github.parse_url(url);
-
-        return github.get_blueprint(remote);
+        return github.get_public_blueprint(owner, repo);
       }
     }
   })
@@ -93,26 +77,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: 'ConfigureCtrl',
     resolve: {
       deployment: function($route, github) {
-        var fragments = [];
         var owner = $route.current.params.owner;
         var repo = $route.current.params.repo;
-        var url;
-        var remote;
 
-        if(!owner || !repo) {
-          return null;
-        }
-
-        fragments.push('https://www.github.com/');
-        fragments.push(owner);
-        fragments.push('/');
-        fragments.push(repo);
-        fragments.push(window.location.hash || '#master');
-
-        url = fragments.join('');
-        remote = github.parse_url(url);
-
-        return github.get_blueprint(remote);
+        return github.get_public_blueprint(owner, repo);
       }
     }
   })
@@ -241,55 +209,49 @@ Scope variables that control the Checkmate UI:
 */
 
 //Loads static content into body
-function StaticController($scope, $location) {
+function StaticController($scope, $location, github) {
   $scope.showStatus = false;
 
   $scope.carousel_interval = -1; // Stopped
   $scope.spot_write_url = "https://one.rackspace.com/display/Checkmate/Checkmate+Blueprints+Introduction";
   $scope.item_base_url = "/deployments/new?blueprint=https:%2F%2Fgithub.rackspace.com%2FBlueprints%2F";
   $scope.devops_base_url = "/deployments/new?blueprint=https:%2F%2Fgithub.com%2FAutomationSupport%2F";
-  $scope.items1 = [
-    {spot: "ready", show_name: true,  name: "Wordpress", description: null,                   url: $scope.devops_base_url + "wordpress", image: "wordpress.png"},
-    {spot: "ready", show_name: true,  name: "Drupal",    description: "Managed Cloud Drupal", url: $scope.item_base_url + "drupal%23" + $scope.blueprint_ref, image: "druplicon.small_.png"},
-    {spot: "ready", show_name: false, name: "PHP",       description: null,                   url: $scope.item_base_url + "php_app-blueprint%23" + $scope.blueprint_ref, image: "php.png"},
-    {spot: "ready", show_name: true, name: "Magento",  description: "Digital Magento",      url: $scope.devops_base_url + "magentostack", image: "magento1-6.png"},
-  ];
-  $scope.items2 = [
-    {spot: "ready", show_name: true,  name: "Cassandra", description: null,                   url: $scope.item_base_url + "cassandra%23" + $scope.blueprint_ref, image: "cassandra.png"},
-    {spot: "ready", show_name: true,  name: "MongoDB", description: null,       url: $scope.item_base_url + "mongodb-replicaset%23" + $scope.blueprint_ref, image: "mongodb.png"},
-    {spot: "ready", show_name: true,  name: "MySQL",   description: null,       url: $scope.item_base_url + "mysql-server%23" + $scope.blueprint_ref, image: "mysql.png"},
-    {spot: "ready", show_name: true,  name: "Awwbomb", description: "Aww Bomb", url: $scope.item_base_url + "awwbomb%23" + $scope.blueprint_ref, image: "awwbomb.png"},
-  ];
-  $scope.items3 = [
-    {spot: "write", show_name: false, name: "Django",   description: null,                     url: null, image: "django_small.png"},
-    {spot: "ready", show_name: false, name: "Rails",    description: "Rails 4",       url: $scope.item_base_url + "rails4_app-blueprint%23" + $scope.blueprint_ref, image: "rails.png"},
+  $scope.deployments_list = [
+    [
+      {spot: "ready", show_name: true,  name: "Wordpress", description: null,                   url: $scope.devops_base_url + "wordpress", image: "wordpress.png"},
+      {spot: "ready", show_name: true,  name: "Drupal",    description: "Managed Cloud Drupal", url: $scope.item_base_url + "drupal%23" + $scope.blueprint_ref, image: "druplicon.small_.png"},
+      {spot: "ready", show_name: false, name: "PHP",       description: null,                   url: $scope.item_base_url + "php_app-blueprint%23" + $scope.blueprint_ref, image: "php.png"},
+      {spot: "ready", show_name: true, name: "Magento",  description: "Digital Magento",      url: $scope.devops_base_url + "magentostack", image: "magento1-6.png"},
+      {spot: "ready", show_name: true,  name: "Cassandra", description: null,                   url: $scope.item_base_url + "cassandra%23" + $scope.blueprint_ref, image: "cassandra.png"},
+      {spot: "ready", show_name: true,  name: "MongoDB", description: null,       url: $scope.item_base_url + "mongodb-replicaset%23" + $scope.blueprint_ref, image: "mongodb.png"},
+      {spot: "ready", show_name: true,  name: "MySQL",   description: null,       url: $scope.item_base_url + "mysql-server%23" + $scope.blueprint_ref, image: "mysql.png"}
+    ],
+    [
+      {spot: "ready", show_name: true,  name: "Awwbomb", description: "Aww Bomb", url: $scope.item_base_url + "awwbomb%23" + $scope.blueprint_ref, image: "awwbomb.png"},
+      {spot: "write", show_name: false, name: "Django",   description: null,                     url: null, image: "django_small.png"},
+      {spot: "ready", show_name: false, name: "Rails",    description: "Rails 4",       url: $scope.item_base_url + "rails4_app-blueprint%23" + $scope.blueprint_ref, image: "rails.png"},
     {spot: "write", show_name: false, name: "NodeJS",   description: "node.js",       url: null, image: "nodejs.png"},
-    {spot: "write", show_name: true,  name: "Tomcat",   description: null,                     url: null, image: "tomcat_small.gif"},
-  ];
-  $scope.items4 = [
-    {spot: "ready", show_name: false, name: "ZeroBin", description: null,       url: $scope.item_base_url + "zerobin%23" + $scope.blueprint_ref, image: "ZeroBin.png"},
-    {spot: "ready", show_name: false, name: "Etherpad", description: "Etherpad Lite", url: $scope.item_base_url + "etherpad-lite%23" + $scope.blueprint_ref, image: "etherpad_lite.png"},
-    {spot: "write", show_name: true,  name: "DevStack", description: null,            url: null, image: "openstack.png"},
-    {spot: "write", show_name: true,  name: "SugarCRM", description: "Managed Cloud SugarCRM", url: null, image: "sugarcrm-box-only.jpg"},
-  ];
-  $scope.items5 = [
-    {spot: "write", show_name: true,  name: "Magento",  description: "Managed Cloud Magento",  url: null, image: "magento1-6.png"},
-    {spot: "write", show_name: true,  name: "Joomla", description: null, url: null, image: "joomla_small.png"},
-    {spot: "write", show_name: false, name: "Apache", description: null, url: null, image: "apache.png"},
-    {spot: "write", show_name: true,  name: "Hadoop", description: null, url: null, image: "hadoop.jpeg"},
-  ];
-  $scope.items6 = [
-    {spot: "write", show_name: true,  name: "Python", description: null, url: null, image: "python.png"},
+      {spot: "write", show_name: true,  name: "Tomcat",   description: null,                     url: null, image: "tomcat_small.gif"},
+      {spot: "ready", show_name: false, name: "ZeroBin", description: null,       url: $scope.item_base_url + "zerobin%23" + $scope.blueprint_ref, image: "ZeroBin.png"},
+      {spot: "ready", show_name: false, name: "Etherpad", description: "Etherpad Lite", url: $scope.item_base_url + "etherpad-lite%23" + $scope.blueprint_ref, image: "etherpad_lite.png"},
+
+    ],
+    [
+      {spot: "write", show_name: true,  name: "DevStack", description: null,            url: null, image: "openstack.png"},
+      {spot: "write", show_name: true,  name: "SugarCRM", description: "Managed Cloud SugarCRM", url: null, image: "sugarcrm-box-only.jpg"},
+      {spot: "write", show_name: true,  name: "Magento",  description: "Managed Cloud Magento",  url: null, image: "magento1-6.png"},
+      {spot: "write", show_name: true,  name: "Joomla", description: null, url: null, image: "joomla_small.png"},
+      {spot: "write", show_name: false, name: "Apache", description: null, url: null, image: "apache.png"},
+      {spot: "write", show_name: true,  name: "Hadoop", description: null, url: null, image: "hadoop.jpeg"},
+      {spot: "write", show_name: true,  name: "Python", description: null, url: null, image: "python.png"}
+    ]
   ];
 
-  $scope.slides = [
-    $scope.items1,
-    $scope.items2,
-    $scope.items3,
-    $scope.items4,
-    $scope.items5,
-    $scope.items6,
-  ];
+  $scope.importGithubDeployment = function(form) {
+    if(form.$valid) {
+      $location.path("/blueprints/design/"+form.owner+"/"+form.repo);
+    }
+  };
 
   $scope.display_name = function(item) {
     var name = null;

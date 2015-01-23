@@ -286,7 +286,8 @@
   opacity: .8;
 }
 .editor-error .rs-app-prompt.revert-warning,
-.github-auth-open .rs-app-prompt.github-auth {
+.github-auth-open .rs-app-prompt.github-auth,
+.github-empty-repo-open .rs-app-prompt.github-empty-repo {
   bottom: -55px !important;
 }
 .rs-app-prompt button.rs-btn {

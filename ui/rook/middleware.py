@@ -421,13 +421,14 @@ def githubproxy(path=None):
 
     return write_body(content, bottle.request, bottle.response)
 
-
 @ROOK_API.get('/webhooks/github_auth')
-def github_callback():
+@ROOK_API.get('/webhooks/github_auth/<path:re:.*>')
+def github_callback(path=None):
     """Receive OAuth Callback from Github.
 
     This supports authenticating with Github.
     """
+    path = path or ''
     session_code = bottle.request.query.get('code')
     body = {
         'client_id': CONFIG.github_client_id,
@@ -445,7 +446,7 @@ def github_callback():
         expires = time.time() + GITHUB_TOKEN_EXPIRE_SECONDS
         bottle.response.set_cookie('github_access_token', data['access_token'],
                                    expires=expires, path="/")
-    bottle.redirect('/')
+    bottle.redirect('/%s' % path)
 
 
 @ROOK_API.route('/feedback', method=['POST', 'OPTIONS'])

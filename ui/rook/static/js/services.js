@@ -795,6 +795,27 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
     return checkmate_yaml;
   };
 
+  scope.get_public_blueprint = function(owner, repo) {
+    var fragments = [];
+    var url;
+    var remote;
+
+    if(!owner || !repo) {
+      return;
+    }
+
+    fragments.push('https://www.github.com/');
+    fragments.push(owner);
+    fragments.push('/');
+    fragments.push(repo);
+    fragments.push(window.location.hash || '#master');
+
+    url = fragments.join('');
+    remote = scope.parse_url(url);
+
+    return scope.get_blueprint(remote);
+  };
+
   scope.get_blueprint = function(remote, username) {
     return scope.get_contents(remote, null, 'checkmate.yaml').then(
       function success(yaml_string) {
