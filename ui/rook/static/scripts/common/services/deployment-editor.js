@@ -50,7 +50,7 @@ angular.module('checkmate.DeploymentData')
             }
           },
           trackedFolds: [
-             'blueprint', 'environment', 'inputs', 'services', 'options'
+             'blueprint', 'environment', 'inputs', 'meta-data', 'options', 'services'
           ],
           folds: {
             'meta-data': { folded: true },
