@@ -421,6 +421,7 @@ def githubproxy(path=None):
 
     return write_body(content, bottle.request, bottle.response)
 
+@ROOK_API.get('/webhooks/github_auth')
 @ROOK_API.get('/webhooks/github_auth/<path:re:.*>')
 def github_callback(path=None):
     """Receive OAuth Callback from Github.
