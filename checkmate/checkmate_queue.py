@@ -13,6 +13,8 @@
 #    under the License.
 
 """Checkmate module that registers/configures Celery tasks."""
+from __future__ import print_function
+
 import os
 import subprocess
 import sys
@@ -21,7 +23,7 @@ import sys
 def main_func():
     "Called automatically when this module is executed."""
     import checkmate
-    checkmate.preconfigure()
+    checkmate.preconfigure(quiet=True)
     if len(sys.argv) > 1 and sys.argv[1] == 'START':
         params = []
         if '--newrelic' in sys.argv:

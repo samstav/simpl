@@ -12,6 +12,8 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+#
+# pylint: disable=C0330
 
 """Global configuration.
 
@@ -31,6 +33,9 @@ import logging
 import os
 import sys
 
+from celery import signals
+
+import checkmate
 from checkmate.contrib import config
 from checkmate import utils
 
@@ -307,6 +312,11 @@ class Config(config.Config):
             return logging.INFO
 
     @property
+    def prog(self):
+        """Program name."""
+        return 'checkmate'
+
+    @property
     def bottle_parent(self):
         """Detect if running as a bottle autoreload parent."""
         return (self.eventlet is False and 'BOTTLE_CHILD' not in os.environ
@@ -414,9 +424,9 @@ def find_console_handler(logger):
                 handler.stream == sys.stderr):
             return handler
 
-checkmateini = os.path.abspath(os.path.join(
+_checkmate_ini = os.path.abspath(os.path.join(
     os.path.dirname(__file__), os.pardir, 'checkmate.cfg'))
-CURRENT_CONFIG = Config(options=OPTIONS, ini_paths=[checkmateini])
+CURRENT_CONFIG = Config(options=OPTIONS, ini_paths=[_checkmate_ini])
 
 
 def current():
@@ -434,3 +444,9 @@ def current():
         CONFIG.initialize()
     """
     return CURRENT_CONFIG
+
+
+@signals.worker_init.connect
+def preconfigure(*args, **kwargs):
+    """Ensure that the process of the worker has a loaded config."""
+    checkmate.preconfigure()

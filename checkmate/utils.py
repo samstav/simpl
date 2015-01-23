@@ -219,6 +219,7 @@ def scrub_data(data, conf=None, exempt=None):
     keys found in either `config` or `blacklist`. Returns
     sanitized results dict.
     """
+    secrets = {'password', 'passphrase', 'token', 'key', 'user', 'secret'}
     if exempt and not isinstance(exempt, list):
         raise TypeError("'exempt' should be a list of exempted keys.")
     exempt = exempt or []
@@ -237,8 +238,7 @@ def scrub_data(data, conf=None, exempt=None):
                     LOG.debug("Sanitized %s from dict.", key)
                     result[key] = '*****'
                     continue
-            elif any((w in str(key).lower() for w in
-                     {'password', 'passphrase', 'token', 'key', 'user'})):
+            elif any(w in str(key).lower() for w in secrets):
                 LOG.debug("Sanitized %s from dict.", key)
                 result[key] = '*****'
             elif 'key' in str(key).lower():

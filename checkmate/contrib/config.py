@@ -373,15 +373,23 @@ class Config(collections.MutableMapping):
             self.pass_thru_args = []
         return vars(parsed)
 
-    def parse_env(self, env=None):
+    def parse_env(self, env=None, namespace=None):
         """Parse environment variables."""
         env = env or os.environ
         results = {}
+        if not namespace:
+            namespace = self.prog
+        namespace = namespace.upper()
         for option in self._options:
             env_var = option.kwargs.get('env')
+            default_env = "%s_%s" % (namespace, option.name.upper())
             if env_var and env_var in env:
                 value = env[env_var]
                 results[option.dest] = option.type(value)
+            elif default_env in env:
+                value = env[default_env]
+                results[option.dest] = option.type(value)
+
         return results
 
     def get_defaults(self):
