@@ -81,13 +81,21 @@ angular.module('checkmate.applications-configure')
         isVisible: false,
         action: function() {
           var url = [];
-          var redirect_uri = $location.protocol() +'://'+ $location.host() + ':' + $location.port() + '/webhooks/github_auth';
+          var redirect_uri = [];
+
+          redirect_uri.push($location.protocol());
+          redirect_uri.push('://');
+          redirect_uri.push($location.host());
+          if($location.port() && $location.port() !== 80)
+            redirect_uri.push(':'+$location.port());
+          redirect_uri.push('/webhooks/github_auth');
+          redirect_uri.push($location.path());
 
           url.push('https://github.com/login/oauth/authorize');
           url.push('?');
           url.push('scope=user:email,repo');
           url.push('&client_id='+$scope.$root.clientId);
-          url.push('&redirect_uri='+redirect_uri+$location.path());
+          url.push('&redirect_uri='+redirect_uri.join(''));
 
           $window.location.href = url.join('');
         }
@@ -158,7 +166,7 @@ angular.module('checkmate.applications-configure')
     // If there's a deployment object resolved, let's use it.
     if(!_.isUndefined(deployment)) {
       DeploymentData.reset();
-      
+
       if(!deployment && !github.config.accessToken && $scope.$root.clientId) {
         $scope.prompts.github.isVisible = true;
       } else if (!deployment && github.config.accessToken) {
