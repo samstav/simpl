@@ -350,15 +350,15 @@
   .form-inline-fat form .btn {
     margin-top: -5px;
   }
-  table {
+  table.deployment-list {
     width: 32% !important;
     float: left;
     margin-right: 1%;
   }
-  table td {
+  table.deployment-list td {
     font-size: 14px;
   }
-  table img {
+  table.deployment-list img {
     width: auto;
     height: 20px;
     opacity: .5;
@@ -375,7 +375,7 @@
 
       <div class="row-fluid">
         <div class="span12">
-          <h2 class="motto text-center">Get enviornments up quicker.</h2>
+          <h2 class="motto text-center">Get environments up quicker.</h2>
         </div>
       </div>
 
@@ -423,9 +423,15 @@
         </div>
       </div>
 
-      <p class="lead text-center">Get started from one of our Blueprints that we've built, just for you.</p>
+      <p class="lead text-center">
+        Get started from one of our Blueprints that we've built, just for you.
+      </p>
+      <p class="text-center">
+        If one isn't written yet, you should totally <a ng-href="spot_write_url" target="_blank">write it and contribute.
+        <i class="fa fa-external-link"></i></a>
+      </p>
 
-      <table class="table" ng-repeat="column in deployments_list">
+      <table class="table deployment-list" ng-repeat="column in deployments_list">
         <thead>
           <tr>
             <th></th>
@@ -452,7 +458,6 @@
       </table>
 
       <div style="clear:both;">
-        <p class="text-center">If one isn't written yet, you should totally <a ng-href="spot_write_url" target="_blank">write it and contribute. <i class="fa fa-external-link"></i></a></p>
       </div>
 
 
