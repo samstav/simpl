@@ -222,6 +222,7 @@ def create_instance(region, t_id, token, name, flavor):
                 'disk': None,
                 'interfaces': {
                     'redis': {
+                        'port': 6379,
                         'host': instance.get('hostname'),
                         'password': instance.get('password'),
                     }
