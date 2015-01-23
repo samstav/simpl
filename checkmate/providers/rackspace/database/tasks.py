@@ -18,25 +18,26 @@
 
 import logging
 
-from celery.task import task
+from celery import task
 from pyrax import exceptions as pyexc
 
 from checkmate.common import statsd
-from checkmate.deployments.tasks import resource_postback
+from checkmate.deployments import tasks
 from checkmate import exceptions
-from checkmate.providers.base import RackspaceProviderTask
+from checkmate.providers import base
 from checkmate.providers.rackspace.database import dbaas
-from checkmate.providers.rackspace.database.manager import Manager
-from checkmate.providers.rackspace.database.provider import Provider
+from checkmate.providers.rackspace.database import manager
+from checkmate.providers.rackspace.database import provider
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
 
-@task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=2,
-      provider=Provider)
+@task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
+           max_retries=2, provider=provider.Provider)
 @statsd.collect
 def create_configuration(context, db_type, db_version, config_params):
+    """Create a database configuration entry."""
     return dbaas.create_configuration(context.region, context.tenant,
                                       context.auth_token, db_type, db_version,
                                       config_params)
@@ -44,12 +45,12 @@ def create_configuration(context, db_type, db_version, config_params):
 
 # Disable pylint on api and callback as their passed in from ProviderTask
 # pylint: disable=W0613
-@task(base=RackspaceProviderTask, default_retry_delay=30, max_retries=120,
-      acks_late=True, provider=Provider)
+@task.task(base=base.RackspaceProviderTask, default_retry_delay=30,
+           max_retries=120, acks_late=True, provider=provider.Provider)
 @statsd.collect
 def wait_on_build(context, region, instance=None, callback=None):
-    """Waits on the instance to be created, deletes the instance if it goes
-    into an ERRORed status
+    """Wait on instance to be created, delete instance if it errors
+
     :param context: Context
     :param region: Region
     :param instance: Instance Information
@@ -57,25 +58,25 @@ def wait_on_build(context, region, instance=None, callback=None):
     :param callback:
     :return:
     """
-    return Manager.wait_on_build(context, region, instance["id"],
-                                 wait_on_build.partial,
-                                 simulate=context.simulation)
+    return manager.Manager.wait_on_build(context, region, instance["id"],
+                                         wait_on_build.partial,
+                                         simulate=context.simulation)
 
 
 # Disable on api and callback.  Suppress num args
 # pylint: disable=W0613
-@task(base=RackspaceProviderTask, provider=Provider)
+@task.task(base=base.RackspaceProviderTask, provider=provider.Provider)
 @statsd.collect
 def sync_resource_task(context, resource, api=None, callback=None):
     """Task to handle syncing remote status with checkmate status."""
-    return Manager.sync_resource(resource, sync_resource_task.api,
-                                 context.simulation)
+    return manager.Manager.sync_resource(resource, sync_resource_task.api,
+                                         context.simulation)
 
 
 # Disable pylint on api and callback as their passed in from ProviderTask
 # pylint: disable=W0613, R0913
-@task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=2,
-      provider=Provider)
+@task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
+           max_retries=2, provider=provider.Provider)
 @statsd.collect
 def create_instance(context, instance_name, flavor, size, databases, region,
                     api=None, callback=None):
@@ -88,17 +89,17 @@ def create_instance(context, instance_name, flavor, size, databases, region,
                    {'name': 'db2', 'character_set': 'latin5',
                     'collate': 'latin5_turkish_ci'}]
     """
-    return Manager.create_instance(instance_name, flavor, size,
-                                   databases, context,
-                                   api or create_instance.api,
-                                   callback or create_instance.partial,
-                                   region=region,
-                                   simulate=context.simulation)
+    return manager.Manager.create_instance(instance_name, flavor, size,
+                                           databases, context,
+                                           api or create_instance.api,
+                                           callback or create_instance.partial,
+                                           region=region,
+                                           simulate=context.simulation)
 
 
 # pylint: disable=R0913
-@task(base=RackspaceProviderTask, default_retry_delay=15, max_retries=40,
-      provider=Provider)
+@task.task(base=base.RackspaceProviderTask, default_retry_delay=15,
+           max_retries=40, provider=provider.Provider)
 @statsd.collect
 def create_database(context, name, region=None, character_set=None,
                     collate=None, instance_id=None, instance_attributes=None,
@@ -118,29 +119,30 @@ def create_database(context, name, region=None, character_set=None,
     :param instance_attributes: kwargs used to create the instance (used if
             instance_id not supplied)
     """
-    return Manager.create_database(name, instance_id, create_database.api,
-                                   create_database.partial, context=context,
-                                   character_set=character_set,
-                                   collate=collate,
-                                   instance_attrs=instance_attributes,
-                                   simulate=context.simulation)
+    return manager.Manager.create_database(name, instance_id,
+                                           create_database.api,
+                                           create_database.partial,
+                                           context=context,
+                                           character_set=character_set,
+                                           collate=collate,
+                                           instance_attrs=instance_attributes,
+                                           simulate=context.simulation)
 
 
-@task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=2,
-      provider=Provider)
+@task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
+           max_retries=2, provider=provider.Provider)
 def add_user(context, instance_id, databases, username, password,
              api=None, callback=None):
     """Add a database user to an instance for one or more databases."""
-    return Manager.add_user(instance_id, databases, username, password,
-                            add_user.api, add_user.partial, context.simulation)
+    return manager.Manager.add_user(instance_id, databases, username, password,
+                                    add_user.api, add_user.partial,
+                                    context.simulation)
 
 
-@task(default_retry_delay=2, max_retries=60)
+@task.task(default_retry_delay=2, max_retries=60)
 @statsd.collect
 def delete_instance_task(context, api=None):
-    """Deletes a database server instance and its associated databases and
-    users.
-    """
+    """Deletes a database server instance, its databases and users."""
     utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -160,7 +162,7 @@ def delete_instance_task(context, api=None):
                     }
                 }
             }
-            resource_postback.delay(dep_id, ret)
+            tasks.resource_postback.delay(dep_id, ret)
         else:
             LOG.error("Missing deployment id and/or resource key in "
                       "delete_instance error callback.")
@@ -188,7 +190,7 @@ def delete_instance_task(context, api=None):
         for hosted in resource.get('hosts', []):
             res['resources'][hosted] = {'status': 'DELETED'}
         LOG.info(msg)
-        resource_postback.delay(context['deployment_id'], res)
+        tasks.resource_postback.delay(context['deployment_id'], res)
         return
 
     if context.get('simulation') is True:
@@ -199,11 +201,11 @@ def delete_instance_task(context, api=None):
                 'status-message': ''
             }
         # Send data back to deployment
-        resource_postback.delay(context['deployment_id'], results)
+        tasks.resource_postback.delay(context['deployment_id'], results)
         return results
 
     if not api:
-        api = Provider.connect(context, region)
+        api = provider.Provider.connect(context, region)
     res = {}
     try:
         api.delete(instance_id)
@@ -237,11 +239,11 @@ def delete_instance_task(context, api=None):
     except Exception as exc:
         # might be an api fluke, try again
         delete_instance_task.retry(exc=exc)
-    resource_postback.delay(context['deployment_id'], res)
+    tasks.resource_postback.delay(context['deployment_id'], res)
     return res
 
 
-@task(default_retry_delay=5, max_retries=60)
+@task.task(default_retry_delay=5, max_retries=60)
 @statsd.collect
 def wait_on_del_instance(context, api=None):
     """Wait for the specified instance to be deleted."""
@@ -265,7 +267,7 @@ def wait_on_del_instance(context, api=None):
                     }
                 }
             }
-            resource_postback.delay(dep_id, ret)
+            tasks.resource_postback.delay(dep_id, ret)
         else:
             LOG.error("Missing deployment id and/or resource key in "
                       "delete_instance error callback.")
@@ -299,11 +301,11 @@ def wait_on_del_instance(context, api=None):
                 }
             }
         }
-        resource_postback.delay(deployment_id, results)
+        tasks.resource_postback.delay(deployment_id, results)
         return
 
     if not api:
-        api = Provider.connect(context, region)
+        api = provider.Provider.connect(context, region)
     try:
         if resource['type'] == 'cache':
             instance = dbaas.get_instance(
@@ -347,14 +349,14 @@ def wait_on_del_instance(context, api=None):
                 }
             }
         }
-        resource_postback.delay(context['deployment_id'], res)
+        tasks.resource_postback.delay(context['deployment_id'], res)
         wait_on_del_instance.retry(exc=exceptions.CheckmateException(msg))
 
-    resource_postback.delay(context['deployment_id'], res)
+    tasks.resource_postback.delay(context['deployment_id'], res)
     return res
 
 
-@task(default_retry_delay=2, max_retries=30)
+@task.task(default_retry_delay=2, max_retries=30)
 @statsd.collect
 def delete_database(context, api=None):
     """Delete a database from an instance."""
@@ -378,7 +380,7 @@ def delete_database(context, api=None):
                     }
                 }
             }
-            resource_postback.delay(dep_id, ret)
+            tasks.resource_postback.delay(dep_id, ret)
         else:
             LOG.error("Missing deployment id and/or resource key in "
                       "delete_database error callback.")
@@ -393,7 +395,7 @@ def delete_database(context, api=None):
     key = resource.get('index')
 
     if not api:
-        api = Provider.connect(context, region)
+        api = provider.Provider.connect(context, region)
 
     deployment_id = context["deployment_id"]
     resource_key = context["resource_key"]
@@ -415,7 +417,7 @@ def delete_database(context, api=None):
             }
         }
         LOG.info(msg)
-        resource_postback.delay(deployment_id, results)
+        tasks.resource_postback.delay(deployment_id, results)
         return
 
     db_name = resource.get('instance', {}).get('name')
@@ -447,17 +449,17 @@ def delete_database(context, api=None):
         delete_database.retry(exc=respe)
     LOG.info('Database %s deleted from instance %s', db_name, instance_id)
     ret = {'resources': {key: {'status': 'DELETED'}}}
-    resource_postback.delay(deployment_id, ret)
+    tasks.resource_postback.delay(deployment_id, ret)
     return ret
 
 
-@task(default_retry_delay=10, max_retries=10)
+@task.task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def delete_user(context, instance_id, username, region, api=None):
     """Delete a database user from an instance."""
     utils.match_celery_logging(LOG)
     if api is None:
-        api = Provider.connect(context, region)
+        api = provider.Provider.connect(context, region)
 
     instance = api.get(instance_id)
     instance.delete_user(username)

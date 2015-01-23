@@ -194,11 +194,12 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_template_generation_database(self):
-        self.deployment.get_setting('domain', default='checkmate.local',
-                                    provider_key='rackspace.database',
-                                    resource_type='database',
-                                    service_name='master'). \
-            AndReturn("test.checkmate")
+        self.deployment.get_setting(
+            'domain', default='checkmate.local',
+            provider_key='rackspace.database', resource_type='database',
+            service_name='master'
+        ).AndReturn("test.checkmate")
+
         self.deployment._constrained_to_one('master').AndReturn(True)
 
         catalog = {
@@ -832,7 +833,7 @@ class TestDatabaseGetResources(unittest.TestCase):
                          'hostname')
         self.assertEqual(resource['instance']['flavor'], 106)
         # TODO(pablo): Why is 'disk' no longer appearing under instance?
-        #self.assertEqual(resource['instance']['disk'], 'size')
+        # self.assertEqual(resource['instance']['disk'], 'size')
         self.assertEqual(resource['instance']['region'], 'region')
 
 if __name__ == '__main__':
