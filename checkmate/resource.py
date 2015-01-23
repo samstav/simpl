@@ -124,5 +124,5 @@ class Resource(dict):
             'region', 'flavor', 'image', 'disk', 'protocol',
             'port', 'status', 'databases', 'os-type', 'os', 'userdata',
             'config_drive', 'dns-A-name', 'networks', 'datastore-version',
-            'datastore-type', 'config-params'
+            'datastore-type', 'config-params', 'size',
         ]

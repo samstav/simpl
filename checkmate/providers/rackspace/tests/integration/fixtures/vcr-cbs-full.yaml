@@ -1,0 +1,86 @@
+interactions:
+- request:
+    body: '{"volume": {"size": 101}}'
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['25']
+      Content-Type: [application/json]
+    method: POST
+    uri: https://hkg.blockstorage.api.rackspacecloud.com:443/v1/redacted/volumes
+  response:
+    body: {string: !!python/unicode '{"volume": {"status": "available", "display_name":
+        null, "attachments": [], "availability_zone": "nova", "bootable": "false",
+        "created_at": "2015-01-23T06:07:25.000000", "display_description": null, "volume_type":
+        "SATA", "snapshot_id": null, "source_volid": null, "metadata": {"storage-node":
+        "57a56afc-0457-477b-aa8b-1567a34c8285"}, "id": "ab97bf6d-e498-46c8-bb6b-184a31bbe5d1",
+        "size": 101}}'}
+    headers:
+      connection: [keep-alive]
+      content-length: ['394']
+      content-type: [application/json]
+      date: ['Fri, 23 Jan 2015 06:07:25 GMT']
+      x-compute-request-id: [req-6b1990e1-17ae-4102-94f8-d722de25e5cd]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['0']
+      Content-Type: [application/json]
+    method: DELETE
+    uri: https://hkg.blockstorage.api.rackspacecloud.com:443/v1/redacted/volumes/ab97bf6d-e498-46c8-bb6b-184a31bbe5d1
+  response:
+    body: {string: !!python/unicode ''}
+    headers:
+      connection: [keep-alive]
+      content-length: ['0']
+      content-type: [text/html; charset=UTF-8]
+      date: ['Fri, 23 Jan 2015 06:07:28 GMT']
+    status: {code: 202, message: Accepted}
+- request:
+    body: '{"volume": {"size": 101}}'
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['25']
+      Content-Type: [application/json]
+    method: POST
+    uri: https://iad.blockstorage.api.rackspacecloud.com:443/v1/redacted/volumes
+  response:
+    body: {string: !!python/unicode '{"volume": {"status": "available", "display_name":
+        null, "attachments": [], "availability_zone": "nova", "bootable": "false",
+        "created_at": "2015-01-23T06:09:26.000000", "display_description": null, "volume_type":
+        "SATA", "snapshot_id": null, "source_volid": null, "metadata": {"storage-node":
+        "a16080b7-a187-4c88-a780-6a7f6b67b2dd"}, "id": "1c6cf1ff-9594-4844-91ae-5d3081526749",
+        "size": 101}}'}
+    headers:
+      connection: [keep-alive]
+      content-length: ['394']
+      content-type: [application/json]
+      date: ['Fri, 23 Jan 2015 06:09:27 GMT']
+      x-compute-request-id: [req-d2054e91-5fe3-4c72-8da1-65b71641c673]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['0']
+      Content-Type: [application/json]
+    method: DELETE
+    uri: https://iad.blockstorage.api.rackspacecloud.com:443/v1/redacted/volumes/1c6cf1ff-9594-4844-91ae-5d3081526749
+  response:
+    body: {string: !!python/unicode ''}
+    headers:
+      connection: [keep-alive]
+      content-length: ['0']
+      content-type: [text/html; charset=UTF-8]
+      date: ['Fri, 23 Jan 2015 06:09:28 GMT']
+    status: {code: 202, message: Accepted}
+version: 1
