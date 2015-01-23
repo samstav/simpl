@@ -36,6 +36,7 @@ from checkmate.exceptions import (
 from checkmate import middleware
 from checkmate.providers import base as cmbase
 from checkmate.providers.rackspace import base
+from checkmate.providers.rackspace.database import dbaas
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -122,10 +123,41 @@ class Provider(cmbase.ProviderBase):
                 raise CheckmateException(message,
                                          friendly_message=BLUEPRINT_ERROR)
 
+            datastore_type = deployment.get_setting(
+                'flavor',
+                resource_type=resource_type,
+                service_name=service,
+                provider_key=self.key
+            ) or 'mysql'
+            datastore_ver = deployment.get_setting(
+                'version',
+                resource_type=resource_type,
+                service_name=service,
+                provider_key=self.key
+            ) or '5.6'
+
+            params = dbaas.get_config_params(region, context.tenant,
+                                             context.auth_token,
+                                             datastore_type,
+                                             datastore_ver)
+            config_params = {}
+            for param in params:
+                option = deployment.get_setting(param['name'],
+                                                resource_type=resource_type,
+                                                service_name=service,
+                                                provider_key=self.key)
+                if option:
+                    config_params[param['name']] = option
+
             for template in templates:
                 template['desired-state']['flavor'] = flavor
                 template['desired-state']['disk'] = volume
                 template['desired-state']['region'] = region
+                template['desired-state']['datastore-type'] = datastore_type
+                template['desired-state']['datastore-version'] = datastore_ver
+                if config_params:
+                    template['desired-state']['config-params'] = config_params
+
         elif resource_type == 'database':
             pass
         return templates
@@ -177,9 +209,9 @@ class Provider(cmbase.ProviderBase):
         return messages
 
     def verify_access(self, context):
-        """Verify that the user has permissions to create database resources.
-        """
-        roles = ['identity:user-admin', 'admin', 'dbaas:admin', 'dbaas:creator']
+        """Verify user has permissions to create database resources."""
+        roles = ['identity:user-admin', 'admin', 'dbaas:admin',
+                 'dbaas:creator']
         if cmbase.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
@@ -314,6 +346,30 @@ class Provider(cmbase.ProviderBase):
                 name = 'cache'
             else:
                 name = resource.get('interface') or 'database'
+
+            # Create resource tasks
+            root = None
+            if 'config-params' in resource.get('desired-state', {}):
+                create_config_task = specs.Celery(
+                    wfspec,
+                    'Create Configuration %s' % name,
+                    'checkmate.providers.rackspace.database.tasks.'
+                    'create_configuration',
+                    call_args=[
+                        context.get_queued_task_dict(
+                            deployment_id=deployment['id'],
+                            resource_key=key
+                        ),
+                        resource['desired-state']['datastore-type'],
+                        resource['desired-state']['datastore-version'],
+                        resource['desired-state']['config-params']
+                    ],
+                    merge_results=True,
+                    defines=defines,
+                    properties={'estimated_duration': 10}
+                )
+                root = wfspec.wait_for(create_config_task, wait_on)
+
             create_instance_task = specs.Celery(
                 wfspec,
                 'Create %s Server %s' % (name.capitalize(), key),
@@ -333,7 +389,12 @@ class Provider(cmbase.ProviderBase):
                 defines=defines,
                 properties={'estimated_duration': 80}
             )
-            root = wfspec.wait_for(create_instance_task, wait_on)
+
+            if root:
+                create_instance_task.follow(create_config_task)
+            else:
+                root = wfspec.wait_for(create_instance_task, wait_on)
+
             wait_task = specs.Celery(
                 wfspec,
                 'Wait on %s Instance %s' % (name.capitalize(), key),
@@ -367,18 +428,16 @@ class Provider(cmbase.ProviderBase):
 
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
-        from checkmate.providers.rackspace.database.tasks import (
-            sync_resource_task)
+        from checkmate.providers.rackspace.database import tasks
         if (api is None and 'instance' in resource and
                 'region' in resource['instance']):
             region = resource['instance']['region']
             api = Provider.connect(context, region=region)
-        return sync_resource_task(context, resource, api=api)
+        return tasks.sync_resource_task(context, resource, api=api)
 
     @staticmethod
     def delete_one_resource(context):
-        """Used by the ProviderTask baseclass to create delete tasks that
-        are used to delete errored instances.
+        """Used by ProviderTask to create delete tasks for errored instances.
 
         :param context:
         :return:
@@ -394,8 +453,8 @@ class Provider(cmbase.ProviderBase):
     def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):
         self._verify_existing_resource(resource, key)
-        region = resource.get('region') or \
-            resource.get('instance', {}).get('host_region')
+        region = (resource.get('region') or
+                  resource.get('instance', {}).get('host_region'))
         if isinstance(context, middleware.RequestContext):
             context = context.get_queued_task_dict(deployment_id=deployment_id,
                                                    resource_key=key,
@@ -440,23 +499,22 @@ class Provider(cmbase.ProviderBase):
         :param context:
         :return:
         """
-        from checkmate.providers.rackspace.database.tasks import (
-            delete_instance_task, wait_on_del_instance)
+        from checkmate.providers.rackspace.database import tasks
         return canvas.chain(
-            delete_instance_task.si(context),
-            wait_on_del_instance.si(context)
+            tasks.delete_instance_task.si(context),
+            tasks.wait_on_del_instance.si(context)
         )
 
     @staticmethod
     def _delete_db_res_task(context):
         """Return a chain of delete task to remove a db resource
+
         :param context:
         :return:
         """
-        from checkmate.providers.rackspace.database.tasks import (
-            delete_database)
+        from checkmate.providers.rackspace.database import tasks
         return canvas.chain(
-            delete_database.si(context),
+            tasks.delete_database.si(context),
         )
 
     @staticmethod
@@ -470,9 +528,7 @@ class Provider(cmbase.ProviderBase):
         return {'root': delete_db, 'final': delete_db}
 
     def get_catalog(self, context, type_filter=None, **kwargs):
-        """Return stored/override catalog if it exists, else connect, build,
-        and return one.
-        """
+        """Return stored/override catalog if it exists, else build one."""
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #        do this for every provider
         results = cmbase.ProviderBase.get_catalog(
@@ -636,7 +692,7 @@ class Provider(cmbase.ProviderBase):
             try:
                 db_hosts += api.list()
             except AttributeError as exc:
-                # TODO (zns): fix upstream. Ignore pyrax error parsing redis.
+                # TODO(zns): fix upstream. Ignore pyrax error parsing redis.
                 if "object has no attribute 'volume'" not in str(exc):
                     raise
         results = []

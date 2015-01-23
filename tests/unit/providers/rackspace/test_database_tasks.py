@@ -501,7 +501,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
                                 'index', dbtasks.delete_database,
                                 context)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     @mock.patch.object(provider.Provider, 'connect')
     def test_delete_database_no_api_no_instance_host_instance(self,
                                                               mock_connect,
@@ -642,7 +642,7 @@ class TestDeleteDatabaseItems(unittest.TestCase):
 
         instance.delete_database.assert_called_with('test_name')
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_delete_database_success(self, mock_postback):
         context = {
             'region': 'ORD',
@@ -739,7 +739,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
                                 self.context)
 
     @mock.patch.object(dbtasks.LOG, 'info')
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_no_instance_id_no_hosts(self, mock_postback, mock_logger):
         self.context['resource']['instance']['id'] = None
         expected = {'resources': {'0': {'status': 'DELETED'}}}
@@ -752,7 +752,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_no_instance_id_with_hosts(self, mock_postback):
         self.context['resource']['instance']['id'] = None
         self.context['resource']['hosts'] = ['1', '2']
@@ -773,7 +773,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_simulation_no_hosts(self, mock_postback):
         self.context['simulation'] = True
         expected = {'resources': {'0': {'status': 'DELETED'}}}
@@ -782,7 +782,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_simulation_with_hosts(self, mock_postback):
         self.context['simulation'] = True
         self.context['resource']['hosts'] = ['1', '2']
@@ -799,7 +799,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
                                          expected)
 
     @mock.patch.object(dbtasks.LOG, 'info')
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     @mock.patch.object(provider.Provider, 'connect')
     def test_no_api_no_hosts_success(self, mock_connect, mock_postback,
                                      mock_logger):
@@ -816,7 +816,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     @mock.patch.object(dbtasks.delete_instance_task, 'retry')
     def test_api_client_exception_400(self, mock_retry, mock_postback):
         api = mock.Mock()
@@ -825,7 +825,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
         dbtasks.delete_instance_task(self.context, api)
         mock_retry.assert_called_with(exc=mock_exception)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_api_client_exception_404_no_hosts(self, mock_postback):
         api = mock.Mock()
         mock_exception = pyrax.exceptions.NotFound(code='404')
@@ -843,7 +843,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_api_client_exception_404_with_hosts(self, mock_postback):
         self.context['resource']['hosts'] = ['1', '2']
         api = mock.Mock()
@@ -861,7 +861,7 @@ class TestDeleteInstanceTask(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     @mock.patch.object(dbtasks.delete_instance_task, 'retry')
     def test_api_client_exception_retry(self, mock_retry, mock_postback):
         api = mock.Mock()
@@ -905,7 +905,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
                                 self.context)
 
     @mock.patch.object(dbtasks.LOG, 'info')
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_no_instance_id(self, mock_postback, mock_logger):
         self.context['resource']['instance']['id'] = None
         message = ('Instance ID is not available for Database, skipping '
@@ -929,7 +929,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
                                          expected)
 
     @mock.patch.object(dbtasks.LOG, 'info')
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_simulation(self, mock_postback, mock_logger):
         self.context['simulation'] = True
         message = ('Instance ID is not available for Database, skipping '
@@ -952,7 +952,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     @mock.patch.object(provider.Provider, 'connect')
     def test_no_api_get_client_exception_no_hosts(self, mock_connect,
                                                   mock_postback):
@@ -974,7 +974,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
         mock_postback.assert_called_with(self.context['deployment_id'],
                                          expected)
 
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_api_instance_status_deleted_with_hosts(self, mock_res_postback):
         api = mock.Mock()
         instance = mock.Mock()
@@ -1004,7 +1004,7 @@ class TestWaitOnDelInstance(unittest.TestCase):
                                              expected)
 
     @mock.patch.object(dbtasks.wait_on_del_instance, 'retry')
-    @mock.patch.object(dbtasks.resource_postback, 'delay')
+    @mock.patch.object(dbtasks.tasks.resource_postback, 'delay')
     def test_api_task_retry(self, mock_postback, mock_retry):
         api = mock.Mock()
         instance = mock.Mock()

@@ -17,6 +17,7 @@
 
 """Provider module for interfacing with Redis via Cloud Databases."""
 
+import copy
 import json
 import logging
 import time
@@ -58,6 +59,7 @@ validate_instance = Schema(
             'redis': {
                 'host': basestring,
                 'password': basestring,
+                'port': int
             }
         }
     },
@@ -70,7 +72,7 @@ validate_db_config = Schema(
             'datastore_name': basestring,
             'datastore_version_id': basestring,
             'datastore_version_name': basestring,
-            'description': basestring,
+            'description': Any(basestring, None),
             'id': basestring,
             'instance_count': int,
             'name': basestring,
@@ -87,25 +89,21 @@ validate_db_config = Schema(
 ###
 
 
-def create_configuration(region, t_id, token, details):
+def create_configuration(region, t_id, token, db_name, db_version, values):
     """Create a configuration to be used by database instances
 
-    `details` must be a dict containing the following:
-    {
-        'datastore': {
-            'type': '<one of mariadb, mysql, percona>',
-            'version': '<valid version for datastore type>'
-        },
-        'description': '<optional configuration description>',
-        'name': '<configuration name>',
-        'values': {
-            'some_valid_key': 'some_valid_value',
-            'another_valid_key': 'another_valid_value'
-        }
-    }
+    values is a dict containing valid keys as per `get_config_params`
     """
     url = _build_url(region, t_id, '/configurations')
-    data = json.dumps({'configuration': details})
+    type_id = datastore_id(region, t_id, token, db_name, db_version)
+    ver_id = datastore_version_id(region, t_id, token, db_name, db_version)
+    data = json.dumps({
+        'configuration': {
+            'datastore': {'type': type_id, 'version': ver_id},
+            'name': 'checkmate:%s:%s:%s' % (region, db_name, db_version),
+            'values': values
+        }
+    })
     response = requests.post(url, headers=_build_headers(token), data=data)
 
     if response.ok:
@@ -145,7 +143,8 @@ def get_config_params(region, t_id, token, db_name, db_version):
     key = _build_datastore_key(region, db_name, db_version)
     if _config_params_refresh_needed(region, db_name, db_version):
         _refresh_config_params_cache(region, t_id, token, db_name, db_version)
-    return _config_params_cache.get(key)
+    return _config_params_cache.get(
+        key, {}).get('configuration-parameters', {})
 
 
 ###
@@ -164,13 +163,24 @@ def get_datastores(region, t_id, token):
     return _handle_response(requests.get(url, headers=_build_headers(token)))
 
 
-def get_datastore_version_id(region, t_id, token, db_name, db_version):
-    """Return the version id for the given database name/version."""
+def datastore_id(region, t_id, token, db_name, db_version):
+    """Return the datastore id for the given region/db_name/db_version."""
+    return _get_ids(
+        region, t_id, token, db_name, db_version).get('datastore_id')
+
+
+def datastore_version_id(region, t_id, token, db_name, db_version):
+    """Return the version id for the given region/db_name/db_version."""
+    return _get_ids(region, t_id, token, db_name, db_version).get('version_id')
+
+
+def _get_ids(region, t_id, token, db_name, db_version):
+    """Return the version ids dict for the given region/db_name/db_version."""
     key = _build_datastore_key(region, db_name, db_version)
     if _version_id_refresh_needed(key):
         _refresh_version_id_cache(region, t_id, token)
 
-    return _version_id_cache.get(key)
+    return _version_id_cache.get(key, {})
 
 
 ###
@@ -203,7 +213,7 @@ def get_flavor_ref(region, t_id, token, flavor_id):
 def create_instance(region, t_id, token, name, flavor):
     """Calls _create_instance then formats the response for Checkmate."""
     url = _build_url(region, t_id, '/instances')
-    data = DATA.copy()
+    data = copy.deepcopy(DATA)
     data['instance']['name'] = name
     data['instance']['flavorRef'] = get_flavor_ref(region, t_id, token, flavor)
     data = json.dumps(data)
@@ -284,10 +294,9 @@ def _expired(expiry):
 
 def _refresh_config_params_cache(region, t_id, token, db_name, db_version):
     """Lookup version_id, then pull a fresh list of configuration params."""
-    version_id = get_datastore_version_id(region, t_id, token, db_name,
-                                          db_version)
+    ver_id = datastore_version_id(region, t_id, token, db_name, db_version)
     key = _build_datastore_key(region, db_name, db_version)
-    urn = '/datastores/versions/%s/parameters' % version_id
+    urn = '/datastores/versions/%s/parameters' % ver_id
     url = _build_url(region, t_id, urn)
     response = requests.get(url, headers=_build_headers(token))
 
@@ -296,7 +305,7 @@ def _refresh_config_params_cache(region, t_id, token, db_name, db_version):
         result = response.json()
         for param in result['configuration-parameters']:
             param.pop('datastore_version_id')
-        result['version_id'] = version_id
+        result['version_id'] = ver_id
         result['expires'] = time.time() + 60 * 60 * 24  # 24 hours
         _config_params_cache[key] = result
     else:  # refresh failed: if it's cached, remove it
@@ -320,7 +329,10 @@ def _refresh_version_id_cache(region, t_id, token):
             if 'name' in datastore and 'name' in version:
                 key = _build_datastore_key(region, datastore['name'],
                                            version['name'])
-                _version_id_cache[key] = version['id']
+                _version_id_cache[key] = {
+                    'datastore_id': datastore.get('id'),
+                    'version_id': version.get('id')
+                }
     _version_id_cache['expires'] = time.time() + 60 * 60 * 48  # 48 hours
 
 

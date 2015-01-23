@@ -17,7 +17,7 @@ interactions:
       connection: [close]
       content-length: ['276']
       content-type: [application/json; charset=UTF-8]
-      date: ['Fri, 09 Jan 2015 01:01:41 GMT']
+      date: ['Fri, 23 Jan 2015 05:33:22 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 401, message: Unauthorized}

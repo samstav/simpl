@@ -27,6 +27,7 @@ from checkmate.deployments import tasks
 from checkmate import exceptions
 from checkmate import middleware
 from checkmate.providers import base
+from checkmate.providers.rackspace.database import dbaas
 from checkmate.providers.rackspace.database import provider
 from checkmate.providers.rackspace.database import tasks as dbtasks
 from checkmate import test
@@ -193,11 +194,12 @@ class TestDatabase(test.ProviderTester):
         self.mox.VerifyAll()
 
     def test_template_generation_database(self):
-        self.deployment.get_setting('domain', default='checkmate.local',
-                                    provider_key='rackspace.database',
-                                    resource_type='database',
-                                    service_name='master'). \
-            AndReturn("test.checkmate")
+        self.deployment.get_setting(
+            'domain', default='checkmate.local',
+            provider_key='rackspace.database', resource_type='database',
+            service_name='master'
+        ).AndReturn("test.checkmate")
+
         self.deployment._constrained_to_one('master').AndReturn(True)
 
         catalog = {
@@ -231,7 +233,9 @@ class TestDatabase(test.ProviderTester):
         self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
 
-    def test_template_generation_compute_sizing(self):
+    @mock.patch.object(dbaas, 'get_config_params')
+    def test_template_generation_compute_sizing(self, mock_get_config_params):
+        mock_get_config_params.return_value = {}
         catalog = {
             'compute': {
                 'mysql_instance': {
@@ -282,6 +286,18 @@ class TestDatabase(test.ProviderTester):
             service_name='master',
             provider_key=dbprovider.key
         ).AndReturn('North')
+        self.deployment.get_setting(
+            'flavor',
+            resource_type='compute',
+            service_name='master',
+            provider_key=dbprovider.key
+        ).AndReturn('mysql')
+        self.deployment.get_setting(
+            'version',
+            resource_type='compute',
+            service_name='master',
+            provider_key=dbprovider.key
+        ).AndReturn('5.6')
         expected = [{
             'instance': {},
             'dns-name': 'master.test.domain',
@@ -289,6 +305,8 @@ class TestDatabase(test.ProviderTester):
             'provider': dbprovider.key,
             'service': 'master',
             'desired-state': {
+                'datastore-type': 'mysql',
+                'datastore-version': '5.6',
                 'region': 'North',
                 'disk': 2,
                 'flavor': '2',
@@ -573,7 +591,9 @@ class TestCatalog(unittest.TestCase):
 
 
 class TestDBWorkflow(test.StubbedWorkflowBase):
-    def setUp(self):
+    @mock.patch.object(dbaas, 'get_config_params')
+    def setUp(self, mock_config_params):
+        mock_config_params.return_value = {}
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
         base.register_providers([provider.Provider, test.TestProvider])
@@ -670,7 +690,9 @@ environment:
 
 
 class TestRedisWorkflow(test.StubbedWorkflowBase):
-    def setUp(self):
+    @mock.patch.object(dbaas, 'get_config_params')
+    def setUp(self, mock_config_params):
+        mock_config_params.return_value = {}
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
         base.register_providers([provider.Provider])
@@ -811,7 +833,7 @@ class TestDatabaseGetResources(unittest.TestCase):
                          'hostname')
         self.assertEqual(resource['instance']['flavor'], 106)
         # TODO(pablo): Why is 'disk' no longer appearing under instance?
-        #self.assertEqual(resource['instance']['disk'], 'size')
+        # self.assertEqual(resource['instance']['disk'], 'size')
         self.assertEqual(resource['instance']['region'], 'region')
 
 if __name__ == '__main__':
