@@ -157,10 +157,11 @@ angular.module('checkmate.applications-configure')
 
     // If there's a deployment object resolved, let's use it.
     if(!_.isUndefined(deployment)) {
+      DeploymentData.reset();
+      
       if(!deployment && !github.config.accessToken && $scope.$root.clientId) {
         $scope.prompts.github.isVisible = true;
       } else if (!deployment && github.config.accessToken) {
-        console.log('ye');
         $scope.prompts.emptyRepo.isVisible = true;
       } else {
         $timeout(function(){
