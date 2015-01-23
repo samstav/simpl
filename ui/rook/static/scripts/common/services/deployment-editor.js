@@ -21,19 +21,11 @@ angular.module('checkmate.DeploymentData')
                   </div>\
                 </div>',
       controller: function($scope) {
+        var getLineLabel = function(line) {
+          return line.text.replace(/[^a-zA-Z0-9_-]+/g, "");
+        };
+
         $scope.deployment = '';
-
-        var _to_yaml = function() {
-          $scope.deployment = jsyaml.safeDump(JSON.parse($scope.deployment));
-          $scope.codemirror.options.mode = 'text/x-yaml';
-          $scope.codemirror.foldFunction = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
-        };
-
-        var _to_json = function() {
-          $scope.deployment = JSON.stringify(jsyaml.safeLoad($scope.deployment), undefined, 2);
-          $scope.codemirror.options.mode = 'application/json';
-          $scope.codemirror.foldFunction = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
-        };
 
         $scope.codemirror = {
           editor: null,
@@ -45,31 +37,37 @@ angular.module('checkmate.DeploymentData')
           toggleMode: function() {
             try {
               if ($scope.codemirror.options.mode == 'application/json') {
-                _to_yaml();
+                $scope.deployment = jsyaml.safeDump(JSON.parse($scope.deployment));
+                $scope.codemirror.options.mode = 'text/x-yaml';
+                $scope.codemirror.foldFunction = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
               } else {
-                _to_json();
+                $scope.deployment = JSON.stringify(jsyaml.safeLoad($scope.deployment), undefined, 2);
+                $scope.codemirror.options.mode = 'application/json';
+                $scope.codemirror.foldFunction = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
               }
             } catch(e) {
               console.error(e);
             }
           },
+          trackedFolds: [
+             'blueprint', 'environment', 'inputs', 'services', 'options'
+          ],
+          folds: {
+            'meta-data': { folded: true },
+            'options': { folded: true },
+            'environment': { folded: true }
+          },
           foldFunction: CodeMirror.newFoldFunction(CodeMirror.fold.indent),
           foldDefault: function(editor) {
-            // var inBlueprint = false;
-            // editor.eachLine(function(line) {
-            //   if (line.text.substring(0, 1) !== ' ') {
-            //     if (line.text.substring(0, 10) == 'blueprint:') {
-            //       inBlueprint = true;
-            //    } else {
-            //       inBlueprint = false;
-            //       $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
-            //     }
-            //   } else if (inBlueprint && line.text.substring(0, 10) === '  options:') {
-            //     $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
-            //   } else if (inBlueprint && line.text.substring(0, 12) === '  meta-data:') {
-            //     $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
-            //   }
-            // });
+            var that = this;
+
+            editor.eachLine(function(line) {
+              var prop = getLineLabel(line);
+
+              if(that.folds[prop] && that.folds[prop].folded) {
+                $scope.codemirror.foldFunction(editor, editor.getLineNumber(line));
+              }
+            });
           },
           setEditorDefaultState: function(editor) {
             $scope.codemirror.foldDefault(editor);
@@ -89,6 +87,24 @@ angular.module('checkmate.DeploymentData')
           extraKeys: {"Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); }},
           gutters: ['CodeMirror-lint-markers','CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
           onGutterClick: function(editor, start) {
+            var line = editor.lineInfo(start);
+            var prop = getLineLabel(line);
+            var fold;
+
+            if(prop && $scope.codemirror.trackedFolds.indexOf(prop) > -1) {
+              fold = $scope.codemirror.folds[prop];
+
+              if(!fold) {
+                $scope.codemirror.folds[prop] = {
+                  folded: false
+                };
+
+                fold = $scope.codemirror.folds[prop]
+              }
+
+              fold.folded = !fold.folded;
+            }
+
             $scope.codemirror.markAltered();
             return $scope.codemirror.foldFunction(editor, start);
           },
