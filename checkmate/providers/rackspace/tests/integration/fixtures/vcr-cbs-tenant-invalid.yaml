@@ -1,0 +1,65 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://hkg.blockstorage.api.rackspacecloud.com:443/v1/redacted/volumes
+  response:
+    body: {string: !!python/unicode '{"volumes": []}'}
+    headers:
+      connection: [keep-alive]
+      content-length: ['15']
+      content-type: [application/json]
+      date: ['Fri, 23 Jan 2015 06:07:20 GMT']
+      x-compute-request-id: [req-2852fff0-49a4-4e4a-bb47-fed81d2d328f]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.blockstorage.api.rackspacecloud.com:443/v1/redacted/volumes
+  response:
+    body: {string: !!python/unicode '{"volumes": [{"status": "available", "display_name":
+        null, "attachments": [], "availability_zone": "nova", "bootable": "false",
+        "created_at": "2015-01-23T05:52:48.000000", "display_description": null, "volume_type":
+        "SATA", "snapshot_id": null, "source_volid": null, "metadata": {"storage-node":
+        "6ac4cda7-9fd0-41dc-90dd-b4f874345b2c"}, "id": "889be469-d8d5-409d-87e8-904a51eeeb4f",
+        "size": 101}, {"status": "available", "display_name": null, "attachments":
+        [], "availability_zone": "nova", "bootable": "false", "created_at": "2015-01-23T05:52:09.000000",
+        "display_description": null, "volume_type": "SATA", "snapshot_id": null, "source_volid":
+        null, "metadata": {"storage-node": "443b171f-bc85-4fab-a5ec-b2dc5d929fd6"},
+        "id": "b95aaccc-92f2-4a49-9325-1994e1359798", "size": 101}, {"status": "available",
+        "display_name": null, "attachments": [], "availability_zone": "nova", "bootable":
+        "false", "created_at": "2015-01-23T05:50:48.000000", "display_description":
+        null, "volume_type": "SATA", "snapshot_id": null, "source_volid": null, "metadata":
+        {"storage-node": "917d376b-c5e9-4480-a2db-5e8f9b166e2b"}, "id": "0b709fcd-8314-4a0b-a1ba-eeac92194060",
+        "size": 101}, {"status": "available", "display_name": null, "attachments":
+        [], "availability_zone": "nova", "bootable": "false", "created_at": "2015-01-23T05:48:00.000000",
+        "display_description": null, "volume_type": "SATA", "snapshot_id": null, "source_volid":
+        null, "metadata": {"storage-node": "10666f4a-9847-405a-ae7b-3dd0018bf6ac"},
+        "id": "be5fab6c-5cac-4047-bfe3-2e26da637671", "size": 101}, {"status": "available",
+        "display_name": null, "attachments": [], "availability_zone": "nova", "bootable":
+        "false", "created_at": "2015-01-23T05:42:38.000000", "display_description":
+        null, "volume_type": "SATA", "snapshot_id": null, "source_volid": null, "metadata":
+        {"storage-node": "9fb90e2c-52a3-4a9b-ac0e-dfbb30964415"}, "id": "eea65133-09aa-45de-ac0b-0e3c27c70761",
+        "size": 101}, {"status": "available", "display_name": null, "attachments":
+        [], "availability_zone": "nova", "bootable": "false", "created_at": "2015-01-23T05:40:56.000000",
+        "display_description": null, "volume_type": "SATA", "snapshot_id": null, "source_volid":
+        null, "metadata": {"storage-node": "776d8d54-4051-42fc-94f7-aa9dcf07e78c"},
+        "id": "eed6284d-8d08-4f6c-9bd3-160f60b65181", "size": 101}]}'}
+    headers:
+      connection: [keep-alive]
+      content-length: ['2317']
+      content-type: [application/json]
+      date: ['Fri, 23 Jan 2015 06:09:25 GMT']
+      x-compute-request-id: [req-b3e5069b-b822-4ba1-a3e5-13c01e37d71d]
+    status: {code: 200, message: OK}
+version: 1

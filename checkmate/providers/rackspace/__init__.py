@@ -33,6 +33,7 @@ environment:
 """
 
 from checkmate.providers.rackspace.database import tasks
+from checkmate.providers.rackspace.block import tasks
 
 
 def register():
@@ -48,5 +49,7 @@ def register():
     from checkmate.providers.rackspace.loadbalancer import (
         Provider as loadbalancer)
     from checkmate.providers.rackspace.mailgun import Provider as mg
+    from checkmate.providers.rackspace.block.provider import Provider as block
+
     base.register_providers(
-        [legacy, nova, loadbalancer, db, dns, files, mg])
+        [block, legacy, nova, loadbalancer, db, dns, files, mg])

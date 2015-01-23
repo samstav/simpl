@@ -153,6 +153,14 @@ def verify_ssh_connection(context, server_id, server_ip, region=None,
         raise cmexc.CheckmateException(options=cmexc.CAN_RESUME)
 
 
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=15,
+            max_retries=40, provider=provider.Provider)
+@statsd.collect
+def attach(context, server_id, volume_id, region=None, api=None):
+    """Attach disk to server."""
+    return True
+
+
 @ctask.task(base=base.RackspaceProviderTask, default_retry_delay=30,
             max_retries=120, provider=provider.Provider)
 @statsd.collect

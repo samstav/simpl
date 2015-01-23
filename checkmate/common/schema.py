@@ -58,6 +58,7 @@ RESOURCE_TYPES = [
     'web',
     'monitoring',
     'storage',
+    'volume',
 
     # for testing
     'widget',

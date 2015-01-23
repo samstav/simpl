@@ -1,0 +1,42 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://hkg.blockstorage.api.rackspacecloud.com:443/v1/redacted/volumes
+  response:
+    body: {string: !!python/unicode "401 Unauthorized\n\nThis server could not verify\
+        \ that you are authorized to access the document you requested. Either you\
+        \ supplied the wrong credentials (e.g., bad password), or your browser does\
+        \ not understand how to supply the credentials required.\n\n   "}
+    headers:
+      connection: [keep-alive]
+      content-length: ['253']
+      content-type: [text/plain; charset=UTF-8]
+      date: ['Fri, 23 Jan 2015 06:07:23 GMT']
+    status: {code: 401, message: Unauthorized}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.blockstorage.api.rackspacecloud.com:443/v1/redacted/volumes
+  response:
+    body: {string: !!python/unicode "401 Unauthorized\n\nThis server could not verify\
+        \ that you are authorized to access the document you requested. Either you\
+        \ supplied the wrong credentials (e.g., bad password), or your browser does\
+        \ not understand how to supply the credentials required.\n\n   "}
+    headers:
+      connection: [keep-alive]
+      content-length: ['253']
+      content-type: [text/plain; charset=UTF-8]
+      date: ['Fri, 23 Jan 2015 06:09:26 GMT']
+    status: {code: 401, message: Unauthorized}
+version: 1
