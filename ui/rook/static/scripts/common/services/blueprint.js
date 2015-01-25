@@ -475,8 +475,12 @@ angular.module('checkmate.Blueprint')
         if (serviceName in this.data.services) {
           // disabling this for now: this.addComponentToService(component, serviceName);
           for(var i=2;i<25;i++) {
-             if (!this.componentInService(component, serviceName + i)) {
-              this.addService(serviceName + i, component);
+            var service = serviceName + i;
+            var exists = this.data.services[service];
+            var hasComponent = this.componentInService(component, service);
+
+            if (!exists && !hasComponent) {
+              this.addService(service, component);
               break;
             }
           }
@@ -486,7 +490,7 @@ angular.module('checkmate.Blueprint')
       },
       addComponent: function(component, serviceName) { // Add each component allowing more than on in a service
         if(!this.data.services) this.data.services = {};
-        
+
         if (serviceName in this.data.services) {
           if (!this.componentInService(component, serviceName)) {
             this.addComponentToService(component, serviceName);
