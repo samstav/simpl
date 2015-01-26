@@ -77,6 +77,12 @@ angular.module('checkmate.applications-configure')
           $location.url('/blueprints/design');
         }
       },
+      githubInvalidImport: {
+        isVisible: false,
+        action: function() {
+          this.isVisible = false;
+        }
+      },
       github: {
         isVisible: false,
         action: function() {
@@ -172,9 +178,13 @@ angular.module('checkmate.applications-configure')
       } else if (!deployment && github.config.accessToken) {
         $scope.prompts.emptyRepo.isVisible = true;
       } else {
-        $timeout(function(){
-          DeploymentData.set(deployment);
-        }, 50);
+        if(!DeploymentData.isValid(deployment)) {
+          $scope.prompts.githubInvalidImport.isVisible = true;
+        } else {
+          $timeout(function(){
+            DeploymentData.set(deployment);
+          }, 50);
+        }
       }
     }
 

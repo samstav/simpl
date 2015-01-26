@@ -4,6 +4,7 @@
           'editor-open': codemirror.isVisible,
           'editor-full-screen': codemirror.isFullScreen,
           'editor-error': codemirror.hasError,
+          'github-invalid-import-open': prompts.githubInvalidImport.isVisible,
           'github-auth-open': prompts.github.isVisible,
           'github-empty-repo-open': prompts.emptyRepo.isVisible,
           'catalog-open': catalog.isVisible,
@@ -148,6 +149,15 @@
         Lo siento pero we couldn't find anything in this public repo.
         <button class="rs-btn"
                 ng-click="prompts.emptyRepo.action()">
+          Dismiss
+        </button>
+      </div> <!-- /.rs-app-launch-controls.rs-app-warning -->
+
+      <div class="rs-app-launch-controls rs-app-prompt rs-app-warning github-invalid-import">
+        <i class="fa fa-github" style="opacity:.5;"></i>
+        We found a Checkmate file in this repo but the contents are invalid. We couldn't import it. :(
+        <button class="rs-btn"
+                ng-click="prompts.githubInvalidImport.action()">
           Dismiss
         </button>
       </div> <!-- /.rs-app-launch-controls.rs-app-warning -->
