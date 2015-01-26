@@ -63,6 +63,7 @@ angular.module('checkmate.applications-configure')
 
     // This is the codemirror model for the sidebar.
     $scope.codemirror = {
+      isFocused: false,
       hasError: false
     };
 
@@ -71,40 +72,49 @@ angular.module('checkmate.applications-configure')
     };
 
     $scope.prompts = {
-      emptyRepo: {
+      codemirror: {
+        message: 'Something is wrong with your Blueprint. You should fix the code in the editor or you can revert to when it last worked.',
+        classes: ['rs-app-warning', 'revert-warning'],
+        icon: 'fa fa-exclamation-triangle',
+        isDismissible: false,
+        isVisible: false,
+        action: function() {
+          $scope.revert();
+        },
+        actionLabel: 'Revert Blueprint'
+      },
+      githubEmptyRepo: {
+        message: 'Yo, we couldn\'t find a Checkmate blueprint in this Github repo.',
+        classes: ['rs-app-warning', 'github-empty-repo'],
+        icon: 'fa fa-github',
+        isDismissible: false,
         isVisible: false,
         action: function() {
           $location.url('/blueprints/design');
-        }
+        },
+        actionLabel: 'Dismiss'
       },
       githubInvalidImport: {
+        message: 'We found a Checkmate blueprint in this repo but it\'s an invalid schema. We couldn\'t import it. :(',
+        classes: ['rs-app-warning', 'github-invalid-import'],
+        icon: 'fa fa-github',
+        isDismissible: false,
         isVisible: false,
         action: function() {
-          this.isVisible = false;
-        }
+          $location.url('/blueprints/design');
+        },
+        actionLabel: 'Dismiss'
       },
-      github: {
+      githubAuth: {
+        message: 'Is this a private repo? You should authenticate with your Github account.',
+        classes: ['rs-app-processing', 'github-auth'],
+        icon: 'fa fa-github',
+        isDismissible: true,
         isVisible: false,
         action: function() {
-          var url = [];
-          var redirect_uri = [];
-
-          redirect_uri.push($location.protocol());
-          redirect_uri.push('://');
-          redirect_uri.push($location.host());
-          if($location.port() && $location.port() !== 80)
-            redirect_uri.push(':'+$location.port());
-          redirect_uri.push('/webhooks/github_auth');
-          redirect_uri.push($location.path());
-
-          url.push('https://github.com/login/oauth/authorize');
-          url.push('?');
-          url.push('scope=user:email,repo');
-          url.push('&client_id='+$scope.$root.clientId);
-          url.push('&redirect_uri='+redirect_uri.join(''));
-
-          $window.location.href = url.join('');
-        }
+          github.go_auth();
+        },
+        actionLabel: 'Connect Github'
       }
     };
 
@@ -174,9 +184,9 @@ angular.module('checkmate.applications-configure')
       DeploymentData.reset();
 
       if(!deployment && !github.config.accessToken && $scope.$root.clientId) {
-        $scope.prompts.github.isVisible = true;
+        $scope.prompts.githubAuth.isVisible = true;
       } else if (!deployment && github.config.accessToken) {
-        $scope.prompts.emptyRepo.isVisible = true;
+        $scope.prompts.githubEmptyRepo.isVisible = true;
       } else {
         if(!DeploymentData.isValid(deployment)) {
           $scope.prompts.githubInvalidImport.isVisible = true;
@@ -223,9 +233,12 @@ angular.module('checkmate.applications-configure')
       blockUi();
     });
 
-    $scope.$on('editor:focus', function(event, data) {});
+    $scope.$on('editor:focus', function(event, data) {
+      $scope.codemirror.isFocused = true;
+    });
 
     $scope.$on('editor:blur', function(event, data) {
+      $scope.codemirror.isFocused = false;
       if($scope.codemirror.isOutOfSync) blockUi();
     });
 
@@ -258,13 +271,16 @@ angular.module('checkmate.applications-configure')
     }
 
     function blockUi() {
-      $scope.codemirror.hasError = true;
-      $scope.$apply();
+      if(!$scope.codemirror.isFocused) {
+        $scope.codemirror.hasError = true;
+        $scope.prompts.codemirror.isVisible = true;
+      }
     }
 
     function unblockUi() {
       $scope.controls.canRevert = false;
       $scope.codemirror.isOutOfSync = false;
       $scope.codemirror.hasError = false;
+      $scope.prompts.codemirror.isVisible = false;
     }
   });
