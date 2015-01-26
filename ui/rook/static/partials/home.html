@@ -371,9 +371,11 @@
                    class="input-medium"
                    placeholder="Github Username"
                    ng-model="githubImport.owner"
+                   ng-keypress="tabOnSlash($event, '#githubRepoName')"
                    required>
             /
-            <input type="text"
+            <input id="githubRepoName"
+                   type="text"
                    class="input-medium"
                    placeholder="Repo Name"
                    ng-model="githubImport.repo"

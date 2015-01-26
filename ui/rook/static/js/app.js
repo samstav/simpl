@@ -253,6 +253,13 @@ function StaticController($scope, $location, github) {
     }
   };
 
+  $scope.tabOnSlash = function($event, target) {
+    if ($event.keyCode === 47) {
+      $event.preventDefault();
+      $(target).focus();
+    }
+  };
+
   $scope.display_name = function(item) {
     var name = null;
     if (item.show_name)
