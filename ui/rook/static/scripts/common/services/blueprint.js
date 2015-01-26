@@ -567,12 +567,24 @@ angular.module('checkmate.Blueprint')
           _.each(blueprint.services, function(service, name) {
             var _hasName = name && name.length ? true : false;
             var _hasService = service ? true : false;
-            var _hasComponent = 'component' in service && service.component ? true : false;
-            var _hasComponents = 'components' in service && service.components.length > -1 ? true : _hasComponent;
+            var _hasComponent = 'component' in service ? true : false;
+            var _hasComponents = 'components' in service ? true : false;
+            var _hasRelations = 'relations' in service ? true : false;
 
-            if(!_hasName || !_hasService || !_hasComponents) {
-              valid = false;
-              return valid;
+            if(!_hasName || !_hasService) {
+              return invalidate();
+            }
+
+            if(_hasComponent && !_.isObject(service.component)) {
+              return invalidate();
+            }
+
+            if(_hasComponents && !_.isArray(service.components)) {
+              return invalidate();
+            }
+
+            if(_hasRelations && !_.isArray(service.relations)) {
+              return invalidate();
             }
           });
         }
@@ -581,6 +593,11 @@ angular.module('checkmate.Blueprint')
           $rootScope.$broadcast('blueprint:invalid');
         } else {
           $rootScope.$broadcast('blueprint:valid');
+        }
+
+        function invalidate() {
+          valid = false;
+          return valid;
         }
 
         return valid;
