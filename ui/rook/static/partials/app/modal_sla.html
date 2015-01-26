@@ -17,7 +17,8 @@
     <dl class="dl-horizontal">
       <dt>Rackers</dt>
       <dd>
-        This product was built by Rackers for Rackers. Let us know what features you want and we'll get them done.
+        This product was built by Rackers for Rackers. Let us know what features you want and we'll do our best to get them done.
+        And feel free to contribute code yourself!
       </dd>
     </dl>
 
@@ -29,7 +30,9 @@
     </dl>
   </div>
   <div class="modal-footer">
-      <small class="pull-left"><b>Checkmate version:</b> <a href="https://github.com/checkmate/checkmate/tree/{{api_version}}" target="_blank">{{api_version}}</a><br />
-      <b>Rook version:</b> <a href="https://github.com/checkmate/checkmate/tree/{{rook_version}}/ui" target="_blank">{{rook_version}}</a></small>
+      <small class="pull-left">
+        <b>Checkmate version:</b> <a ng-href="https://github.com/checkmate/checkmate/tree/{{api_git_commit || 'master'}}" target="_blank">{{api_version}}<span ng-show="api_git_commit"> - {{api_git_commit | limitTo:8}}</a><br />
+        <!--<b>Rook version:</b> <a href="https://github.com/checkmate/checkmate/tree/{{rook_version}}/ui" target="_blank">{{rook_version}}</a>-->
+      </small>
   </div>
 </div>

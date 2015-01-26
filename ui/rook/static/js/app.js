@@ -661,6 +661,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
   var api = $resource((checkmate_server_base || '') + '/version');
   api.get(function(data, getResponseHeaders){
     $scope.api_version = data.version;
+    $scope.api_git_commit = data['git-commit'];
     //Check if simulator enabled
     $scope.$root.simulator = getResponseHeaders("X-Simulator-Enabled");
     $scope.$root.clientId = getResponseHeaders("X-Github-Client-ID");
