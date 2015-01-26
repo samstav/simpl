@@ -4,8 +4,9 @@
           'editor-open': codemirror.isVisible,
           'editor-full-screen': codemirror.isFullScreen,
           'editor-error': codemirror.hasError,
-          'github-auth-open': prompts.github.isVisible,
-          'github-empty-repo-open': prompts.emptyRepo.isVisible,
+          'github-invalid-import-open': prompts.githubInvalidImport.isVisible,
+          'github-auth-open': prompts.githubAuth.isVisible,
+          'github-empty-repo-open': prompts.githubEmptyRepo.isVisible,
           'catalog-open': catalog.isVisible,
           'selection-open': selection.isVisible && selection.hasSelection()
         }">
@@ -124,33 +125,20 @@
         </div>
       </div> <!-- /.rs-app-launch-controls -->
 
-      <div class="rs-app-launch-controls rs-app-prompt rs-app-warning revert-warning">
-        <i class="fa fa-exclamation-triangle" style="opacity:.5;"></i>
-        Something is wrong with your Blueprint. You should fix the code in the editor or you can revert to when it last worked.
+      <div class="rs-app-launch-controls rs-app-prompt {{prompt.classes.join(' ')}}"
+           ng-repeat="prompt in prompts"
+           ng-class="{'prompt-open': prompt.isVisible}">
+        <i class="fa fa-close rs-pull-right"
+           ng-show="prompt.isDismissible"
+           ng-click="prompt.isVisible = false;"></i>
+        <i class="{{prompt.icon}}" style="opacity:.5;"></i>
+        {{prompt.message}}
         <button class="rs-btn"
-                ng-click="revert()">
-          Revert Blueprint
+                ng-click="prompt.action()">
+          {{prompt.actionLabel}}
         </button>
-      </div> <!-- /.rs-app-launch-controls.rs-app-warning -->
+      </div>
 
-      <div class="rs-app-launch-controls rs-app-prompt rs-app-processing github-auth">
-        <i class="fa fa-close rs-pull-right" ng-click="prompts.github.isVisible = false;"></i>
-        <i class="fa fa-github" style="opacity:.5;"></i>
-        Is that a private repo? You should authenticate with your Github account to access more stuff.
-        <button class="rs-btn"
-                ng-click="prompts.github.action()">
-          Connect Github
-        </button>
-      </div> <!-- /.rs-app-launch-controls.rs-app-warning -->
-
-      <div class="rs-app-launch-controls rs-app-prompt rs-app-warning github-empty-repo">
-        <i class="fa fa-github" style="opacity:.5;"></i>
-        Lo siento pero we couldn't find anything in this public repo.
-        <button class="rs-btn"
-                ng-click="prompts.emptyRepo.action()">
-          Dismiss
-        </button>
-      </div> <!-- /.rs-app-launch-controls.rs-app-warning -->
     </div>
 
   </div> <!-- /.rs-app-launch-container -->

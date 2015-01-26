@@ -535,7 +535,7 @@ services.value('options', {
 });
 
 /* Github APIs for blueprint parsing*/
-services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function($http, $q, $cookies, $cookieStore) {
+services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$location', '$window', '$rootScope', function($http, $q, $cookies, $cookieStore, $location, $window, $rootScope) {
   var set_remote_owner_type = function(remote, type) {
     remote[type] = remote.owner;
     return remote;
@@ -592,7 +592,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
   scope.logout = function() {
     scope.config = {};
     scope.currentUser = {};
-    $cookieStore.remove('github_access_token');
+    return $cookieStore.remove('github_access_token');
   };
 
   scope.get_proxy_url = function(repo_url) {
@@ -892,6 +892,27 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', function(
 
   scope.get_tags = function(repos) {
     return scope.get_refs(repos, 'tags');
+  };
+
+  scope.go_auth = function() {
+    var url = [];
+    var redirect_uri = [];
+
+    redirect_uri.push($location.protocol());
+    redirect_uri.push('://');
+    redirect_uri.push($location.host());
+    if($location.port() && $location.port() !== 80)
+      redirect_uri.push(':'+$location.port());
+    redirect_uri.push('/webhooks/github_auth');
+    redirect_uri.push($location.path());
+
+    url.push('https://github.com/login/oauth/authorize');
+    url.push('?');
+    url.push('scope=user:email,repo');
+    url.push('&client_id='+$rootScope.$root.clientId);
+    url.push('&redirect_uri='+redirect_uri.join(''));
+
+    return $window.location.href = url.join('');
   };
 
   scope.set_user();
