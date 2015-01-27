@@ -35,7 +35,8 @@ class Manager(object):
     @staticmethod
     def create_server(context, name, update_state, api=None, flavor="2",
                       files=None, image=None, tags=None, config_drive=None,
-                      userdata=None, networks=None):
+                      userdata=None, networks=None, boot_from_image=False,
+                      disk=None):
         #pylint: disable=R0914
         """Create a Rackspace Cloud server using novaclient.
 
@@ -103,12 +104,26 @@ class Manager(object):
         # Add RAX-CHECKMATE to metadata
         # support old way of getting metadata from generate_template
         meta = tags or context.get("metadata", None)
+        kwargs = {}
+        if boot_from_image:
+            kwargs["block_device_mapping_v2"] = [
+                {
+                    "boot_index": 0,
+                    "uuid": image,
+                    "volume_size": disk or 50,
+                    "source_type": "image",
+                    "destination_type": "volume",
+                    "delete_on_termination": True
+                }
+            ]
+            image_object = None
         try:
             server = api.servers.create(name, image_object, flavor_object,
                                         meta=meta, files=files,
                                         config_drive=config_drive,
                                         userdata=userdata,
-                                        nics=networks)
+                                        nics=networks,
+                                        **kwargs)
         except ncexc.OverLimit as exc:
             raise cmexec.CheckmateException(
                 message=str(exc),
@@ -377,10 +392,19 @@ class Manager(object):
             raise cmexec.CheckmateException(message=msg,
                                             options=cmexec.CAN_RESUME)
 
-        image_details = api.images.find(id=server.image['id'])
-        metadata = image_details.metadata
+        image = server.image
+        if not isinstance(image, basestring):
+            image = image['id']
+        if image:
+            image_details = api.images.find(id=image)
+            metadata = image_details.metadata
+            image_name = image_details.name.lower()
+        else:
+            # Just try linux
+            metadata = {'os_type': 'linux'}
+            image_name = "unkown"
         if ((metadata and metadata['os_type'] == 'linux') or
-                ('windows' not in image_details.name.lower())):
+                ('windows' not in image_name)):
             msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
                   "to connect." % (server_id, username, server_ip, port)
             is_up = ssh.test_connection(context, server_ip, username,

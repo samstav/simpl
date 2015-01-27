@@ -204,33 +204,43 @@ class Provider(RackspaceComputeProviderBase):
             raise cmexc.CheckmateNoMapping(
                 "Image '%s' not found in '%s'" % (image, self.name))
 
-        # Get setting
-        flavor = None
-        memory = self.parse_memory_setting(
-            deployment.get_setting('memory',
-                                   resource_type=resource_type,
-                                   service_name=service,
-                                   provider_key=self.key,
-                                   default=512)
-        )
+        disk = deployment.get_setting('disk',
+                                      resource_type=resource_type,
+                                      service_name=service,
+                                      provider_key=self.key)
 
-        # Find the available memory size that satisfies this
-        matches = [e['memory'] for e in catalog['lists']['sizes'].values()
-                   if int(e['memory']) >= memory]
-        if not matches:
-            raise cmexc.CheckmateNoMapping(
-                "No flavor has at least '%s' memory" % memory)
-        match = str(min(matches))
-        for key, value in catalog['lists']['sizes'].iteritems():
-            if match == str(value['memory']):
-                LOG.debug("Mapping flavor from '%s' to '%s'", memory, key)
-                flavor = key
-                if key.lower().startswith('performance'):
-                    LOG.info("Using performance flavor %s.", key)
-                    break
+        # Get setting
+        flavor = deployment.get_setting('flavor',
+                                        resource_type=resource_type,
+                                        service_name=service,
+                                        provider_key=self.key)
+        if not flavor:
+            memory = self.parse_memory_setting(
+                deployment.get_setting('memory',
+                                       resource_type=resource_type,
+                                       service_name=service,
+                                       provider_key=self.key,
+                                       default=512)
+            )
+
+            # Find the available memory size that satisfies this
+            matches = [e['memory'] for e in catalog['lists']['sizes'].values()
+                       if int(e['memory']) >= memory]
+            if not matches:
+                raise cmexc.CheckmateNoMapping(
+                    "No flavor has at least '%s' memory" % memory)
+            match = str(min(matches))
+            for key, value in catalog['lists']['sizes'].iteritems():
+                if match == str(value['memory']):
+                    LOG.debug("Mapping flavor from '%s' to '%s'", memory, key)
+                    flavor = key
+                    if key.lower().startswith('performance'):
+                        LOG.info("Using performance flavor %s.", key)
+                        break
         if not flavor:
             raise cmexc.CheckmateNoMapping(
                 "No flavor mapping for '%s' in '%s'" % (memory, self.key))
+        flavor_info = catalog['lists']['sizes'][flavor]
         userdata = deployment.get_setting('userdata',
                                           resource_type=resource_type,
                                           service_name=service,
@@ -252,6 +262,10 @@ class Provider(RackspaceComputeProviderBase):
         for template in templates:
             template['desired-state']['flavor'] = flavor
             template['desired-state']['image'] = image
+            if flavor_info['disk'] == 0:
+                template['desired-state']['boot_from_image'] = True
+            if disk:
+                template['desired-state']['disk'] = disk
             template['desired-state']['region'] = region
             template['desired-state']['os-type'] = image_types[image]['type']
             template['desired-state']['os'] = image_types[image]['os']
@@ -381,6 +395,8 @@ class Provider(RackspaceComputeProviderBase):
                 resource.get('dns-name'),
             ],
             image=desired.get('image'),
+            boot_from_image=desired.get('boot_from_image', False),
+            disk=desired.get('disk'),
             flavor=desired.get('flavor', "2"),
             files=files,
             userdata=userdata,
@@ -785,6 +801,11 @@ class Provider(RackspaceComputeProviderBase):
 
         if not region:
             region = getattr(context, 'region', None)
+            if not region:
+                region = utils.read_path(context.resource, 'instance/region')
+            if not region:
+                region = utils.read_path(context.resource,
+                                         'desired-state/region')
             if not region:
                 region = Provider.find_a_region(context.catalog) or 'DFW'
         url = Provider.find_url(context.catalog, region)

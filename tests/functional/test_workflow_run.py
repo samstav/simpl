@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import string
+
 import yaml
 
 from checkmate import db
@@ -33,6 +34,7 @@ deployment.DB = db.get_driver(connection_string='sqlite://')
 
 
 class TestWorkflowStubbing(cmtest.StubbedWorkflowBase):
+
     """Test workflow stubbing using mox."""
 
     def test_workflow_run(self):
@@ -55,7 +57,9 @@ class TestWorkflowStubbing(cmtest.StubbedWorkflowBase):
 
 
 class TestWorkflowLogic(cmtest.StubbedWorkflowBase):
+
     """Test Basic Workflow code."""
+
     def test_resource_generation(self):
         self.deployment = deployment.Deployment(utils.yaml_to_dict("""
                 id: test
@@ -105,11 +109,11 @@ class TestWorkflowLogic(cmtest.StubbedWorkflowBase):
 
 
 class TestWorkflow(cmtest.StubbedWorkflowBase):
+
     """Test Workflow Execution."""
 
     def test_workflow_completion(self):
         """Verify workflow sequence and data flow."""
-
         self.deployment = deployment.Deployment(utils.yaml_to_dict("""
                 id: test
                 blueprint:
@@ -161,6 +165,7 @@ class TestWorkflow(cmtest.StubbedWorkflowBase):
 
 
 class TestWordpressWorkflow(cmtest.StubbedWorkflowBase):
+
     """Test WordPress Workflow inputs (modifies app.yaml)."""
 
     @classmethod

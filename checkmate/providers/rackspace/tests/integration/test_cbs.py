@@ -143,7 +143,6 @@ def main():
         TestCloudBlockStorage.tenant = tenantid
         TestCloudBlockStorage.region = region
         TestCloudBlockStorage.context = context
-        TestCloudBlockStorage.delay = 30
         TestCloudBlockStorage.vcr_mode = 'all'  # (re-)record everything
     unittest.main()
 

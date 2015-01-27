@@ -1,7 +1,8 @@
 # pylint: disable=C0103,C0111,E1101,E1103,R0201,R0903,R0904,W0201,W0212,W0232
+import unittest
+
 import mock
 import pyrax
-import unittest
 
 from checkmate import exceptions
 from checkmate.providers.rackspace import base
@@ -9,6 +10,7 @@ from checkmate import server
 
 
 class TestRackspaceProviderBase(unittest.TestCase):
+
     """Class for testing RackspaceProviderBase."""
 
     def test_get_regions_none(self):
@@ -21,7 +23,7 @@ class TestRackspaceProviderBase(unittest.TestCase):
         self.assertEqual(regions, ['A'])
 
     def test_get_regions_unique(self):
-        '''Only return a region once.'''
+        """Only return a region once."""
         regions = base.RackspaceProviderBase.get_regions(
             [{'endpoints': [{'region': 'A'}, {'region': 'A'}]}])
         self.assertEqual(regions, ['A'])

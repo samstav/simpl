@@ -160,7 +160,6 @@ class TestBlock(test.ProviderTester):
         self.assertEqual(result['type'], 'NO-ACCESS')
 
 
-
 class TestBlockWorkflow(test.StubbedWorkflowBase):
 
     def setUp(self):

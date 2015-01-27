@@ -631,6 +631,7 @@ class TestNovaCompute(test.ProviderTester):
         openstack_api_mock.images = self.mox.CreateMockAnything()
         image_mock = self.mox.CreateMockAnything()
         image_mock.metadata = {'os_type': 'linux'}
+        image_mock.name = "Ubuntu 14.04"
         openstack_api_mock.images.find(id=1).AndReturn(image_mock)
 
         context = dict(deployment_id='DEP', resource_key='1')
@@ -1075,6 +1076,16 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         ).AndReturn("Ubuntu 12.04")
 
         self.deployment.get_setting(
+            'disk', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'flavor', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
             'memory', resource_type='compute', service_name='master',
             provider_key=provider.key, default=512
         ).AndReturn('512')
@@ -1154,6 +1165,16 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             'os', resource_type='compute', service_name='master',
             provider_key=provider.key, default="Ubuntu 12.04"
         ).AndReturn("Ubuntu 12.04")
+
+        self.deployment.get_setting(
+            'disk', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'flavor', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
 
         self.deployment.get_setting(
             'memory', resource_type='compute', service_name='master',
