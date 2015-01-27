@@ -802,6 +802,11 @@ class Provider(RackspaceComputeProviderBase):
         if not region:
             region = getattr(context, 'region', None)
             if not region:
+                region = utils.read_path(context.resource, 'instance/region')
+            if not region:
+                region = utils.read_path(context.resource,
+                                         'desired-state/region')
+            if not region:
                 region = Provider.find_a_region(context.catalog) or 'DFW'
         url = Provider.find_url(context.catalog, region)
         plugin = AuthPlugin(context.auth_token, url,
