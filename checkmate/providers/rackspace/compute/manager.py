@@ -401,7 +401,7 @@ class Manager(object):
             image_name = image_details.name.lower()
         else:
             # Just try linux
-            metadata= {'os_type': 'linux'}
+            metadata = {'os_type': 'linux'}
             image_name = "unkown"
         if ((metadata and metadata['os_type'] == 'linux') or
                 ('windows' not in image_name)):

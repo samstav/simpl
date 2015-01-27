@@ -24,6 +24,7 @@ import unittest
 import requests
 import vcr
 
+from checkmate import exceptions
 from checkmate.providers.rackspace.database import dbaas
 
 SCRUB_URI_RE = re.compile(r'v1\.0/[^/]*/')

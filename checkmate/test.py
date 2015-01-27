@@ -281,9 +281,10 @@ class StubbedWorkflowBase(unittest.TestCase):
         assert isinstance(self.deployment, Deployment)
         if not context:
             context = middleware.RequestContext(auth_token="MOCK_TOKEN",
-                                     tenant='TMOCK',
-                                     username="MOCK_USER", catalog=CATALOG,
-                                     base_url='http://MOCK')
+                                                tenant='TMOCK',
+                                                username="MOCK_USER",
+                                                catalog=CATALOG,
+                                                base_url='http://MOCK')
         if self.deployment.get('status') == 'NEW':
             deployments.Manager.plan(self.deployment, context)
         LOG.debug(json.dumps(self.deployment.get('resources', {}), indent=2))

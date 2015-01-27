@@ -49,7 +49,7 @@ options:
         "metadata" : {
             "My Server Name" : "API Test Server 1"
         }
-  userdata:
+  'userdata':
     type: string
     required: false
 ---
@@ -95,6 +95,6 @@ options:
     constraints: []
     display-hints:
       choice: []  # gets populated from account flavors
-  userdata:
+  'userdata':
     type: string
     required: false

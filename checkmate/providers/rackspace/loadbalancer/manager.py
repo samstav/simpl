@@ -16,6 +16,7 @@
 """Rackspace Loadbalancer provider manager."""
 
 import logging
+
 import pyrax
 
 from checkmate import exceptions
