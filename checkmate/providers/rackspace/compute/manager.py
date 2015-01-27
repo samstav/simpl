@@ -392,10 +392,19 @@ class Manager(object):
             raise cmexec.CheckmateException(message=msg,
                                             options=cmexec.CAN_RESUME)
 
-        image_details = api.images.find(id=server.image['id'])
-        metadata = image_details.metadata
+        image = server.image
+        if not isinstance(image, basestring):
+            image = image['id']
+        if image:
+            image_details = api.images.find(id=image)
+            metadata = image_details.metadata
+            image_name = image_details.name.lower()
+        else:
+            # Just try linux
+            metadata= {'os_type': 'linux'}
+            image_name = "unkown"
         if ((metadata and metadata['os_type'] == 'linux') or
-                ('windows' not in image_details.name.lower())):
+                ('windows' not in image_name)):
             msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
                   "to connect." % (server_id, username, server_ip, port)
             is_up = ssh.test_connection(context, server_ip, username,
