@@ -88,6 +88,7 @@ class Provider(cmbase.ProviderBase):
             )
 
             # Find the available memory size that satisfies this
+            # 'memory' in the blueprint maps to 'flavor' in the provider
             matches = [e['memory'] for e in catalog['lists']['sizes'].values()
                        if int(e['memory']) >= memory]
             if not matches:
@@ -123,23 +124,36 @@ class Provider(cmbase.ProviderBase):
                 raise CheckmateException(message,
                                          friendly_message=BLUEPRINT_ERROR)
 
+            # 'flavor' in the blueprint maps to datastore type in the provider
             datastore_type = deployment.get_setting(
                 'flavor',
                 resource_type=resource_type,
                 service_name=service,
                 provider_key=self.key
-            ) or 'mysql'
+            )
             datastore_ver = deployment.get_setting(
                 'version',
                 resource_type=resource_type,
                 service_name=service,
                 provider_key=self.key
-            ) or '5.6'
+            )
 
-            params = dbaas.get_config_params(region, context.tenant,
-                                             context.auth_token,
-                                             datastore_type,
+            # Set sane defaults for datastore_type and datastore_ver
+            if not datastore_type:
+                if resource_type == 'cache':
+                    datastore_type = 'redis'
+                else:
+                    datastore_type = 'mysql'
+
+            if not datastore_ver:
+                datastore_ver = dbaas.latest_datastore_ver(context,
+                                                           datastore_type)
+
+            # Retrieve a current list of config params from dbaas
+            params = dbaas.get_config_params(context, datastore_type,
                                              datastore_ver)
+
+            # Add settings that match a config param to config_params
             config_params = {}
             for param in params:
                 option = deployment.get_setting(param['name'],
@@ -151,10 +165,11 @@ class Provider(cmbase.ProviderBase):
 
             for template in templates:
                 template['desired-state']['flavor'] = flavor
-                template['desired-state']['disk'] = volume
                 template['desired-state']['region'] = region
                 template['desired-state']['datastore-type'] = datastore_type
                 template['desired-state']['datastore-version'] = datastore_ver
+                if volume:
+                    template['desired-state']['disk'] = volume
                 if config_params:
                     template['desired-state']['config-params'] = config_params
 
@@ -380,11 +395,10 @@ class Provider(cmbase.ProviderBase):
                         resource_key=key
                     ),
                     resource.get('dns-name'),
-                    resource['desired-state']['flavor'],
-                    resource['desired-state']['disk'],
-                    None,
-                    resource['desired-state']['region'],
+                    resource['desired-state']
                 ],
+                config_id=operators.PathAttrib(
+                    'resources/%s/instance/configuration/id' % key),
                 merge_results=True,
                 defines=defines,
                 properties={'estimated_duration': 80}
@@ -407,7 +421,6 @@ class Provider(cmbase.ProviderBase):
                         region=resource['desired-state']['region'],
                         resource_type=resource_type
                     ),
-                    resource['desired-state']['region'],
                 ],
                 merge_results=True,
                 defines=dict(

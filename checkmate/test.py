@@ -708,16 +708,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'args': [
                         mox.Func(is_good_context),
                         mox.IsA(basestring),
-                        resource['desired-state']['flavor'],
-                        1,
-                        None,
-                        self.deployment.get_setting(
-                            'region',
-                            resource_type=resource.get('type'),
-                            service_name=resource['service'],
-                            provider_key=resource['provider'],
-                            default='testonia'
-                        )
+                        resource['desired-state'],
                     ],
                     'kwargs': mox.IgnoreArg(),
                     'result': {
@@ -747,7 +738,6 @@ class StubbedWorkflowBase(unittest.TestCase):
                             'wait_on_build',
                     'args': [
                         mox.Func(is_good_context),
-                        mox.IgnoreArg(),
                     ],
                     'kwargs': mox.IgnoreArg(),
                     'result': {
@@ -772,16 +762,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'args': [
                         mox.Func(is_good_context),
                         mox.IsA(basestring),
-                        resource['desired-state']['flavor'],
-                        resource['desired-state'].get('disk'),
-                        None,
-                        self.deployment.get_setting(
-                            'region',
-                            resource_type=resource.get('type'),
-                            service_name=resource['service'],
-                            provider_key=resource['provider'],
-                            default='testonia'
-                        )
+                        resource['desired-state'],
                     ],
                     'kwargs': mox.IgnoreArg(),
                     'result': {
@@ -810,7 +791,6 @@ class StubbedWorkflowBase(unittest.TestCase):
                             'wait_on_build',
                     'args': [
                         mox.Func(is_good_context),
-                        mox.IgnoreArg(),
                     ],
                     'kwargs': mox.IgnoreArg(),
                     'result': {

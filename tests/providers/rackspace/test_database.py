@@ -45,69 +45,48 @@ class TestDatabase(test.ProviderTester):
 
     @mock.patch.object(tasks, 'postback')
     def test_create_instance(self, mock_postback):
-        # Mock instance
-        instance = self.mox.CreateMockAnything()
-        instance.id = 'fake_instance_id'
-        instance.name = 'fake_instance'
-        instance.status = 'BUILD'
-        instance.hostname = 'fake.cloud.local'
-        instance.volume = self.mox.CreateMockAnything()
-        instance.volume.size = 1
-
         # Stub out postback call
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
         # Stub out wait_on_build
         self.mox.StubOutWithMock(dbtasks.wait_on_build, 'delay')
-
-        # Create clouddb mock
-        clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.create(
-            instance.name,
-            flavor=1,
-            volume=1,
-            databases=[{'name': 'db1'}]
-        ).AndReturn(instance)
-
         expected = {
             'resources': {
                 '1': {
-                    'status': instance.status,
+                    'status': 'BUILD',
                     'instance': {
-                        'id': instance.id,
-                        'name': instance.name,
-                        'status': instance.status,
+                        'status': 'BUILD',
+                        'id': 'MYSQL1',
+                        'name': 'test-db',
                         'region': 'NORTH',
                         'flavor': 1,
                         'disk': 1,
                         'interfaces': {
                             'mysql': {
-                                'host': instance.hostname,
+                                'host': 'mysql1.rax.net'
                             },
                         },
-                        'databases': {
-                            'db1': {
-                                'name': 'db1',
-                                'interfaces': {
-                                    'mysql': {
-                                        'host': instance.hostname,
-                                        'database_name': 'db1',
-                                    },
-                                }
-                            }
-                        }
+                        'databases': [
+                            {'name': 'db1'}
+                        ]
                     }
                 }
             }
         }
         context = middleware.RequestContext(deployment_id='DEP_ID',
+                                            tenant='T1000',
                                             resource_key='1',
-                                            region='NORTH')
+                                            region='NORTH',
+                                            simulation=True)
 
         self.mox.ReplayAll()
-        results = dbtasks.create_instance(context, instance.name, 1, 1,
-                                          [{'name': 'db1'}], 'NORTH',
-                                          api=clouddb_api_mock)
+        desired_state = {
+            'flavor': 1,
+            'disk': 1,
+            'databases': [{'name': 'db1'}],
+        }
+        results = dbtasks.create_instance(context, 'test-db',
+                                          desired_state)
 
         self.assertEqual(results, expected)
         self.mox.VerifyAll()
@@ -759,7 +738,15 @@ environment:
         ]
         self.assertItemsEqual(task_list, expected, msg=task_list)
         self.assertEqual(
-            workflow.spec.task_specs['Create Cache Server 0'].args[2], '101')
+            workflow.spec.task_specs['Create Cache Server 0'].args[2],
+            {
+                'datastore-type': 'redis',
+                'flavor': '101',
+                'disk': 1,
+                'region': 'DFW',
+                'datastore-version': '2.8'
+            }
+        )
 
     def test_workflow_completion(self):
         self.mox.ReplayAll()
