@@ -22,6 +22,12 @@ options:
     constraints: []
     display-hints:
       choice: []
+  'disk':
+    default: 20
+    required: true
+    constraints: []
+    display-hints:
+      choice: []
   'personality':
     type: hash
     required: false

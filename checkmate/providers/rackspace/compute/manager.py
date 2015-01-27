@@ -35,7 +35,8 @@ class Manager(object):
     @staticmethod
     def create_server(context, name, update_state, api=None, flavor="2",
                       files=None, image=None, tags=None, config_drive=None,
-                      userdata=None, networks=None):
+                      userdata=None, networks=None, boot_from_image=False,
+                      disk=None):
         #pylint: disable=R0914
         """Create a Rackspace Cloud server using novaclient.
 
@@ -103,12 +104,26 @@ class Manager(object):
         # Add RAX-CHECKMATE to metadata
         # support old way of getting metadata from generate_template
         meta = tags or context.get("metadata", None)
+        kwargs = {}
+        if boot_from_image:
+            kwargs["block_device_mapping_v2"] = [
+                {
+                    "boot_index": 0,
+                    "uuid": image,
+                    "volume_size": disk or 50,
+                    "source_type": "image",
+                    "destination_type": "volume",
+                    "delete_on_termination": True
+                }
+            ]
+            image_object = None
         try:
             server = api.servers.create(name, image_object, flavor_object,
                                         meta=meta, files=files,
                                         config_drive=config_drive,
                                         userdata=userdata,
-                                        nics=networks)
+                                        nics=networks,
+                                        **kwargs)
         except ncexc.OverLimit as exc:
             raise cmexec.CheckmateException(
                 message=str(exc),
