@@ -45,7 +45,8 @@ class ChefKitchen(object):
     should be decoupled.
     """
 
-    def __init__(self, env_name, root_path=None, kitchen_name="kitchen"):
+    def __init__(self, env_name, root_path=None, kitchen_name="kitchen",
+                 github_token=None):
         self.env_name = env_name
         self.root = root_path or CONFIG.deployments_path
         self.kitchen_name = kitchen_name
@@ -56,6 +57,7 @@ class ChefKitchen(object):
         self._private_key_path = os.path.join(self._env_path,
                                               PRIVATE_KEY_NAME)
         self._public_key_path = os.path.join(self._env_path, PUBLIC_KEY_NAME)
+        self.github_token = github_token
         self._knife = Knife(self._kitchen_path)
 
     @property
@@ -257,7 +259,7 @@ class ChefKitchen(object):
 
         # Copy blueprint files to kitchen
         if source_repo:
-            cache = BlueprintCache(source_repo)
+            cache = BlueprintCache(source_repo, github_token=self.github_token)
             cache.update()
             utils.copy_contents(cache.cache_path, self._kitchen_path,
                                 with_overwrite=True, create_path=True)
