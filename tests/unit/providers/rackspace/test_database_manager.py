@@ -26,12 +26,12 @@ from checkmate.providers.rackspace.database import manager
 
 class TestManager(unittest.TestCase):
 
-    def test_client_exception_over_limit(self):
-        api = mock.Mock()
-        mock_exception = pyrax.exceptions.OverLimit("Limit exceeded")
-        api.create = mock.MagicMock(side_effect=mock_exception)
+    @mock.patch.object(manager.dbaas, 'create_instance')
+    def test_client_exception_over_limit(self, mock_create):
+        mock_create.side_effect = pyrax.exceptions.OverLimit("Limit exceeded")
+        desired_state = {'flavor': 1, 'disk': 1}
         with self.assertRaises(exceptions.CheckmateException) as exc:
-            manager.Manager.create_instance("MyDB", 1, 1, {}, {}, api, None)
+            manager.Manager.create_instance(None, "MyDB", desired_state, None)
             self.assertEqual(exc.exception.friendly_message, "Limit exceeded")
 
 

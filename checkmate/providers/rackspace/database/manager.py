@@ -34,7 +34,7 @@ class Manager(object):
     """Database provider model and logic for interaction."""
 
     @staticmethod
-    def wait_on_build(context, region, instance_id, callback, simulate=False):
+    def wait_on_build(context, instance_id, callback, simulate=False):
         """Check provider resource.
 
         Returns True when built otherwise False.
@@ -45,9 +45,7 @@ class Manager(object):
             if simulate:
                 data['status'] = 'ACTIVE'
             else:
-                details = dbaas.get_instance(region, context.tenant,
-                                             context.auth_token,
-                                             instance_id)
+                details = dbaas.get_instance(context, instance_id)
                 data['status'] = details.get('instance', {}).get('status')
         except cdb_errors.ClientException as exc:
             raise cmexc.CheckmateException(
@@ -104,47 +102,22 @@ class Manager(object):
                 results = {'status': 'DELETED'}
         return results
 
-    #pylint: disable=R0913
     @staticmethod
-    def create_instance(instance_name, flavor, size, databases, context,
-                        api, callback, region=None, simulate=False):
-        """Create a Cloud Database instance with optional initial databases.
-
-        :param databases: an array of dictionaries with keys to set the
-        database name, character set and collation.  For example:
-
-            databases=[{'name': 'db1'},
-                       {'name': 'db2', 'character_set': 'latin5',
-                        'collate': 'latin5_turkish_ci'}]
-        """
-        assert api, "API is required in create_instance"
-        databases = databases or []
-        flavor = int(flavor)
-        size = int(size)
-
+    def create_instance(context, instance_name, desired_state, callback,
+                        config_id=None, simulate=False):
+        """Create a Cloud Database instance with optional initial databases."""
         try:
-            if simulate:
-                resource_key = context.get('resource_key')
-                if flavor >= 100:
-                    instance = utils.Simulation(
-                        id='REDIS%s' % resource_key,
-                        name=instance_name,
-                        password='TopSecret',
-                        hostname='redis%s.rax.net' % resource_key)
-                else:
-                    volume = utils.Simulation(size=1)
-                    instance = utils.Simulation(
-                        id="DBS%s" % resource_key,
-                        name=instance_name,
-                        hostname='db1.rax.net', volume=volume)
-            elif flavor >= 100:
-                return dbaas.create_instance(region or context.region,
-                                             context.tenant,
-                                             context.auth_token,
-                                             instance_name, flavor)
-            else:
-                instance = api.create(instance_name, flavor=flavor,
-                                      volume=size, databases=databases)
+            instance = dbaas.create_instance(
+                context, instance_name, desired_state.get('flavor'),
+                size=desired_state.get('disk'),
+                config_id=config_id,
+                dstore_type=desired_state.get('datastore-type'),
+                dstore_ver=desired_state.get('datastore-version'),
+                databases=desired_state.get('databases'),
+                users=desired_state.get('users'),
+                simulate=simulate
+            )
+        # TODO(pablo): these exceptions need to become dbaas exceptions
         except cdb_errors.OverLimit as exc:
             raise cmexc.CheckmateException(str(exc), friendly_message=str(exc),
                                            options=cmexc.CAN_RETRY)
@@ -152,46 +125,16 @@ class Manager(object):
             raise cmexc.CheckmateException(str(exc), options=cmexc.CAN_RETRY)
         except Exception as exc:
             raise cmexc.CheckmateException(str(exc))
+
         if callable(callback):
-            callback({'id': instance.id})
+            callback({'id': instance.get('id')})
 
         LOG.info("Created database instance %s (%s). Size %s, Flavor %s. "
-                 "Databases = %s", instance.name, instance.id, size,
-                 flavor, databases)
+                 "Databases = %s", instance.get('name'), instance.get('id'),
+                 desired_state.get('disk'), desired_state.get('flavor'),
+                 desired_state.get('databases'))
 
-        # Return instance and its interfaces
-        results = {
-            'id': instance.id,
-            'name': instance.name,
-            'status': 'BUILD',
-            'region': context.get('region'),
-            'flavor': flavor,
-            'interfaces': {}
-        }
-        if flavor >= 100:
-            results['interfaces']['redis'] = {
-                'host': instance.hostname,
-                'password': instance.password,
-            }
-        else:
-            results['interfaces']['mysql'] = {
-                'host': instance.hostname,
-            }
-            results['disk'] = instance.volume.size
-            # Return created databases and their interfaces
-            if databases:
-                db_results = results.setdefault('databases', {})
-                for database in databases:
-                    data = copy.copy(database)
-                    data['interfaces'] = {
-                        'mysql': {
-                            'host': instance.hostname,
-                            'database_name': database.get('name'),
-                        }
-                    }
-                    db_results[database['name']] = data
-
-        return results
+        return instance
 
     #pylint: disable=R0913
     @staticmethod

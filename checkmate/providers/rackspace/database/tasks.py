@@ -38,8 +38,7 @@ LOG = logging.getLogger(__name__)
 @statsd.collect
 def create_configuration(context, db_type, db_version, config_params):
     """Create a database configuration entry."""
-    return dbaas.create_configuration(context.region, context.tenant,
-                                      context.auth_token, db_type, db_version,
+    return dbaas.create_configuration(context, db_type, db_version,
                                       config_params)
 
 
@@ -48,17 +47,16 @@ def create_configuration(context, db_type, db_version, config_params):
 @task.task(base=base.RackspaceProviderTask, default_retry_delay=30,
            max_retries=120, acks_late=True, provider=provider.Provider)
 @statsd.collect
-def wait_on_build(context, region, instance=None, callback=None):
+def wait_on_build(context, instance=None, callback=None):
     """Wait on instance to be created, delete instance if it errors
 
     :param context: Context
-    :param region: Region
     :param instance: Instance Information
     :param api:
     :param callback:
     :return:
     """
-    return manager.Manager.wait_on_build(context, region, instance["id"],
+    return manager.Manager.wait_on_build(context, instance["id"],
                                          wait_on_build.partial,
                                          simulate=context.simulation)
 
@@ -78,22 +76,15 @@ def sync_resource_task(context, resource, api=None, callback=None):
 @task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
            max_retries=2, provider=provider.Provider)
 @statsd.collect
-def create_instance(context, instance_name, flavor, size, databases, region,
-                    api=None, callback=None):
-    """Creates a Cloud Database instance with optional initial databases.
-
-    :param databases: an array of dictionaries with keys to set the database
-    name, character set and collation.  For example:
-
-        databases=[{'name': 'db1'},
-                   {'name': 'db2', 'character_set': 'latin5',
-                    'collate': 'latin5_turkish_ci'}]
-    """
-    return manager.Manager.create_instance(instance_name, flavor, size,
-                                           databases, context,
-                                           api or create_instance.api,
+def create_instance(context, instance_name, desired_state, callback=None,
+                    config_id=None):
+    """Creates a Cloud Database instance with options in desired_state."""
+    callback = callback or create_instance.partial
+    return manager.Manager.create_instance(context,
+                                           instance_name,
+                                           desired_state,
                                            callback or create_instance.partial,
-                                           region=region,
+                                           config_id=config_id,
                                            simulate=context.simulation)
 
 
@@ -308,8 +299,7 @@ def wait_on_del_instance(context, api=None):
         api = provider.Provider.connect(context, region)
     try:
         if resource['type'] == 'cache':
-            instance = dbaas.get_instance(
-                region, context['tenant'], context['auth_token'], instance_id)
+            instance = dbaas.get_instance(context, instance_id)
             if 'instance' in instance:
                 status = instance['instance']['status']
             elif 'status_code' in instance and instance['status_code'] == 404:

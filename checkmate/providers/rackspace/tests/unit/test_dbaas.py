@@ -22,6 +22,7 @@ import unittest
 import mock
 
 from checkmate.providers.rackspace.database import dbaas
+from checkmate.providers.rackspace.tests import common
 
 
 class TestCreateRedisInstance(unittest.TestCase):
@@ -33,7 +34,7 @@ class TestCreateRedisInstance(unittest.TestCase):
         expected_flavor_ref = ('https://iad.databases.api.rackspacecloud.com/'
                                'v1.0/825640/flavors/101')
         expected_url = ('https://iad.databases.api.rackspacecloud.com/v1.0/'
-                        '825642/instances')
+                        '825640/instances')
         expected_headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
@@ -41,13 +42,15 @@ class TestCreateRedisInstance(unittest.TestCase):
         }
         expected_data = json.dumps({
             'instance': {
+                'flavorRef': expected_flavor_ref,
                 'datastore': {'version': '2.8', 'type': 'redis'},
-                'name': 'name',
-                'flavorRef': expected_flavor_ref
+                'name': 'test-redis'
             }
         })
         mock_flavor_ref.return_value = expected_flavor_ref
-        dbaas.create_instance(u'IAD', u'825642', u'VALID', u'name', 101)
+        context = common.MockContext('IAD', '825640', 'VALID')
+        dbaas.create_instance(context, 'test-redis', 101, dstore_type='redis',
+                              dstore_ver='2.8')
         mock_post.assert_called_with(expected_url, headers=expected_headers,
                                      data=expected_data)
 

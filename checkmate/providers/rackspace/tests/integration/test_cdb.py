@@ -26,6 +26,7 @@ import vcr
 
 from checkmate import exceptions
 from checkmate.providers.rackspace.database import dbaas
+from checkmate.providers.rackspace.tests import common
 
 SCRUB_URI_RE = re.compile(r'v1\.0/[^/]*/')
 SCRUB_URI_SUB = 'v1.0/redacted/'
@@ -73,82 +74,77 @@ class TestCloudDatabases(unittest.TestCase):
 
     def test_successful_instance_create_retrieve_delete(self):
         """Successfully create/retrieve/delete a database instance."""
+        context = common.MockContext(self.region, self.tenant, self.token)
         with self.vcr.use_cassette('vcr-cdb-full.yaml'):
-            create_response = dbaas.create_instance(self.region, self.tenant,
-                                                    self.token,
-                                                    u'test-delete-me', 101)
-            validated = dbaas.validate_instance(create_response)
-            self.assertEqual(validated, create_response)
+            create_resp = dbaas.create_instance(context, 'test-delete-me', 101)
+            validated = dbaas.validate_instance_details(create_resp)
+            self.assertEqual(validated, create_resp)
 
-            status = create_response.get('status')
+            status = create_resp.get('status')
             timeout = time.time() + 60 * 5  # 5 minutes
             while status != u'ACTIVE' and time.time() < timeout:
                 time.sleep(self.delay)
-                get_response = dbaas.get_instance(self.region, self.tenant,
-                                                  self.token,
-                                                  create_response.get('id'))
+                get_response = dbaas.get_instance(context,
+                                                  create_resp.get('id'))
                 if 'instance' in get_response:
                     status = get_response['instance'].get('status')
 
-            del_response = dbaas.delete_instance(self.region,
-                                                 self.tenant, self.token,
-                                                 create_response.get('id'))
+            del_response = dbaas.delete_instance(context,
+                                                 create_resp.get('id'))
             self.assertEqual(u'202, Accepted', del_response)
 
     def test_successful_configuration_create_retrieve_delete(self):
         """Successfully create/retrieve/delete a database configuration."""
+        context = common.MockContext(self.region, self.tenant, self.token)
         values = {'connect_timeout': 60, 'expire_logs_days': 90}
         with self.vcr.use_cassette('vcr-cdb-db-config.yaml'):
-            create_response = dbaas.create_configuration(self.region,
-                                                         self.tenant,
-                                                         self.token,
-                                                         'mysql', '5.6',
-                                                         values)
+            create_response = dbaas.create_configuration(context, 'mysql',
+                                                         '5.6', values)
             validated = dbaas.validate_db_config(create_response)
             self.assertEqual(validated, create_response)
             config_id = create_response['configuration']['id']
 
-            get_response = dbaas.get_configuration(self.region, self.tenant,
-                                                   self.token, config_id)
+            get_response = dbaas.get_configuration(context, config_id)
             self.assertEqual(create_response, get_response)
 
-            delete_response = dbaas.delete_configuration(self.region,
-                                                         self.tenant,
-                                                         self.token,
-                                                         config_id)
+            delete_response = dbaas.delete_configuration(context, config_id)
             self.assertEqual(u'202, Accepted', delete_response)
 
     def test_get_config_params(self):
         """Retrieve config params for MySQL version 5.6."""
+        context = common.MockContext(self.region, self.tenant, self.token)
         with self.vcr.use_cassette('vcr-cdb-get-config-params.yaml'):
-            get_response = dbaas.get_config_params(self.region, self.tenant,
-                                                   self.token, 'mysql', '5.6')
+            get_response = dbaas.get_config_params(context, 'mysql', '5.6')
             self.assertTrue(isinstance(get_response, list))
 
     def test_datastore_version_id(self):
         """Retrieve datastore version id for MySQL version 5.6."""
+        context = common.MockContext(self.region, self.tenant, self.token)
         with self.vcr.use_cassette('vcr-cdb-get-datastore-version-id.yaml'):
-            get_response = dbaas.datastore_version_id(self.region,
-                                                      self.tenant,
-                                                      self.token,
-                                                      'mysql', '5.6')
-            expected_id = '14069833-2efd-4d3a-b7e7-d57b51fc7dc4'
-            self.assertEqual(expected_id, get_response)
+            get_response = dbaas.get_dstore_ids(context, 'mysql', '5.6')
+            expected = {
+                'datastore_id': u'10000000-0000-0000-0000-000000000001',
+                'version_id': u'14069833-2efd-4d3a-b7e7-d57b51fc7dc4'
+            }
+            self.assertEqual(expected, get_response)
 
     def test_bad_region(self):
         """Invalid region results in an HTTP error (vcrpy not needed)."""
+        context = common.MockContext('YYZ', self.tenant, self.token)
         with self.assertRaises(requests.ConnectionError):
-            dbaas.get_instances(u'YYZ', self.tenant, self.token)
+            dbaas.get_instances(context)
 
     def test_bad_tenant(self):
         """Invalid tenant results in an HTTP error."""
+        context = common.MockContext(self.region, 'invalid', self.token)
         with self.vcr.use_cassette('vcr-cdb-tenant-invalid.yaml'):
-            dbaas.get_instances(self.region, 'invalid', self.token)
+            dbaas.get_instances(context)
 
     def test_bad_token(self):
         """Invalid token results in an HTTP error."""
+        context = common.MockContext(self.region, self.tenant, 'invalid')
         with self.vcr.use_cassette('vcr-cdb-token-invalid.yaml'):
-            dbaas.get_instances(self.region, self.tenant, 'invalid')
+            dbaas.get_instances(context)
 
 
 if __name__ == '__main__':
