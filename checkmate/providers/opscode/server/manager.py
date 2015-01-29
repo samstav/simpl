@@ -38,6 +38,7 @@ class Manager(object):
     def create_kitchen(name, service_name, path=None, private_key=None,
                        public_key_ssh=None, secret_key=None,
                        source_repo=None, server_credentials=None,
+                       github_token=None,
                        simulation=False):
         """Create a workspace and knife kitchen.
 
@@ -64,7 +65,8 @@ class Manager(object):
             }
 
         environment = ChefKitchen(name, root_path=path,
-                                  kitchen_name=service_name)
+                                  kitchen_name=service_name,
+                                  github_token=github_token)
         environment.create_env_dir()
 
         key_data = environment.create_kitchen_keys(

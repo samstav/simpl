@@ -293,6 +293,7 @@ def create_kitchen(context, name, service_name, path=None,
                                   public_key_ssh=public_key_ssh,
                                   secret_key=secret_key,
                                   source_repo=source_repo,
+                                  github_token=context.get('github_token'),
                                   server_credentials=server_credentials,
                                   simulation=context['simulation'])
 
