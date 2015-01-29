@@ -371,6 +371,10 @@ def githubproxy(path=None):
 
     auth = bottle.request.get_header('Authorization')
     if not auth:
+        github_token = bottle.request.get_cookie('github_access_token')
+        if github_token:
+            auth = 'token %s' % github_token
+    if not auth:
         # TODO (zns): we need to disable this at some point
         auth = 'token %s' % CONFIG.github_token
     headers = {
