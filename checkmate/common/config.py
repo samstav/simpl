@@ -183,6 +183,17 @@ OPTIONS = [
                   help='port for eventlet backdoor to listen'
                   ),
     #
+    # Optional Airbrake
+    #
+    config.Option("--airbrake-api-key",
+                  default=None,
+                  help='Airbrake api key',
+                  ),
+    config.Option("--airbrake-project-id",
+                  default=None,
+                  help='Airbrake project id',
+                  ),
+    #
     # Queue Options
     #
     config.Option("--eager",
