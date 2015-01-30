@@ -111,7 +111,7 @@ class Provider(cmbase.ProviderBase):
             volume = deployment.get_setting('disk',
                                             resource_type=resource_type,
                                             service_name=service,
-                                            provider_key=self.key, default=1)
+                                            provider_key=self.key)
 
             # Get region
             region = deployment.get_setting('region',
@@ -148,6 +148,9 @@ class Provider(cmbase.ProviderBase):
             if not datastore_ver:
                 datastore_ver = dbaas.latest_datastore_ver(context,
                                                            datastore_type)
+
+            if not volume and datastore_type != 'redis':
+                volume = 1
 
             # Retrieve a current list of config params from dbaas
             params = dbaas.get_config_params(context, datastore_type,

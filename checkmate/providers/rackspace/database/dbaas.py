@@ -17,7 +17,6 @@
 
 """Provider module for interfacing with Redis via Cloud Databases."""
 
-import copy
 import json
 import logging
 import time
@@ -79,6 +78,13 @@ validate_db_config = Schema(
 )
 
 
+class CDBException(Exception):
+
+    """Raised whenever an HTTP error occurs."""
+
+    pass
+
+
 ###
 # Configuration Stuffs
 ###
@@ -102,22 +108,18 @@ def create_configuration(context, db_type, db_version, values):
             'values': values
         }
     })
-    response = requests.post(url, headers=_build_headers(context.auth_token),
-                             data=data)
-
-    if response.ok:
-        return response.json()
-
-    # TODO(pablo): this should raise an exception
-    return {'status_code': response.status_code, 'reason': response.reason}
+    return _handle_response(
+        requests.post(url, headers=_build_headers(context.auth_token),
+                      data=data)
+    )
 
 
 def delete_configuration(context, config_id):
     """Delete the configuration instance referenced by config_id."""
     url = _build_url(context.region, context.tenant,
                      '/configurations/%s' % config_id)
-    response = requests.delete(url, headers=_build_headers(context.auth_token))
-    return u'%d, %s' % (response.status_code, response.reason)
+    return _handle_response(
+        requests.delete(url, headers=_build_headers(context.auth_token)))
 
 
 def get_configuration(context, config_id):
@@ -192,8 +194,8 @@ def latest_datastore_ver(context, db_type):
 def get_flavor(context, flavor_id):
     """List database instance flavors available for the given region/tenant."""
     url = _build_url(context.region, context.tenant, '/flavors/%s' % flavor_id)
-    response = requests.get(url, headers=_build_headers(context.auth_token))
-    return response.json()
+    return _handle_response(
+        requests.get(url, headers=_build_headers(context.auth_token)))
 
 
 def get_flavor_ref(context, flavor_id):
@@ -286,25 +288,22 @@ def create_instance(context, name, flavor, **kwargs):
                                  headers=_build_headers(context.auth_token),
                                  data=json.dumps({'instance': inputs}))
 
-    if response.ok:
-        results = response.json()
-        if 'instance' in results:
-            return _build_create_response(context.region, results['instance'],
-                                          inputs)
+    if not response.ok:
+        raise CDBException('%d: %s' % (response.status_code, response.reason))
 
-        # TODO(pablo): this should raise an exception
-        return results
-    else:
-        # TODO(pablo): this should raise an exception
-        return {'status_code': response.status_code, 'reason': response.reason}
+    results = response.json()
+    if 'instance' not in results:
+        raise CDBException('The "instance" key is missing from the response.')
+
+    return _build_create_response(context.region, results['instance'], inputs)
 
 
 def delete_instance(context, instance_id):
     """Delete the database instance referenced by region/tenant/instance_id."""
     url = _build_url(context.region, context.tenant,
                      '/instances/%s' % instance_id)
-    response = requests.delete(url, headers=_build_headers(context.auth_token))
-    return u'%d, %s' % (response.status_code, response.reason)
+    return _handle_response(
+        requests.delete(url, headers=_build_headers(context.auth_token)))
 
 
 def get_instance(context, instance_id):
@@ -360,7 +359,6 @@ def _build_create_response(region, instance, inputs):
     return response
 
 
-
 def _build_datastore_key(region, db_type, db_version):
     """Ensure all datastore cache keys are consistent."""
     return '%s:%s:%s' % (region, db_type, db_version)
@@ -407,10 +405,13 @@ def _refresh_config_params_cache(context, db_type, db_version):
 
 def _handle_response(response):
     """Helper function to return response content as json or error info."""
-    if response.ok:
+    if not response.ok:
+        raise CDBException('%d: %s' % (response.status_code, response.reason))
+
+    try:
         return response.json()
-    # TODO(pablo): this should raise an exception
-    return {'status_code': response.status_code, 'reason': response.reason}
+    except (TypeError, ValueError):  # There is no content
+        return u'%d, %s' % (response.status_code, response.reason)
 
 
 def _refresh_version_id_cache(context):
