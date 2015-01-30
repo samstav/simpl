@@ -53,6 +53,7 @@ from checkmate.common import config
 from checkmate.common import eventlet_backdoor
 from checkmate.common.git import middleware as git_middleware
 from checkmate.common import gzip_middleware
+from checkmate.common import threadlocal
 from checkmate import db
 from checkmate import deployments
 from checkmate import exceptions as cmexc
@@ -162,12 +163,24 @@ def error_formatter(error):
         error.status = 400
         error.output = str(error.exception)
         LOG.error(error.exception)
-    else:
+    elif error.exception:
         # For other errors, log underlying cause
-        if error.exception:
-            error.status = 500
-            error.output = cmexc.UNEXPECTED_ERROR
-            LOG.error(error.exception)
+        errmsg = ("%s - %s"
+                  % (error.status, utils.pytb_lastline(error.exception)))
+        context = {
+            'request': "%s %s" % (bottle.request.method, bottle.request.url),
+            'user': threadlocal.get_context().get('username'),
+            'query': bottle.request.query_string,
+        }
+        LOG.critical(errmsg, exc_info=error.exc_info, extra=context)
+        error.status = 500
+        description = "Unexpected error."
+        error.output = cmexc.UNEXPECTED_ERROR
+
+    if not hasattr(error, 'output'):
+        error.output = cmexc.UNEXPECTED_ERROR
+    if not hasattr(error, 'status'):
+        error.status = 500
 
     if hasattr(error.exception, 'args'):
         if len(error.exception.args) > 1:

@@ -50,11 +50,14 @@
 # Requires a newer version of pbr, so install it first
 -e git://github.com/samstav/satori.git@bug/1389034#egg=satori
 
+# Includes SSL support for eventlet for use in simpler debugging for Encore UI
+-e git+https://github.com/ziadsawalha/bottle.git@ssl#egg=bottle
+
 #### Checkmate packages
+airbrake==1.1.4
 amqp==1.4.6
 anyjson==0.3.3
 billiard==3.3.0.19
-bottle==0.11.7
 celery==3.1.17
 eventlet==0.15.2
 impacket==0.9.12
