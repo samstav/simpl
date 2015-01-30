@@ -52,44 +52,23 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/deployment-new-remote.html',
     controller: 'DeploymentNewRemoteController'
   })
-  .when('/blueprints/new', {
+  .when('/:tenantId?/blueprints/new', {
     templateUrl: '/partials/blueprints/new.html',
     controller: 'BlueprintNewController'
   })
-  .when('/:tenantId/blueprints/new', {
-    templateUrl: '/partials/blueprints/new.html',
-    controller: 'BlueprintNewController'
-  })
-  .when('/blueprints/design/:owner?/:repo?', {
+  .when('/:tenantId?/blueprints/design/:owner?/:repo?', {
     templateUrl: '/partials/blueprints/design.html',
     controller: 'ConfigureCtrl',
     resolve: {
-      deployment: function($route, github) {
+      deployment: function($route, github, DeploymentData) {
         var owner = $route.current.params.owner;
         var repo = $route.current.params.repo;
 
-        return github.get_public_blueprint(owner, repo);
-      }
-    }
-  })
-  .when('/:tenantId/blueprints/design/:owner?/:repo?', {
-    templateUrl: '/partials/blueprints/design.html',
-    controller: 'ConfigureCtrl',
-    resolve: {
-      deployment: function($route, github) {
-        var owner = $route.current.params.owner;
-        var repo = $route.current.params.repo;
-
-        return github.get_public_blueprint(owner, repo);
-      }
-    }
-  })
-  .when('/:tenantId/blueprints/design', {
-    templateUrl: '/partials/blueprints/design.html',
-    controller: 'ConfigureCtrl',
-    resolve: {
-      deployment: function(DeploymentData) {
-        return DeploymentData.get();
+        if(owner && repo) {
+          return github.get_public_blueprint(owner, repo);
+        } else {
+          return DeploymentData.get();
+        }
       }
     }
   })
@@ -230,7 +209,7 @@ function StaticController($scope, $location, github) {
       {spot: "ready", show_name: true,  name: "Awwbomb", description: "Aww Bomb", url: $scope.item_base_url + "awwbomb%23" + $scope.blueprint_ref, image: "awwbomb.png"},
       {spot: "write", show_name: false, name: "Django",   description: null,                     url: null, image: "django_small.png"},
       {spot: "ready", show_name: false, name: "Rails",    description: "Rails 4",       url: $scope.item_base_url + "rails4_app-blueprint%23" + $scope.blueprint_ref, image: "rails.png"},
-    {spot: "write", show_name: false, name: "NodeJS",   description: "node.js",       url: null, image: "nodejs.png"},
+      {spot: "write", show_name: false, name: "NodeJS",   description: "node.js",       url: null, image: "nodejs.png"},
       {spot: "write", show_name: true,  name: "Tomcat",   description: null,                     url: null, image: "tomcat_small.gif"},
       {spot: "ready", show_name: false, name: "ZeroBin", description: null,       url: $scope.item_base_url + "zerobin%23" + $scope.blueprint_ref, image: "ZeroBin.png"},
       {spot: "ready", show_name: false, name: "Etherpad", description: "Etherpad Lite", url: $scope.item_base_url + "etherpad-lite%23" + $scope.blueprint_ref, image: "etherpad_lite.png"},
@@ -358,12 +337,15 @@ function LoginModalController($scope, $modalInstance, auth, $route) {
   }
 
   $scope.on_auth_success = function() {
+    $scope.auth.loading = false;
+    $scope.select_unused_endpoint();
     $modalInstance.close({ logged_in: true });
     $route.reload();
   };
 
   $scope.on_auth_failed = function(response) {
-    auth.error_message = response.status + ". Check that you typed in the correct credentials.";
+    $scope.auth.loading = false;
+    auth.error_message = '('+response.status+")";
   };
 
   // Log in using credentials delivered through bound_credentials
@@ -374,6 +356,7 @@ function LoginModalController($scope, $modalInstance, auth, $route) {
     var pin_rsa = $scope.bound_creds.pin_rsa;
     var endpoint = $scope.get_selected_endpoint();
     auth.error_message = null;
+    $scope.auth.loading = true;
 
     return auth.authenticate(endpoint, username, apikey, password, null, pin_rsa, null)
       .then($scope.on_auth_success, $scope.on_auth_failed);
@@ -614,7 +597,65 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
 
   $scope.get_selected_endpoint = function() {
     var local_endpoint = localStorage.selected_endpoint || null;
-    return JSON.parse(local_endpoint) || auth.selected_endpoint || auth.endpoints[0] || {};
+    var selected = {};
+
+    if(local_endpoint) {
+      selected = JSON.parse(local_endpoint);
+    } else if(!_.isEmpty(auth.selected_endpoint)) {
+      selected = auth.selected_endpoint;
+    } else if(auth.endpoints.length) {
+      selected = auth.endpoints[0];
+    }
+
+    return selected;
+  };
+
+  $scope.select_unused_endpoint = function() {
+    var selected = $scope.get_selected_endpoint();
+    var endpoint = {};
+    var endpoints = auth.endpoints;
+
+    if(endpoints.length) {
+      endpoints.every(function(_endpoint) {
+        endpoint = _endpoint;
+        return _endpoint.scheme == selected.scheme;
+      });
+    }
+
+    $scope.select_endpoint(endpoint);
+  };
+
+  $scope.auth_provider_template_map = {
+    'Rackspace SSO': {
+      template: '/partials/app/auth_providers/rackspace_sso.tpl.html',
+      scheme: 'GlobalAuth',
+      label: 'Rackspace SSO',
+      isVisible: function() {
+        return auth.identity.endpoint_type == this.scheme;
+      }
+    },
+    'US': {
+      template: '/partials/app/auth_providers/rackspace_us.tpl.html',
+      scheme: 'Keystone',
+      label: 'US Cloud Account',
+      isVisible: function() {
+        return auth.identity.endpoint_type == this.scheme;
+      }
+    }
+  };
+
+  $scope.get_selected_endpoint_label = function() {
+    var type = auth.identity.endpoint_type;
+    var label = (_.filter($scope.auth_provider_template_map, function(endpoint) {
+      return auth.identity.endpoint_type == endpoint.scheme;
+    })[0] || {}).label;
+
+    return label;
+  };
+
+  $scope.get_selected_form_template = function() {
+    var realm = $scope.get_selected_endpoint().realm;
+    return $scope.auth_provider_template_map[realm].template;
   };
 
   $scope.on_impersonate_success = function(response) {

@@ -1,60 +1,117 @@
-<div id="modalAuth">
+<style>
+  .modal {
+    width: 450px;
+    margin-left: -225px;
+  }
+  .modalAuth .modal-header {
+    border-bottom: none;
+  }
+  .modalAuth .modal-header h3 {
+    margin-top: 15px;
+  }
+  .modalAuth .modal-body {
+    width: 400px;
+    max-height: 500px;
+    margin: 0 auto;
+    margin-bottom: 10px;
+  }
+  .modalAuth select {
+    width: 100%;
+  }
+  .modalAuth input {
+    height: 30px;
+  }
+  .modalAuth button.btn {
+    /*padding: 8px 25px;*/
+  }
+  .modalAuth .modal-footer {
+    box-shadow: none;
+    background-color: transparent;
+    padding: 0;
+    margin: 0;
+    border-top: none;
+  }
+  .modalAuth .form-horizontal .control-group {
+    margin-bottom: 5px;
+  }
+
+  .junction {
+    display: block;
+    margin: 25px 0;
+    text-align: center;
+  }
+  .junction span {
+    background-color: #fff;
+    text-transform: uppercase;
+    padding: 0 10px;
+    top: -5px;
+    position: relative;
+    color: #999;
+    font-size: 11px;
+  }
+  .junction:after {
+    border-top: 1px solid #dde0e2;
+    content: ' ';
+    display: block;
+    margin-top: -15px;
+  }
+  .control-group .junction {
+    margin: 0 0 15px 0;
+  }
+</style>
+
+<div id="modalAuth" class="modalAuth">
   <div class="modal-header">
     <button type="button" class="close" ng-click="dismiss()">&times;</button>
-    <h3>Welcome to Checkmate!</h3>
-    <br>
-    <div id="auth_error" class="alert alert-error" ng-show="auth_error_message()">
-      <strong>Authentication Failed!</strong> <span id="auth_error_text">{{auth_error_message()}}</span>
-    </div>
-    <!-- ANNOUNCEMENT -->
-    <div class="announcement" ng-show="display_announcement()">
-      <img src="/img/announcement-arrow.png" />
-      Log in as a Racker and impersonate users.
-    </div>
+    <h3 class="text-center">Authenticate</h3>
   </div>
+
   <div class="modal-body">
-    <form class="form-horizontal" style="margin-bottom: 0px" name="loginForm" ng-submit="logIn()">
+    <ng-include ng-if="!(clientId && github.config.accessToken)"
+                src="'/partials/app/auth_providers/github.tpl.html'">
+    </ng-include>
+
+    <div class="junction" ng-if="!(clientId && github.config.accessToken) || !auth.endpoints.length">
+      <span>Or</span>
+    </div>
+
+    <div id="auth_error" class="alert alert-error" ng-show="auth_error_message()">
+      <strong>Something went wrong. </strong> <span id="auth_error_text">{{auth_error_message()}}</span>
+    </div>
+
+    <form class="form-horizontal"
+          style="margin-bottom: 0px"
+          name="loginForm"
+          ng-submit="logIn()"
+          ng-show="auth.endpoints.length">
+
       <fieldset>
         <ul class="nav nav-tabs">
-          <li ng-repeat="endpoint in auth.endpoints" ng-class="is_active(endpoint) + ' ' + realm_name(endpoint)">
-            <a href="#" ng-hide="is_hidden(endpoint)" ng-click="select_endpoint(endpoint)">
-              <i class="icon-fire" ng-show="display_announcement()"></i>{{endpoint['realm']}}
+          <li ng-repeat="endpoint in auth.endpoints"
+              ng-class="is_active(endpoint) + ' ' + realm_name(endpoint)">
+            <a href="#"
+               ng-hide="is_hidden(endpoint) || auth_provider_template_map[endpoint.realm].isVisible()"
+               ng-click="select_endpoint(endpoint)">
+              {{endpoint['realm']}}
             </a>
           </li>
         </ul>
-        <div class="control-group">
-          <label class="control-label" for="username">
-            Username
-            <span ng-show="is_sso(get_selected_endpoint())">(SSO)</span>
-          </label>
-          <div class="controls">
-            <input type="text" class="input-xlarge" id="username" ng-model="bound_creds.username" cm-password-manager />
-          </div>
-        </div>
-        <div class="control-group" ng-hide="uses_pin_rsa()">
-          <label class="control-label" for="apikey">API Key</label>
-          <div class="controls">
-            <input type="password" class="input-xlarge" id="apikey" ng-model="bound_creds.apikey" cm-password-manager />
-          </div>
-        </div>
-        <div class="control-group" ng-show="uses_pin_rsa()">
-          <label class="control-label" for="pin_rsa">PIN+RSA Key</label>
-          <div class="controls">
-            <input type="password" class="input-xlarge" id="pin_rsa" ng-model="bound_creds.pin_rsa" cm-password-manager />
-          </div>
-        </div>
-        <p style="text-align: center">or</p>
-        <div class="control-group">
-          <label class="control-label" for="password">Password</label>
-          <div class="controls">
-            <input type="password" class="input-xlarge" id="password" ng-model="bound_creds.password" cm-password-manager />
-          </div>
-        </div>
-        <hr/>
+        <ng-include src="get_selected_form_template()"></ng-include>
       </fieldset>
+
       <div class="modal-footer">
-        <button type="submit" class="btn btn-primary">Authenticate!</button>
+        <button type="submit"
+                class="btn btn-large btn-block"
+                ng-class="{'btn-primary': !auth.loading}"
+                ng-disabled="auth.loading">
+          <span ng-hide="auth.loading">Authenticate</span>
+          <span ng-show="auth.loading">
+            <i class="fa fa-spinner fa-spin fa-pulse"></i>
+            Authenticating...
+          </span>
+        </button>
       </div>
+
     </form>
   </div>
 </div>
