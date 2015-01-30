@@ -51,7 +51,7 @@
 -e git://github.com/samstav/satori.git@bug/1389034#egg=satori
 
 # Includes SSL support for eventlet for use in simpler debugging for Encore UI
-git+https://github.com/ziadsawalha/bottle.git@ssl
+-e git+https://github.com/ziadsawalha/bottle.git@ssl#egg=bottle
 
 #### Checkmate packages
 airbrake==1.1.4
