@@ -65,8 +65,7 @@ body {
 }
 
 .dropdown .dropdown-menu .nav-text {
-  padding-left: 20px;
-  padding-right: 20px;
+  padding: 3px 20px;
 }
 
 .clickable {

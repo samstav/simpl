@@ -4,7 +4,9 @@
     <li class="divider-vertical"></li>
 
     <!-- NOT LOGGED IN -->
-    <li class="pull-right" ng-cloak ng-hide="auth.is_logged_in()">
+    <li class="pull-right"
+        ng-cloak
+        ng-hide="auth.is_logged_in() || (clientId && github.config.accessToken)">
       <a ng-click="loginPrompt()">
         <i class="icon-user icon-white"></i>
         Log In
@@ -12,48 +14,128 @@
     </li>
 
     <!-- LOGGED IN -->
-    <li class="dropdown pull-right" ng-show="auth.is_logged_in()" title="Token expires {{auth.context.token.expires | formattedDate}}">
+    <li class="dropdown pull-right"
+        ng-show="auth.is_logged_in() || (clientId && github.config.accessToken)"
+        title="Token expires {{auth.context.token.expires | formattedDate}}">
+
       <a class="dropdown-toggle" id="user_button">
-            <img ng-show="github.currentUser.avatar_url" ng-src="{{ github.currentUser.avatar_url }}" style="height: 20px; margin-right: 5px;" title="GitHub Login: {{ github.currentUser.login }}">
-            <i ng-hide="github.currentUser.avatar_url" class="icon-user icon-white"></i> {{auth.context.username}}
-            <span ng-show="auth.context.tenantId"> ({{auth.context.tenantId}})</span>
-            <i class="caret"></i>
+        <img ng-show="github.currentUser.avatar_url"
+             ng-src="{{ github.currentUser.avatar_url }}"
+             style="height: 20px; margin-right: 5px;"
+             title="GitHub Login: {{ github.currentUser.login }}">
+        <i ng-hide="github.currentUser.avatar_url" class="icon-user icon-white"></i>
+        {{auth.context.username || github.currentUser.login}}
+        <span ng-show="auth.context.tenantId">
+          ({{auth.context.tenantId}})
+        </span>
+        <i class="caret"></i>
       </a>
-      <ul id="user_menu" class="dropdown-menu pull-right" role="menu" aria-labelledby="user_button">
 
-        <!-- GitHub -->
-        <li class="nav-header">GITHUB ACCESS</li>
-        <li ng-show="clientId && github.config.accessToken"><a href="#"><i class="fa fa-github"></i> {{ github.currentUser.login }} (public)</a></li>
-        <li ng-show="clientId && !github.config.accessToken"><a ng-href="#" ng-click="github.go_auth()"><i class="fa fa-github"></i> Auth to GitHub.com</a></li>
-        <li ng-show="github.config.accessToken"><a href="#" ng-click="githubLogout()">Remove GitHub Token</a></li>
+      <ul id="user_menu"
+          class="dropdown-menu pull-right"
+          style="width: 250px;"
+          role="menu"
+          aria-labelledby="user_button">
 
-        <li class="nav-text" ng-hide="clientId">GitHub not Enabled on Server</li>
+        <li class="nav-header">Authentication</li>
+        <li>
+          <a ng-click="loginPrompt()">
+            <i class="fa fa-plus-circle"></i>
+            Add Credentials
+          </a>
+        </li>
+
         <li class="divider"></li>
 
-        <!-- User Tenants -->
-        <li ng-show="auth.get_tenants().length > 0" class="nav-header">Tenants</li>
-        <li role="presentation" ng-repeat="tenant in auth.get_tenants()">
-            <a role="menutitem" ng-click="auth.switch_tenant(tenant.tenantId)">{{tenant.username}}</a>
+        <!-- GitHub -->
+        <li class="nav-header">GITHUB.COM</li>
+
+        <li ng-show="clientId && github.config.accessToken" class="nav-text">
+          <i class="fa fa-github"></i>
+          <strong>{{ github.currentUser.login }}</strong>
         </li>
-        <li ng-show="auth.get_tenants().length > 0" class="divider"></li>
+
+        <li ng-show="clientId && !github.config.accessToken">
+          <a ng-href="#" ng-click="github.go_auth()">
+            <i class="fa fa-github"></i>
+            Auth to GitHub.com
+          </a>
+        </li>
+
+        <li ng-show="github.config.accessToken">
+          <a href="#" ng-click="githubLogout()">
+            <i class="fa fa-sign-out"></i>
+            Remove
+          </a>
+        </li>
+
+        <li class="nav-text" ng-hide="clientId">
+          GitHub not Enabled on Server
+        </li>
+
+        <li class="divider" ng-show="auth.get_tenants().length > 0"></li>
+
+        <!-- User Tenants -->
+        <li ng-show="auth.get_tenants().length > 0" class="nav-header">
+          Tenants
+        </li>
+        <li role="presentation" ng-repeat="tenant in auth.get_tenants()">
+            <a role="menutitem"
+               ng-click="auth.switch_tenant(tenant.tenantId)">
+              {{tenant.username}}
+            </a>
+        </li>
+        <li ng-show="auth.is_admin()" class="divider"></li>
 
         <!-- Impersonation -->
         <li ng-show="auth.is_admin()" class="nav-header">Impersonation</li>
+
         <li ng-show="auth.is_admin()">
           <form id="impersonate" ng-submit="impersonate(impersonation.username)">
-            <input ng-model="impersonation.username" type="text" placeholder="Username" cm-stop-click-propagation />
+            <input ng-model="impersonation.username"
+                   type="text"
+                   placeholder="Username"
+                   cm-stop-click-propagation />
           </form>
         </li>
-        <li ng-show="auth.is_admin()" role="presentation" ng-repeat="tenant in auth.cache.tenants">
-            <a role="menutitem" ng-click="impersonate(tenant.username)">{{tenant.username}} ({{tenant.tenantId}})</a>
-        </li>
-        <li ng-show="auth.is_admin() &amp;&amp; auth.cache.tenants" class="divider"></li>
 
-        <li><a ng-show="is_impersonating()" ng-click="exit_impersonation()">Exit Impersonation</a></li>
-        <li ng-show="is_impersonating()" class="divider"></li>
+        <li ng-show="auth.is_admin()"
+            role="presentation"
+            ng-repeat="tenant in auth.cache.tenants">
+            <a role="menutitem"
+               ng-click="impersonate(tenant.username)">
+              <i class="fa fa-user"></i>
+              <strong>{{tenant.username}}</strong> ({{tenant.tenantId}})
+            </a>
+        </li>
+
+
+        <li>
+          <a ng-show="is_impersonating()"
+               ng-click="exit_impersonation()">
+            <i class="fa fa-sign-out"></i>
+            Exit Impersonation
+          </a>
+        </li>
+
+        <li ng-show="auth.is_logged_in()" class="divider"></li>
 
         <!-- Log out -->
-        <li><a ng-click="auth.logOut()">Log Out</a></li>
+        <li class="nav-header" ng-show="auth.is_logged_in()">
+          {{ get_selected_endpoint_label() | uppercase }}
+        </li>
+        <li ng-show="auth.is_logged_in()"
+            class="nav-text"
+            ng-attr-title="{{ auth.identity.endpoint_type }} Endpoint">
+          <i class="fa fa-user"></i>
+          <strong>{{ auth.identity.username }}</strong>
+        </li>
+        <li ng-show="auth.is_logged_in()">
+          <a ng-click="auth.logOut()">
+            <i class="fa fa-sign-out"></i>
+            Remove
+          </a>
+        </li>
 
       </ul>
     </li>

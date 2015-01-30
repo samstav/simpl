@@ -151,7 +151,7 @@
                   <li id="nav-status-libraries"><a href="/admin/status/libraries">Libraries</a></li>
                 </ul>
               </li>
-              <li class="dropdown" ng-show="in_admin_context()" >
+              <li class="dropdown" ng-show="!auth.context.tenantId">
                 <a href="#" class="dropdown-toggle">Blueprints<b class="caret"></b></a>
                 <ul class="dropdown-menu">
                   <li id="nav-designer"><a href="/blueprints/design">New (Designer)</a></li>
