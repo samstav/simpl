@@ -303,6 +303,11 @@ class Config(config.Config):
 
     """Implements config and extends it with logging setup."""
 
+    def __init__(self, *args, **kwargs):
+        """Initialize with custom attributes."""
+        super(Config, self).__init__(*args, **kwargs)
+        self._airbrake_handler = None
+
     @property
     def log_level(self):
         """Get debug settings from arguments.
@@ -358,6 +363,35 @@ class Config(config.Config):
                                       disable_existing_loggers=False)
         else:
             self.init_console_logging()
+
+        # this function will do nothing if no airbrake configs are set
+        self.init_custom_handlers()
+
+    def init_custom_handlers(self, logger=None, level=None):
+        """Initialize any custom handlers *after* celery.
+
+        Celery hijacks otherwise.
+        """
+        self.init_airbrake_handler(logger=logger, level=level)
+
+    def init_airbrake_handler(self, logger=None, level=None):
+        """Initialize the AirbrakeHandler if the project id and key are set."""
+        if not self._airbrake_handler:
+            if self.airbrake_project_id and self.airbrake_api_key:
+                import airbrake
+                level = level or logging.CRITICAL
+                LOG.log(31, "Configuring airbrake logging handler "
+                        "at level %s with project_id: %s",
+                        logging.getLevelName(level), self.airbrake_project_id)
+                ab_env = self.app_environment or None
+                self._airbrake_handler = airbrake.AirbrakeHandler(
+                    project_id=self.airbrake_project_id,
+                    api_key=self.airbrake_api_key,
+                    environment=ab_env,
+                    level=level)
+        if self._airbrake_handler:
+            logger = logger or logging.getLogger()
+            logger.addHandler(self._airbrake_handler)
 
     def get_debug_formatter(self):
         """Get debug formatter based on configuration.
@@ -455,6 +489,12 @@ def current():
         CONFIG.initialize()
     """
     return CURRENT_CONFIG
+
+
+@signals.after_setup_logger.connect
+def init_custom_handlers(**kwargs):
+    """Celery compatible logging config."""
+    current().init_custom_handlers()
 
 
 @signals.worker_init.connect
