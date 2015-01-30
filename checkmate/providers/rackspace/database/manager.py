@@ -13,17 +13,16 @@
 #    under the License.
 
 # encoding: utf-8
-# pylint: disable=E1103
+# pylint: disable=E1103,R0913
 
 """Rackspace Cloud Databases provider manager."""
 
-import copy
 import logging
 
 from pyrax import exceptions as cdb_errors
 
-from checkmate.providers.rackspace.database import dbaas
 from checkmate import exceptions as cmexc
+from checkmate.providers.rackspace.database import dbaas
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -52,7 +51,7 @@ class Manager(object):
                 str(exc),
                 friendly_message="Error occurred in database provider",
                 options=cmexc.CAN_RESUME)
-        except StandardError as exc:
+        except (StandardError, dbaas.CDBException) as exc:
             data['status'] = 'ERROR'
             data['status-message'] = 'Error waiting on resource to build'
             data['error-message'] = exc.message
@@ -117,11 +116,7 @@ class Manager(object):
                 users=desired_state.get('users'),
                 simulate=simulate
             )
-        # TODO(pablo): these exceptions need to become dbaas exceptions
-        except cdb_errors.OverLimit as exc:
-            raise cmexc.CheckmateException(str(exc), friendly_message=str(exc),
-                                           options=cmexc.CAN_RETRY)
-        except cdb_errors.ClientException as exc:
+        except dbaas.CDBException as exc:
             raise cmexc.CheckmateException(str(exc), options=cmexc.CAN_RETRY)
         except Exception as exc:
             raise cmexc.CheckmateException(str(exc))
@@ -136,7 +131,6 @@ class Manager(object):
 
         return instance
 
-    #pylint: disable=R0913
     @staticmethod
     def create_database(name, instance_id, api, callback, context,
                         character_set=None, collate=None, instance_attrs=None,
@@ -222,12 +216,12 @@ class Manager(object):
         LOG.info('Created database %s on instance %s', name, instance_id)
         return results
 
-    #pylint: disable=R0913
     @staticmethod
     def add_user(instance_id, databases, username, password,
                  api, callback, simulate=False):
-        """Add a database user to an instance for one or more databases.
-        Returns instance data.
+        """Add a database user to an instance for one or more databases
+
+        Returns instance data
         """
         assert instance_id, "Instance ID not supplied"
 

@@ -256,8 +256,7 @@ class TestDatabase(test.ProviderTester):
             'disk',
             resource_type='compute',
             service_name='master',
-            provider_key=dbprovider.key,
-            default=1
+            provider_key=dbprovider.key
         ).AndReturn(2)
         self.deployment.get_setting(
             'region',
@@ -742,7 +741,6 @@ environment:
             {
                 'datastore-type': 'redis',
                 'flavor': '101',
-                'disk': 1,
                 'region': 'DFW',
                 'datastore-version': '2.8'
             }
