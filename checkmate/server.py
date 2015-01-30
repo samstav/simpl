@@ -177,6 +177,11 @@ def error_formatter(error):
         description = "Unexpected error."
         error.output = cmexc.UNEXPECTED_ERROR
 
+    if not hasattr(error, 'output'):
+        error.output = cmexc.UNEXPECTED_ERROR
+    if not hasattr(error, 'status'):
+        error.status = 500
+
     if hasattr(error.exception, 'args'):
         if len(error.exception.args) > 1:
             LOG.warning('HTTPError: %s', error.exception.args)
