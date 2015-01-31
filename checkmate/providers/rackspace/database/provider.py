@@ -370,7 +370,7 @@ class Provider(cmbase.ProviderBase):
             if 'config-params' in resource.get('desired-state', {}):
                 create_config_task = specs.Celery(
                     wfspec,
-                    'Create Configuration %s' % name,
+                    'Create Database Configuration',
                     'checkmate.providers.rackspace.database.tasks.'
                     'create_configuration',
                     call_args=[
@@ -506,6 +506,20 @@ class Provider(cmbase.ProviderBase):
             call_args=[context], properties={'estimated_duration': 10})
 
         delete_instance.connect(wait_on_delete)
+
+        # if a configuration exists, delete it too
+        config_id = context['resource'].get(
+            'instance', {}).get('configuration', {}).get('id')
+        if config_id:
+            delete_configuration = specs.Celery(
+                wf_spec, 'Delete Database Configuration (%s)' % config_id,
+                'checkmate.providers.rackspace.database.tasks.'
+                'delete_configuration',
+                call_args=[context, config_id],
+                properties={'estimated_duration': 10}
+            )
+            wait_on_delete.connect(delete_configuration)
+
         return {'root': delete_instance, 'final': wait_on_delete}
 
     @staticmethod
