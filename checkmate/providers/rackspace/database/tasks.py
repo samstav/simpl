@@ -455,3 +455,36 @@ def delete_user(context, instance_id, username, region, api=None):
     instance.delete_user(username)
     LOG.info('Deleted user %s from database instance %s', username,
              instance_id)
+
+
+@task.task(default_retry_delay=10, max_retries=10)
+@statsd.collect
+def delete_configuration(context, config_id):
+    """Delete database configuration referenced by config_id
+
+    Note: region is set to `None` when the database instance is deleted
+    so we need to grab it from the resource. Of the two possibilies - one in
+    'instance' and one in 'desired-state' - 'instance' seems the more
+    appropriate choice, as indicated in the region assignment line below.
+    """
+    class DBAASContext(object):
+
+        """Bare-bones context
+
+        Since the passed-in context was changed to a dict by
+        `delete_resource_tasks`, DBAASContext is used to set the attributes
+        expected by dbaas. This is temporary, as once the database
+        provider refactor is complete all tasks will use a proper context.
+        """
+
+        def __init__(self, region, tenant, auth_token):
+            self.region = region
+            self.tenant = tenant
+            self.auth_token = auth_token
+
+    region = context.get('resource', {}).get('instance', {}).get('region')
+    context = DBAASContext(region, context.get('tenant'),
+                           context.get('auth_token'))
+    utils.match_celery_logging(LOG)
+    dbaas.delete_configuration(context, config_id)
+    LOG.info('Deleted database configuration %s', config_id)
