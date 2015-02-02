@@ -226,15 +226,15 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
                       "password succeeded", username, ip, port)
         LOG.debug("Connected to ssh://%s@%s:%d.", username, ip, port)
         return client
-    except paramiko.PasswordRequiredException, exc:
-        #Looks like we have cert issues, so try password auth if we can
+    except paramiko.PasswordRequiredException as exc:
+        # Looks like we have cert issues, so try password auth if we can
         if password:
             LOG.debug("Retrying with password credentials")
             return connect(ip, username=username, timeout=timeout,
                            password=password, port=port)
         else:
             raise exc
-    except paramiko.BadHostKeyException, exc:
+    except paramiko.BadHostKeyException as exc:
         msg = ("ssh://%s@%s:%d failed:  %s. You might have a bad key "
                "entry on your server, but this is a security issue and won't "
                "be handled automatically. To fix this you can remove the "
@@ -242,7 +242,7 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
                (username, ip, port, exc))
         LOG.info(msg)
         raise exc
-    except Exception, exc:
+    except Exception as exc:
         LOG.info('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
         raise exc
 

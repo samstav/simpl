@@ -12,9 +12,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Workflows Manager,
+"""Workflows Manager.
 
-Handles workflow logic,
+Handles workflow logic.
 """
 import logging
 

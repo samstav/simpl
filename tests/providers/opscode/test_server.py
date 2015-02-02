@@ -1569,7 +1569,9 @@ class TestChefMapResolver(unittest.TestCase):
 
 
 class TestCatalog(unittest.TestCase):
+
     """Test catalog functionality (remote)."""
+
     def setUp(self):
         self.mox = mox.Mox()
 
@@ -1598,7 +1600,9 @@ class TestCatalog(unittest.TestCase):
 
 
 class TestMapTemplating(unittest.TestCase):
+
     """Chef maps with templating work correctly."""
+
     def setUp(self):
         self.mox = mox.Mox()
 

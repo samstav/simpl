@@ -14,7 +14,7 @@
 
 """Workflows Router"""
 
-#pylint: disable=W0110,W0141,W0212,W0613,R0914
+# pylint: disable=W0110,W0141,W0212,W0613,R0914
 import logging
 import uuid
 
@@ -47,7 +47,7 @@ class Router(object):
         self.manager = manager
         self.deployment_manager = deployment_manager
 
-        #Workflow
+        # Workflow
         app.route('/workflows', 'GET', self.get_workflows)
         app.route('/workflows', 'POST', self.add_workflow)
         app.route('/workflows/<api_id>', ['PUT', 'POST'], self.save_workflow)
@@ -57,7 +57,7 @@ class Router(object):
         app.route('/workflows/<workflow_id>/specs/<spec_id>', 'POST',
                   self.post_workflow_spec)
 
-        #Actions
+        # Actions
         app.route('/workflows/<api_id>/+execute', ['GET', 'POST'],
                   self.execute_workflow)
         app.route('/workflows/<api_id>/+pause', ['GET', 'POST'],
@@ -69,7 +69,7 @@ class Router(object):
         app.route('/workflows/<api_id>/+resume-failed-tasks', ['GET', 'POST'],
                   self.resume_all_failed_tasks)
 
-        #Tasks
+        # Tasks
         app.route('/workflows/<api_id>/tasks/<task_id:int>', 'GET',
                   self.get_workflow_task)
         app.route('/workflows/<api_id>/tasks/<task_id:int>', 'POST',

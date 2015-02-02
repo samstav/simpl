@@ -229,9 +229,10 @@ class Provider(provider.RackspaceComputeProviderBase):
         create_server_task = specs.Celery(
             wfspec, 'Create Server %s (%s)' % (key, resource['service']),
             'checkmate.providers.rackspace.compute_legacy.create_server',
-            call_args=[context.get_queued_task_dict(
-                deployment=deployment['id'],
-                resource=key),
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment=deployment['id'],
+                    resource=key),
                 resource.get('dns-name')
             ],
             image=desired_state.get('image', 119),
@@ -255,9 +256,10 @@ class Provider(provider.RackspaceComputeProviderBase):
             wfspec,
             'Wait for Server %s (%s) build' % (key, resource['service']),
             'checkmate.providers.rackspace.compute_legacy.wait_on_build',
-            call_args=[context.get_queued_task_dict(
-                deployment=deployment['id'],
-                resource=key),
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment=deployment['id'],
+                    resource=key),
                 operators.PathAttrib('resources/%s/instance/id' % key)
             ],
             password=operators.PathAttrib(

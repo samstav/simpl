@@ -13,9 +13,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""All the Deployments things."""
+"""All the Blueprints things."""
 
 from .blueprint import Blueprint
-from .github import GitHubManager, WebhookRouter
+from .github import GitHubManager
+from .github import WebhookRouter
 from .manager import Manager
 from .router import Router

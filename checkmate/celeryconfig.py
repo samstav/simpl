@@ -64,7 +64,7 @@ else:
 
 # This would be a message queue only config, but won't work with Checkmate
 # since checkmate needs to query task results and status
-#CELERY_RESULT_BACKEND = "amqp"
+# CELERY_RESULT_BACKEND = "amqp"
 #
 # Use this if we want to track status and let clients query it
 CELERY_RESULT_BACKEND = os.environ.get('CHECKMATE_RESULT_BACKEND', "database")

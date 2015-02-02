@@ -269,8 +269,7 @@ class Router(object):
 
     @utils.only_admins
     def get_deployment_count_by_bp(self, blueprint_id):
-        """Return the number of times the given blueprint appears
-        in saved deployments.
+        """Return count of deployments per blueprint.
 
         :param:blueprint_id: the blueprint ID
         :param:tenant_id: the (optional) tenant

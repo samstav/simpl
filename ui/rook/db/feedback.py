@@ -11,7 +11,7 @@ LOG = logging.getLogger(__name__)
 try:
     import pymongo
 
-    from sqlalchemy import Column, Integer, String, Text, PickleType
+    from sqlalchemy import Column, Integer, Text, PickleType
     from sqlalchemy.ext.declarative import declarative_base
     from sqlalchemy.pool import StaticPool
     from sqlalchemy import create_engine
@@ -21,43 +21,49 @@ except Exception as exc:
 
 from rook.db.common import *
 from rook.exceptions import RookDatabaseConnectionError
-from checkmate.utils import merge_dictionary
+from checkmate import utils
 
 __all__ = ['Base', 'Feedback']
 
 
-CONNECTION_STRING = os.environ.get('ROOK_CONNECTION_STRING', os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://'))
+CONNECTION_STRING = os.environ.get(
+    'ROOK_CONNECTION_STRING',
+    os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://'))
 _ENGINE = None
 if CONNECTION_STRING == 'sqlite://':
     _ENGINE = create_engine(CONNECTION_STRING,
-                connect_args={'check_same_thread': False},
-                poolclass=StaticPool)
-    message = ("The feedback driver is connected to an in-memory sqlite "
-               "database. No feedback data will be persisted. To store your "
-               "data, set the ROOK_CONNECTION_STRING environment "
-               "variable to a valid sqlalchemy connection string")
-    LOG.warning(message)
+                            connect_args={'check_same_thread': False},
+                            poolclass=StaticPool)
+    MSG = ("The feedback driver is connected to an in-memory sqlite "
+           "database. No feedback data will be persisted. To store your "
+           "data, set the ROOK_CONNECTION_STRING environment "
+           "variable to a valid sqlalchemy connection string")
+    LOG.warning(MSG)
 elif CONNECTION_STRING.startswith('sqlite'):
     _ENGINE = create_engine(CONNECTION_STRING)
-    LOG.info("Connected to '%s'" % CONNECTION_STRING)
+    LOG.info("Connected to '%s'", utils.hide_url_password(CONNECTION_STRING))
 
 
 class MongoDriver(DbBase):
+
     """MongoDB Database Driver for Feedback Collection"""
+
     _connection = None
 
     def __init__(self, *args, **kwargs):
         """Initializes globals for this driver"""
         DbBase.__init__(self, *args, **kwargs)
-        self.connection_string = os.environ.get('ROOK_CONNECTION_STRING',
-                                                os.environ.get('CHECKMATE_CONNECTION_STRING',
-                                                'mongodb://localhost'))
+        self.connection_string = os.environ.get(
+            'ROOK_CONNECTION_STRING',
+            os.environ.get('CHECKMATE_CONNECTION_STRING',
+                           'mongodb://localhost'))
         # Temp hack for production
         parts = self.connection_string.split('/')
         if parts[-1] == 'checkmate':
             parts[-1] = "feedback"
         self.connection_string = '/'.join(parts)
-        LOG.debug("Feedback connecting to: %s" % self.connection_string)
+        LOG.debug("Feedback connecting to: %s",
+                  utils.hide_url_password(self.connection_string))
 
         self.db_name = 'feedback'
         self._database = None
@@ -68,13 +74,14 @@ class MongoDriver(DbBase):
             if self._connection is None:
                 try:
                     self._connection = pymongo.Connection(
-                            self.connection_string)
+                        self.connection_string)
                 except pymongo.errors.AutoReconnect as exc:
                     raise RookDatabaseConnectionError(exc.__str__())
 
             self._database = self._connection[self.db_name]
-            LOG.info("Connected to mongodb on %s (database=%s)" %
-                     (self.connection_string, self.db_name))
+            LOG.info("Connected to mongodb on %s (database=%s)",
+                     utils.hide_url_password(self.connection_string),
+                     self.db_name)
         return self._database
 
     def save_feedback(self, body):
