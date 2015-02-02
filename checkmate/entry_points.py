@@ -24,7 +24,7 @@ import os
 #       possible. So position is important.  KEEP THIS FIRST
 __import__('checkmate.common.tracer')
 
-import checkmate  # noqa
+from checkmate.common import config
 
 
 def client():
@@ -50,20 +50,26 @@ Settings:
 
 def queue():
     """Entry point for Checkmate queue."""
-    checkmate.preconfigure()
+    import checkmate
+    checkmate.print_banner('Worker')
+    config.preconfigure()
     from checkmate import checkmate_queue
     checkmate_queue.main_func()
 
 
 def server():
     """Entry point for Checkmate server."""
-    checkmate.preconfigure()
+    import checkmate
+    checkmate.print_banner('API')
+    config.preconfigure()
     from checkmate import server as cmserver
     cmserver.main()
 
 
 def simulation():
     """Entry point for Checkmate simulation."""
-    checkmate.preconfigure()
+    import checkmate
+    checkmate.print_banner('Simulation')
+    config.preconfigure()
     from checkmate.sample import checkmate_simulation
     checkmate_simulation.main_func()

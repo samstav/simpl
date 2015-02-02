@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-# pylint: disable=C0330
+# pylint: disable=C0330,E1101
 
 """Global configuration.
 
@@ -27,6 +27,8 @@ To load config from sys.args, environment variables, and keyring:
     CONFIG.parse()
 
 """
+from __future__ import print_function
+
 import argparse
 import copy
 import logging
@@ -35,7 +37,6 @@ import sys
 
 from celery import signals
 
-import checkmate
 from checkmate.contrib import config
 from checkmate import utils
 
@@ -503,5 +504,30 @@ def init_custom_handlers(**kwargs):
 
 @signals.worker_init.connect
 def preconfigure(*args, **kwargs):
-    """Ensure that the process of the worker has a loaded config."""
-    checkmate.preconfigure()
+    """Common configuration to be done before everything else."""
+    quiet = kwargs.pop('quiet', None)
+    args = args or sys.argv
+    strargv = " ".join(args).lower()
+    role = ''
+    if any(k in strargv
+           for k in ('checkmate-queue start', 'celery worker')):
+        role = 'Worker'
+    elif any(k in strargv
+             for k in ('server.py start', 'checkmate-server start')):
+        role = 'API'
+
+    conf = current()
+    conf.parse()
+    if (role == 'API' and conf.bottle_reloader and not conf.eventlet
+            and not os.environ.get('BOTTLE_CHILD')):
+        conf.quiet = True
+        import logging
+        logging.getLogger().setLevel(logging.ERROR)
+    else:
+        # this is the bottle child OR reloader is off
+        conf.init_logging(
+            default_config='/etc/default/checkmate-svr-log.conf')
+
+    if not conf.quiet and not quiet:
+        print(conf.display())
+    return conf
