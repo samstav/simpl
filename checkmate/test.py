@@ -413,7 +413,7 @@ class StubbedWorkflowBase(unittest.TestCase):
         # Add repetitive calls (per resource)
         for key, resource in self.deployment.get('resources', {}).iteritems():
             desired = resource.get('desired-state')
-            if resource.get('type') == 'compute' and 'image' in desired:
+            if resource.get('type') == 'compute' and desired.get('image'):
                 if 'master' in resource['dns-name']:
                     fake_id = 10000 + int(key)  # legacy format
                     role = 'master'
