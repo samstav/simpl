@@ -1342,3 +1342,48 @@ def run_ruby_command(path, command, params, env=None, lock=True):
         result = subprc.check_output(params, cwd=path, env=env)
     LOG.debug(result)
     return result
+
+
+class MutatingIterator(object):  # pylint: disable=R0903
+
+    """This class iterates over a changing dict.
+
+    Example usage:
+
+        data = {1: 1}
+
+        for var in MutatingIterator(data):
+            print var
+            if var < 4:
+                data[var+1] = ''
+        > 1
+        > 2
+        > 3
+        > 3
+    """
+
+    def __init__(self, data):
+        self.data = data
+
+    class Iterator(object):  # pylint: disable=R0903
+
+        """Iterator over changing dict."""
+
+        def __init__(self, data):
+            self.data = data
+            self.visited = set()
+
+        def __next__(self):
+            """Python 3 compatible call."""
+            return self.next()
+
+        def next(self):
+            """Next instantated manager."""
+            for key in self.data.iterkeys():
+                if key not in self.visited:
+                    self.visited.add(key)
+                    return key
+            raise StopIteration()
+
+    def __iter__(self):
+        return MutatingIterator.Iterator(self.data)

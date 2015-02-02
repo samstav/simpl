@@ -340,7 +340,8 @@ class Planner(classes.ExtensibleDict):
             # Add host and other requirements that exist in the service
             extra_components = service_analysis.get(
                 'extra-components', {})
-            for key, extra_def in extra_components.iteritems():
+            for key in utils.MutatingIterator(extra_components):
+                extra_def = extra_components[key]
                 LOG.debug("    Processing extra component '%s' for "
                           "'%s'", key, service_name)
                 extra_resources = self.deployment.create_resource_template(
