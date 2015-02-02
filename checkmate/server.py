@@ -174,6 +174,7 @@ def error_formatter(error):
         }
         LOG.critical(errmsg, exc_info=error.exc_info, extra=context)
         error.status = 500
+        error.description = "Unexpected error."
         error.output = cmexc.UNEXPECTED_ERROR
 
     if not hasattr(error, 'output'):
@@ -196,7 +197,8 @@ def error_formatter(error):
 
 def main():
     """Start the server based on passed in arguments. Called by __main__."""
-    checkmate.preconfigure()
+    checkmate.print_banner('')
+    config.preconfigure()
     if (CONFIG.bottle_reloader and not CONFIG.eventlet
             and not os.environ.get('BOTTLE_CHILD')):
         # bottle spawns 2 processes when in reloader mode
@@ -539,6 +541,7 @@ def run_with_profiling():
         for stat in stats.func_stats:
             print(str(stat[3]).ljust(6), str(stat[2]).ljust(6),
                   str(stat[1]).ljust(6), stat[0])
+
 
 
 #

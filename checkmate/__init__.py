@@ -52,39 +52,11 @@ import os
 gettext.install('checkmate')
 
 
-def preconfigure(args=None, quiet=False):
-    """Common configuration to be done before everything else."""
-    args = args or sys.argv
-    strargv = " ".join(args).lower()
-    role = ''
-    if any(k in strargv
-           for k in ('checkmate-queue start', 'celery worker')):
-        role = 'Worker'
-    elif any(k in strargv
-             for k in ('server.py start', 'checkmate-server start')):
-        role = 'API'
-
-    if not os.environ.get('BOTTLE_CHILD') and not quiet:
-        print("\n*** Staring Checkmate %s v%s Commit %s ***\n"
+def print_banner(role):
+    """Print the start-up banner to stdout."""
+    if not os.environ.get('BOTTLE_CHILD'):
+        print("\n*** Starting Checkmate %s v%s Commit %s ***\n"
               % (role, __version__, __commit__[:8]))
-
-    from checkmate.common import config
-
-    conf = config.current()
-    conf.parse()
-    if (role == 'API' and conf.bottle_reloader and not conf.eventlet
-            and not os.environ.get('BOTTLE_CHILD')):
-        conf.quiet = True
-        import logging
-        logging.getLogger().setLevel(logging.ERROR)
-    else:
-        # this is the bottle child OR reloader is off
-        conf.init_logging(
-            default_config='/etc/default/checkmate-svr-log.conf')
-
-    if not conf.quiet and not quiet:
-        print(conf.display())
-    return conf
 
 
 def _get_commit():
