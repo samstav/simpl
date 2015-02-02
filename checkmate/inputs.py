@@ -19,8 +19,10 @@ import urlparse
 
 
 def register_scheme(scheme):
-    """Use this to register a new scheme with urlparse and have it be parsed
-    in the same way as http is parsed
+    """Register scheme with urlparse.
+
+    Use this to register a new scheme with urlparse and have it be parsed
+    in the same way as http is parsed.
     """
     for method in [s for s in dir(urlparse) if s.startswith('uses_')]:
         getattr(urlparse, method).append(scheme)
@@ -43,7 +45,7 @@ class Input(str):
     """
 
     def __new__(cls, string):
-        """init new instance and handle url type."""
+        """Init new instance and handle url type."""
         if isinstance(string, int):
             return string
         elif isinstance(string, dict):

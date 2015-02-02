@@ -28,7 +28,7 @@ tasks.
 
 import logging
 
-#Error message constants
+# Error message constants
 BLUEPRINT_ERROR = "There is a possible problem in the Blueprint provided."
 UNEXPECTED_ERROR = "Unable to automatically recover from error."
 
@@ -181,9 +181,9 @@ class CheckmateCalledProcessError(CheckmateException):
         self.cmd = cmd
         self.output = output
         self._message = ("Call %s failed with return code %s: %s" %
-                        (self.cmd,
-                         self.returncode,
-                         self.output or '(No output)'))
+                         (self.cmd,
+                          self.returncode,
+                          self.output or '(No output)'))
         self.error_info = error_info
         super(CheckmateCalledProcessError, self).__init__(
             message=self._message,
@@ -225,4 +225,5 @@ class CheckmateDataIntegrityError(CheckmateException):
 class CheckmateHOTTemplateException(CheckmateException):
 
     """A HOT template was encountered where a Checkmate blueprint was expected.
+
     """

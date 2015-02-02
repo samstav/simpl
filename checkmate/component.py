@@ -21,11 +21,11 @@ and so on.
 
 import logging
 
-from checkmate import constraints
 from checkmate.classes import ExtensibleDict
+from checkmate.common import schema
+from checkmate import constraints
 from checkmate import functions
 from checkmate import inputs
-from checkmate.common import schema
 from checkmate.exceptions import CheckmateValidationException
 from checkmate import utils
 

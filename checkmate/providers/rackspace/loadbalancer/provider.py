@@ -204,11 +204,16 @@ class Provider(rsbase.RackspaceProviderBase):
             })
         for res in resources:
             if 'dns-A-name' in res.get('desired-state', {}):
-                messages.append(dns.Provider({}).verify_limits(context,
-                                [{"type": "dns-record",
-                                  "interface": "A",
-                                  'dns-name': res.get('desired-state')
-                                                 .get('dns-A-name')}]))
+                messages.append(
+                    dns.Provider({}).verify_limits(
+                        context, [{
+                            "type": "dns-record",
+                            "interface": "A",
+                            'dns-name': res.get('desired-state').get(
+                                'dns-A-name')
+                        }]
+                    )
+                )
             nodes = len(res.get("relations", {}))
             if max_nodes < nodes:
                 messages.append({
@@ -264,7 +269,7 @@ class Provider(rsbase.RackspaceProviderBase):
                                 resource_type=resource_type)
         create_lb_task_tags = ['create', 'root', 'vip']
 
-        #Find existing task which has created the vip
+        # Find existing task which has created the vip
         vip_tasks = wfspec.find_task_specs(provider=self.key, tag='vip')
         parent_lb = None
 
@@ -409,12 +414,9 @@ class Provider(rsbase.RackspaceProviderBase):
             sync_resource_task
         )
 
-        return super(Provider, self).get_resource_status(context,
-                                                         deployment_id,
-                                                         resource, key,
-                                                         sync_callable=
-                                                         sync_resource_task,
-                                                         api=api)
+        return super(Provider, self).get_resource_status(
+            context, deployment_id, resource, key,
+            sync_callable=sync_resource_task, api=api)
 
     def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):
@@ -596,7 +598,7 @@ class Provider(rsbase.RackspaceProviderBase):
             target = relation['target']
             # determine the port based on protocol
         desired = resource['desired-state']
-        #Create the add node task
+        # Create the add node task
         add_node_task = specs.Celery(
             wfspec,
             "Add Node %s to LB %s" % (relation['target'], key),
@@ -614,7 +616,7 @@ class Provider(rsbase.RackspaceProviderBase):
             properties={'estimated_duration': 20}
         )
 
-        #Make it wait on all other provider completions
+        # Make it wait on all other provider completions
         if lb_final_tasks:
             finals.append(lb_final_tasks[0])
         wfspec.wait_for(

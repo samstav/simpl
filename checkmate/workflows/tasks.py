@@ -51,7 +51,7 @@ LOCK_DB = db.get_lock_db_driver()
 MANAGERS = {'workflows': Manager()}
 
 
-#signature defined by celery - pylint: disable=R0904,R0913
+# Signature defined by celery - pylint: disable=R0904,R0913
 class WorkflowEventHandlerTask(celeryglobal.SingleTask):
 
     """"Celery Task Event Handlers for Workflows."""
@@ -78,7 +78,7 @@ class WorkflowEventHandlerTask(celeryglobal.SingleTask):
         if (kwargs.get('apply_callbacks') is None or kwargs.get(
                 'apply_callbacks')):
             update_deployment.delay(args[0])
-#pylint: enable=R0904,R0913
+# pylint: enable=R0904,R0913
 
 
 @celtask.task(default_retry_delay=10, max_retries=10, ignore_result=True)
@@ -164,11 +164,10 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
             for handler in handlers:
                 handler_wf_id = handler.handle()
                 if handler_wf_id:
-                    cycle_workflow.apply_async(args=[handler_wf_id, context],
-                                               kwargs={
-                                                   'apply_callbacks': False
-                                               },
-                                               task_id=handler_wf_id)
+                    cycle_workflow.apply_async(
+                        args=[handler_wf_id, context],
+                        kwargs={'apply_callbacks': False},
+                        task_id=handler_wf_id)
 
         MANAGERS['workflows'].save_spiff_workflow(
             d_wf, celery_task_id=cycle_workflow.request.id)
@@ -241,7 +240,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
     original = serializer._serialize_task(wf_task, skip_children=True)
     if not wf_task:
         raise IndexError("Task '%s' not found in Workflow '%s'" % (task_id,
-                         workflow_id))
+                          workflow_id))
     if wf_task._is_finished():
         raise ValueError("Task '%s' is in state '%s' which cannot be "
                          "executed" % (wf_task.get_name(),
@@ -329,7 +328,7 @@ def pause_workflow(w_id, driver=DB, retry_counter=0):
             'driver': driver
         })
 
-    #Reloading the workflow here as the state might have changed since we
+    # Reloading the workflow here as the state might have changed since we
     # loaded it earlier
     workflow = driver.get_workflow(w_id, with_secrets=True)
     serializer = DictionarySerializer()

@@ -23,7 +23,9 @@ REGION_MAP = {
 
 
 class RackspaceProviderBase(base.ProviderBase):
+
     """Provides shared methods for Rackspace providers."""
+
     vendor = 'rackspace'
 
     def __init__(self, provider, key=None):

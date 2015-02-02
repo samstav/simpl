@@ -86,7 +86,7 @@ class Provider(rsbase.RackspaceProviderBase):
                                    "this operation. You may only have "
                                    "up to %s records for a domain."
                                    % (dom_name, num_recs + num_new_recs,
-                                   max_records),
+                                      max_records),
                         'provider': self.name,
                         'severity': "CRITICAL",
                     }
@@ -134,8 +134,9 @@ class Provider(rsbase.RackspaceProviderBase):
                 dom = parse_domain(resource.get('dns-name'))
                 if dom not in handled:
                     handled[dom] = True
-                    yield (dom, len([d for d in resources
-                           if parse_domain(d.get('dns-name')) == dom]))
+                    yield (dom,
+                           len([d for d in resources
+                                if parse_domain(d.get('dns-name')) == dom]))
 
         for dom_name, num_recs in _count_filter_records(resources):
             pile.spawn(self._check_record_limits, context, dom_name, max_recs,
@@ -144,7 +145,8 @@ class Provider(rsbase.RackspaceProviderBase):
         return messages
 
     def verify_access(self, context):
-        roles = ['identity:user-admin', 'admin', 'dnsaas:admin', 'dnsaas:creator']
+        roles = ['identity:user-admin', 'admin', 'dnsaas:admin',
+                 'dnsaas:creator']
         if base.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",
