@@ -19,6 +19,9 @@
 import copy
 import logging
 
+from SpiffWorkflow import operators
+from SpiffWorkflow import specs
+
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,
@@ -26,7 +29,6 @@ from checkmate.exceptions import (
 from checkmate import middleware
 from checkmate.providers import base
 from checkmate.providers.rackspace.block import cbs
-from SpiffWorkflow import specs
 
 COMPONENT_ID = 'rax:block_volume'
 CATALOG_TEMPLATE = {
