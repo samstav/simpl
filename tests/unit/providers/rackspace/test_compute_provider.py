@@ -287,7 +287,7 @@ class TestGetApiInfo(unittest.TestCase):
 
 class TestImageDetection(unittest.TestCase):
     def test_blank(self):
-        detected = compute.provider.detect_image('')
+        detected = compute.provider.detect_image_os('')
         self.assertEqual(detected, {})
 
     def test_rackspace_metadata(self):
@@ -295,7 +295,7 @@ class TestImageDetection(unittest.TestCase):
             'os_distro': 'ubuntu',
             'os_version': '12.04',
         }
-        detected = compute.provider.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image_os('', metadata=metadata)
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
@@ -304,7 +304,7 @@ class TestImageDetection(unittest.TestCase):
             'org.openstack__1__os_distro': 'org.ubuntu',
             'org.openstack__1__os_version': '12.04',
         }
-        detected = compute.provider.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image_os('', metadata=metadata)
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
@@ -313,7 +313,7 @@ class TestImageDetection(unittest.TestCase):
             'org.openstack__1__os_distro': 'Org.Ubuntu',
             'org.openstack__1__os_version': '12.04',
         }
-        detected = compute.provider.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image_os('', metadata=metadata)
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
@@ -322,7 +322,7 @@ class TestImageDetection(unittest.TestCase):
             'org.openstack__1__os_distro': 'org.microsoft.server',
             'org.openstack__1__os_version': '2008.2',
         }
-        detected = compute.provider.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image_os('', metadata=metadata)
         self.assertEqual(detected['os'],
                          'Microsoft Windows Server 2008 R2 SP1')
         self.assertEqual(detected['type'], 'windows')
@@ -332,33 +332,33 @@ class TestImageDetection(unittest.TestCase):
             'org.openstack__1__os_distro': 'org.microsoft.server',
             'org.openstack__1__os_version': '2012',
         }
-        detected = compute.provider.detect_image('', metadata=metadata)
+        detected = compute.provider.detect_image_os('', metadata=metadata)
         self.assertEqual(detected['os'], 'Microsoft Windows Server 2012')
         self.assertEqual(detected['type'], 'windows')
 
     def test_name_codename(self):
-        detected = compute.provider.detect_image("My 'precise' image")
+        detected = compute.provider.detect_image_os("My 'precise' image")
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
     def test_name_fullname(self):
-        detected = compute.provider.detect_image("Ubuntu 12.04 image")
+        detected = compute.provider.detect_image_os("Ubuntu 12.04 image")
         self.assertEqual(detected['os'], 'Ubuntu 12.04')
         self.assertEqual(detected['type'], 'linux')
 
     def test_known_name_version(self):
-        detected = compute.provider.detect_image("vagrant-ubuntu-x64-13.10")
+        detected = compute.provider.detect_image_os("vagrant-ubuntu-x64-13.10")
         self.assertEqual(detected['os'], 'Ubuntu 13.10')
         self.assertEqual(detected['type'], 'linux')
 
     def test_rackspace_image(self):
-        detected = compute.provider.detect_image("OtherOS 10.4 LTS (code "
-                                                 "red)")
+        detected = compute.provider.detect_image_os("OtherOS 10.4 LTS (code "
+                                                    "red)")
         self.assertEqual(detected['os'], 'OtherOS 10.4')
         self.assertEqual(detected['type'], 'linux')
 
     def test_inova_image(self):
-        detected = compute.provider.detect_image("OtherOS 10.4 LTS")
+        detected = compute.provider.detect_image_os("OtherOS 10.4 LTS")
         self.assertEqual(detected['os'], 'OtherOS 10.4')
         self.assertEqual(detected['type'], 'linux')
 

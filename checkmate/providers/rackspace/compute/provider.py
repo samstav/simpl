@@ -998,13 +998,15 @@ def _get_images_and_types(api_endpoint, auth_token):
         LOG.info("Calling Nova to get images for %s", api_endpoint)
         images = api.images.list(detailed=True)
         LOG.debug("Parsing image list: %s", images)
+        # Parse pyrax image list into Checkate catalog entries
         for i in images:
             metadata = i.metadata or {}
             if metadata.get('image_type') == 'snapshot':
+                # We don't support booting from snapshots
                 LOG.debug("Ignoring snapshot image %s", i.id)
                 continue
-            detected = detect_image(i.name, metadata=metadata)
-            if detected:
+            detected_os = detect_image_os(i.name, metadata=metadata)
+            if detected_os:
                 vm_mode = metadata.get('vm_mode') or 'windows'  # null==Windows
                 classes = metadata.get('flavor_classes')
                 if not classes:
@@ -1018,20 +1020,25 @@ def _get_images_and_types(api_endpoint, auth_token):
                     }
                     classes = default_hypervisor_filters[vm_mode]
                 else:
-                    # performance2 is not correctly listed in most images
+                    # performance2 is not correctly listed in most images so
+                    # let's add it to the filter so it does not get selected
+                    # by mistake
                     if vm_mode == 'xen' and '!performance2' not in classes:
                         classes = classes + ',!performance2'
+                # Build image dict formatted for the catalog
                 img = {
                     'name': i.name,
-                    'os': detected['os'],
-                    'type': detected['type'],
+                    'os': detected_os['os'],
+                    'type': detected_os['type'],
                     'constraints': {
                         'vm_mode': vm_mode,
                         'auto_disk_config': metadata.get('auto_disk_config'),
                         'flavor_classes': classes,
                     }
                 }
+                # Add it to types (which is image types)
                 ret['types'][str(i.id)] = img
+                # Add the name to the list that is used to generate dropdowns
                 ret['images'][i.id] = {'name': i.name}
         LOG.debug("Found images %s: %s", api_endpoint, ret['images'].keys())
     except Exception as exc:
@@ -1041,10 +1048,23 @@ def _get_images_and_types(api_endpoint, auth_token):
     return ret
 
 
-def detect_image(name, metadata=None):
+def detect_image_os(name, metadata=None):
     """Attempt to detect OS from name and/or metadata.
 
-    :returns: string of OS and version (ex. Ubuntu 12.04) in Checkmate format.
+    Ideally, we can use metadata and get a firm lock on an image's OS. But from
+    experience we know that image metadata is not always reliable. And in some
+    situations, like when talking to a private cloud instance or when scanning
+    a custom image, there is no metadata. So this function tries to ascertain
+    the OS of an image from the name as well.
+
+    :arg name: the name of the image
+    :keyword metadata: the image metadata if available.
+    :returns: dict with name, os, and type as follows if detected:
+        {
+            'name': the original name of the image,
+            'os': OS and version in Checkmate format (ex. Ubuntu 12.04)
+            'type': 'linux' or 'windows'
+        }
     """
     if 'LAMP' in name:
         return None
