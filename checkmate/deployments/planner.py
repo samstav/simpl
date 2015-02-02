@@ -804,6 +804,69 @@ class Planner(classes.ExtensibleDict):
                 info['extra-key'] = source['extra-key']
             connections[connection_key] = info
 
+    def resolve_remaining_service_requirements(self, context, service_name):
+        """Resolve a single component's requirements."""
+        service = self['services'][service_name]
+        requirements = service['component'].get('requires')
+        if not requirements:
+            return
+        for key, requirement in requirements.iteritems():
+            # Skip if already matched
+            if 'satisfied-by' in requirement:
+                continue
+
+            # Get definition
+            definition = copy.copy(requirement)
+            relation = definition.pop('relation', 'reference')
+
+            # Identify the component
+            LOG.debug("Identifying component '%s' to satisfy requirement "
+                      "'%s' in service '%s'", definition, key,
+                      service_name)
+            component = self.identify_component(
+                definition, self.environment, context)
+            if not component:
+                error_message = (
+                    "Could not resolve component '%s'" % definition)
+                raise CheckmateException(error_message,
+                                         friendly_message=BLUEPRINT_ERROR)
+            LOG.debug("Component '%s' identified as '%s'  to satisfy "
+                      "requirement '%s' for service '%s'", definition,
+                      component['id'], key, service_name)
+
+            # Add it to the 'extra-components' list in the service
+            if 'extra-components' not in service:
+                service['extra-components'] = {}
+            service['extra-components'][key] = component
+
+            # Remember which resources are host resources
+
+            if relation == "host":
+                if 'host-keys' not in service['component']:
+                    service['component']['host-keys'] = []
+                service['component']['host-keys'].append(key)
+
+            self._satisfy_requirement(requirement, key, component,
+                                      service_name)
+
+            # Connect the two components (write connection info in each)
+            provides_match = self._find_provides_key(requirement,
+                                                     component)
+            source_map = {
+                'component': service['component'],
+                'service': service_name,
+                'endpoint': key,
+                'endpoint-type': 'requires',
+            }
+            target_map = {
+                'component': component,
+                'service': service_name,
+                'endpoint': provides_match,
+                'extra-key': key,
+            }
+            self.connect(source_map, target_map, requirement['interface'],
+                         key, relation_type=relation)
+
     def resolve_remaining_requirements(self, context):
         """Resolve requirements by finding and loading appropriate components.
 
@@ -815,67 +878,8 @@ class Planner(classes.ExtensibleDict):
         `extra-components` key using the requirement's key.
         """
         LOG.debug("Analyzing requirements")
-        services = self['services']
-        for service_name, service in services.iteritems():
-            requirements = service['component'].get('requires')
-            if not requirements:
-                continue
-            for key, requirement in requirements.iteritems():
-                # Skip if already matched
-                if 'satisfied-by' in requirement:
-                    continue
-
-                # Get definition
-                definition = copy.copy(requirement)
-                relation = definition.pop('relation', 'reference')
-
-                # Identify the component
-                LOG.debug("Identifying component '%s' to satisfy requirement "
-                          "'%s' in service '%s'", definition, key,
-                          service_name)
-                component = self.identify_component(
-                    definition, self.environment, context)
-                if not component:
-                    error_message = (
-                        "Could not resolve component '%s'" % definition)
-                    raise CheckmateException(error_message,
-                                             friendly_message=BLUEPRINT_ERROR)
-                LOG.debug("Component '%s' identified as '%s'  to satisfy "
-                          "requirement '%s' for service '%s'", definition,
-                          component['id'], key, service_name)
-
-                # Add it to the 'extra-components' list in the service
-                if 'extra-components' not in service:
-                    service['extra-components'] = {}
-                service['extra-components'][key] = component
-
-                # Remember which resources are host resources
-
-                if relation == "host":
-                    if 'host-keys' not in service['component']:
-                        service['component']['host-keys'] = []
-                    service['component']['host-keys'].append(key)
-
-                self._satisfy_requirement(requirement, key, component,
-                                          service_name)
-
-                # Connect the two components (write connection info in each)
-                provides_match = self._find_provides_key(requirement,
-                                                         component)
-                source_map = {
-                    'component': service['component'],
-                    'service': service_name,
-                    'endpoint': key,
-                    'endpoint-type': 'requires',
-                }
-                target_map = {
-                    'component': component,
-                    'service': service_name,
-                    'endpoint': provides_match,
-                    'extra-key': key,
-                }
-                self.connect(source_map, target_map, requirement['interface'],
-                             key, relation_type=relation)
+        for service_name in self['services'].iterkeys():
+            self.resolve_remaining_service_requirements(context, service_name)
 
     def resolve_recursive_requirements(self, context, history):
         """Go through extra-component and resolves any of their requirements.
