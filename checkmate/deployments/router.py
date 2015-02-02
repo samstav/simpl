@@ -412,8 +412,7 @@ class Router(object):
 
     @utils.with_tenant
     def delete_nodes(self, api_id, tenant_id=None):
-        """Delete nodes from a  deployment, based on the resource ids that
-        are to be provided in the request body.
+        """Delete nodes from a  deployment, based on passed-in resources.
 
         :param api_id:
         :param tenant_id:
@@ -480,8 +479,9 @@ class Router(object):
         count = int(body.get('count', 0))
 
         if not service_name or count <= 0:
-            bottle.abort(400, "Invalid input, service_name and count is not "
-                              "provided in the request body")
+            raise exceptions.CheckmateValidationException(
+                "Invalid input, service_name and count is not provided in the "
+                "request body")
 
         LOG.debug("Add %s nodes for service %s", count, service_name)
         context = bottle.request.environ['context']
@@ -538,7 +538,7 @@ class Router(object):
             bottle.abort(400, "This deployment is already in the process of "
                          "being deleted.")
 
-        #TODO(any): driver will come from workflow manager once we create that
+        # TODO(any): driver will come from workflow manager once we create that
         driver = db.get_driver(api_id=api_id)
         if (operation and operation.get('action') != 'PAUSE' and
                 operation['status'] not in ('PAUSED', 'COMPLETE')):
@@ -796,9 +796,7 @@ class Router(object):
 
     @utils.with_tenant
     def take_resource_offline(self, api_id, r_id, tenant_id=None):
-        """Create and execute the workflow for taking the passed in
-        resource offline.
-        """
+        """Create and execute the workflow to take the resource offline."""
         if utils.is_simulation(api_id):
             bottle.request.environ['context'].simulation = True
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
@@ -806,7 +804,7 @@ class Router(object):
         resource = deployment.get('resources').get(r_id)
         if not resource:
             bottle.abort(404, "No resource %s in deployment %s" %
-                              (r_id, api_id))
+                         (r_id, api_id))
         self._validate_node_update_call(deployment, resource)
         context = bottle.request.environ['context']
         operation = self.manager.deploy_workflow(context, deployment,
@@ -818,9 +816,7 @@ class Router(object):
 
     @utils.with_tenant
     def bring_resource_online(self, api_id, r_id, tenant_id=None):
-        """Create and execute the workflow for getting the passed in
-        resource online.
-        """
+        """Create and execute the workflow to bring the resource online."""
         if utils.is_simulation(api_id):
             bottle.request.environ['context'].simulation = True
         deployment = self.manager.get_deployment(api_id, tenant_id=tenant_id)
@@ -828,7 +824,7 @@ class Router(object):
         resource = deployment.get('resources').get(r_id)
         if not resource:
             bottle.abort(404, "No resource %s in deployment %s" %
-                              (r_id, api_id))
+                         (r_id, api_id))
         self._validate_node_update_call(deployment, resource)
         context = bottle.request.environ['context']
         operation = self.manager.deploy_workflow(context, deployment,
