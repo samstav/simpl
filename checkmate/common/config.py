@@ -257,7 +257,7 @@ OPTIONS = [
                   default=None
                   ),
     #
-    # Networking
+    # Github Integration
     #
     config.Option("--github-token",
                   help="Token for GitHub Auth."
@@ -268,6 +268,10 @@ OPTIONS = [
     config.Option("--github-client-secret",
                   help="Github Client Secret for Github Auth"
                   ),
+
+    #
+    # Networking
+    #
     config.Option("--git-use-https",
                   action="store_true",
                   default=False,

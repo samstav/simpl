@@ -1,4 +1,3 @@
-# pylint: disable=C0302
 # Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -12,6 +11,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+# pylint: disable=C0302
 
 """The Deployment and Resource classes and functions for dealing with same."""
 
@@ -341,6 +341,7 @@ class Deployment(ExtensibleDict):
         return non_deleted_resources
 
     def is_migrated(self):
+        """Mark deployment as migrated to another server."""
         return self['status'] == 'MIGRATED'
 
     def get_statuses(self, context):
@@ -400,7 +401,7 @@ class Deployment(ExtensibleDict):
                     deployment_status = 'DELETED'
                     operation_status = 'COMPLETE'
                 elif (all(status == 'ACTIVE' for status in statuses) and
-                        all_tasks_complete):
+                      all_tasks_complete):
                     deployment_status = 'UP'
                     operation_status = 'COMPLETE'
                 elif all(status == 'NEW' for status in statuses):
@@ -440,7 +441,7 @@ class Deployment(ExtensibleDict):
 
         results = {}
 
-        #TODO(any): make this smarter
+        # TODO(any): make this smarter
         try:
             creds = [p['credentials'][0] for key, p in
                      self['environment']['providers'].iteritems()
@@ -469,8 +470,8 @@ class Deployment(ExtensibleDict):
         all_keys = get_client_keys(inputs)
         if os_keys:
             all_keys.update(os_keys)
-        deployment_keys = (self.get('resources', {}).get(
-                           'deployment-keys', {}).get('instance'))
+        deployment_keys = self.get('resources', {}).get(
+            'deployment-keys', {}).get('instance')
         if deployment_keys:
             all_keys['deployment'] = deployment_keys
 
@@ -481,7 +482,7 @@ class Deployment(ExtensibleDict):
         results['keys'] = all_keys
 
         results['domain'] = inputs.get('domain', os.environ.get(
-                                       'CHECKMATE_DOMAIN', 'checkmate.local'))
+            'CHECKMATE_DOMAIN', 'checkmate.local'))
         self._settings = results
         return results
 
@@ -519,8 +520,8 @@ class Deployment(ExtensibleDict):
                 )
                 return result
         if service_name:
-            result = (self._get_input_service_override(name, service_name,
-                      resource_type=resource_type))
+            result = self._get_input_service_override(name, service_name,
+                resource_type=resource_type)
             if result is not None:
                 LOG.debug(
                     "Setting '%s' matched in _get_input_service_override", name
@@ -534,23 +535,23 @@ class Deployment(ExtensibleDict):
                 return result
 
         if provider_key:
-            result = (self._get_input_provider_option(name, provider_key,
-                      resource_type=resource_type))
+            result = self._get_input_provider_option(name, provider_key,
+                resource_type=resource_type)
             if result is not None:
                 LOG.debug(
                     "Setting '%s' matched in _get_input_provider_option", name
                 )
                 return result
 
-        result = (self._check_resources_constraints(name,
-                  service_name=service_name, resource_type=resource_type))
+        result = self._check_resources_constraints(name,
+            service_name=service_name, resource_type=resource_type)
         if result is not None:
             LOG.debug("Setting '%s' matched in "
                       "_check_resources_constraints", name)
             return result
 
-        result = (self._check_options_constraints(name,
-                  service_name=service_name, resource_type=resource_type))
+        result = self._check_options_constraints(name,
+            service_name=service_name, resource_type=resource_type)
         if result is not None:
             LOG.debug("Setting '%s' matched in "
                       "_check_options_constraints", name)
@@ -566,15 +567,15 @@ class Deployment(ExtensibleDict):
             LOG.debug("Setting '%s' matched in _get_input_global", name)
             return result
 
-        result = (self._get_env_provider_constraint(name, provider_key,
-                  resource_type=resource_type))
+        result = self._get_env_provider_constraint(name, provider_key,
+            resource_type=resource_type)
         if result is not None:
             LOG.debug("Setting '%s' matched in "
                       "_get_env_provider_constraint", name)
             return result
 
-        result = (self._get_env_provider_constraint(name, 'common',
-                  resource_type=resource_type))
+        result = self._get_env_provider_constraint(name, 'common',
+            resource_type=resource_type)
         if result is not None:
             LOG.debug("Setting '%s' matched 'common' setting in "
                       "_get_env_provider_constraint", name)
@@ -614,7 +615,7 @@ class Deployment(ExtensibleDict):
 
         The name must be resources/:resource_key/:setting
         """
-        #FIXME: we need to confirm if we want this as part of the DSL
+        # FIXME: we need to confirm if we want this as part of the DSL
         blueprint = self['blueprint']
         if 'options' in blueprint:
             options = blueprint['options']
@@ -682,10 +683,9 @@ class Deployment(ExtensibleDict):
                 if 'constrains' in option:  # the verb 'constrains' (not noun)
                     constraints = self.parse_constraints(option['constrains'])
                     for constraint in constraints:
-                        if self.constraint_applies(constraint, name,
-                                                   service_name=service_name,
-                                                   resource_type=resource_type
-                                                   ):
+                        if self.constraint_applies(
+                                constraint, name, service_name=service_name,
+                                resource_type=resource_type):
                             result = self._apply_constraint(name, constraint,
                                                             option=option,
                                                             option_key=key)
@@ -710,10 +710,9 @@ class Deployment(ExtensibleDict):
                     constraints = resource['constrains']
                     constraints = self.parse_constraints(constraints)
                     for constraint in constraints:
-                        if self.constraint_applies(constraint, name,
-                                                   service_name=service_name,
-                                                   resource_type=resource_type
-                                                   ):
+                        if self.constraint_applies(
+                                constraint, name, service_name=service_name,
+                                resource_type=resource_type):
                             instance = self['resources'][key]['instance']
                             result = self._apply_constraint(name, constraint,
                                                             resource=instance)

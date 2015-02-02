@@ -96,4 +96,4 @@ CELERY_ACCEPT_CONTENT = ['json', 'pickle']
 LOG.info("celery config loaded from %s", __file__)
 LOG.info("celery persisting data in %s", CELERY_RESULT_BACKEND)
 LOG.info("celery broker is %s", BROKER_URL.replace(
-         os.environ.get('CHECKMATE_BROKER_PASSWORD', '*****'), '*****'))
+    os.environ.get('CHECKMATE_BROKER_PASSWORD', '*****'), '*****'))
