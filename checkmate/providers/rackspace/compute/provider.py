@@ -237,6 +237,22 @@ class Provider(RackspaceComputeProviderBase):
                                       provider_key=self.key)
         if disk:
             disk = self.parse_memory_setting(disk, default_unit='gb')
+
+        vol_dedicated = deployment.get_setting('dedicated',
+                                               resource_type='volume',
+                                               service_name=service)
+        vol_size = deployment.get_setting('size',
+                                          resource_type='volume',
+                                          service_name=service)
+        if disk > 0 and vol_size > 0 and disk != vol_size:
+            if vol_dedicated is False:
+                msg = ("Compute and volume disk size cannot be different if "
+                       "dedicated is explicitely set to False. Check your "
+                       "settings in the '%s' service." % service)
+                raise cmexc.CheckmateValidationException(
+                    msg, friendly_message=msg)
+            vol_dedicated = True
+
         cpu_count = deployment.get_setting('cpus',
                                            resource_type=resource_type,
                                            service_name=service,
@@ -406,6 +422,13 @@ class Provider(RackspaceComputeProviderBase):
                 template['desired-state']['config_drive'] = True
             if networks:
                 template['desired-state']['networks'] = networks
+        if vol_dedicated:
+            # Add a CBS volume requirement and have the planner parse it
+            definition['requires']['cbs-attach'] = {
+                'interface': 'iscsi', 'resource_type': 'volume'}
+            planner.resolve_remaining_service_requirements(
+                context, service)
+            planner.resolve_recursive_requirements(context, [])
         return templates
 
     def verify_limits(self, context, resources):

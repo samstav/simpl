@@ -331,7 +331,7 @@ class Planner(classes.ExtensibleDict):
         resources = self.deployment.create_resource_template(service_index,
                                                              definition,
                                                              service_name,
-                                                             context)
+                                                             context, self)
         for resource in resources:
             resource['status'] = 'PLANNED'
             # Add it to resources
@@ -398,10 +398,10 @@ class Planner(classes.ExtensibleDict):
             if component:
                 provider = component.provider
                 # Call provider to give us a resource template
-                results = (provider.generate_template(deployment,
-                                                      resource['type'], None,
-                                                      context, 1, provider.key,
-                                                      None))
+                results = provider.generate_template(deployment,
+                                                     resource['type'], None,
+                                                     context, 1, provider.key,
+                                                     None, self)
                 for result in results:
                     result['component'] = component['id']
             else:
