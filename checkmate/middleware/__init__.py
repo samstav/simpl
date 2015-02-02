@@ -786,7 +786,8 @@ class GitHubTokenMiddleware(object):
 
     def __call__(self, environ, start_response):
         request = webob.Request(environ)
-        token = request.cookies.get("github_access_token")
+        token = (request.cookies.get("github_access_token") or
+                 request.headers.get("X-Github-Access-Token"))
         if token:
             environ['context']['github_token'] = token
             # TODO(zns): remove duplicate context logic
