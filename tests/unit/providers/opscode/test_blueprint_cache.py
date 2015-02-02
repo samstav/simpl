@@ -50,8 +50,9 @@ class TestUpdate(unittest.TestCase):
 
     @mock.patch('checkmate.utils.git_clone')
     @mock.patch('os.makedirs')
+    @mock.patch('os.rmdir')
     @mock.patch('os.path.exists')
-    def test_non_existing_cache_exc_handling(self, mock_path_exists,
+    def test_non_existing_cache_exc_handling(self, mock_path_exists, mock_rm,
                                              mock_make_dirs, mock_clone):
         mock_path_exists.return_value = False
         mock_clone.side_effect = subprocess.CalledProcessError(1, "cmd")
@@ -79,7 +80,7 @@ class TestUpdate(unittest.TestCase):
 
         self.cache.update()
 
-        mock_path_exists.assert_called_once_with(self.cache.cache_path)
+        mock_path_exists.assert_any_call(self.cache.cache_path)
         mock_is_file.assert_called_once_with(head_file_path)
         self.assertTrue(time.time.called)
         mock_mtime.assert_called_once_with(head_file_path)
@@ -106,7 +107,7 @@ class TestUpdate(unittest.TestCase):
 
         self.cache.update()
 
-        mock_path_exists.assert_called_once_with(self.cache.cache_path)
+        mock_path_exists.assert_any_call(self.cache.cache_path)
         mock_is_file.assert_called_once_with(head_file_path)
         self.assertTrue(time.time.called)
         mock_mtime.assert_called_once_with(head_file_path)
@@ -133,7 +134,7 @@ class TestUpdate(unittest.TestCase):
 
         self.cache.update()
 
-        mock_path_exists.assert_called_once_with(self.cache.cache_path)
+        mock_path_exists.assert_any_call(self.cache.cache_path)
         mock_is_file.assert_called_once_with(head_file_path)
         self.assertTrue(time.time.called)
         mock_mtime.assert_called_once_with(head_file_path)
