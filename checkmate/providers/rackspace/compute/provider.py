@@ -320,12 +320,12 @@ class Provider(RackspaceComputeProviderBase):
                                           vm_mode=vm_mode)
             if not image_matches:
                 # Match the old way
-                for key, value in images.iteritems():
-                    if (os_name == value['name'] or
-                            (os_name.lower() == value['os'].lower())):
+                for img_id, img in images.iteritems():
+                    if (os_name == img['name'] or
+                            (os_name.lower() == img['os'].lower())):
                         LOG.debug("Matching image from '%s' to '%s'", os_name,
-                                  key)
-                        image_matches[key] = value
+                                  img_id)
+                        image_matches[img_id] = img
                 if image_matches:
                     LOG.info("OS '%s' was matched by name.", os_name)
             if not image_matches:
