@@ -10,24 +10,39 @@ options:
     type: string
     required: true
   'os':
-    source_field_name: image
-    required: true
+    type: string
     constraints: []
     display-hints:
       choice: []
   'memory':
+    type: string  # gets parsed into an integer
     default: 512
     required: true
-    source_field_name: flavor
+    constraints: []
+    display-hints:
+      choice: []
+  'cpus':
+    type: integer
     constraints: []
     display-hints:
       choice: []
   'disk':
-    default: 20
-    required: true
+    type: string  # gets parsed into an integer
     constraints: []
     display-hints:
       choice: []
+  'flavor':
+    type: string
+    description: Specific flavor ID. Overrides flavor selection logic.
+  'image':
+    type: string
+    description: Specific image ID. Overrides image selection logic.
+  'virtualization-mode':
+    type: string
+    description: Specific override for the virtualizationn mode.
+    required: false
+    constraints:
+    - in: [xen, hvm, metal]
   'personality':
     type: hash
     required: false
@@ -85,16 +100,22 @@ options:
               }
           ]
   'os':
-    required: true
+    required: false
     constraints: []
     display-hints:
       choice: []  # gets populated from account images
   'memory':
-    required: true
-    default: 1024
+    required: false
+    default: 2048
     constraints: []
     display-hints:
       choice: []  # gets populated from account flavors
+  'flavor':
+    type: string
+    description: Specific flavor ID. Overrides flavor selection logic.
+  'image':
+    type: string
+    description: Specific image ID. Overrides image selection logic.
   'userdata':
     type: string
     required: false

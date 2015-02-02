@@ -18,6 +18,50 @@
 """Provider for OpenStack Compute API.
 
 - Supports Rackspace Open Cloud Compute Extensions and Auth
+
+Flavors and Images:
+- we use image metadata where possible to not have to code against names.
+- images have `flavor_classes` and `vm_mode` values which we use to match with
+  flavors.
+
+    00a5dffd-1f9a-47a8-9ccc-7267a362a9da:
+      constraints:
+        auto_disk_config: 'True'
+        flavor_classes: '*,!io1,!memory1,!compute1,!onmetal'
+        vm_mode: xen
+      name: Ubuntu 14.04 LTS (Trusty Tahr) (PV)
+      os: Ubuntu 14.04
+      type: linux
+- flavors have a `class` attribute which is what is used in images. The
+  `policy_class` is not used to match with images.
+    io1-90:
+      name: 90 GB I/O v1
+      memory: 92160
+      network: 7500.0
+      cores: 24
+      disk: 40
+      extra:
+        class: io1
+        disk_io_index: '70'
+        number_of_data_disks: '3'
+        policy_class: io_flavor
+
+
+- performance1 and performance2 have been superceded by general and io-
+  optimized flavors respectively. So we try not to choose those performance1/2.
+- general and standard accepts PV and PVHVM images.
+- io, memory, and cpu optimized flavors require PVHVM images. PV/HVM doesn't
+  apply to Windows images.
+- onmetal needs onmetal images
+
+Automatic disk configuration can be used with PV images but fails with PVHVM
+images
+
+Refs:
+- http://docs.rackspace.com/servers/api/v2/cs-devguide/content/
+  server_flavors.html
+- http://www.rackspace.com/knowledge_center/article/
+  choosing-a-virtualization-mode-pv-versus-pvhvm
 """
 
 import copy
@@ -44,8 +88,9 @@ from checkmate import utils
 CLIENT = eventlet.import_patched('novaclient.v1_1.client')
 CONFIG = config.current()
 IMAGE_MAP = {
-    'precise': 'Ubuntu 12.04',
     'lucid': 'Ubuntu 10.04',
+    'maverick': 'Ubuntu 10.10',
+    'precise': 'Ubuntu 12.04',
     'quantal': 'Ubuntu 12.10',
     'ringtail': 'Ubuntu 13.04',
     'saucy': 'Ubuntu 13.10',
@@ -61,9 +106,9 @@ IMAGE_MAP = {
     'coreos': 'CoreOS',
 }
 KNOWN_OSES = {
-    'ubuntu': ['10.04', '10.12', '11.04', '11.10', '12.04', '12.10', '13.04',
+    'ubuntu': ['10.04', '10.10', '11.04', '11.10', '12.04', '12.10', '13.04',
                '13.10', '14.04', '14.10'],
-    'centos': ['5.11', '6.4', '6.5', '7'],
+    'centos': ['5.11', '6.4', '6.5', '6.6', '7'],
     'cirros': ['0.3'],
     'debian': ['6', '7'],
     'fedora': ['17', '18', '19', '20', '21'],
@@ -72,6 +117,7 @@ KNOWN_OSES = {
 LOG = logging.getLogger(__name__)
 RACKSPACE_DISTRO_KEY = 'os_distro'
 RACKSPACE_VERSION_KEY = 'os_version'
+DEFAULT_OS = 'Ubuntu 14.04'
 
 OPENSTACK_DISTRO_KEY = 'org.openstack__1__os_distro'
 OPENSTACK_VERSION_KEY = 'org.openstack__1__os_version'
@@ -133,7 +179,9 @@ class RackspaceComputeProviderBase(base.RackspaceProviderBase):
 
 
 class Provider(RackspaceComputeProviderBase):
+
     """The Base Provider Class for Rackspace NOVA."""
+
     name = 'nova'
 
     __status_mapping__ = {
@@ -175,72 +223,150 @@ class Provider(RackspaceComputeProviderBase):
                 message, friendly_message=cmexc.BLUEPRINT_ERROR)
         local_context = copy.deepcopy(context)
         local_context['region'] = region
-
         catalog = self.get_catalog(local_context)
-        # Find and translate image
-        image = deployment.get_setting('os', resource_type=resource_type,
-                                       service_name=service,
-                                       provider_key=self.key,
-                                       default='Ubuntu 12.04')
 
-        image_types = catalog['lists'].get('types', {})
-        if not utils.is_uuid(image):
-            # Assume it is an OS name and find it
-            for key, value in image_types.iteritems():
-                if (image == value['name'] or
-                        (image.lower() == value['os'].lower() and
-                         not value['name'].startswith('OnMetal'))):
-                    LOG.debug("Mapping image from '%s' to '%s'", image, key)
-                    image = key
-                    break
-
-        if not utils.is_uuid(image):
-            # Sounds like we did not match an image
-            LOG.debug("%s not found in: %s", image, image_types.keys())
-            raise cmexc.CheckmateNoMapping(
-                "No image mapping for '%s' in '%s'" % (image, self.name))
-
-        if image not in image_types:
-            raise cmexc.CheckmateNoMapping(
-                "Image '%s' not found in '%s'" % (image, self.name))
-
+        memory = deployment.get_setting('memory',
+                                        resource_type=resource_type,
+                                        service_name=service,
+                                        provider_key=self.key,
+                                        default=512)
+        memory = self.parse_memory_setting(memory)
         disk = deployment.get_setting('disk',
                                       resource_type=resource_type,
                                       service_name=service,
                                       provider_key=self.key)
+        if disk:
+            disk = self.parse_memory_setting(disk, default_unit='gb')
+        cpu_count = deployment.get_setting('cpus',
+                                           resource_type=resource_type,
+                                           service_name=service,
+                                           provider_key=self.key)
+        flavor_class_rules = None
+        vm_mode = deployment.get_setting('virtualization-mode',
+                                         resource_type=resource_type,
+                                         service_name=service,
+                                         provider_key=self.key)
+        if vm_mode == 'metal':
+            flavor_class_rules = 'onmetal'
 
-        # Get setting
-        flavor = deployment.get_setting('flavor',
-                                        resource_type=resource_type,
-                                        service_name=service,
-                                        provider_key=self.key)
-        if not flavor:
-            memory = self.parse_memory_setting(
-                deployment.get_setting('memory',
-                                       resource_type=resource_type,
-                                       service_name=service,
-                                       provider_key=self.key,
-                                       default=512)
-            )
-
-            # Find the available memory size that satisfies this
-            matches = [e['memory'] for e in catalog['lists']['sizes'].values()
-                       if int(e['memory']) >= memory]
-            if not matches:
+        os_name = deployment.get_setting('os',
+                                         resource_type=resource_type,
+                                         service_name=service,
+                                         provider_key=self.key,
+                                         default=DEFAULT_OS)
+        flavor = None
+        flavor_id = None
+        flavor_setting = deployment.get_setting('flavor',
+                                                resource_type=resource_type,
+                                                service_name=service,
+                                                provider_key=self.key)
+        image = None
+        image_id = None
+        image_setting = deployment.get_setting('image',
+                                               resource_type=resource_type,
+                                               service_name=service,
+                                               provider_key=self.key)
+        # Find all matching flavors
+        flavors = catalog['lists']['sizes']
+        if flavor_setting:
+            LOG.debug("Explicit flavor '%s' specified in blueprint.",
+                      flavor_setting)
+            flavor = flavors.get(flavor_setting) or {}
+            flavor_id = flavor_setting
+            if not flavor:
+                if image_setting:
+                    LOG.info("Explicit flavor '%s' appears to be hidden.",
+                             flavor_setting)
+                else:
+                    raise cmexc.CheckmateValidationException(
+                        "Explicit flavor '%s' appears to be hidden and the "
+                        "'image' setting was not supplied. When chooosing a "
+                        "hidden flavor, you must include the image id "
+                        "explicitely since Checkmate does not have enough "
+                        "information about the flavor to select a matching "
+                        "image.", flavor_setting)
+        else:
+            flavor_matches = filter_flavors(flavors,
+                                            class_rules=flavor_class_rules,
+                                            min_memory=memory,
+                                            min_disk=disk, min_cores=cpu_count,
+                                            include_diskless=True)
+            if not flavor_matches:
                 raise cmexc.CheckmateNoMapping(
-                    "No flavor has at least '%s' memory" % memory)
-            match = str(min(matches))
-            for key, value in catalog['lists']['sizes'].iteritems():
-                if match == str(value['memory']):
-                    LOG.debug("Mapping flavor from '%s' to '%s'", memory, key)
-                    flavor = key
-                    if key.lower().startswith('performance'):
-                        LOG.info("Using performance flavor %s.", key)
-                        break
-        if not flavor:
-            raise cmexc.CheckmateNoMapping(
-                "No flavor mapping for '%s' in '%s'" % (memory, self.key))
-        flavor_info = catalog['lists']['sizes'][flavor]
+                    "No flavors found with memory %s, disk %s, cpus=%s" %
+                    (memory, disk, cpu_count))
+
+        # Find all matching images
+        images = catalog['lists'].get('types', {})
+        if image_setting:
+            LOG.debug("Explicit image '%s' specified in blueprint.",
+                      image_setting)
+            image = images.get(image_setting) or {}
+            image_id = image_setting
+            if not image:
+                if flavor_setting:
+                    LOG.info("Explicit image '%s' appears to be hidden.",
+                             image_setting)
+                else:
+                    raise cmexc.CheckmateValidationException(
+                        "Explicit image '%s' appears to be hidden and the "
+                        "'image' setting was not supplied. When chooosing a "
+                        "hidden image, you must include the image id "
+                        "explicitely since Checkmate does not have enough "
+                        "information about the image to select a matching "
+                        "image.", image_setting)
+        else:
+            image_matches = filter_images(images, os_name=os_name,
+                                          vm_mode=vm_mode)
+            if not image_matches:
+                # Match the old way
+                for key, value in images.iteritems():
+                    if (os_name == value['name'] or
+                            (os_name.lower() == value['os'].lower())):
+                        LOG.debug("Matching image from '%s' to '%s'", os_name,
+                                  key)
+                        image_matches[key] = value
+                if image_matches:
+                    LOG.info("OS '%s' was matched by name.", os_name)
+            if not image_matches:
+                # Sounds like we did not match an image
+                LOG.debug("%s not found in: %s", os_name, images.keys())
+                raise cmexc.CheckmateNoMapping(
+                    "Unable to detect image for '%s' in '%s'" %
+                    (os_name, self.name))
+
+        # Sort flavors by least cost assuming:
+        # - general purpose is cheapest
+        # - optimized is next
+        # - standard and performance1/2 should no longer be selected
+        # - onmetal as last resort
+        if not flavor_id:
+            general = filter_flavors(flavor_matches, class_rules='general1')
+            metal = filter_flavors(flavor_matches, class_rules='onmetal1')
+            other = filter_flavors(flavor_matches,
+                                   class_rules='*,!general1,!onmetal')
+            if general:
+                for flid, current in general.iteritems():
+                    if flavor is None or current['memory'] < flavor['memory']:
+                        flavor = current
+                        flavor_id = flid
+            if not flavor_id and other:
+                for flid, current in other.iteritems():
+                    if flavor is None or current['memory'] < flavor['memory']:
+                        flavor = current
+                        flavor_id = flid
+            if not flavor_id and metal:
+                for flid, current in metal.iteritems():
+                    if flavor is None or current['memory'] < flavor['memory']:
+                        flavor = current
+                        flavor_id = flid
+        assert flavor_id
+        if not image_id:
+            for matched_image_id, image_data in image_matches.iteritems():
+                if is_compatible(image_data, flavor):
+                    image = image_data
+                    image_id = matched_image_id
+                    break
         userdata = deployment.get_setting('userdata',
                                           resource_type=resource_type,
                                           service_name=service,
@@ -260,15 +386,17 @@ class Provider(RackspaceComputeProviderBase):
                     nic['net-id'] = nic.pop('UUID')
 
         for template in templates:
-            template['desired-state']['flavor'] = flavor
-            template['desired-state']['image'] = image
-            if flavor_info['disk'] == 0:
+            template['desired-state']['region'] = region
+            template['desired-state']['flavor'] = flavor_id
+            template['desired-state']['flavor-info'] = flavor
+            if flavor['disk'] == 0:
                 template['desired-state']['boot_from_image'] = True
             if disk:
                 template['desired-state']['disk'] = disk
-            template['desired-state']['region'] = region
-            template['desired-state']['os-type'] = image_types[image]['type']
-            template['desired-state']['os'] = image_types[image]['os']
+            template['desired-state']['image'] = image_id
+            template['desired-state']['image-info'] = image
+            template['desired-state']['os-type'] = image.get('type')
+            template['desired-state']['os'] = image.get('os')
             if userdata:
                 template['desired-state']['userdata'] = userdata
                 template['desired-state']['config_drive'] = True
@@ -349,7 +477,9 @@ class Provider(RackspaceComputeProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
-        """:param resource: the dict of the resource generated by
+        """Add resource creation tasks to workflow.
+
+        :param resource: the dict of the resource generated by
                 generate_template earlier
         :returns: returns the root task in the chain of tasks
         TODO(any): use environment keys instead of private key
@@ -424,14 +554,15 @@ class Provider(RackspaceComputeProviderBase):
             defines=dict(
                 resource=key,
                 provider=self.key,
+                task_tags=['build']
             ),
             merge_results=True
         )
 
         task_name = 'Wait for Server %s (%s) build' % (key,
                                                        resource['service'])
-        celery_call = 'checkmate.providers.rackspace.compute.' \
-                      'tasks.wait_on_build'
+        celery_call = ('checkmate.providers.rackspace.compute.'
+                       'tasks.wait_on_build')
         build_wait_task = specs.Celery(
             wfspec, task_name, celery_call, **kwargs)
         create_server_task.connect(build_wait_task)
@@ -501,7 +632,6 @@ class Provider(RackspaceComputeProviderBase):
             wait_on,
             name="Server Wait on:%s (%s)" % (key, resource['service'])
         )
-
         return dict(
             root=join,
             final=build_wait_task,
@@ -707,7 +837,7 @@ class Provider(RackspaceComputeProviderBase):
 
     @staticmethod
     def get_resources(context, tenant_id=None):
-        """Proxy request through to nova compute provider"""
+        """Proxy request through to nova compute provider."""
         if not pyrax.get_setting("identity_type"):
             pyrax.set_setting("identity_type", "rackspace")
 
@@ -871,12 +1001,32 @@ def _get_images_and_types(api_endpoint, auth_token):
                 continue
             detected = detect_image(i.name, metadata=metadata)
             if detected:
+                vm_mode = metadata.get('vm_mode') or 'windows'  # null==Windows
+                classes = metadata.get('flavor_classes')
+                if not classes:
+                    default_hypervisor_filters = {
+                        # onmetal needs metal, and only it can run metal images
+                        'metal': 'onmetal',
+                        'hvm': '*,!onmetal',
+                        'xen': ('*,!io1,!memory1,!compute1,!performace2,'
+                                '!onmetal'),
+                        'windows': '*,!onmetal',
+                    }
+                    classes = default_hypervisor_filters[vm_mode]
+                else:
+                    # performance2 is not correctly listed in most images
+                    if vm_mode == 'xen' and '!performance2' not in classes:
+                        classes = classes + ',!performance2'
                 img = {
                     'name': i.name,
                     'os': detected['os'],
                     'type': detected['type'],
+                    'constraints': {
+                        'vm_mode': vm_mode,
+                        'auto_disk_config': metadata.get('auto_disk_config'),
+                        'flavor_classes': classes,
+                    }
                 }
-
                 ret['types'][str(i.id)] = img
                 ret['images'][i.id] = {'name': i.name}
         LOG.debug("Found images %s: %s", api_endpoint, ret['images'].keys())
@@ -966,6 +1116,110 @@ def detect_image(name, metadata=None):
     return {}
 
 
+def filter_flavors(flavors, class_rules=None, min_disk=None, min_memory=None,
+                   min_cores=None, include_diskless=False):
+    """Return filtered list of flavors.
+
+    :keyword class_rules: class string to filter on (ex. '*,!onmetal')
+    :keyword include_diskless: includes flavors that use an external cloud
+        block device for storage. Their disk value shows up as 0.
+    :returns: dict of compatible flavors (keyed by flavor id)
+    """
+    results = {}
+    rules = None
+    if class_rules:
+        rules = class_rules.split(',')
+    # Loop through images and add the ones that match all tests to `results`
+    for key, value in flavors.items():
+        if rules:
+            try:
+                if not passes_rules(value['extra']['class'], rules):
+                    continue
+            except KeyError:
+                pass
+        if min_disk is not None:
+            try:
+                if int(value['disk']) < int(min_disk):
+                    # Disk too small, skip unless
+                    if not (include_diskless and int(value['disk']) == 0):
+                        continue
+            except KeyError:
+                pass
+        if min_memory is not None:
+            try:
+                if int(value['memory']) < int(min_memory):
+                    continue
+            except KeyError:
+                pass
+        if min_cores is not None:
+            try:
+                if int(value['cores']) < int(min_cores):
+                    continue
+            except KeyError:
+                pass
+        results[key] = value
+    return results
+
+
+def filter_images(images, os_name=None, flavor_class=None, vm_mode=None):
+    """Return filtered list of images.
+
+    :keyword os_name: in Checkmate normalized form, not image name. Ex.
+        Ubuntu 14.04
+    :keyword flavor_class: from the `class` attribute of a flavor. Ex. io1
+    """
+    results = {}
+    # Loop through images and add the ones that match all tests to `results`
+    for key, value in images.iteritems():
+        if os_name is not None and value['os'] != os_name:
+            continue
+        if flavor_class:
+            try:
+                rules = value['constraints']['flavor_classes'].split(',')
+                if not passes_rules(flavor_class, rules):
+                    continue
+            except (KeyError, AttributeError):
+                pass
+        if vm_mode is not None:
+            try:
+                if value['constraints']['vm_mode'] != vm_mode:
+                    continue
+            except KeyError:
+                pass
+        results[key] = value
+    return results
+
+
+def is_compatible(image, flavor):
+    """Test compatibility of an image and a flavor."""
+    if not (image and flavor):
+        return False
+    flavor_class = flavor['extra']['class']
+    rules = image['constraints']['flavor_classes'] or ''
+    return passes_rules(flavor_class, rules.split(','))
+
+
+def passes_rules(flavor_class, rules):
+    """Test if a flavor class passes the supplied rules.
+
+    Rules come from the api as a comma-seprated string like '*,!onmetal'. This
+    function expects to receive the split array.
+    """
+    assert isinstance(rules, list)
+    if not rules:
+        return True
+    not_flavor_class = '!' + flavor_class
+    if not_flavor_class in rules:
+        return False
+    if flavor_class in rules:
+        return True
+    if '*' in rules:
+        return True
+    assert not (len(rules) == 1 and rules[0].startswith('!')), (
+        "A rule with only a !class won't match anything. Add '*,' to the rule")
+    return False
+
+
 @caching.Cache(timeout=3600, sensitive_args=[1], store=API_FLAVOR_CACHE,
                backing_store=REDIS, backing_store_key='rax.compute.flavors')
 def _get_flavors(api_endpoint, auth_token):
@@ -979,16 +1233,29 @@ def _get_flavors(api_endpoint, auth_token):
                             auth_plugin=plugin)
         LOG.info("Calling Nova to get flavors for %s", api_endpoint)
         flavors = api.flavors.list()
-        result = {
-            'flavors': {
-                str(f.id): {
-                    'name': f.name,
-                    'memory': f.ram,
-                    'disk': f.disk,
-                    'cores': f.vcpus,
-                } for f in flavors
-            }
+        # getattr(f, 'OS-FLV-WITH-EXT-SPECS:extra_specs')
+        # > {u'number_of_data_disks': u'0', u'class': u'compute1',
+        # > u'disk_io_index': u'-1', u'policy_class': u'compute_flavor'}
+        formatted = {}
+        deprecated_classes = {
+            'standard',  # superceded by general class
+            'performance1',  # superceded by general class
+            'performance2',  # superceded by io, memory, and compute classes
         }
+        for flavor in flavors:
+            extra = getattr(flavor, 'OS-FLV-WITH-EXT-SPECS:extra_specs')
+            data = {
+                'name': flavor.name,
+                'memory': flavor.ram,
+                'disk': flavor.disk,
+                'cores': flavor.vcpus,
+                'network': flavor.rxtx_factor,
+                'extra': extra,
+            }
+            if extra['class'] in deprecated_classes:
+                data['deprecated'] = True
+            formatted[str(flavor.id)] = data
+        result = {'flavors': formatted}
         LOG.debug("Identified flavors: %s", result['flavors'].keys(),
                   extra={'data': result})
     except Exception as exc:

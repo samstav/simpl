@@ -516,7 +516,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         raise exceptions.CheckmateException("Provider does not support call")
 
     @staticmethod
-    def parse_memory_setting(text):
+    def parse_memory_setting(text, default_unit='mb'):
         """Parses a string and extracts a number in megabytes.
 
         Unit default is megabyte if not provided.
@@ -529,6 +529,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
             return text
         number = ''.join([n for n in text.strip() if n.isdigit()]).strip()
         unit = ''.join([c for c in text.strip() if c.isalpha()]).strip()
+        if not unit:
+            unit = default_unit
         result = 0
         if unit.lower() in ['mb', 'megabyte', 'megabytes']:
             result = int(number)

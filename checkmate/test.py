@@ -410,9 +410,10 @@ class StubbedWorkflowBase(unittest.TestCase):
                 },
                 'result': None
             })
-        # Add repetive calls (per resource)
+        # Add repetitive calls (per resource)
         for key, resource in self.deployment.get('resources', {}).iteritems():
-            if resource.get('type') == 'compute' and 'image' in resource:
+            desired = resource.get('desired-state')
+            if resource.get('type') == 'compute' and 'image' in desired:
                 if 'master' in resource['dns-name']:
                     fake_id = 10000 + int(key)  # legacy format
                     role = 'master'
@@ -422,21 +423,17 @@ class StubbedWorkflowBase(unittest.TestCase):
                     role = 'web'
                     fake_ip = int(key) + 1
                 name = resource['dns-name']
-                flavor = resource['flavor']
+                flavor = desired['flavor']
                 index = key
-                image = resource['image']
+                image = desired['image']
                 if resource.get('provider') == 'nova':
                     expected_calls.append({
                         # Create Server
-                        'call': 'checkmate.providers.rackspace.compute.'
+                        'call': 'checkmate.providers.rackspace.compute.tasks.'
                                 'create_server',
                         'args': [
                             mox.Func(is_good_context),
-                            mox.StrContains(name),
-                            self.deployment.get_setting(
-                                'region',
-                                default='testonia'
-                            )
+                            mox.StrContains(name)
                         ],
                         'kwargs': mox.And(
                             mox.ContainsKeyValue('image', image),
@@ -453,16 +450,15 @@ class StubbedWorkflowBase(unittest.TestCase):
                             }
                         },
                         'post_back_result': True,
-                        'resource': key,
+                        'resource': str(key),
                     })
                     expected_calls.append({
                         # Wait for Server Build
-                        'call': 'checkmate.providers.rackspace.compute'
+                        'call': 'checkmate.providers.rackspace.compute.tasks'
                                 '.wait_on_build',
                         'args': [
-                            mox.Func(is_good_context), fake_id,
-                            self.deployment.get_setting(
-                                'region', default='testonia')
+                            mox.Func(is_good_context),
+                            fake_id,
                         ],
                         'kwargs': mox.And(mox.In('password')),
                         'result': {
@@ -470,14 +466,15 @@ class StubbedWorkflowBase(unittest.TestCase):
                                 str(key): {
                                     'status': "ACTIVE",
                                     'instance': {
+                                        'status': "ACTIVE",
                                         'ip': '4.4.4.%s' % fake_ip,
                                         'private_ip': '10.1.2.%s' % fake_ip,
                                         'addresses': {
                                             'public': [
                                                 {
                                                     "version": 4,
-                                                    "addr": "4.4.4.%s" %
-                                                    fake_ip,
+                                                    "addr": ("4.4.4.%s" %
+                                                             fake_ip),
                                                 },
                                                 {
                                                     "version": 6,
@@ -489,8 +486,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                             'private': [
                                                 {
                                                     "version": 4,
-                                                    "addr": "10.1.2.%s" %
-                                                    fake_ip,
+                                                    "addr": ("10.1.2.%s" %
+                                                             fake_ip),
                                                 }
                                             ]
                                         }
@@ -499,7 +496,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                             }
                         },
                         'post_back_result': True,
-                        'resource': key,
+                        'resource': str(key),
                     })
                 else:
                     expected_calls.append({
@@ -545,8 +542,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                             'public': [
                                                 {
                                                     "version": 4,
-                                                    "addr": "4.4.4.%s" %
-                                                    fake_ip,
+                                                    "addr": ("4.4.4.%s" %
+                                                             fake_ip),
                                                 },
                                                 {
                                                     "version": 6,
@@ -558,8 +555,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                                             'private': [
                                                 {
                                                     "version": 4,
-                                                    "addr": "10.1.2.%s" %
-                                                    fake_ip,
+                                                    "addr": ("10.1.2.%s" %
+                                                             fake_ip),
                                                 }
                                             ]
                                         }

@@ -1038,7 +1038,10 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                     '2': {
                         'disk': 20,
                         'name': '512server',
-                        'memory': 512
+                        'memory': 512,
+                        'extra': {
+                            'class': 'standard1',
+                        }
                     }
                 },
                 'types': {
@@ -1046,6 +1049,9 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                         'os': 'Ubuntu 12.04',
                         'name': 'Ubuntu 12.04 LTS',
                         'type': 'linux',
+                        'constraints': {
+                            'flavor_classes': '*'
+                        }
                     }
                 },
                 'regions': {
@@ -1071,9 +1077,9 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         ).AndReturn('ORD')
 
         self.deployment.get_setting(
-            'os', resource_type='compute', service_name='master',
-            provider_key=provider.key, default="Ubuntu 12.04"
-        ).AndReturn("Ubuntu 12.04")
+            'memory', resource_type='compute', service_name='master',
+            provider_key=provider.key, default=512
+        ).AndReturn('512')
 
         self.deployment.get_setting(
             'disk', resource_type='compute', service_name='master',
@@ -1081,14 +1087,30 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         ).AndReturn(None)
 
         self.deployment.get_setting(
+            'cpus', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'virtualization-mode', resource_type='compute',
+            service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'os', resource_type='compute', service_name='master',
+            provider_key=provider.key, default=compute.provider.DEFAULT_OS
+        ).AndReturn("Ubuntu 12.04")
+
+        self.deployment.get_setting(
             'flavor', resource_type='compute', service_name='master',
             provider_key=provider.key
         ).AndReturn(None)
 
         self.deployment.get_setting(
-            'memory', resource_type='compute', service_name='master',
-            provider_key=provider.key, default=512
-        ).AndReturn('512')
+            'image', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
 
         self.deployment.get_setting(
             'userdata', resource_type='compute', service_name='master',
@@ -1100,6 +1122,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             provider_key=provider.key
         ).AndReturn(None)
 
+        image_id = '00000000-0000-0000-0000-000000000000'
         expected = [{
             'instance': {},
             'dns-name': 'master.domain',
@@ -1109,7 +1132,9 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             'desired-state': {
                 'region': 'ORD',
                 'flavor': '2',
-                'image': '00000000-0000-0000-0000-000000000000',
+                'flavor-info': catalog['lists']['sizes']['2'],
+                'image': image_id,
+                'image-info': catalog['lists']['types'][image_id],
                 'os-type': 'linux',
                 'os': 'Ubuntu 12.04',
             }
@@ -1133,7 +1158,10 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                     '2': {
                         'disk': 20,
                         'name': '512server',
-                        'memory': 512
+                        'memory': 512,
+                        'extra': {
+                            'class': 'standard1',
+                        }
                     }
                 },
                 'regions': {
@@ -1144,6 +1172,9 @@ class TestNovaGenerateTemplate(unittest.TestCase):
                         'os': 'Ubuntu 12.04',
                         'name': 'Ubuntu 12.04 LTS',
                         'type': 'linux',
+                        'constraints': {
+                            'flavor_classes': '*'
+                        }
                     }
                 }
             }
@@ -1156,25 +1187,11 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         # Stub out provider calls
         self.mox.StubOutWithMock(provider, 'get_catalog')
         self.mox.StubOutWithMock(copy, 'deepcopy')
+
         self.deployment.get_setting(
-            'region', resource_type='compute',
-            service_name='master', provider_key=provider.key
+            'region', resource_type='compute', service_name='master',
+            provider_key=provider.key
         ).AndReturn('dallas')
-
-        self.deployment.get_setting(
-            'os', resource_type='compute', service_name='master',
-            provider_key=provider.key, default="Ubuntu 12.04"
-        ).AndReturn("Ubuntu 12.04")
-
-        self.deployment.get_setting(
-            'disk', resource_type='compute', service_name='master',
-            provider_key=provider.key
-        ).AndReturn(None)
-
-        self.deployment.get_setting(
-            'flavor', resource_type='compute', service_name='master',
-            provider_key=provider.key
-        ).AndReturn(None)
 
         self.deployment.get_setting(
             'memory', resource_type='compute', service_name='master',
@@ -1182,13 +1199,44 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         ).AndReturn('512')
 
         self.deployment.get_setting(
+            'disk', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'cpus', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'virtualization-mode', resource_type='compute',
+            service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'os', resource_type='compute', service_name='master',
+            provider_key=provider.key, default=compute.provider.DEFAULT_OS
+        ).AndReturn("Ubuntu 12.04")
+
+        self.deployment.get_setting(
+            'flavor', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'image', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
             'userdata', resource_type='compute', service_name='master',
             provider_key=provider.key
         ).AndReturn(None)
 
         self.deployment.get_setting(
-            'networks', provider_key='rackspace.nova', resource_type='compute',
-            service_name='master'
+            'networks', resource_type='compute', service_name='master',
+            provider_key=provider.key
         ).AndReturn(None)
 
         copy.deepcopy(context).AndReturn(context2)
