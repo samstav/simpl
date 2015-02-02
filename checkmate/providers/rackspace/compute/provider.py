@@ -1257,9 +1257,6 @@ def _get_flavors(api_endpoint, auth_token):
                             auth_plugin=plugin)
         LOG.info("Calling Nova to get flavors for %s", api_endpoint)
         flavors = api.flavors.list()
-        # getattr(f, 'OS-FLV-WITH-EXT-SPECS:extra_specs')
-        # > {u'number_of_data_disks': u'0', u'class': u'compute1',
-        # > u'disk_io_index': u'-1', u'policy_class': u'compute_flavor'}
         formatted = {}
         deprecated_classes = {
             'standard',  # superceded by general class
@@ -1268,6 +1265,10 @@ def _get_flavors(api_endpoint, auth_token):
         }
         for flavor in flavors:
             extra = getattr(flavor, 'OS-FLV-WITH-EXT-SPECS:extra_specs')
+            # This is what pyrax returns:
+            # getattr(f, 'OS-FLV-WITH-EXT-SPECS:extra_specs')
+            # > {u'number_of_data_disks': u'0', u'class': u'compute1',
+            # > u'disk_io_index': u'-1', u'policy_class': u'compute_flavor'}
             data = {
                 'name': flavor.name,
                 'memory': flavor.ram,
