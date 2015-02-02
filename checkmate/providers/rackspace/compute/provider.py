@@ -360,6 +360,10 @@ class Provider(RackspaceComputeProviderBase):
                     if flavor is None or current['memory'] < flavor['memory']:
                         flavor = current
                         flavor_id = flid
+                        if vm_mode != 'metal':
+                            LOG.warning("OnMetal server selected without "
+                                        "being explicitely requested in "
+                                        "deployment %s", deployment['id'])
         assert flavor_id
         if not image_id:
             for matched_image_id, image_data in image_matches.iteritems():
