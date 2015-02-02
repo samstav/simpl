@@ -124,10 +124,10 @@ class Provider(provider.RackspaceComputeProviderBase):
     name = 'legacy'
 
     def generate_template(self, deployment, resource_type, service, context,
-                          index, key, definition):
+                          index, key, definition, planner):
         templates = provider.RackspaceComputeProviderBase.generate_template(
             self, deployment, resource_type, service,
-            context, index, key, definition
+            context, index, key, definition, planner
         )
 
         catalog = self.get_catalog(context)

@@ -347,7 +347,8 @@ class Planner(classes.ExtensibleDict):
                     service_index,
                     extra_def,
                     service_name,
-                    context)
+                    context,
+                    self)
                 for extra_resource in extra_resources:
                     self.add_resource(extra_resource, extra_def)
 

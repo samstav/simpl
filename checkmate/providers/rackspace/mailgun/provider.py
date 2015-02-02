@@ -48,10 +48,10 @@ class Provider(rsbase.RackspaceProviderBase):
     }
 
     def generate_template(self, deployment, resource_type, service, context,
-                          index, key, definition):
+                          index, key, definition, planner):
         templates = base.ProviderBase.generate_template(
             self, deployment, resource_type, service, context, index,
-            key, definition
+            key, definition, planner
         )
         return templates
 

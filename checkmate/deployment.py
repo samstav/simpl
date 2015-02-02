@@ -1207,7 +1207,7 @@ class Deployment(ExtensibleDict):
         return services
 
     def create_resource_template(self, index, definition, service_name,
-                                 context):
+                                 context, planner):
         """Create a new resource dict to add to the deployment.
 
         :param index: the index of the resource within its service (ex. web2)
@@ -1232,7 +1232,8 @@ class Deployment(ExtensibleDict):
             context,
             index,
             provider.key,
-            definition
+            definition,
+            planner
         )
         for resource in resources:
             resource.setdefault('component', definition['id'])

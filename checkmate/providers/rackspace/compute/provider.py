@@ -207,10 +207,10 @@ class Provider(RackspaceComputeProviderBase):
 
     # pylint: disable=R0913
     def generate_template(self, deployment, resource_type, service, context,
-                          index, key, definition):
+                          index, key, definition, planner):
         templates = RackspaceComputeProviderBase.generate_template(
             self, deployment, resource_type, service, context, index,
-            key, definition
+            key, definition, planner
         )
 
         # Get region

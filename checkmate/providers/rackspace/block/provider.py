@@ -57,10 +57,10 @@ class Provider(base.ProviderBase):
     }
 
     def generate_template(self, deployment, resource_type, service, context,
-                          index, key, definition):
+                          index, key, definition, planner):
         templates = base.ProviderBase.generate_template(
             self, deployment, resource_type, service, context, index, self.key,
-            definition
+            definition, planner
         )
 
         # Get volume size

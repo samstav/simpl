@@ -81,7 +81,7 @@ class TestBlock(test.ProviderTester):
         self.mox.ReplayAll()
         results = cbsprovider.generate_template(self.deployment, 'volume',
                                                 'master', context, 100,
-                                                cbsprovider.key, None)
+                                                cbsprovider.key, None, None)
 
         self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
