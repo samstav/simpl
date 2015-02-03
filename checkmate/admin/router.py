@@ -38,6 +38,7 @@ import bottle
 
 from checkmate.common import setup
 from checkmate import exceptions
+from checkmate.providers.opscode import blueprint_cache
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
@@ -85,6 +86,8 @@ class Router(object):
         else:
             app.route('/admin/cache/blueprints', 'GET',
                       partial(self.not_loaded, "blueprints"))
+        app.route('/admin/cache/repos', 'DELETE',
+                  self.delete_repo_cache)
 
     @utils.only_admins
     def migrate_deployment(self, deployment_id):
@@ -260,10 +263,8 @@ class Router(object):
         status = bottle.request.query.get('status')
         params = bottle.request.query.dict
         query = utils.QueryParams.parse(params, self.param_whitelist)
-        count = self.deployments_manager.count(tenant_id=tenant_id,
-                                               status=status,
-                                               query=query
-                                               )
+        count = self.deployments_manager.count(
+            tenant_id=tenant_id, status=status, query=query)
         result = {'count': count}
         return utils.write_body(result, bottle.request, bottle.response)
 
@@ -325,3 +326,49 @@ class Router(object):
     def list_blueprints_cache(self):
         """Return the list of cached blueprints."""
         return self.blueprints_manager.list_cache()
+
+    #
+    # Repositories
+    #
+    def _delete_all_caches(self):
+        """Delete *all* repo caches, requires force param."""
+        force = bottle.request.query.get('force')
+        if force:
+            try:
+                blueprint_cache.delete_all_caches()
+                bottle.response.status = 204
+            except exceptions.CheckmateNothingToDo:
+                cls, _, trace = sys.exc_info()
+                fmsg = "There are no existing repo caches to delete"
+                raise cls, cls(friendly_message=fmsg, http_status=404), trace
+        else:
+            fmsg = "Bulk deleting repo cache requires ?force=1"
+            raise exceptions.CheckmateException(friendly_message=fmsg,
+                                                http_status=400)
+
+    @utils.only_admins
+    def delete_repo_cache(self):
+        """Delete one or more repo caches."""
+        try:
+            body = utils.read_body(bottle.request)
+        except exceptions.CheckmateNoData:
+            body = None
+        except exceptions.CheckmateValidationException as err:
+            cls, _, tb = sys.exc_info()
+            raise cls, cls(friendly_message=err.message, http_status=422), tb
+        if not body:
+            return self._delete_all_caches()
+        elif not all(k in body for k in ('url', 'token')):
+            fmsg = ("Repo cache to delete must be specified using "
+                    "'url' and 'token' in the request body.")
+            raise exceptions.CheckmateException(friendly_message=fmsg,
+                                                http_status=406)
+        else:
+            try:
+                blueprint_cache.delete_repo_cache(
+                    body['url'], github_token=body['token'])
+                bottle.response.status = 204
+            except exceptions.CheckmateNothingToDo:
+                cls, _, trace = sys.exc_info()
+                fmsg = "Repo cache for %s does not exist" % body['url']
+                raise cls, cls(friendly_message=fmsg, http_status=404), trace

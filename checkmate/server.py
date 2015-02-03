@@ -174,7 +174,6 @@ def error_formatter(error):
         }
         LOG.critical(errmsg, exc_info=error.exc_info, extra=context)
         error.status = 500
-        error.description = "Unexpected error."
         error.output = cmexc.UNEXPECTED_ERROR
 
     if not hasattr(error, 'output'):

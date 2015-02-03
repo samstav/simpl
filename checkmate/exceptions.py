@@ -227,3 +227,7 @@ class CheckmateHOTTemplateException(CheckmateException):
     """A HOT template was encountered where a Checkmate blueprint was expected.
 
     """
+
+class CheckmateNothingToDo(CheckmateException):
+
+    """Nothing to be done for the given request."""
