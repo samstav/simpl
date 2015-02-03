@@ -9,6 +9,7 @@ angular.module('checkmate.Blueprint')
         $scope.components = Catalog.getComponents();
 
         $scope.getTattoo = function(componentId) {
+
           return (((Catalog.getComponent(componentId) || {})['meta-data'] || {})['display-hints'] || {}).tattoo || '';
         };
 
@@ -664,7 +665,8 @@ angular.module('checkmate.Blueprint')
               return 'translate('+x+','+y+')';
             })
             .attr('xlink:href', function(d) {
-              return scope.getTattoo((d.name || d.id));
+              var id = getAppropriateId(d);
+              return scope.getTattoo(id);
             })
             .attr('class', 'component-icon');
 
@@ -798,9 +800,21 @@ angular.module('checkmate.Blueprint')
             });
         }
 
+        function getAppropriateId(d) {
+          var id = d.id || d.name || d.type;
+          var component = Catalog.getComponent(id);
+
+          if(!component && Catalog.getComponent(d.interface)) {
+            id = d.interface;
+          }
+
+          return id;
+        }
+
         function getDisplayName(d) {
-          var display = (Catalog.getComponent(d.id || d.name) || {}).display_name;
-          var label =  display || d.id || d.name || '';
+          var id = d.id || d.name || d.type;
+          var display = (Catalog.getComponent(id) || {}).display_name;
+          var label =  display || id || '';
 
           return label;
         }
