@@ -56,7 +56,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/blueprints/new.html',
     controller: 'BlueprintNewController'
   })
-  .when('/:tenantId?/blueprints/design/:owner?/:repo?', {
+  .when('/:tenantId?/blueprints/design/:owner?/:repo?/:flavor?', {
     templateUrl: '/partials/blueprints/design.html',
     controller: 'ConfigureCtrl',
     resolve: {
