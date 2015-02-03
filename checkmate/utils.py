@@ -319,29 +319,35 @@ def read_body(request):
         try:
             return yaml_to_dict(data)
         except (parser.ParserError, scanner.ScannerError) as exc:
-            raise cmexc.CheckmateValidationException("Invalid YAML syntax. "
-                                                     "Check:\n%s" % exc)
+            raise cmexc.CheckmateValidationException(
+                friendly_message="Invalid YAML syntax. Check:\n%s" % exc,
+                http_status=406)
         except composer.ComposerError as exc:
-            raise cmexc.CheckmateValidationException("Invalid YAML structure. "
-                                                     "Check:\n%s" % exc)
+            raise cmexc.CheckmateValidationException(
+                friendly_message="Invalid YAML structure. Check:\n%s" % exc,
+                http_status=406)
 
     elif content_type == 'application/json':
         try:
             return json.load(data)
         except ValueError as exc:
-            raise cmexc.CheckmateValidationException("Invalid JSON. %s" % exc)
+            raise cmexc.CheckmateValidationException(
+                friendly_message="Invalid JSON. %s" % exc,
+                http_status=406)
     elif content_type == 'application/x-www-form-urlencoded':
         obj = request.forms.object
         if obj:
             result = json.loads(obj)
             if result:
                 return result
-        raise cmexc.CheckmateValidationException("Unable to parse content. "
-                                                 "Form POSTs only support "
-                                                 "objects in the 'object' "
-                                                 "field")
+        raise cmexc.CheckmateValidationException(
+            friendly_message=("Unable to parse content. Form POSTs only "
+                              "support objects in the 'object' field"),
+            http_status=406)
     else:
-        bottle.abort(415, "Unsupported Media Type: %s" % content_type)
+        raise cmexc.CheckmateException(
+            friendly_message="Unsupported Media Type: %s" % content_type,
+            http_status=415)
 
 
 def yaml_to_dict(data):

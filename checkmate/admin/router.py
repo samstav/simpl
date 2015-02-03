@@ -353,9 +353,6 @@ class Router(object):
             body = utils.read_body(bottle.request)
         except exceptions.CheckmateNoData:
             body = None
-        except exceptions.CheckmateValidationException as err:
-            cls, _, tb = sys.exc_info()
-            raise cls, cls(friendly_message=err.message, http_status=422), tb
         if not body:
             return self._delete_all_caches()
         elif not all(k in body for k in ('url', 'token')):
