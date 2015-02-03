@@ -61,18 +61,7 @@ class TestCloudBlockStorage(unittest.TestCase):
     region = u'IAD'
     tenant = u'redacted'
     token = u'some token'
-    context = {
-        'auth_token': token,
-        'tenant': tenant,
-        'catalog': [{
-            'type': 'volume',
-            'name': 'cloudBlockStorage',
-            'endpoints': [{
-                'publicURL': URL,
-                'region': region
-            }]
-        }],
-    }
+    context = None
     delay = 0
     vcr_mode = 'none'  # Playback only
 
@@ -84,6 +73,19 @@ class TestCloudBlockStorage(unittest.TestCase):
             before_record=before_record_cb,
             before_record_response=before_record_response_cb
         )
+        if self.context is None:  # setting this on the class breaks nosetests
+            self.context = {
+                'auth_token': self.token,
+                'tenant': self.tenant,
+                'catalog': [{
+                    'type': 'volume',
+                    'name': 'cloudBlockStorage',
+                    'endpoints': [{
+                        'publicURL': URL,
+                        'region': self.region
+                    }]
+                }],
+            }
 
     def test_successful_instance_create_retrieve_delete(self):
         """Successfully create/retrieve/delete a block volume."""
