@@ -795,7 +795,8 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
     return checkmate_yaml;
   };
 
-  scope.get_public_blueprint = function(owner, repo) {
+  scope.get_public_blueprint = function(owner, repo, flavor) {
+    var deployment;
     var fragments = [];
     var url;
     var remote;
@@ -812,8 +813,17 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
 
     url = fragments.join('');
     remote = scope.parse_url(url);
+    deployment = scope.get_blueprint(remote);
 
-    return scope.get_blueprint(remote);
+    return deployment.then(function(resp) {
+      if(resp.flavors && flavor && resp.flavors[flavor]) {
+        angular.extend(resp.blueprint, resp.flavors[flavor].blueprint);
+        angular.extend(resp.environment, resp.flavors[flavor].environment);
+        angular.extend(resp.inputs.blueprint, resp.flavors[flavor].inputs.blueprint);
+      }
+
+      return resp;
+    });
   };
 
   scope.get_blueprint = function(remote, username) {

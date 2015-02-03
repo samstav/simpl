@@ -60,15 +60,16 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/blueprints/design.html',
     controller: 'ConfigureCtrl',
     resolve: {
-      deployment: function($route, github, DeploymentData) {
+      deployment: function($route, github) {
         var owner = $route.current.params.owner;
         var repo = $route.current.params.repo;
+        var flavor = $route.current.params.flavor;
 
         if(owner && repo) {
-          return github.get_public_blueprint(owner, repo);
-        } else {
-          return DeploymentData.get();
+          return github.get_public_blueprint(owner, repo, flavor);
         }
+
+        return undefined;
       }
     }
   })
