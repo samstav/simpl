@@ -487,7 +487,7 @@ def delete_configuration(context, config_id):
     appropriate choice, as indicated in the region assignment line below.
     """
     region = context.get('resource', {}).get('instance', {}).get('region')
-    context = DBAASContext(context)
+    context = DBAASContext(context, region=region)
     utils.match_celery_logging(LOG)
     dbaas.delete_configuration(context, config_id)
     LOG.info('Deleted database configuration %s', config_id)
