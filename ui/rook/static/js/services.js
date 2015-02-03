@@ -2679,10 +2679,11 @@ angular.module('checkmate.services').factory('DeploymentTree', [function() {
 
     //Magento
     magento: 1,
-    'session-cache': 2,
-    'object-cache': 3,
-    'page-cache': 4,
-    data: 5,
+    'shared-storage': 2,
+    'session-cache': 3,
+    'object-cache': 4,
+    'page-cache': 5,
+    data: 6,
 
     // Editor
     application: 1,
