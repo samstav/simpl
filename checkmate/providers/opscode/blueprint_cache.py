@@ -19,6 +19,7 @@
 import hashlib
 import logging
 import os
+import shutil
 import subprocess
 import time
 
@@ -31,25 +32,66 @@ CONFIG = config.current()
 LOG = logging.getLogger(__name__)
 
 
+def repo_cache_base():
+    """Return the current config's base path to repo caches."""
+    return os.path.join(CONFIG.deployments_path, "cache", "blueprints")
+
+
+def delete_cache(path):
+    """Remove cache at 'path'.
+
+    Raise CheckmateNothingToDo if the directory does not exist.
+    """
+    try:
+        return shutil.rmtree(path)
+    except OSError as err:
+        if err.errno == 2:
+            # nothing to delete
+            raise exceptions.CheckmateNothingToDo(
+                "No existing repo cache to remove.")
+        else:
+            raise
+
+
+def delete_all_caches():
+    """Are you sure?"""
+    return delete_cache(repo_cache_base())
+
+
+def delete_repo_cache(source_repo, github_token=None):
+    """Delete cache for the repo/token combo."""
+    ident = get_ident_hash(source_repo, github_token=github_token)
+    path = os.path.join(repo_cache_base(), ident)
+    return delete_cache(path)
+
+
+def get_ident_hash(source_repo, github_token=None):
+    """Return an identifier for a repo/token combo."""
+    if github_token:
+        ident = "%s:%s" % (github_token, source_repo)
+    else:
+        ident = source_repo
+    return hashlib.md5(ident).hexdigest()
+
+
 class BlueprintCache(object):
 
     """Blueprints cache."""
 
     def __init__(self, source_repo, github_token=None):
-        prefix = CONFIG.deployments_path
-        if github_token:
-            ident = "%s:%s" % (github_token, source_repo)
-        else:
-            ident = source_repo
-        suffix = hashlib.md5(ident).hexdigest()
+        suffix = get_ident_hash(source_repo, github_token=github_token)
         self.source_repo = source_repo
         self.github_token = github_token
-        self._cache_path = os.path.join(prefix, "cache", "blueprints", suffix)
+        self._cache_path = os.path.join(repo_cache_base(), suffix)
 
     @property
     def cache_path(self):
         """Cache path for blueprint."""
         return self._cache_path
+
+    def delete(self):
+        """Delete this cache from disk."""
+        return delete_cache(self._cache_path)
 
     def _create_new_cache(self, url, branch, token_remote=None):
         """Create cache directory and clone repository."""
