@@ -427,7 +427,19 @@ angular.module('checkmate.Blueprint')
                       if(!_providesAll) {
                         __connection.type = _type;
                       }
-                      __connection.interface = ___interface;
+
+                      if(!___acceptsAll) {
+                        __connection.interface = ___interface;
+                      } else {
+                        _.each(provided, function(_provided) {
+                          _.each(_provided.interfaces, function(__pInterface) {
+                            connections.push({
+                              type: _type,
+                              interface: __pInterface
+                            });
+                          });
+                        });
+                      }
 
                       if(_data.type) {
                         __connection['connect-from'] = _data.type;
