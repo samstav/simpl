@@ -75,6 +75,7 @@ class TestCreateLoadBalancer(unittest.TestCase):
             'id': 'LB1',
             'status': 'BUILD',
             'protocol': 'http',
+            'region': mock.ANY,
             'interfaces': {
                 'vip': {
                     'public_ip': '4.4.4.20',
@@ -99,6 +100,7 @@ class TestCreateLoadBalancer(unittest.TestCase):
             'id': 'LB_ID',
             'status': 'BUILD',
             'protocol': 'http',
+            'region': mock.ANY,
             'interfaces': {
                 'vip': {
                     'public_ip': vip,
