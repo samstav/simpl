@@ -114,6 +114,11 @@
 
       <div class="rs-app-launch-controls">
         <div class="rs-btn-group rs-pull-right">
+          <span class="rs-pull-left rs-quiet" ng-show="!auth.identity.loggedIn">
+            <i class="fa fa-exclamation-triangle"></i>
+            You must have Rackspace credentials to Launch or Simulate.
+            <a href="#" ng-click="loginPrompt()">Authenticate</a>
+          </span>
           <button class="rs-btn rs-btn-primary" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit()">Launch</button>
           <button class="rs-btn" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit('simulate')">Simulate</button>
           <button class="rs-btn" ng-disabled="!controls.canRevert" ng-click="revert()">Revert</button>

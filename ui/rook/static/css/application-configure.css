@@ -236,6 +236,10 @@
 .rs-app-launch-controls .rs-btn-group {
   margin-top: 5px;
 }
+.rs-app-launch-controls span {
+  margin-top: 3px;
+  margin-right: 10px;
+}
 .codemirror-toggle-button {
   position: absolute;
   top: 10px;
