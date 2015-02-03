@@ -55,7 +55,9 @@ def before_record_response_cb(response):
 
 
 class TestCloudDatabases(unittest.TestCase):
+
     """Create DB, check status, then delete DB."""
+
     region = u'IAD'
     tenant = u'redacted'
     token = u'some token'
