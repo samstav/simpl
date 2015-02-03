@@ -113,7 +113,7 @@ angular.module('checkmate.DeploymentData')
               try {
                 var deployment = jsyaml.load($scope.deployment);
                 $scope.$emit('editor:nsync');
-                DeploymentData.set(deployment);
+                Blueprint.set(deployment);
               } catch(e) {
                 $scope.$emit('editor:out_of_sync');
                 $scope.$apply();
@@ -140,9 +140,9 @@ angular.module('checkmate.DeploymentData')
             var newDeployment;
 
             if($scope.codemirror.options.mode == 'application/json') {
-              newDeployment = JSON.stringify(data, undefined, 2);
+              newDeployment = JSON.stringify(data.blueprint, undefined, 2);
             } else {
-              newDeployment = jsyaml.safeDump(data);
+              newDeployment = jsyaml.safeDump(data.blueprint);
             }
 
             if ($scope.deployment != newDeployment) {
