@@ -16,6 +16,7 @@
 
 """Blueprints cache."""
 
+import errno
 import hashlib
 import logging
 import os
@@ -45,10 +46,11 @@ def delete_cache(path):
     try:
         return shutil.rmtree(path)
     except OSError as err:
-        if err.errno == 2:
-            # nothing to delete
-            raise exceptions.CheckmateNothingToDo(
-                "No existing repo cache to remove.")
+        if err.errno == errno.ENOENT:
+            # No such file or directory
+            raise (exceptions.CheckmateNothingToDo,
+                   ("No existing repo cache to remove.",),
+                   sys.exc_info()[2])
         else:
             raise
 
