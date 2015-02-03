@@ -1087,6 +1087,14 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         ).AndReturn(None)
 
         self.deployment.get_setting(
+            'dedicated', resource_type='volume', service_name='master'
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'size', resource_type='volume', service_name='master'
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
             'cpus', resource_type='compute', service_name='master',
             provider_key=provider.key
         ).AndReturn(None)
@@ -1145,8 +1153,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 
         self.mox.ReplayAll()
         results = provider.generate_template(self.deployment, 'compute',
-                                             'master',
-                                             context, 1, provider.key, None)
+                                             'master', context, 1,
+                                             provider.key, None, None)
 
         self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
@@ -1204,6 +1212,14 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         ).AndReturn(None)
 
         self.deployment.get_setting(
+            'dedicated', resource_type='volume', service_name='master'
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'size', resource_type='volume', service_name='master'
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
             'cpus', resource_type='compute', service_name='master',
             provider_key=provider.key
         ).AndReturn(None)
@@ -1246,7 +1262,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         try:
             provider.generate_template(self.deployment, 'compute',
                                        'master', context, 1, provider.key,
-                                       None)
+                                       None, None)
         except exceptions.CheckmateException:
             self.mox.VerifyAll()
 

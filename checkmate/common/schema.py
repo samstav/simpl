@@ -358,6 +358,14 @@ INTERFACE_SCHEMA = yaml_to_dict("""
             required: false
       mssql:
       new-relic:
+      nfs:
+         options:
+           ip:
+             type: string
+             required: true
+           mount-point:
+             type: string
+             required: true
       php:
       pop3:
       pop3s:

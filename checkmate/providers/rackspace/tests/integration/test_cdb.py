@@ -24,7 +24,6 @@ import unittest
 import requests
 import vcr
 
-from checkmate import exceptions
 from checkmate.providers.rackspace.database import dbaas
 from checkmate.providers.rackspace.tests import common
 
@@ -138,13 +137,17 @@ class TestCloudDatabases(unittest.TestCase):
         """Invalid tenant results in an HTTP error."""
         context = common.MockContext(self.region, 'invalid', self.token)
         with self.vcr.use_cassette('vcr-cdb-tenant-invalid.yaml'):
-            dbaas.get_instances(context)
+            with self.assertRaisesRegexp(dbaas.CDBException,
+                                         "401: Unauthorized"):
+                dbaas.get_instances(context)
 
     def test_bad_token(self):
         """Invalid token results in an HTTP error."""
         context = common.MockContext(self.region, self.tenant, 'invalid')
         with self.vcr.use_cassette('vcr-cdb-token-invalid.yaml'):
-            dbaas.get_instances(context)
+            with self.assertRaisesRegexp(dbaas.CDBException,
+                                         "401: Unauthorized"):
+                dbaas.get_instances(context)
 
 
 if __name__ == '__main__':

@@ -217,8 +217,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
 
         self.mox.ReplayAll()
         results = provider.generate_template(self.deployment, 'compute',
-                                             'master',
-                                             context, 1, provider.key, None)
+                                             'master', context, 1,
+                                             provider.key, None, None)
 
         self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
@@ -252,7 +252,7 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         try:
             provider.generate_template(self.deployment, 'compute',
                                        'master', context, 1, provider.key,
-                                       None)
+                                       None, None)
         except cmexc.CheckmateException:
             #pass
             self.mox.VerifyAll()
@@ -312,8 +312,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
 
         self.mox.ReplayAll()
         results = provider.generate_template(self.deployment, 'compute',
-                                             'master',
-                                             context, 1, provider.key, None)
+                                             'master', context, 1,
+                                             provider.key, None, None)
 
         self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
@@ -378,8 +378,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
         self.mox.ReplayAll()
 
         results = provider.generate_template(self.deployment, 'compute',
-                                             'master',
-                                             context, 1, provider.key, None)
+                                             'master', context, 1,
+                                             provider.key, None, None)
         self.mox.VerifyAll()
         self.assertItemsEqual(results, expected)
 
@@ -445,8 +445,8 @@ class TestLegacyGenerateTemplate(unittest.TestCase):
 
         self.mox.ReplayAll()
         results = provider.generate_template(self.deployment, 'compute',
-                                             'master',
-                                             context, 1, provider.key, None)
+                                             'master', context, 1,
+                                             provider.key, None, None)
 
         self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()

@@ -91,7 +91,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 "port": inbound.split('/')[1]}
 
     def generate_template(self, deployment, resource_type, service, context,
-                          index, key, definition):
+                          index, key, definition, planner):
         # Get region
         templates = []
         region = deployment.get_setting('region', resource_type=resource_type,
@@ -125,7 +125,7 @@ class Provider(rsbase.RackspaceProviderBase):
                                        int(index) + number_of_resources):
             generated_templates = base.ProviderBase.generate_template(
                 self, deployment, resource_type, service, context,
-                index_of_resource, self.key, definition
+                index_of_resource, self.key, definition, planner
             )
             for template in generated_templates:
                 if interface == 'vip':

@@ -100,7 +100,7 @@ class TestDeployment(test.StubbedWorkflowBase):
 
         results = provider.generate_template(self.deployment, 'application',
                                              'db', context, 1, provider.key,
-                                             None)
+                                             None, None)
 
         self.assertItemsEqual(results, expected)
 

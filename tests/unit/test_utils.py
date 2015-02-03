@@ -777,6 +777,35 @@ class TestSetUrlCreds(unittest.TestCase):
         self.assertEqual(url, "http://bob:new@fqdn/path#fr?q=1")
 
 
+class TestMutatingIterator(unittest.TestCase):
+
+    def test_empty_dict(self):
+        count = 0
+        for _ in utils.MutatingIterator({}):
+            count += 1
+        self.assertEqual(count, 0)
+
+    def test_static_dict(self):
+        count = 0
+        for key in utils.MutatingIterator({1: 1, 2: 2}):
+            count += 1
+            self.assertEqual(key, count)
+        self.assertEqual(count, 2)
+
+    def test_changing_dict(self):
+        count = 0
+        loop_count = 0
+        data = {1: 1, 2: 2}
+        for _ in utils.MutatingIterator(data):
+            loop_count += 1
+            if loop_count > 4:
+                break  # for safety
+            count += 1
+            data[count + 1] = str(count)
+        self.assertEqual(count, 4)
+        self.assertEqual(data, {1: 1, 2: '1', 3: '2', 4: '3', 5: '4'})
+
+
 if __name__ == '__main__':
     from checkmate import test
     test.run_with_params()

@@ -207,10 +207,10 @@ class Provider(RackspaceComputeProviderBase):
 
     # pylint: disable=R0913
     def generate_template(self, deployment, resource_type, service, context,
-                          index, key, definition):
+                          index, key, definition, planner):
         templates = RackspaceComputeProviderBase.generate_template(
             self, deployment, resource_type, service, context, index,
-            key, definition
+            key, definition, planner
         )
 
         # Get region
@@ -237,6 +237,22 @@ class Provider(RackspaceComputeProviderBase):
                                       provider_key=self.key)
         if disk:
             disk = self.parse_memory_setting(disk, default_unit='gb')
+
+        vol_dedicated = deployment.get_setting('dedicated',
+                                               resource_type='volume',
+                                               service_name=service)
+        vol_size = deployment.get_setting('size',
+                                          resource_type='volume',
+                                          service_name=service)
+        if disk > 0 and vol_size > 0 and disk != vol_size:
+            if vol_dedicated is False:
+                msg = ("Compute and volume disk size cannot be different if "
+                       "dedicated is explicitely set to False. Check your "
+                       "settings in the '%s' service." % service)
+                raise cmexc.CheckmateValidationException(
+                    msg, friendly_message=msg)
+            vol_dedicated = True
+
         cpu_count = deployment.get_setting('cpus',
                                            resource_type=resource_type,
                                            service_name=service,
@@ -406,6 +422,13 @@ class Provider(RackspaceComputeProviderBase):
                 template['desired-state']['config_drive'] = True
             if networks:
                 template['desired-state']['networks'] = networks
+        if vol_dedicated:
+            # Add a CBS volume requirement and have the planner parse it
+            definition['requires']['cbs-attach'] = {
+                'interface': 'iscsi', 'resource_type': 'volume'}
+            planner.resolve_remaining_service_requirements(
+                context, service)
+            planner.resolve_recursive_requirements(context, [])
         return templates
 
     def verify_limits(self, context, resources):
@@ -641,6 +664,63 @@ class Provider(RackspaceComputeProviderBase):
             final=build_wait_task,
             create=create_server_task
         )
+
+    def add_connection_tasks(self, resource, key, relation, relation_key,
+                             wfspec, deployment, context):
+        target = relation['target']
+        if target != key:
+            target_resource = deployment['resources'][target]
+            compute_wait_tasks = wfspec.find_task_specs(resource=key,
+                                                        provider=self.key,
+                                                        tag='build')
+            compute_final_tasks = wfspec.find_task_specs(resource=key,
+                                                         provider=self.key,
+                                                         tag='final')
+            # Target final
+            target_final_tasks = wfspec.find_task_specs(resource=target,
+                                                        tag='final')
+
+            desired = resource['desired-state']
+            queued_context = context.get_queued_task_dict(
+                deployment_id=deployment['id'], resource_key=key,
+                region=desired['region'])
+            if target_resource['type'] == 'volume':
+                vol_mount_point = deployment.get_setting(
+                    'mount-point', resource_type='volume',
+                    service_name=resource['service'])
+                # Create the attach task
+                connect_task = specs.Celery(
+                    wfspec,
+                    "Attach Server %s to Volume %s" % (key, target),
+                    'checkmate.providers.rackspace.compute.tasks.attach',
+                    call_args=[
+                        queued_context,
+                        swops.PathAttrib('resources/%s/instance/id' % key),
+                        swops.PathAttrib('resources/%s/instance/id' % target),
+                    ],
+                    mount_point=vol_mount_point,
+                    defines=dict(relation=relation_key, provider=self.key,
+                                 task_tags=['attach']),
+                    properties={'estimated_duration': 10}
+                )
+                # Wait for seerver and volume build before connecting
+                wfspec.wait_for(
+                    connect_task,
+                    target_final_tasks + compute_wait_tasks,
+                    name="Attach (%s) Wait on %s and %s" % (
+                        resource['service'], key, target)
+                )
+                # Tell anything else needing this server to wait on attach
+                if compute_final_tasks:
+                    wfspec.wait_for(
+                        compute_final_tasks[0],
+                        [connect_task],
+                        name="Server Wait on Attach:%s (%s)" % (
+                            key, resource['service'])
+                    )
+            else:
+                LOG.info("Ignoring connection to cloud server from '%s'",
+                         target_resource['type'])
 
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):

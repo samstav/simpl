@@ -48,7 +48,7 @@ class ProviderBasePlanningMixIn(object):
         return name
 
     def generate_template(self, deployment, resource_type, service, context,
-                          index, provider_key, definition):
+                          index, provider_key, definition, planner):
         LOG.debug("Getting %s template for service %s", resource_type, service)
         default_domain = os.environ.get('CHECKMATE_DOMAIN', 'checkmate.local')
         domain = deployment.get_setting('domain',

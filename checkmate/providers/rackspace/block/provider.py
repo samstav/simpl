@@ -37,7 +37,19 @@ CATALOG_TEMPLATE = {
             'id': COMPONENT_ID,
             'is': 'volume',
             'provides': [{'volume': 'iscsi'}],
-            'options': {}
+            'options': {
+                'size': {
+                    'type': 'integer',
+                    'default': 50,
+                },
+                'type': {
+                    'type': 'string',
+                    'default': 'SSD',
+                    'display-hints': {
+                        'choice': ['SATA', 'SSD']  # should come from API
+                    }
+                }
+            }
         }
     }
 }
@@ -54,13 +66,19 @@ class Provider(base.ProviderBase):
 
     __status_mapping__ = {
         'available': 'ACTIVE',
+        'creating': 'BUILD',
+        'attaching': 'BUILD',
+        'in-use': 'ACTIVE',
+        'deleting': 'DELETING',
+        'error': 'ERROR',
+        'error_deleting': 'ERROR',
     }
 
     def generate_template(self, deployment, resource_type, service, context,
-                          index, key, definition):
+                          index, key, definition, planner):
         templates = base.ProviderBase.generate_template(
             self, deployment, resource_type, service, context, index, self.key,
-            definition
+            definition, planner
         )
 
         # Get volume size
@@ -171,16 +189,18 @@ class Provider(base.ProviderBase):
 
         assert component['id'] == COMPONENT_ID
 
+        queued_task_dict = context.get_queued_task_dict(
+            deployment_id=deployment['id'],
+            resource_key=key
+        )
+
         # Create resource tasks
         create_volume_task = specs.Celery(
             wfspec,
             'Create Volume %s' % key,
             'checkmate.providers.rackspace.block.tasks.create_volume',
             call_args=[
-                context.get_queued_task_dict(
-                    deployment_id=deployment['id'],
-                    resource_key=key
-                ),
+                queued_task_dict,
                 resource['desired-state']['region'],
                 resource['desired-state']['size'],
             ],
@@ -192,12 +212,36 @@ class Provider(base.ProviderBase):
             defines=dict(
                 resource=key,
                 provider=self.key,
-                task_tags=['create', 'root', 'final']
+                task_tags=['create', 'root']
             ),
             properties={'estimated_duration': 10}
         )
 
-        return dict(root=create_volume_task, final=create_volume_task)
+        kwargs = dict(
+            call_args=[
+                queued_task_dict,
+                resource['desired-state']['region'],
+                operators.PathAttrib('resources/%s/instance/id' % key),
+            ],
+            properties={'estimated_duration': 45,
+                        'auto_retry_count': 3},
+            defines=dict(
+                resource=key,
+                provider=self.key,
+                task_tags=['build', 'final']
+            ),
+            merge_results=True
+        )
+
+        task_name = 'Wait for Volume %s (%s) build' % (key,
+                                                       resource['service'])
+        celery_call = 'checkmate.providers.rackspace.block.' \
+                      'tasks.wait_on_build'
+        build_wait_task = specs.Celery(
+            wfspec, task_name, celery_call, **kwargs)
+        create_volume_task.connect(build_wait_task)
+
+        return dict(root=create_volume_task, final=build_wait_task)
 
     def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):

@@ -45,6 +45,20 @@ def create_volume(context, region, size, tags=None,
                                  simulate=context.simulation)
 
 
+@task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=30,
+      provider=Provider)
+@statsd.collect
+def wait_on_build(context, region, volume_id,
+                  api=None, callback=None):
+    """Wait on a Cloud Block Storage instance to become active."""
+    return Manager.wait_on_build(context,
+                                 region,
+                                 volume_id,
+                                 api or wait_on_build.api,
+                                 callback or wait_on_build.partial,
+                                 simulate=context.simulation)
+
+
 @task(base=RackspaceProviderTask, default_retry_delay=10, max_retries=2,
       provider=Provider)
 @statsd.collect
