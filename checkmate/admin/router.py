@@ -349,15 +349,21 @@ class Router(object):
     @utils.only_admins
     def delete_repo_cache(self):
         """Delete one or more repo caches."""
-        if not bottle.request.json:
+        try:
+            body = utils.read_body(bottle.request)
+        except exceptions.CheckmateNoData:
+            body = None
+        except exceptions.CheckmateValidationException as err:
+            cls, _, tb = sys.exc_info()
+            raise cls, cls(friendly_message=err.message, http_status=422), tb
+        if not body:
             return self._delete_all_caches()
-        elif not all(k in bottle.request.json for k in ('url', 'token')):
+        elif not all(k in body for k in ('url', 'token')):
             fmsg = ("Repo cache to delete must be specified using "
                     "'url' and 'token' in the request body.")
             raise exceptions.CheckmateException(friendly_message=fmsg,
                                                 http_status=406)
         else:
-            body = bottle.request.json
             try:
                 blueprint_cache.delete_repo_cache(
                     body['url'], github_token=body['token'])
