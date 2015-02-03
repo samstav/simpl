@@ -22,7 +22,7 @@ import unittest
 import mock
 
 from checkmate.providers.rackspace.database import dbaas
-from checkmate.providers.rackspace.tests import common
+from checkmate import test
 
 
 class TestCreateRedisInstance(unittest.TestCase):
@@ -54,7 +54,7 @@ class TestCreateRedisInstance(unittest.TestCase):
         response.json.return_value = {'instance': {}}
         response.ok = True
         mock_flavor_ref.return_value = expected_flavor_ref
-        context = common.MockContext('IAD', '825640', 'VALID')
+        context = test.MockAttribContext('IAD', '825640', 'VALID')
         dbaas.create_instance(context, 'test-redis', 101, dstore_type='redis',
                               dstore_ver='2.8')
         mock_post.assert_called_with(expected_url, headers=expected_headers,
