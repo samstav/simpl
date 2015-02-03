@@ -207,7 +207,7 @@ class TestDatabase(test.ProviderTester):
         self.mox.ReplayAll()
         results = dbprovider.generate_template(self.deployment, 'database',
                                                'master', context, 1,
-                                               dbprovider.key, None)
+                                               dbprovider.key, None, None)
 
         self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
@@ -294,7 +294,7 @@ class TestDatabase(test.ProviderTester):
         self.mox.ReplayAll()
         results = dbprovider.generate_template(
             self.deployment, 'compute', 'master',
-            context, 1, dbprovider.key, None
+            context, 1, dbprovider.key, None, None
         )
 
         self.assertItemsEqual(results, expected)

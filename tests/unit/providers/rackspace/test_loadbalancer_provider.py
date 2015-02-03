@@ -338,7 +338,7 @@ class TestLoadBalancerProvider(unittest.TestCase):
                                                   'load-balancer', 'lb',
                                                   self.context, '1',
                                                   self.provider.key,
-                                                  connections)
+                                                  connections, None)
 
         self.assertEqual(len(results), 1)
         self.assertDictEqual(results[0], expected)
@@ -386,7 +386,7 @@ class TestLoadBalancerProvider(unittest.TestCase):
         results = self.provider.generate_template(self.deployment,
                                                   'load-balancer', 'lb',
                                                   self.context, '1',
-                                                  self.provider.key, {})
+                                                  self.provider.key, {}, None)
         expected_https_lb = {
             'service': 'lb',
             'dns-name': 'lb.test.checkmate',

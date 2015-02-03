@@ -44,7 +44,7 @@ class TestGenerateTemplate(unittest.TestCase):
             }
         ]
         results = prvdr.generate_template(deployment, 'mail-relay', 'smtp',
-                                          context, 1, prvdr.key, None)
+                                          context, 1, prvdr.key, None, None)
         self.assertEqual(results, expected)
 
 

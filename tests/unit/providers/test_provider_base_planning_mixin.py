@@ -31,7 +31,7 @@ class TestProviderBasePlanningMixIn(unittest.TestCase):
             self.deployment,
             resource_type,
             service_name,
-            self.req_context, 1, provider_key, None)
+            self.req_context, 1, provider_key, None, None)
         template = templates[0]
         self.assertEqual("test_type", template.get("type", "NONE"),
                          "Type not set")
