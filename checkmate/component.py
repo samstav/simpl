@@ -51,7 +51,7 @@ class Component(ExtensibleDict):
 
     @property
     def provider(self):
-        """TODO: docstring."""
+        """Provider instance."""
         return self._provider
 
     def __repr__(self):

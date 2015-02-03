@@ -327,7 +327,7 @@ class Planner(classes.ExtensibleDict):
         definition = service_analysis['component']
 
         # Create as many as we have been asked to create
-            # Create the main resource template
+        # Create the main resource template
         resources = self.deployment.create_resource_template(service_index,
                                                              definition,
                                                              service_name,

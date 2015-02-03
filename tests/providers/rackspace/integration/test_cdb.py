@@ -25,7 +25,7 @@ import requests
 import vcr
 
 from checkmate.providers.rackspace.database import dbaas
-from checkmate.providers.rackspace.tests import common
+from checkmate import test
 
 SCRUB_URI_RE = re.compile(r'v1\.0/[^/]*/')
 SCRUB_URI_SUB = 'v1.0/redacted/'
@@ -55,7 +55,9 @@ def before_record_response_cb(response):
 
 
 class TestCloudDatabases(unittest.TestCase):
+
     """Create DB, check status, then delete DB."""
+
     region = u'IAD'
     tenant = u'redacted'
     token = u'some token'
@@ -73,7 +75,7 @@ class TestCloudDatabases(unittest.TestCase):
 
     def test_successful_instance_create_retrieve_delete(self):
         """Successfully create/retrieve/delete a database instance."""
-        context = common.MockContext(self.region, self.tenant, self.token)
+        context = test.MockAttribContext(self.region, self.tenant, self.token)
         with self.vcr.use_cassette('vcr-cdb-full.yaml'):
             create_resp = dbaas.create_instance(context, 'test-delete-me', 101)
             validated = dbaas.validate_instance_details(create_resp)
@@ -94,7 +96,7 @@ class TestCloudDatabases(unittest.TestCase):
 
     def test_successful_configuration_create_retrieve_delete(self):
         """Successfully create/retrieve/delete a database configuration."""
-        context = common.MockContext(self.region, self.tenant, self.token)
+        context = test.MockAttribContext(self.region, self.tenant, self.token)
         values = {'connect_timeout': 60, 'expire_logs_days': 90}
         with self.vcr.use_cassette('vcr-cdb-db-config.yaml'):
             create_response = dbaas.create_configuration(context, 'mysql',
@@ -111,14 +113,14 @@ class TestCloudDatabases(unittest.TestCase):
 
     def test_get_config_params(self):
         """Retrieve config params for MySQL version 5.6."""
-        context = common.MockContext(self.region, self.tenant, self.token)
+        context = test.MockAttribContext(self.region, self.tenant, self.token)
         with self.vcr.use_cassette('vcr-cdb-get-config-params.yaml'):
             get_response = dbaas.get_config_params(context, 'mysql', '5.6')
             self.assertTrue(isinstance(get_response, list))
 
     def test_datastore_version_id(self):
         """Retrieve datastore version id for MySQL version 5.6."""
-        context = common.MockContext(self.region, self.tenant, self.token)
+        context = test.MockAttribContext(self.region, self.tenant, self.token)
         with self.vcr.use_cassette('vcr-cdb-get-datastore-version-id.yaml'):
             get_response = dbaas.get_dstore_ids(context, 'mysql', '5.6')
             expected = {
@@ -129,13 +131,13 @@ class TestCloudDatabases(unittest.TestCase):
 
     def test_bad_region(self):
         """Invalid region results in an HTTP error (vcrpy not needed)."""
-        context = common.MockContext('YYZ', self.tenant, self.token)
+        context = test.MockAttribContext('YYZ', self.tenant, self.token)
         with self.assertRaises(requests.ConnectionError):
             dbaas.get_instances(context)
 
     def test_bad_tenant(self):
         """Invalid tenant results in an HTTP error."""
-        context = common.MockContext(self.region, 'invalid', self.token)
+        context = test.MockAttribContext(self.region, 'invalid', self.token)
         with self.vcr.use_cassette('vcr-cdb-tenant-invalid.yaml'):
             with self.assertRaisesRegexp(dbaas.CDBException,
                                          "401: Unauthorized"):
@@ -143,7 +145,7 @@ class TestCloudDatabases(unittest.TestCase):
 
     def test_bad_token(self):
         """Invalid token results in an HTTP error."""
-        context = common.MockContext(self.region, self.tenant, 'invalid')
+        context = test.MockAttribContext(self.region, self.tenant, 'invalid')
         with self.vcr.use_cassette('vcr-cdb-token-invalid.yaml'):
             with self.assertRaisesRegexp(dbaas.CDBException,
                                          "401: Unauthorized"):

@@ -701,7 +701,8 @@ class Provider(RackspaceComputeProviderBase):
                     device_name=vol_device_name,
                     defines=dict(relation=relation_key, provider=self.key,
                                  task_tags=['attach']),
-                    properties={'estimated_duration': 10}
+                    properties={'estimated_duration': 10},
+                    merge_results=True,
                 )
                 # Wait for seerver and volume build before connecting
                 wfspec.wait_for(

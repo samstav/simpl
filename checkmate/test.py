@@ -1183,11 +1183,23 @@ class ProviderTester(unittest.TestCase):
 
 
 class MockContext(dict):
+
     """Used to mock RequestContext."""
+
     is_admin = False
     tenant = None
     username = "Ziad"
     simulation = False
+
+
+class MockAttribContext(object):
+
+    """Used to mock context in Rackspace py modules."""
+
+    def __init__(self, region, tenant, auth_token):
+        self.region = region
+        self.tenant = tenant
+        self.auth_token = auth_token
 
 
 class MockWsgiFilters(object):

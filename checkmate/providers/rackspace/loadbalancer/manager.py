@@ -71,6 +71,7 @@ class Manager(object):
                                                 ip_version="IPV4",
                                                 type="PUBLIC",
                                                 address=vip)])
+            api = utils.Simulation(region_name=context.get('region'))
         else:
             fake_node = api.Node(address=PLACEHOLDER_IP, condition="ENABLED",
                                  port=port)
