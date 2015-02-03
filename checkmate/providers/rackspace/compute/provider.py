@@ -685,8 +685,8 @@ class Provider(RackspaceComputeProviderBase):
                 deployment_id=deployment['id'], resource_key=key,
                 region=desired['region'])
             if target_resource['type'] == 'volume':
-                vol_mount_point = deployment.get_setting(
-                    'mount-point', resource_type='volume',
+                vol_device_name = deployment.get_setting(
+                    'device-name', resource_type='volume',
                     service_name=resource['service'])
                 # Create the attach task
                 connect_task = specs.Celery(
@@ -698,7 +698,7 @@ class Provider(RackspaceComputeProviderBase):
                         swops.PathAttrib('resources/%s/instance/id' % key),
                         swops.PathAttrib('resources/%s/instance/id' % target),
                     ],
-                    mount_point=vol_mount_point,
+                    device_name=vol_device_name,
                     defines=dict(relation=relation_key, provider=self.key,
                                  task_tags=['attach']),
                     properties={'estimated_duration': 10}

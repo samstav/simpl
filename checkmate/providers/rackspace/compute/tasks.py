@@ -160,12 +160,12 @@ def verify_ssh_connection(context, server_id, server_ip, region=None,
 @ctask.task(base=base.RackspaceProviderTask, default_retry_delay=15,
             max_retries=40, provider=provider.Provider)
 @statsd.collect
-def attach(context, server_id, volume_id, mount_point=None, region=None,
+def attach(context, server_id, volume_id, device_name=None, region=None,
            api=None):
     """Attach disk to server."""
     return manager.Manager.attach_volume(context, region, server_id, volume_id,
                                          attach.api,
-                                         mount_point=mount_point,
+                                         device_name=device_name,
                                          callback=attach.partial)
 
 
