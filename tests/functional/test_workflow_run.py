@@ -15,6 +15,7 @@
 #    under the License.
 
 """Test Stub for Workflows."""
+
 import copy
 import json
 import logging
@@ -171,8 +172,8 @@ class TestWordpressWorkflow(cmtest.StubbedWorkflowBase):
     @classmethod
     def setUpClass(cls):
         # Load app.yaml, substitute variables
-        path = os.path.join(os.path.dirname(__file__), '..', 'examples',
-                            'app.yaml')
+        path = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir,
+                            'examples', 'app.yaml')
         with file(path) as the_file:
             source = the_file.read().decode('utf-8')
 

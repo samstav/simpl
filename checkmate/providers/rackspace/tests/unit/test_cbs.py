@@ -43,20 +43,18 @@ class TestCreateBlockInstance(unittest.TestCase):
                 'size': 101
             }
         })
-        token = {
-            'access': {
-                'token': {'id': 'VALID'},
-                'serviceCatalog': [{
-                    'name': 'cloudBlockStorage',
-                    'type': 'volume',
-                    'endpoints': [{
-                        'publicURL': expected_url,
-                        'region': 'IAD',
-                    }]
+        catalog = {
+            'auth_token': 'VALID',
+            'catalog': [{
+                'name': 'cloudBlockStorage',
+                'type': 'volume',
+                'endpoints': [{
+                    'publicURL': expected_url,
+                    'region': 'IAD',
                 }]
-            }
+            }]
         }
-        cbs.create_volume(token, u'IAD', 101)
+        cbs.create_volume(catalog, u'IAD', 101)
         mock_post.assert_called_with(expected_url + 'volumes',
                                      headers=expected_headers,
                                      data=expected_data)

@@ -26,7 +26,9 @@ from checkmate.providers.rackspace.tests import common
 
 
 class TestCreateRedisInstance(unittest.TestCase):
+
     """Exercise Redis Instance Creation."""
+
     @mock.patch.object(dbaas.requests, 'post')
     @mock.patch.object(dbaas, 'get_flavor_ref')
     def test_api_call_uses_passed_in_data(self, mock_flavor_ref, mock_post):
@@ -47,6 +49,10 @@ class TestCreateRedisInstance(unittest.TestCase):
                 'name': 'test-redis'
             }
         })
+        response = mock.MagicMock()
+        mock_post.return_value = response
+        response.json.return_value = {'instance': {}}
+        response.ok = True
         mock_flavor_ref.return_value = expected_flavor_ref
         context = common.MockContext('IAD', '825640', 'VALID')
         dbaas.create_instance(context, 'test-redis', 101, dstore_type='redis',
