@@ -228,6 +228,7 @@ class CheckmateHOTTemplateException(CheckmateException):
 
     """
 
+
 class CheckmateNothingToDo(CheckmateException):
 
     """Nothing to be done for the given request."""

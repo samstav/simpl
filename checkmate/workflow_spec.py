@@ -464,8 +464,8 @@ class WorkflowSpec(specs.WorkflowSpec):
                             and name != 'host'
                             and relation['target'] in non_deleted_resources
                             and (relation['target'] in
-                                 new_and_planned_resources.keys() or
-                                 key in new_and_planned_resources.keys())):
+                                 new_and_planned_resources or
+                                 key in new_and_planned_resources)):
                         provider = providers[resource['provider']]
                         provider_result = provider.add_connection_tasks(
                             resource, key, relation, name, wf_spec,

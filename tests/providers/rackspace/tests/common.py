@@ -22,4 +22,3 @@ class MockContext(object):
         self.region = region
         self.tenant = tenant
         self.auth_token = auth_token
-
