@@ -138,6 +138,7 @@ class Manager(object):
             'public_ip': address,
             'port': loadbalancer.port,
             'protocol': loadbalancer.protocol,
+            'region': api.region_name,
             'status': "BUILD",
             'interfaces': {
                 'vip': {
