@@ -33,6 +33,22 @@ from checkmate import utils
 LOG = logging.getLogger(__name__)
 
 
+class DBAASContext(object):
+
+    """Bare-bones context.
+
+    Since the passed-in context was changed to a dict by
+    `delete_resource_tasks`, DBAASContext is used to set the attributes
+    expected by dbaas. This is temporary, as once the database
+    provider refactor is complete all tasks will use a proper context.
+    """
+
+    def __init__(self, context, region=None):
+        self.region = region or context.get('region')
+        self.tenant = context.get('tenant')
+        self.auth_token = context.get('auth_token')
+
+
 @task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
            max_retries=2, provider=provider.Provider)
 @statsd.collect
@@ -48,7 +64,7 @@ def create_configuration(context, db_type, db_version, config_params):
            max_retries=120, acks_late=True, provider=provider.Provider)
 @statsd.collect
 def wait_on_build(context, instance=None, callback=None):
-    """Wait on instance to be created, delete instance if it errors
+    """Wait on instance to be created, delete instance if it errors.
 
     :param context: Context
     :param instance: Instance Information
@@ -273,7 +289,6 @@ def wait_on_del_instance(context, api=None):
     resource = context.get('resource')
     instance = resource.get('instance', {})
     region = instance.get('region') or context.get('region')
-    assert 'region' in context, "No region defined in resource or context"
     instance_id = instance.get('id')
     instance = None
     status = None
@@ -299,7 +314,8 @@ def wait_on_del_instance(context, api=None):
         api = provider.Provider.connect(context, region)
     try:
         if resource['type'] == 'cache':
-            instance = dbaas.get_instance(context, instance_id)
+            instance = dbaas.get_instance(DBAASContext(context, region=region),
+                                          instance_id)
             if 'instance' in instance:
                 status = instance['instance']['status']
             elif 'status_code' in instance and instance['status_code'] == 404:
@@ -309,6 +325,9 @@ def wait_on_del_instance(context, api=None):
         else:
             instance = api.get(instance_id)
             status = instance.status
+    except dbaas.CDBException as exc:
+        if str(exc) != "404: Not Found":
+            raise
     except pyexc.NotFound:
         pass
 
@@ -467,24 +486,8 @@ def delete_configuration(context, config_id):
     'instance' and one in 'desired-state' - 'instance' seems the more
     appropriate choice, as indicated in the region assignment line below.
     """
-    class DBAASContext(object):
-
-        """Bare-bones context
-
-        Since the passed-in context was changed to a dict by
-        `delete_resource_tasks`, DBAASContext is used to set the attributes
-        expected by dbaas. This is temporary, as once the database
-        provider refactor is complete all tasks will use a proper context.
-        """
-
-        def __init__(self, region, tenant, auth_token):
-            self.region = region
-            self.tenant = tenant
-            self.auth_token = auth_token
-
     region = context.get('resource', {}).get('instance', {}).get('region')
-    context = DBAASContext(region, context.get('tenant'),
-                           context.get('auth_token'))
+    context = DBAASContext(context)
     utils.match_celery_logging(LOG)
     dbaas.delete_configuration(context, config_id)
     LOG.info('Deleted database configuration %s', config_id)
