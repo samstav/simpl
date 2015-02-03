@@ -833,6 +833,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
         'load-balancer': {},
         'legacy': {},
         'database': {},
+        'block': {},
         'common': {vendor: 'rackspace'}
       }
     };
@@ -845,6 +846,7 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
         'load-balancer': {},
         'nova': {},
         'database': {},
+        'block': {},
         'common': {vendor: 'rackspace'}
       }
     };
@@ -1715,7 +1717,7 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 }
 
 //Blueprint controllers
-function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, blueprints, initial_blueprint, environments, initial_environment) {
+function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, blueprints, initial_blueprint, environments, initial_environment, DeploymentData) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = true;
@@ -1748,7 +1750,7 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   }
 
   //Inherit from Deployment Initializer
-  DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, $scope.selected, $scope.environment);
+  DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, $scope.selected, $scope.environment, DeploymentData);
 
   //Wire Blueprints to Deployment
   $scope.$watch('selected', function(newVal, oldVal, scope) {
@@ -1758,9 +1760,9 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   });
 }
 
-function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
+function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData) {
   //Inherit from Blueprint List Controller
-  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null);
+  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null, DeploymentData);
   //Model: UI
   $scope.loading_remote_blueprints = false;
 
@@ -2341,7 +2343,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
 }
 
 //Hard-coded for Managed Cloud Wordpress
-function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
+function DeploymentManagedCloudController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData) {
 
   $scope.receive_blueprint = function(data, remote) {
     if ('blueprint' in data) {
@@ -2466,7 +2468,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
   //Show list of supported Managed Cloud blueprints
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow,
-                          WPBP, null, ENVIRONMENTS, 'next-gen');
+                          WPBP, null, ENVIRONMENTS, 'next-gen', DeploymentData);
 
   $scope.updateDatabaseProvider = function() {
     if ($scope.blueprint.id == '0255a076c7cf4fd38c69b6727f0b37ea') {
@@ -2520,7 +2522,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 }
 
 //Select one remote blueprint
-function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github) {
+function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData) {
 
   var blueprint = $location.search().blueprint;
   if (blueprint === undefined)
@@ -2532,7 +2534,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
     $location.search('blueprint', u.normalize());
   }
 
-  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github);
+  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData);
 
   //Override it with a one repo load
   $scope.load = function() {
@@ -2559,7 +2561,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
 }
 
 // Handles the option option and deployment launching
-function DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, blueprint, environment) {
+function DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, blueprint, environment, DeploymentData) {
   $scope.environment = environment;
   $scope.options = [];
   $scope.inputs = {};
@@ -2735,10 +2737,8 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     return ($scope.environment && $scope.blueprint);
   };
 
-  $scope.submit = function(action) {
-    if ($scope.submitting === true)
-      return;
-    $scope.submitting = true;
+  $scope.prepDeployment = function(action) {
+    var response = {};
     var url = '/:tenantId/deployments';
     if (action)
       url += '/' + action;
@@ -2754,7 +2754,9 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     if (typeof remote == 'object' && remote.url !== undefined)
       options.substituteVariables(deployment, {"%repo_url%": remote.url});
 
-    break_flag = false;
+    var break_flag = false;
+    var errors = [];
+    response.errors = errors;
 
     // Have to fix some of the inputs so they are in the right format, specifically the select
     // and checkboxes. This is lame and slow and I should figure out a better way to do this.
@@ -2774,7 +2776,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       if (option.required === true) {
         if ($scope.inputs[key] === null) {
           err_msg = "Required field "+key+" not set. Aborting deployment.";
-          $scope.notify(err_msg);
+          errors.push[err_msg];
           break_flag = true;
         }
       }
@@ -2790,13 +2792,51 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
       }
     });
 
-    if (break_flag){
+    response.break_flag = break_flag;
+
+    // Temp hack to set chef server credentials
+    if (deployment.environment.providers && deployment.environment.providers['chef-server']) {
+      if (!deployment.inputs) {
+        deployment.inputs = {};
+      };
+      if (!deployment.inputs.blueprint) {
+        deployment.inputs.blueprint = {};
+      };
+      _.extend(deployment.inputs.blueprint,
+        {
+          "chef-server-user-key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEAuWhEX/K00A7Phuxcz6ltb412hnxiocAoV4CzFwDpk6JsIGAK\nUCc0Uc6UR/cZ8tMOsggST2InnOJiuwB4aNpdJi6JIXNh0Q1PtlDr8WlSDPESB5Ms\nZf1zud/23d/jKdPeYhnQzmjcdzhxbiPPbBO1U3ZrAy03d17RszGDjHvsOYyMdP8U\nbZanujE8078in2ph4A9fZb7QwiiqHgHG8f6M7CttJJ/HEAR32w4ElMgIN8JJegTS\n17EK6o3euAcdVN5r7LkjYDy6fFR1sHLE1Y+7svcCmZT2CJkfxjKlTt9w1ZGd2lAN\n1wfCqj7nM3ImxfbNAhnMByGCo5XHuMDhKvJ3rQIDAQABAoIBAQCq5O95HOYKjEw+\nyeh2RG2pj9O6/DWRb+P/W5I3VtD1EpXldYCsBqbT7LyCZMHXLzDxaj0uTIPEuGpW\ngYV66CNJyUT+vzJfFYzuuEHx/6jwYtfCgaY/z9D2d/g85FunNzFYbQEo8ECd5zmu\nUnWi4buV1aWnhOsGLTDOoYnmWGcRVuhXYxvGsJiFOIbLuEfcaYPdYnTmpGZ5NLJd\n2SAs/KWgIumRNh2bL8rjFTGH8z5DSt4bhizxdzC6SqouDwVPcWYUuT6cNYOxi5TK\ndEiOEJpXAO9TUqUfE5R3p2e64bezbF8nFYbAbwadOSIca2bhJAJX+/H5Vl3Ml8zG\nb/Um0a3hAoGBAOF5aHf+w842+zNzcpntnGW7boY/A0utz3Jed/tdaWD+bRPXR3Eb\n5Kqk/rRMInRwV7bBO4zQ9IhwEHmIhsDsqZ+gXmFN3+plQ18H/AELVPMb5vjAj/0s\nqFgMX+BZv+DA5K29hxJ4lqaRKGZr8cNHKi2vZIuGesBoNwW8NAc1P5/FAoGBANKC\nMx74XAe8fq3Ba0X7hqAsE8RGXxyMc07m4YqPz8Ib12NBqIFYKbFOFHs0btBf7P5P\n/WB0m6xoCl4eLQq6SIPNy9DeXfLzczqUGbRMg+t7iC6dZXE1cUNbkpFHc5KnD7rZ\nLLfB33Kx0KtQHf3KmntCJ0pSE0Hh6MxGcqvZEE7JAoGBAN1V3xWcQ/6Uvnc9Z0xv\nkk3TdqXWCZgq4S92SPW6Nw399Hm7pOgF560UFuxKqLAA8Dn46kpLfSDKUYHcYdvU\n9pY6SSvf1GU2TrJlFh64TwXvaAbckPyI8CCu1RdZQyCQemuLV6LsOYb9i9kvMb7u\nhxsdx+endayXIRxCKhjBTtm5AoGBANBlIpSjTABAo6wB0d/bDECewgbJn7jUdgaD\nXH5etk80XrsdMeKyU7v6Tx5VHurcO/LbXzvQ1JgN+02HVBHNrqIE5qPkr18nkUhJ\ne1TZdrN1fLChEt7LCFClY+i8snZZOqJAAxv7KukRjUE7NCWeH+ar69eQfw32xg8M\nItNrNNC5AoGALMFodBcRLEsfHunzsBe66F2mnx8qO9HoTYuJcBCdvz0DYxvXHS60\nRAu3iCOwMMIiUZkc1/xize0aCNvxaLZO5hduLhLSSZfjC1HXFx9HQKcbEXIk+K0A\nTgIT2DvqGKO2EYLiErkWHN7LVkyt9qZJ4m1tFfwlfG2jTUoYB9maZRw=\n-----END RSA PRIVATE KEY-----\n",
+          "chef-server-username": "ziadsawalha",
+          "validator-pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEAxqZ1OqmpU2AQMnFCToLLW23J9dPvCNJ81XaM3c3PEyJS9rkx\n2u29oOEWjEybwBn0UgoMMJEhK/4G1zVG176xNEsr6iYQ6aOs3x7R3IeRP5fwBxwY\nbuZonZ8vTQuZ+ZIrawy10XqYrlgb6w+oKTnzwYDWfwBU13UZjXA5d/8RECYrfojS\nNWRXI3k1H6WXjb9l2x/IFcjt+WmQeA23tBFnFuPF1Gn3vkzFXKRJH/cKS6eCigoy\nl2RA+7IDMPMmATCE4T3VO5Rplr0OYcs+5kmDNOTSTtnS7buL/u1CKoKiV82vydx0\nbofipCvwG58Rj+BWfclusgQLITdmu34z35Kc2wIDAQABAoIBAHlHKOzupfTEAj95\njBy4l4SzK4jMofPF5fbA0NGdk92/p9z/RaO+X3Y31XdEUhZfAh2QCs8f25urE+wR\nl7WhszgU6LOkF9E8Xw89FqzHi3LCxQTiLzyNqLMKe2tTOOb4SU+qy9ofOdW+7xR8\nU5MP0XSCvvF8d0+vKzGBoWRUMcukHgVAs+sZ6NyPXN2UoJ9jvuGTpQSstXurX0Ek\nKMP0fyz22m6M31KDSkD79b3IxueLjSx3JBcNHox8XLdc/5YDMc8VMp3aBUeol0Xa\nZRPkmikXLGTHcJZjrjROpnPIF1B+kTDVsZNtbd84Pn3E8/HwikT5bt0her0aiB0b\nvivlDikCgYEA8ct9GOrEZyOTXRMJWGpHW5tsI6d8tFGNDYHF0fYdMii/17R0ytxn\nmXnOc9FYMpmXCyzjqumYzFJgc5LCMsBaGRaV8rPkASPfLPk6JzL+4plFew1HSw+9\n9UPQjynsYBctl1ef6gvFMC/zJQUJ42s0Y9t/+MoEekMOqKpO5PPz8gUCgYEA0lIW\nsHTv+s9DbACmHIYiQdDEAvgeGw6RHX0yqYpMnEPomMUMsI5EKufHnjuR0VcNhl4d\nWE+9QRGKRG8YeIqVyYSGTxAljXOnj1Q49Q72DhpbTIHlHEgmAlLkYIa1tJ4DzSFG\nHblDxFHzvs9V4mA/vUnb2NHGZ6PlIX+CtSJ1KV8CgYEA7AVZ40ym0pajbiL66Fc1\nuHIKKPOAgvNn4Ftgoga/kQq92OzJZIuohOOlZuBeW2YZTktPILJM+IUgqTAEaE3i\npMKrM/HtCj/dxaSx4zmgG8jJTcg0Y0zGe/bqShT+Kv30/toFuwwqO1NS4Dv+3wLy\nbNcCH/PyUvXKBVHZGRwYb5ECgYEArw7ejc83dCaR8tJzcOiAmRGAJQyKWnD8fnQX\n+CAB9ktbzdSt5EL2IFQ9xcnFbF4uBrpNaJUubHuB/8YMs0B+vnYNKL/C0gMC4/zx\nT6A9U63CcmLn5Wt0H5kJOALIOWcQuOvKJbFv43dnD1oaHUuJoi9YyxaIMvmrHP+6\nNrRQmrcCgYBqg+swcahNhPUT4bKXgn6Pd7ow5L7Z39oo/L4Ser6HWxk/7DXdd7oN\n3pF+ghQeBR4qtAiDPMjE86+5lRhmfoox1Rlcjl13H4gYegRvpyo6n3vTFC4NeuBm\nywcgknSgQP0N+YGyWTCB4qe4GimS/E5tqWLN3Z8zT6AID9oTR7BgXg==\n-----END RSA PRIVATE KEY-----\n",
+          "validator-username": "cloudtest-validator",
+          "chef-server-url": "https://api.opscode.com/organizations/cloudtest"
+        });
+    }
+    response.deployment = deployment;
+    return response;
+  };
+
+  $scope.edit = function() {
+    var response = $scope.prepDeployment();
+    DeploymentData.set(response.deployment);
+    $location.path('/blueprints/design');
+  };
+
+  $scope.submit = function(action) {
+    if ($scope.submitting === true)
+      return;
+    $scope.submitting = true;
+
+    var response = $scope.prepDeployment(action);
+    if (response.break_flag){
       $scope.submitting = false;
+      _.each(response.errors, function(error) {
+        $scope.notify(error);
+      })
       return;
     }
 
     if ($scope.auth.identity.loggedIn) {
-      deployment.$save(function(returned, getHeaders){
+      response.deployment.$save(function(returned, getHeaders){
         if (action == '+preview') {
           workflow.preview = returned;
           $location.path('/' + $scope.auth.context.tenantId + '/workflows/+preview');
@@ -2807,7 +2847,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         }
       }, function(error) {
         console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
-        console.log(deployment);
+        console.log(response.deployment);
         var info = {data: error.data, status: error.status, title: "Error Creating Deployment",
                     message: "There was an error creating your deployment:"};
         $scope.open_modal('/partials/app/_error.html', {error: info});
@@ -3521,6 +3561,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
         "name": "Next-Gen Open Cloud",
         "providers": {
             "nova": {},
+            "block": {},
             'database': {},
             'load-balancer': {},
             "common": {
@@ -3632,6 +3673,24 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
       console.log('Could not parse the blueprint');
       $scope.submitting = false;
       return;
+    }
+
+    // Temp hack to set chef server credentials
+    if (deployment_obj.environment && deployment_obj.environment.providers && deployment_obj.environment.providers['chef-server']) {
+      if (!deployment_obj.inputs) {
+        deployment_obj.inputs = {};
+      };
+      if (!deployment_obj.inputs.blueprint) {
+        deployment_obj.inputs.blueprint = {};
+      };
+      _.extend(deployment_obj.inputs.blueprint,
+        {
+          "chef-server-user-key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEAuWhEX/K00A7Phuxcz6ltb412hnxiocAoV4CzFwDpk6JsIGAK\nUCc0Uc6UR/cZ8tMOsggST2InnOJiuwB4aNpdJi6JIXNh0Q1PtlDr8WlSDPESB5Ms\nZf1zud/23d/jKdPeYhnQzmjcdzhxbiPPbBO1U3ZrAy03d17RszGDjHvsOYyMdP8U\nbZanujE8078in2ph4A9fZb7QwiiqHgHG8f6M7CttJJ/HEAR32w4ElMgIN8JJegTS\n17EK6o3euAcdVN5r7LkjYDy6fFR1sHLE1Y+7svcCmZT2CJkfxjKlTt9w1ZGd2lAN\n1wfCqj7nM3ImxfbNAhnMByGCo5XHuMDhKvJ3rQIDAQABAoIBAQCq5O95HOYKjEw+\nyeh2RG2pj9O6/DWRb+P/W5I3VtD1EpXldYCsBqbT7LyCZMHXLzDxaj0uTIPEuGpW\ngYV66CNJyUT+vzJfFYzuuEHx/6jwYtfCgaY/z9D2d/g85FunNzFYbQEo8ECd5zmu\nUnWi4buV1aWnhOsGLTDOoYnmWGcRVuhXYxvGsJiFOIbLuEfcaYPdYnTmpGZ5NLJd\n2SAs/KWgIumRNh2bL8rjFTGH8z5DSt4bhizxdzC6SqouDwVPcWYUuT6cNYOxi5TK\ndEiOEJpXAO9TUqUfE5R3p2e64bezbF8nFYbAbwadOSIca2bhJAJX+/H5Vl3Ml8zG\nb/Um0a3hAoGBAOF5aHf+w842+zNzcpntnGW7boY/A0utz3Jed/tdaWD+bRPXR3Eb\n5Kqk/rRMInRwV7bBO4zQ9IhwEHmIhsDsqZ+gXmFN3+plQ18H/AELVPMb5vjAj/0s\nqFgMX+BZv+DA5K29hxJ4lqaRKGZr8cNHKi2vZIuGesBoNwW8NAc1P5/FAoGBANKC\nMx74XAe8fq3Ba0X7hqAsE8RGXxyMc07m4YqPz8Ib12NBqIFYKbFOFHs0btBf7P5P\n/WB0m6xoCl4eLQq6SIPNy9DeXfLzczqUGbRMg+t7iC6dZXE1cUNbkpFHc5KnD7rZ\nLLfB33Kx0KtQHf3KmntCJ0pSE0Hh6MxGcqvZEE7JAoGBAN1V3xWcQ/6Uvnc9Z0xv\nkk3TdqXWCZgq4S92SPW6Nw399Hm7pOgF560UFuxKqLAA8Dn46kpLfSDKUYHcYdvU\n9pY6SSvf1GU2TrJlFh64TwXvaAbckPyI8CCu1RdZQyCQemuLV6LsOYb9i9kvMb7u\nhxsdx+endayXIRxCKhjBTtm5AoGBANBlIpSjTABAo6wB0d/bDECewgbJn7jUdgaD\nXH5etk80XrsdMeKyU7v6Tx5VHurcO/LbXzvQ1JgN+02HVBHNrqIE5qPkr18nkUhJ\ne1TZdrN1fLChEt7LCFClY+i8snZZOqJAAxv7KukRjUE7NCWeH+ar69eQfw32xg8M\nItNrNNC5AoGALMFodBcRLEsfHunzsBe66F2mnx8qO9HoTYuJcBCdvz0DYxvXHS60\nRAu3iCOwMMIiUZkc1/xize0aCNvxaLZO5hduLhLSSZfjC1HXFx9HQKcbEXIk+K0A\nTgIT2DvqGKO2EYLiErkWHN7LVkyt9qZJ4m1tFfwlfG2jTUoYB9maZRw=\n-----END RSA PRIVATE KEY-----\n",
+          "chef-server-username": "ziadsawalha",
+          "validator-pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEAxqZ1OqmpU2AQMnFCToLLW23J9dPvCNJ81XaM3c3PEyJS9rkx\n2u29oOEWjEybwBn0UgoMMJEhK/4G1zVG176xNEsr6iYQ6aOs3x7R3IeRP5fwBxwY\nbuZonZ8vTQuZ+ZIrawy10XqYrlgb6w+oKTnzwYDWfwBU13UZjXA5d/8RECYrfojS\nNWRXI3k1H6WXjb9l2x/IFcjt+WmQeA23tBFnFuPF1Gn3vkzFXKRJH/cKS6eCigoy\nl2RA+7IDMPMmATCE4T3VO5Rplr0OYcs+5kmDNOTSTtnS7buL/u1CKoKiV82vydx0\nbofipCvwG58Rj+BWfclusgQLITdmu34z35Kc2wIDAQABAoIBAHlHKOzupfTEAj95\njBy4l4SzK4jMofPF5fbA0NGdk92/p9z/RaO+X3Y31XdEUhZfAh2QCs8f25urE+wR\nl7WhszgU6LOkF9E8Xw89FqzHi3LCxQTiLzyNqLMKe2tTOOb4SU+qy9ofOdW+7xR8\nU5MP0XSCvvF8d0+vKzGBoWRUMcukHgVAs+sZ6NyPXN2UoJ9jvuGTpQSstXurX0Ek\nKMP0fyz22m6M31KDSkD79b3IxueLjSx3JBcNHox8XLdc/5YDMc8VMp3aBUeol0Xa\nZRPkmikXLGTHcJZjrjROpnPIF1B+kTDVsZNtbd84Pn3E8/HwikT5bt0her0aiB0b\nvivlDikCgYEA8ct9GOrEZyOTXRMJWGpHW5tsI6d8tFGNDYHF0fYdMii/17R0ytxn\nmXnOc9FYMpmXCyzjqumYzFJgc5LCMsBaGRaV8rPkASPfLPk6JzL+4plFew1HSw+9\n9UPQjynsYBctl1ef6gvFMC/zJQUJ42s0Y9t/+MoEekMOqKpO5PPz8gUCgYEA0lIW\nsHTv+s9DbACmHIYiQdDEAvgeGw6RHX0yqYpMnEPomMUMsI5EKufHnjuR0VcNhl4d\nWE+9QRGKRG8YeIqVyYSGTxAljXOnj1Q49Q72DhpbTIHlHEgmAlLkYIa1tJ4DzSFG\nHblDxFHzvs9V4mA/vUnb2NHGZ6PlIX+CtSJ1KV8CgYEA7AVZ40ym0pajbiL66Fc1\nuHIKKPOAgvNn4Ftgoga/kQq92OzJZIuohOOlZuBeW2YZTktPILJM+IUgqTAEaE3i\npMKrM/HtCj/dxaSx4zmgG8jJTcg0Y0zGe/bqShT+Kv30/toFuwwqO1NS4Dv+3wLy\nbNcCH/PyUvXKBVHZGRwYb5ECgYEArw7ejc83dCaR8tJzcOiAmRGAJQyKWnD8fnQX\n+CAB9ktbzdSt5EL2IFQ9xcnFbF4uBrpNaJUubHuB/8YMs0B+vnYNKL/C0gMC4/zx\nT6A9U63CcmLn5Wt0H5kJOALIOWcQuOvKJbFv43dnD1oaHUuJoi9YyxaIMvmrHP+6\nNrRQmrcCgYBqg+swcahNhPUT4bKXgn6Pd7ow5L7Z39oo/L4Ser6HWxk/7DXdd7oN\n3pF+ghQeBR4qtAiDPMjE86+5lRhmfoox1Rlcjl13H4gYegRvpyo6n3vTFC4NeuBm\nywcgknSgQP0N+YGyWTCB4qe4GimS/E5tqWLN3Z8zT6AID9oTR7BgXg==\n-----END RSA PRIVATE KEY-----\n",
+          "validator-username": "cloudtest-validator",
+          "chef-server-url": "https://api.opscode.com/organizations/cloudtest"
+        });
     }
 
     var url = '/:tenantId/deployments';
