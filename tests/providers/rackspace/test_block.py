@@ -210,6 +210,21 @@ environment:
             },
             'post_back_result': True,
             'resource': '0',
+        }, {
+            # Wait on Block Device
+            'call': 'checkmate.providers.rackspace.block.tasks.'
+                    'wait_on_build',
+            'args': [
+                mox.IgnoreArg(),
+                'North',
+                'cbs'
+            ],
+            'kwargs': None,
+            'result': {
+                'status': 'ACTIVE'
+            },
+            'post_back_result': True,
+            'resource': '0',
         }]
         self.workflow = self._get_stubbed_out_workflow(
             expected_calls=expected_calls)
@@ -226,6 +241,7 @@ environment:
         expected = [
             'Root',
             'Start',
+            'Wait for Volume 0 (db) build',
             'Create Volume 0',
         ]
         self.assertItemsEqual(task_list, expected, msg=task_list)
@@ -274,7 +290,20 @@ class TestCatalog(unittest.TestCase):
                 'rax:block_volume': {
                     'is': 'volume',
                     'id': 'rax:block_volume',
-                    'provides': [{'volume': 'iscsi'}], 'options': {}
+                    'provides': [{'volume': 'iscsi'}],
+                    'options': {
+                        'type': {
+                            'default': 'SSD',
+                            'display-hints': {
+                                'choice': ['SATA', 'SSD']
+                            },
+                            'type': 'string'
+                        },
+                        'size': {
+                            'default': 50,
+                            'type': 'integer'
+                        }
+                    }
                 }
             }
         }

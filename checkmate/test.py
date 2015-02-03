@@ -696,8 +696,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'resource': key,
                 })
             elif (resource.get('provider') == 'database' and
-                    resource.get('type') == 'compute' and
-                    'disk' in resource['desired-state']):
+                     resource.get('type') == 'compute' and
+                     'disk' in resource['desired-state']):
                 expected_calls.extend([{
                     # Create Instance
                     'call': 'checkmate.providers.rackspace.database.tasks.'
@@ -716,7 +716,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     'name': 'dbname.domain.local',
                                     'status': 'BUILD',
                                     'region': self.deployment.get_setting(
-                                            'region', default='testonia'),
+                                        'region', default='testonia'),
                                     'interfaces': {
                                         'mysql': {
                                             'host':
@@ -742,7 +742,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                             str(key): {
                                 'status': 'ACTIVE',
                                 'instance': {
-                                    'id': 'db-inst-1',
+                                    'id': 'db-inst-1'
                                 }
                             }
                         },
@@ -751,7 +751,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'resource': key,
                 }])
             elif (resource.get('provider') == 'database' and
-                    resource.get('type') == 'cache'):
+                     resource.get('type') == 'cache'):
                 expected_calls.extend([{
                     # Create Instance
                     'call': 'checkmate.providers.rackspace.database.tasks.'
@@ -770,7 +770,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                     'name': 'dbname.domain.local',
                                     'status': 'BUILD',
                                     'region': self.deployment.get_setting(
-                                            'region', default='testonia'),
+                                        'region', default='testonia'),
                                     'interfaces': {
                                         'redis': {
                                             'host':
@@ -802,6 +802,47 @@ class StubbedWorkflowBase(unittest.TestCase):
                     },
                     'post_back_result': True,
                     'resource': key,
+                }])
+            elif resource.get('provider') == 'block':
+                expected_calls.extend([{
+                    # Create Block Device
+                    'call': 'checkmate.providers.rackspace.block.tasks.'
+                            'create_volume',
+                    'args': [
+                        mox.Func(is_good_context),
+                        desired['region'],
+                        desired['size']
+                    ],
+                    'kwargs': mox.ContainsKeyValue(
+                        'tags', {'RAX-CHECKMATE': mox.IgnoreArg()}
+                    ),
+                    'result': {
+                        'resources': {
+                            str(key): {
+                                'instance': {
+                                    'id': 'cbs%s' % key,
+                                    'region': desired['region'],
+                                }
+                            }
+                        }
+                    },
+                    'post_back_result': True,
+                    'resource': str(key),
+                }, {
+                    # Wait on Block Device
+                    'call': 'checkmate.providers.rackspace.block.tasks.'
+                            'wait_on_build',
+                    'args': [
+                        mox.Func(is_good_context),
+                        desired['region'],
+                        'cbs%s' % key
+                    ],
+                    'kwargs': {},
+                    'result': {
+                        'status': 'ACTIVE'
+                    },
+                    'post_back_result': True,
+                    'resource': str(key),
                 }])
             elif resource.get('type') == 'database':
                 username = self.deployment.get_setting(

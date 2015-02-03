@@ -272,7 +272,7 @@ class Provider(provider.RackspaceComputeProviderBase):
             defines=dict(
                 resource=key,
                 provider=self.key,
-                task_tags=['final']
+                task_tags=['build', 'final']
             ),
         )
         create_server_task.connect(build_wait_task)

@@ -45,6 +45,7 @@ class Manager(object):
                                              region or context.region,
                                              size,
                                              metadata=tags)
+            instance['region'] = region or context.region
         except cdb_errors.OverLimit as exc:
             raise cmexc.CheckmateException(str(exc), friendly_message=str(exc),
                                            options=cmexc.CAN_RETRY)
@@ -61,6 +62,28 @@ class Manager(object):
         return instance
 
     @staticmethod
+    def wait_on_build(context, region, volume_id, api, callback,
+                      simulate=False):
+        """Wait on a Cloud Block Storage Volume to become active."""
+        try:
+            if simulate:
+                instance = {
+                    'status': 'ACTIVE',
+                    'status-message': ''
+                }
+            else:
+                instance = api.get_volume(context,
+                                          region or context.region,
+                                          volume_id)
+        except cdb_errors.ClientException as exc:
+            raise cmexc.CheckmateException(str(exc), options=cmexc.CAN_RETRY)
+        except Exception as exc:
+            raise cmexc.CheckmateException(str(exc))
+        if callable(callback):
+            callback(instance)
+        return instance
+
+    @staticmethod
     def delete_volume(context, region, volume_id, api, callback,
                       simulate=False):
         """Delete a Cloud Block Storage Volume."""
@@ -69,6 +92,8 @@ class Manager(object):
                 'status': 'DELETED',
                 'status-message': ''
             }
+            if callable(callback):
+                callback(results)
             return results
         volume = None
         status = None
@@ -106,4 +131,7 @@ class Manager(object):
                 'status': status or 'DELETING',
                 'status-message': status_message
             }
+            if callable(callback):
+                callback(results)
+        return results
         return results

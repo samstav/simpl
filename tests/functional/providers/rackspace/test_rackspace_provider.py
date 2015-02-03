@@ -42,7 +42,7 @@ class TestComputeWithBlock(test.StubbedWorkflowBase):
                 blueprint:
                   name: Test
                   services:
-                    boot_from_block:
+                    with_block:
                       component:
                         resource_type: compute
                         interface: ssh
@@ -112,6 +112,35 @@ class TestComputeWithBlock(test.StubbedWorkflowBase):
         self.assertEqual(server['provider'], 'nova')
         self.assertEqual(volume['component'], 'rax:block_volume')
         self.assertEqual(volume['provider'], 'block')
+
+    def test_workflow_resource_task_generation(self):
+        """Test Add Task"""
+        context = RequestContext(auth_token='MOCK_TOKEN', username='MOCK_USER',
+                                 region="North")
+        Manager.plan(self.deployment, context)
+        wf_spec = workflow_spec.WorkflowSpec.create_build_spec(
+            context, self.deployment)
+        workflow = cm_wf.init_spiff_workflow(
+            wf_spec, self.deployment, context, "w_id", "BUILD")
+
+        task_list = workflow.spec.task_specs.keys()
+        expected = [
+            'Root',
+            'Start',
+
+            'Create Volume 1',
+            'Wait for Volume 1 (with_block) build',
+
+            'Create Server 0 (with_block)',
+            'Wait for Server 0 (with_block) build',
+
+            'Attach (with_block) Wait on 0 and 1',
+            'Attach Server 0 to Volume 1',
+
+            'Server Wait on Attach:0 (with_block)',
+            'Verify server 0 (with_block) ssh connection',
+        ]
+        self.assertItemsEqual(task_list, expected, msg=task_list)
 
 
 if __name__ == '__main__':

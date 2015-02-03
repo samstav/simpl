@@ -665,6 +665,63 @@ class Provider(RackspaceComputeProviderBase):
             create=create_server_task
         )
 
+    def add_connection_tasks(self, resource, key, relation, relation_key,
+                             wfspec, deployment, context):
+        target = relation['target']
+        if target != key:
+            target_resource = deployment['resources'][target]
+            compute_wait_tasks = wfspec.find_task_specs(resource=key,
+                                                        provider=self.key,
+                                                        tag='build')
+            compute_final_tasks = wfspec.find_task_specs(resource=key,
+                                                         provider=self.key,
+                                                         tag='final')
+            # Target final
+            target_final_tasks = wfspec.find_task_specs(resource=target,
+                                                        tag='final')
+
+            desired = resource['desired-state']
+            queued_context = context.get_queued_task_dict(
+                deployment_id=deployment['id'], resource_key=key,
+                region=desired['region'])
+            if target_resource['type'] == 'volume':
+                vol_mount_point = deployment.get_setting(
+                    'mount-point', resource_type='volume',
+                    service_name=resource['service'])
+                # Create the attach task
+                connect_task = specs.Celery(
+                    wfspec,
+                    "Attach Server %s to Volume %s" % (key, target),
+                    'checkmate.providers.rackspace.compute.tasks.attach',
+                    call_args=[
+                        queued_context,
+                        swops.PathAttrib('resources/%s/instance/id' % key),
+                        swops.PathAttrib('resources/%s/instance/id' % target),
+                    ],
+                    mount_point=vol_mount_point,
+                    defines=dict(relation=relation_key, provider=self.key,
+                                 task_tags=['attach']),
+                    properties={'estimated_duration': 10}
+                )
+                # Wait for seerver and volume build before connecting
+                wfspec.wait_for(
+                    connect_task,
+                    target_final_tasks + compute_wait_tasks,
+                    name="Attach (%s) Wait on %s and %s" % (
+                        resource['service'], key, target)
+                )
+                # Tell anything else needing this server to wait on attach
+                if compute_final_tasks:
+                    wfspec.wait_for(
+                        compute_final_tasks[0],
+                        [connect_task],
+                        name="Server Wait on Attach:%s (%s)" % (
+                            key, resource['service'])
+                    )
+            else:
+                LOG.info("Ignoring connection to cloud server from '%s'",
+                         target_resource['type'])
+
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
         from checkmate.providers.rackspace.compute import sync_resource_task
