@@ -84,7 +84,7 @@ angular.module('checkmate.applications-configure')
         actionLabel: 'Revert Blueprint'
       },
       githubEmptyRepo: {
-        message: 'Yo, we couldn\'t find a Checkmate blueprint in this Github repo.',
+        message: 'Yo, we couldn\'t find a valid Checkmate blueprint in this Github repo.',
         classes: ['rs-app-warning', 'github-empty-repo'],
         icon: 'fa fa-github',
         isDismissible: false,
