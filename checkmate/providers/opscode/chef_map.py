@@ -514,7 +514,7 @@ class ChefMap(object):
                     LOG.debug("'%s' not yet available at '%s'",
                               mapping['source'], full_path,
                               extra={'data': data})
-                    raise SoloProviderNotReady("Not ready")
+                    raise SoloProviderNotReady("'%s' not ready" % full_path)
                 LOG.debug("Resolved mapping '%s' to '%s'", mapping['source'],
                           value)
             else:
