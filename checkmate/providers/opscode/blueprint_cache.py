@@ -76,6 +76,27 @@ def get_ident_hash(source_repo, github_token=None):
     return hashlib.md5(ident).hexdigest()
 
 
+def good_cache_exists(cache_path):
+    """Determine if a good cache exists.
+
+    If a good cache exists, return the path to its HEAD or FETCH_HEAD.
+    """
+    if not os.path.exists(cache_path):
+        return False
+    dotgit = os.path.join(cache_path, '.git')
+    if not os.path.exists(dotgit):
+        return False
+    # The mtime of .git/FETCH_HEAD changes upon every "git
+    # fetch".  FETCH_HEAD is only created after the first
+    # fetch, so use HEAD if it's not there
+    fetch_head = os.path.join(dotgit, 'FETCH_HEAD')
+    if os.path.isfile(fetch_head):
+        return fetch_head
+    head = os.path.join(dotgit, 'HEAD')
+    if os.path.isfile(head):
+        return head
+
+
 class BlueprintCache(object):
 
     """Blueprints cache."""
