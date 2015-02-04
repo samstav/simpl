@@ -551,7 +551,7 @@ services.value('options', {
 });
 
 /* Github APIs for blueprint parsing*/
-services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$location', '$window', '$rootScope', function($http, $q, $cookies, $cookieStore, $location, $window, $rootScope) {
+services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$location', '$window', '$rootScope', 'options', function($http, $q, $cookies, $cookieStore, $location, $window, $rootScope, options) {
   var set_remote_owner_type = function(remote, type) {
     remote[type] = remote.owner;
     return remote;
@@ -833,11 +833,8 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
 
     return deployment.then(function(resp) {
       if(resp.flavors && flavor && resp.flavors[flavor]) {
-        angular.extend(resp.blueprint, resp.flavors[flavor].blueprint);
-        angular.extend(resp.environment, resp.flavors[flavor].environment);
-        angular.extend(resp.inputs.blueprint, resp.flavors[flavor].inputs.blueprint);
+        options.extendDeep(resp, resp.flavors[flavor])
       }
-
       return resp;
     });
   };
