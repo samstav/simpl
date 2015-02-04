@@ -260,7 +260,7 @@ class Manager(object):
             LOG.debug('No LB node matching %s on LB %s', ip_addr, lb_id)
 
     @staticmethod
-    def add_node(lb_id, ip_addr, api, simulate=False):
+    def add_node(lb_id, ip_addr, target_status, api, simulate=False):
         """Celery task to add a node to a Cloud Load Balancer."""
         if simulate:
             return
@@ -306,7 +306,8 @@ class Manager(object):
 
         # Create new node
         if not new_node:
-            node = api.Node(address=ip_addr, port=port, condition="ENABLED")
+            condition = 'ENABLED' if target_status == 'ACTIVE' else 'DISABLED'
+            node = api.Node(address=ip_addr, port=port, condition=condition)
             try:
                 _, body = loadbalancer.add_nodes([node])
                 node_id = body.get('nodes')[0].get('id')

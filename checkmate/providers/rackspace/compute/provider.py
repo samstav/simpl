@@ -405,7 +405,13 @@ class Provider(RackspaceComputeProviderBase):
                 elif 'UUID' in nic:
                     nic['net-id'] = nic.pop('UUID')
 
+        initial_status = 'ACTIVE'
+        if planner.operation.get('type') == 'SCALE UP':
+            if planner.operation.get('initial-status'):
+                initial_status = planner.operation['initial-status']
+
         for template in templates:
+            template['desired-state']['status'] = initial_status
             template['desired-state']['region'] = region
             template['desired-state']['flavor'] = flavor_id
             template['desired-state']['flavor-info'] = flavor
@@ -577,6 +583,7 @@ class Provider(RackspaceComputeProviderBase):
                 queued_task_dict,
                 swops.PathAttrib('resources/%s/instance/id' % key),
             ],
+            desired_state=desired,
             properties={'estimated_duration': 150,
                         'auto_retry_count': 3},
             defines=dict(
@@ -831,8 +838,10 @@ class Provider(RackspaceComputeProviderBase):
         return results
 
     def get_catalog(self, context, type_filter=None, **kwargs):
-        """Return stored/override catalog if it exists, else connect, build,
-        and return one.
+        """Return the catalog:
+
+        - from stored/override if it exists
+        - otherwise, connect, build and return one
         """
         # TODO(any): maybe implement this an on_get_catalog so we don't have to
         #       do this for every provider

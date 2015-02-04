@@ -145,7 +145,7 @@ class Planner(classes.ExtensibleDict):
             raise CheckmateValidationException("Environment not found. "
                                                "Nowhere to deploy to.")
 
-    def plan_additional_nodes(self, context, service_name, count):
+    def plan_additional_nodes(self, context, service_name, count, status=None):
         """Add 'count' number of service_name nodes to a deployment.
 
         Deployment must already be in 'PLANNED' state.
@@ -153,11 +153,13 @@ class Planner(classes.ExtensibleDict):
         :param context: Request context
         :param service_name: The service to add additional nodes for
         :param count: The number of nodes to add
+        :param status: one of: ONLINE (default), OFFLINE
         :return:
         """
         LOG.info("Planning %s additional nodes for service %s in deployment "
                  "'%s'", count, service_name, self.deployment['id'])
         service_analysis = self['services'][service_name]
+        self.operation = {'type': 'SCALE UP', 'initial-status': status}
         definition = service_analysis['component']
 
         # Get main component for this service
@@ -172,6 +174,8 @@ class Planner(classes.ExtensibleDict):
     def plan(self, context):
         """Perform plan analysis. Returns a reference to planned resources."""
         LOG.info("Planning deployment '%s'", self.deployment['id'])
+
+        self.operation = {'type': 'BUILD'}
 
         # Quick validations
         cm_dep.validate_blueprint_options(self.deployment)

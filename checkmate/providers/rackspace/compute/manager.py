@@ -18,8 +18,8 @@
 import json
 import logging
 
-import requests
 from novaclient import exceptions as ncexc
+import requests
 
 from checkmate import exceptions as cmexec
 from checkmate import rdp
@@ -38,7 +38,7 @@ class Manager(object):
                       files=None, image=None, tags=None, config_drive=None,
                       userdata=None, networks=None, boot_from_image=False,
                       disk=None):
-        #pylint: disable=R0914
+        # pylint: disable=R0914
         """Create a Rackspace Cloud server using novaclient.
 
         Note: Nova server creation requests are asynchronous. The IP address
@@ -162,7 +162,7 @@ class Manager(object):
 
     @staticmethod
     def wait_on_build(context, server_id, callback, update_task_state,
-                      ip_address_type='public', api=None):
+                      ip_address_type='public', api=None, desired_state=None):
         """Checks build is complete.
 
         :param context: context data
@@ -173,12 +173,13 @@ class Manager(object):
         :param api: api object for getting server details
         :return: False when build not ready. Dict with ip addresses when done.
         """
+        desired_state = desired_state or {}
         utils.match_celery_logging(LOG)
         resource_key = context['resource_key']
 
         if context.get('simulation') is True:
             results = {
-                'status': "ACTIVE",
+                'status': desired_state.get('status') or "ACTIVE",
                 'status-message': "",
                 'ip': '4.4.4.%s' % resource_key,
                 'public_ip': '4.4.4.%s' % resource_key,
@@ -241,18 +242,20 @@ class Manager(object):
         if server.status == 'BUILD':
             results['progress'] = server.progress
             results['status-message'] = "%s%% Complete" % server.progress
-            #countdown = 100 - server.progress
-            #if countdown <= 0:
-            #    countdown = 15  # progress is not accurate. Allow at least 15s
-            #           # wait
+            # countdown = 100 - server.progress
+            # if countdown <= 0:
+            #     countdown = 15  # progress not accurate. Allow at least 15s
+            #            # wait
             update_task_state(state='PROGRESS', meta=results)
             # progress indicate shows percentage, give no indication of seconds
             # left to build.
             # It often, if not usually takes at least 30 seconds after a server
             # hits 100% before it will be "ACTIVE".  We used to use % left as a
             # countdown value, but reverting to the above configured countdown.
-            msg = ("Server '%s' progress is %s. Retrying after 30 seconds" % (
-                   server_id, server.progress))
+            msg = (
+                "Server '%s' progress is %s. Retrying after 30 seconds" %
+                (server_id, server.progress)
+            )
             LOG.debug(msg)
             results['progress'] = server.progress
             callback(results)
@@ -286,23 +289,24 @@ class Manager(object):
                     'rackconnect_automation_status']
                 if rc_automation_status == 'DEPLOYED':
                     LOG.debug("Rack Connect server ready. Metadata found'")
-                    results["rackconnect-automation-status"] = \
-                        rc_automation_status
+                    results["rackconnect-automation-status"] = (
+                        rc_automation_status)
                 elif rc_automation_status == 'FAILED':
                     msg = ("Rackconnect server metadata has "
                            "'rackconnect_automation_status' set to FAILED.")
                     LOG.debug(msg)
                     results['status'] = 'ERROR'
                     results['status-message'] = msg
-                    results["rackconnect-automation-status"] = \
-                        rc_automation_status
+                    results["rackconnect-automation-status"] = (
+                        rc_automation_status)
 
                     context["instance_id"] = server_id
                     callback(results)
 
-                    raise cmexec.CheckmateException(message=msg,
-                                                    friendly_message=
-                                                    cmexec.UNEXPECTED_ERROR)
+                    raise cmexec.CheckmateException(
+                        message=msg,
+                        friendly_message=cmexec.UNEXPECTED_ERROR
+                    )
                 elif rc_automation_status == 'UNPROCESSABLE':
                     reason = Manager.get_rackconnect_error_reason(
                         server.metadata)
@@ -311,10 +315,10 @@ class Manager(object):
                            "set to %s.%s RackConnect will not be enabled for "
                            "this server(#%s)." % (rc_automation_status,
                                                   reason,
-                           server_id))
+                                                  server_id))
                     LOG.warn(msg)
-                    results["rackconnect-automation-status"] = \
-                        rc_automation_status
+                    results["rackconnect-automation-status"] = (
+                        rc_automation_status)
                 else:
                     msg = ("Rack Connect server "
                            "'rackconnect_automation_status' metadata tag is "
@@ -338,7 +342,7 @@ class Manager(object):
             raise cmexec.CheckmateException(
                 message="Could not find IP of server %s" % server_id,
                 options=cmexec.CAN_RESUME)
-        results['status'] = "ACTIVE"
+        results['status'] = desired_state.get('status', 'ACTIVE')
         results['status-message'] = ''
 
         return results
@@ -354,7 +358,7 @@ class Manager(object):
                     device_name or '/dev/xvdb': volume_id,
                 },
                 'devices': {
-                    # TODO (zns) make label an input
+                    # TODO(zns): make label an input
                     'data': device_name or '/dev/xvdb',
                 }
             }
@@ -376,7 +380,8 @@ class Manager(object):
             LOG.error(msg, exc_info=True)
             raise cmexec.CheckmateException(message=msg,
                                             options=cmexec.CAN_RESUME)
-        # Hybrid pyrax and requests - lovin' it  # TODO (zns): fix it
+        # Hybrid pyrax and requests - lovin' it
+        # TODO(zns): fix it
         url = [l['href'] for l in server.links if l['rel'] == 'self'][0]
         headers = {
             'X-Auth-Token': context['auth_token'],
@@ -400,7 +405,7 @@ class Manager(object):
                     attachment['device']: attachment['id']
                 },
                 'devices': {
-                    # TODO (zns) make label an input
+                    # TODO(zns): make label an input
                     'data': attachment['device'],
                 }
             }
@@ -411,8 +416,8 @@ class Manager(object):
 
     @staticmethod
     def get_rackconnect_error_reason(metadata):
-        """Get the reason why rackconnect automation went into UNPROCESSED "
-        status
+        """Return reason for rackconnect going into UNPROCESSED status
+
         @param metadata: Server metadata
         @return:
         """
@@ -426,6 +431,7 @@ class Manager(object):
                               private_key=None, proxy_address=None,
                               proxy_credentials=None):
         """Verifies the ssh connection to a server
+
         :param context: context data
         :param server_id: server id
         :param server_ip: ip of the server
@@ -472,8 +478,8 @@ class Manager(object):
             image_name = "unkown"
         if ((metadata and metadata['os_type'] == 'linux') or
                 ('windows' not in image_name)):
-            msg = "Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing " \
-                  "to connect." % (server_id, username, server_ip, port)
+            msg = ("Server '%s' is ACTIVE but 'ssh %s@%s -p %d' is failing "
+                   "to connect." % (server_id, username, server_ip, port))
             is_up = ssh.test_connection(context, server_ip, username,
                                         timeout=timeout,
                                         password=password,
@@ -483,8 +489,8 @@ class Manager(object):
                                         proxy_address=None,
                                         proxy_credentials=None)
         else:
-            msg = "Server '%s' is ACTIVE but is not responding to ping" \
-                  " attempts" % server_id
+            msg = ("Server '%s' is ACTIVE but is not responding to ping"
+                   " attempts" % server_id)
             is_up = rdp.test_connection(context, server_ip, timeout=timeout)
 
         return {
@@ -615,7 +621,7 @@ class Manager(object):
     @staticmethod
     def _on_failure(exc, task_id, args, kwargs, einfo, action, method,
                     callback):
-        #pylint: disable=W0613
+        # pylint: disable=W0613
         """Helper method to get failure handler."""
         dep_id = args[0].get('deployment_id')
         resource_key = args[0].get('resource_key')
@@ -635,6 +641,7 @@ class Manager(object):
     def get_on_failure(action, method, callback):
         """Used by tasks for failure handlers."""
         def on_failure(exc, task_id, args, kwargs, einfo):
+            """Celery Task on_failure function."""
             Manager._on_failure(exc, task_id, args, kwargs, einfo, action,
                                 method, callback)
         return on_failure

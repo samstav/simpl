@@ -86,7 +86,7 @@ class TestWorkflow(unittest.TestCase):
                                                     self.task_without_error])
         self.mox.ReplayAll()
         self.assertEqual(workflow.get_errored_tasks(self.mocked_workflow),
-                          ['task_id'])
+                         ['task_id'])
 
     def test_create_reset_failed_task_workflow(self):
         spec = self.mox.CreateMockAnything()
@@ -96,8 +96,8 @@ class TestWorkflow(unittest.TestCase):
         deployment = cmdep.Deployment({"id": "DEP_ID"})
 
         driver = self.mox.CreateMockAnything()
-        driver.get_deployment(deployment["id"], with_secrets=False)\
-            .AndReturn(deployment)
+        driver.get_deployment(
+            deployment["id"], with_secrets=False).AndReturn(deployment)
 
         self.mocked_workflow.get_attribute('id').AndReturn("WF_ID")
         self.mox.StubOutWithMock(workflow_spec.WorkflowSpec,
@@ -435,9 +435,9 @@ class TestWorkflow(unittest.TestCase):
             wf_spec, deployment_with_lb_provider, context, "w_id",
             "DELETE")
         self.assertEqual(test_workflow.attributes["created"],
-                          '2013-03-31 17:49:51 +0000')
+                         '2013-03-31 17:49:51 +0000')
         self.assertEqual(test_workflow.attributes["updated"],
-                          '2013-03-31 17:49:51 +0000')
+                         '2013-03-31 17:49:51 +0000')
 
     def test_create_delete_workflow_with_incomplete_operation(self):
         context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
@@ -1106,6 +1106,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         mox.IsA(dict),
                         121212,
                         '10.1.2.1',
+                        None
                     ],
                     'kwargs': None,
                     'result': None,

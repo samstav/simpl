@@ -610,6 +610,8 @@ class Provider(rsbase.RackspaceProviderBase):
                 operators.PathAttrib('resources/%s/instance/id' % key),
                 operators.PathAttrib(
                     'resources/%s/instance/private_ip' % target),
+                operators.PathAttrib(
+                    'resources/%s/status' % target),
             ],
             defines=dict(relation=relation_key, provider=self.key,
                          task_tags=['final']),
