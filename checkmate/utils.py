@@ -1002,7 +1002,7 @@ def evaluate(function_string):
 def execute_shell(command, with_returncode=True, cwd=None):
     """Execute a command (containing no shell operators) locally.
 
-    Raises CalledProcessError on non-zero exit status.
+    Raises CheckmateCalledProcessError on non-zero exit status.
 
     :param command:         Shell command to be executed. In the exact form
                             you would type it on the command line.
@@ -1027,11 +1027,10 @@ def execute_shell(command, with_returncode=True, cwd=None):
     out, err = pope.communicate()
     out = {'stdout': out.strip()}
     if pope.returncode != 0:
-        raise subprc.CalledProcessError(
+        raise cmexc.CheckmateCalledProcessError(
             pope.returncode, command, output=out['stdout'])
     if with_returncode:
         out.update({'returncode': pope.returncode})
-    print out
     return out
 
 
@@ -1113,15 +1112,19 @@ def git_init(repo_dir):
 
 def git_clone(repo_dir, url, branch_or_tag="master"):
     """Do a git checkout of `head' in `repo_dir'."""
+    repo_dir = pipes.quote(repo_dir)
     return execute_shell(
         'git clone %s %s --branch %s'
         % (url, repo_dir, '--branch', branch_or_tag))
 
+
 def git_remote_tag_exists(repo_dir, tag_name, remote='origin'):
-    output = execute_shell('git ls-remote %s %s' % (remote, tag_name))
+    output = execute_shell('git ls-remote %s %s' % (remote, tag_name),
+                           cwd=repo_dir)
     if output['stdout']:
         return True
     return False
+
 
 def git_tags(repo_dir):
     """Return a list of git tags for the git repo in `repo_dir'."""
