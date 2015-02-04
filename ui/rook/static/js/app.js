@@ -48,7 +48,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: 'DeploymentManagedCloudController'
   })
-  .when('/deployments/new', {
+  .when('/deployments/new/:owner?/:repo?/:flavor?', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: 'DeploymentNewRemoteController'
   })
@@ -1944,6 +1944,60 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
   };
 
+  $scope.flavors = {
+    data: null,
+    list: [],
+    selected: null,
+    original: {},
+    getFlavor: function(selected) {
+      selected = selected || this.selected;
+
+      return _.filter(angular.copy(this.data), function(flav, id) {
+        var _flavor = ((flav.blueprint || {})['meta-data'] || {}).flavor;
+        return _flavor == selected || id == selected;
+      });
+    },
+    default: 'Original - No Changes',
+    reset: function() {
+      this.data = null;
+      this.original = {};
+    },
+    select: function() {
+      var copy = angular.copy(this.original);
+      var blueprint;
+
+      if(this.selected !== this.default) {
+        var selected = this.getFlavor();
+        blueprint = options.extendDeep(copy.blueprint || {}, selected[0].blueprint);
+      } else {
+        blueprint = copy.blueprint;
+      }
+
+      $scope.setBlueprint(blueprint);
+    },
+    set: function(deployment) {
+      var selected;
+
+      this.original = angular.copy(deployment);
+      this.data = angular.copy(deployment.flavors);
+      this.data.original = {
+        blueprint: {
+          'meta-data': {
+            flavor: this.default
+          }
+        }
+      };
+
+      selected = this.getFlavor($routeParams.flavor);
+
+      this.list = angular.copy(_.map(this.data, function(flav, id) {
+        return ((flav.blueprint || {})['meta-data'] || {}).flavor || id;
+      }));
+
+      this.selected = (((selected[0] || {}).blueprint || {})['meta-data'] || {}).flavor || this.default;
+    }
+  };
+
   $scope.receive_blueprint = function(data, remote) {
     if ('environment' in data) {
       if (!('name' in data.environment))
@@ -1961,8 +2015,15 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
 
     if ('blueprint' in data) {
       $scope.blueprint = data.blueprint;
+
+      if('flavors' in data) {
+        $scope.flavors.set(data);
+      } else {
+        $scope.flavors.reset();
+      }
     } else {
       $scope.blueprint = null;
+      $scope.flavors.reset();
     }
 
     $scope.updateOptions();
@@ -2528,27 +2589,41 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 
 //Select one remote blueprint
 function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData) {
-
   var blueprint = $location.search().blueprint;
-  if (blueprint === undefined)
-    blueprint = "https://github.com/checkmate/helloworld";
-  var u = URI(blueprint);
-  if (u.fragment() === "") {
-    u.fragment($location.hash() || 'master');
-    $location.hash("");
-    $location.search('blueprint', u.normalize());
+  var u;
+  var owner = $routeParams.owner;
+  var repo = $routeParams.repo;
+  var default_blueprint = 'checkmate-blueprints/hello-world';
+
+  if(blueprint) {
+    u = URI(blueprint);
+
+    if (u.fragment() === "") {
+      u.fragment($location.hash() || 'master');
+      $location.hash("");
+      $location.search('blueprint', u.normalize());
+    }
+  }
+
+  if(!blueprint && owner && repo) {
+    blueprint = 'https://github.com/' + owner + '/' + repo;
+  }
+
+  if(!blueprint) {
+    blueprint = "https://github.com/" + default_blueprint;
+    $location.path('/deployments/new/' + default_blueprint);
   }
 
   BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData);
 
-  //Override it with a one repo load
+  // Override it with a one repo load
   $scope.load = function() {
     console.log("Starting load", $scope.remote);
     $scope.loading_remote_blueprints = true;
     github.get_repo($scope.remote, $scope.remote.repo.name,
       function(data) {
         $scope.remote.repo = data;
-        $scope.default_branch = u.fragment() || $location.hash() || 'master';
+        $scope.default_branch = (u ? u.fragment() : false) || $location.hash() || 'master';
         $scope.selected = $scope.remote.repo;
       },
       function(data) {

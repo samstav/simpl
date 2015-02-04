@@ -482,6 +482,22 @@ services.value('options', {
     }
   },
 
+  extendDeep: function extendDeep(dst) {
+    angular.forEach(arguments, function(obj) {
+      if (obj !== dst) {
+        angular.forEach(obj, function(value, key) {
+          if (dst[key] && dst[key].constructor && dst[key].constructor === Object) {
+            extendDeep(dst[key], value);
+          } else {
+            dst[key] = value;
+          }
+        });
+      }
+    });
+
+    return dst;
+  },
+
   //Merges src into target. Returns target. Modifies target with differences.
   mergeInto: function mergeInto(target, src) {
     var array = Array.isArray(src);
