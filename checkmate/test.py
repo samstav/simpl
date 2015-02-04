@@ -849,7 +849,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'username',
                     resource_type=resource.get('type'),
                     provider_key=resource.get('provider'),
-                    default='wp_user_db1'
+                    default='db_user_1'
                 )
                 expected_calls.append({
                     # Create Database

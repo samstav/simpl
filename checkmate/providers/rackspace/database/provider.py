@@ -272,7 +272,7 @@ class Provider(cmbase.ProviderBase):
                                               provider_key=self.key,
                                               service_name=service_name)
             if not username:
-                username = 'wp_user_%s' % db_name
+                username = 'db_user_%s' % db_name
 
             # Password
             password = deployment.get_setting('database/password',
