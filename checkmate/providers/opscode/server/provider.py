@@ -259,7 +259,7 @@ class Provider(base.BaseOpscodeProvider):
             return
         component_id = resource['component']
         key = resource['index']
-        cnxn_key = relation.get('supports-key') or relation('requires-key')
+        cnxn_key = relation.get('supports-key') or relation.get('requires-key')
         component = self.get_component(context, component_id)
         context_map = self.map_file.get_map_with_context(
             deployment=deployment, resource=resource, component=component)
