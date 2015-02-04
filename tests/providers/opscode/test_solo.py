@@ -1152,9 +1152,10 @@ interfaces/mysql/database_name
                             'instance': {
                                 'interfaces': {
                                     'mysql': {
-                                        'database_name': 'foo-db'
+                                        'database_name': 'foo-db',
                                     }
-                                }
+                                },
+                                'private_ip': '10.10.10.10',
                             }
                         }
                     }
@@ -1468,10 +1469,9 @@ interfaces/mysql/database_name
 
         for task in workflow.get_tasks():
             if task.get_name() == "Collect Chef Data for 0":
-                connections = (
-                    task.attributes.get('chef_options', {}).get(
-                        'attributes:0', {}).get('connections')
-                )
+                connections = utils.read_path(
+                    task.attributes,
+                    'chef_options/attributes/resources/0/connections')
                 self.assertNotEqual(connections, ['4.4.4.4'],
                                     "Bar attribute written to Foo")
 
