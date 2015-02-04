@@ -398,7 +398,7 @@ class Provider(base.BaseOpscodeProvider):
             root = wfspec.wait_for(
                 register_node_task, wait_on,
                 name="After Environment is Ready and Server %s (%s) is Up" %
-                     (relation['target'], service_name),
+                    (relation['target'], service_name),
                 resource=key, relation=relation_key, provider=self.key
             )
             if 'task_tags' in root.properties:
