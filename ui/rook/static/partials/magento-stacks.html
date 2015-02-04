@@ -1,0 +1,119 @@
+<!--
+
+THIS IS A TEST PAGE - NOT USED LIVE TODAY
+
+-->
+
+<style>
+/* jumbotron */
+.jumbotron {
+  margin: 60px auto;
+  width: 600px;
+  text-align: center;
+}
+.jumbotron img {
+  width: 150px;
+  height: auto;
+}
+.jumbotron h1 {
+  font-size: 50px;
+  line-height: 1;
+  margin-bottom: 0;
+  margin-top: 20px;
+}
+.jumbotron .lead {
+  font-size: 16px;
+  line-height: 23px;
+}
+.jumbotron .btn {
+  font-size: 16px;
+  padding: 10px 24px;
+}
+
+/* pricing */
+.custom-1-5 {
+  width: 18%;
+  margin-right: 2.5%;
+  float: left;
+}
+.custom-1-5:last-child {
+  margin-right: 0%;
+}
+.strikethrough {
+  text-decoration: line-through;
+}
+.pricing-option {
+  text-align: center;
+  margin-bottom: 15px;
+}
+.pricing-unit {
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.pricing-option table {
+  text-align: left;
+  width: 100%;
+  margin-bottom: 20px;
+}
+.pricing-option table td {
+  font-size: 16px;
+  padding: 12px 0;
+}
+.pricing-option table tr {
+  border-bottom: 1px solid #eee;
+}
+.pricing-title {
+  margin-bottom: 25px;
+}
+.pricing-cost {
+  font-size: 36px;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+.pricing-action {
+
+}
+.pricing-action button {
+  width: 100%;
+}
+</style>
+
+<div class="entries">
+  <div class="container">
+    <div class="jumbotron">
+      <img src="https://wiki.magento.com/download/attachments/2952491/MAGE2DOC?version=1&modificationDate=1378339878000&api=v2" />
+      <h1>Magento</h1>
+      <p class="lead">Cras justo odio, dapibus ac facilisis in, egestas eget quam. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit.</p>
+      <a class="btn btn-large btn-inverse" href="#">Learn More about Magento Stack</a>
+    </div>
+
+    <div>
+      <div class="custom-1-5" ng-repeat="tier in tiers">
+        <div class="pricing-option">
+          <div class="pricing-title label">{{ tier.title }}</div>
+          <div class="pricing-cost">
+            {{ tier.price | currency:currentCurrency }}
+          </div>
+          <div class="pricing-unit muted">
+            per {{ tier.unit }}
+          </div>
+          <table>
+            <tr ng-repeat="feature in tier.features">
+              <td ng-class="{
+                'strikethrough muted': !feature.enabled
+              }">
+                <strong>{{ feature.count || 1 }}</strong>
+                  {{ feature.title }}
+                </td>
+            </tr>
+          </table>
+          <div class="pricing-action">
+            <button class="btn btn-large" ng-click="go(tier.link)">
+              Go {{ tier.title }}!
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

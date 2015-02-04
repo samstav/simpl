@@ -78,9 +78,13 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: 'DeploymentNewRemoteController',
     reloadOnSearch: false
   })
-  .when('/deployments/wordpress-stacks', {
+  .when('/deployments/stacks/wordpress', {
     templateUrl: '/partials/wordpress-stacks.html',
     controller: 'StaticController'
+  })
+  .when('/deployments/stacks/magento', {
+    templateUrl: '/partials/magento-stacks.html',
+    controller: 'MagentoStackController'
   });
 
   // Admin pages
@@ -3789,6 +3793,74 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   $scope.$watch('deployment_string', $scope.refresh_parse_deployment);
 }
 
+function MagentoStackController($scope, $location) {
+  $scope.currentCurrency = '$';
+  $scope.go = function(path) {
+    $location.path(path);
+  };
+  $scope.tiers = [
+    {
+      'title': 'Extra Small',
+      'link': '/blueprints/design/cbfx/magentostack/extra-small',
+      'price': 1000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 100, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '7.5G App Server', 'count': 1, 'enabled': true}
+      ]
+    },
+    {
+      'title': 'Small',
+      'link': '/blueprints/design/cbfx/magentostack/small',
+      'price': 2000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 200, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '15G App Server', 'count': 1, 'enabled': true}
+      ]
+    },
+    {
+      'title': 'Medium',
+      'link': '/blueprints/design/cbfx/magentostack/medium',
+      'price': 3000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 400, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '15G App Server', 'count': 2, 'enabled': true}
+      ]
+    },
+    {
+      'title': 'Large',
+      'link': '/blueprints/design/cbfx/magentostack/large',
+      'price': 4000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 750, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '30G App Server', 'count': 2, 'enabled': true}
+      ]
+    },
+    {
+      'title': 'Extra Large',
+      'link': '/blueprints/design/cbfx/magentostack/extra-large',
+      'price': 5000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 1125, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '30G App Server', 'count': 3, 'enabled': true}
+      ]
+    }
+  ];
+}
 
 checkmate.controller('DeploymentController', DeploymentController);
 checkmate.controller('DeploymentListController', DeploymentListController);
@@ -3798,6 +3870,7 @@ checkmate.controller('DeploymentNewController', DeploymentNewController);
 checkmate.controller('DeploymentNewRemoteController', DeploymentNewRemoteController);
 checkmate.controller('StaticController', StaticController);
 checkmate.controller('RawController', RawController);
+checkmate.controller('MagentoStackController', MagentoStackController);
 checkmate.controller('NavBarController', NavBarController);
 checkmate.controller('AppController', AppController);
 checkmate.controller('ActivityFeedController', ActivityFeedController);
