@@ -1015,9 +1015,9 @@ def execute_shell(command, with_returncode=True, cwd=None, strip=True):
                             to `cwd` before it is executed. Note that this
                             directory is not considered when searching the
                             executable, so you can't specify the program's
-                            path relative to this argument
-    :returns:               A dict with 'stdout', and
-                            (optionally), 'returncode'
+                            path relative to this argument. Value should not
+                            be quoted or shell escaped, since it is passed
+                            directly to os.chdir() by subprocess.Popen
     :param strip:           Strip the output of whitespace using str.strip()
     :returns:               A dict with 'stdout', and (optionally),
                             'returncode'
