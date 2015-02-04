@@ -321,9 +321,7 @@ class Provider(base.BaseOpscodeProvider):
                   key, relation_key, extra={'data': {'resource': resource,
                                                      'relation': relation}})
 
-        environment = deployment.environment()
-        provider = environment.get_provider(resource['provider'])
-        component = provider.get_component(context, resource['component'])
+        component = self.get_component(context, resource['component'])
         context_map = self.map_file.get_map_with_context(
             deployment=deployment, resource=resource, component=component)
 
