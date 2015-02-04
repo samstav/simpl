@@ -27,6 +27,7 @@ import json
 import logging.config
 import os
 import re
+import shlex
 import shutil
 import string
 import struct
@@ -996,6 +997,42 @@ def evaluate(function_string):
     if func_name == 'generate_password':
         return generate_password(**kwargs)
     raise NameError("Unsupported function: %s" % function_string)
+
+
+def execute_shell(command, with_returncode=True, cwd=None):
+    """Execute a command (containing no shell operators) locally.
+
+    Raises CalledProcessError on non-zero exit status.
+
+    :param command:         Shell command to be executed. In the exact form
+                            you would type it on the command line.
+    :param with_returncode: Include the exit_code in the return body.
+                            Default is True.
+    :param cwd:             The child's current directory will be changed
+                            to `cwd` before it is executed. Note that this
+                            directory is not considered when searching the
+                            executable, so you can't specify the program's
+                            path relative to this argument
+    :returns:               A dict with 'stdout', and
+                            (optionally), 'returncode'
+
+    Note:   Popen is called with stderr=subprocess.STDOUT, which sends
+            all stderr to stdout.
+    """
+    cmd = shlex.split(command)
+    LOG.debug("Executing `%s` on local machine", command)
+    pope = subprc.Popen(
+        cmd, stdout=subprc.PIPE, stderr=subprc.STDOUT, cwd=cwd,
+        universal_newlines=True)
+    out, err = pope.communicate()
+    out = {'stdout': out.strip()}
+    if pope.returncode != 0:
+        raise subprc.CalledProcessError(
+            pope.returncode, command, output=out['stdout'])
+    if with_returncode:
+        out.update({'returncode': pope.returncode})
+    print out
+    return out
 
 
 def check_all_output(params, find="ERROR", env=None, cwd=None):
