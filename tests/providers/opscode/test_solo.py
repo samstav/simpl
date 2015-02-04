@@ -1040,6 +1040,9 @@ class TestMappedMultipleWorkflow(test.StubbedWorkflowBase):
                   targets:
                   - outputs://resources/{{resource.index}}/instance/\
 interfaces/mysql/database_name
+                - value: '10.10.10.10'
+                  targets:
+                  - outputs://resources/{{resource.index}}/instance/private_ip
                 - source: clients://database:mysql/ip
                   targets:
                   - attributes://connections
@@ -1318,6 +1321,7 @@ interfaces/mysql/database_name
                                         'id': '1',
                                         'password': "shecret",
                                         'ip': '4.4.4.4',
+                                        'private_ip': '4.4.4.4',
                                         'interfaces': {
                                             'linux': {
                                                 'password': "shecret",

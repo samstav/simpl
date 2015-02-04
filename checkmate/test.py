@@ -469,6 +469,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                         'status': "ACTIVE",
                                         'ip': '4.4.4.%s' % fake_ip,
                                         'private_ip': '10.1.2.%s' % fake_ip,
+                                        'public_ip': '4.4.4.%s' % fake_ip,
                                         'addresses': {
                                             'public': [
                                                 {
@@ -870,6 +871,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                             'host':
                                             'verylong.rackspaceclouddb.com',
                                             'database_name': 'db1',
+                                            'port': 3306,
                                         },
                                     }
                                 }

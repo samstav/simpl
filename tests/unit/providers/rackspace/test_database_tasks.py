@@ -65,7 +65,12 @@ class TestDatabaseTasks(unittest.TestCase):
                         'flavor': 1,
                         'disk': 1,
                         'region': 'DFW',
-                        'interfaces': {'mysql': {'host': 'mysql0.rax.net'}},
+                        'interfaces': {
+                            'mysql': {
+                                'host': 'mysql0.rax.net',
+                                'port': 3306,
+                            }
+                        },
                         'id': 'MYSQL0'
                     },
                     'status': 'BUILD'
@@ -118,6 +123,7 @@ class TestDatabaseTasks(unittest.TestCase):
                         'interfaces': {
                             'mysql': {
                                 'host': 'mysql0.rax.net',
+                                'port': 3306,
                             }
                         }
                     },
@@ -1053,7 +1059,8 @@ class TestCreateDatabase(unittest.TestCase):
                         'interfaces': {
                             'mysql': {
                                 'database_name': self.name,
-                                'host': 'srv2.rackdb.net'
+                                'host': 'srv2.rackdb.net',
+                                'port': 3306,
                             }
                         },
                         'name': 'test_database'
@@ -1086,7 +1093,8 @@ class TestCreateDatabase(unittest.TestCase):
                         'interfaces': {
                             'mysql': {
                                 'database_name': self.name,
-                                'host': 'srv2.rackdb.net'
+                                'host': 'srv2.rackdb.net',
+                                'port': 3306,
                             }
                         },
                         'name': 'test_database'
@@ -1350,6 +1358,7 @@ class TestCreateDatabase(unittest.TestCase):
         instance.hostname = 'test_hostname'
         instance.flavor = mock.Mock()
         instance.flavor.id = '2'
+        instance.port = 4000
         instance.create_database = mock.Mock()
         api.get = mock.Mock(return_value=instance)
         mock_connect.return_value = api
@@ -1361,7 +1370,8 @@ class TestCreateDatabase(unittest.TestCase):
                         'interfaces': {
                             'mysql': {
                                 'host': 'test_hostname',
-                                'database_name': 'test_database'
+                                'database_name': 'test_database',
+                                'port': 4000,
                             }
                         },
                         'host_instance': '12345',
