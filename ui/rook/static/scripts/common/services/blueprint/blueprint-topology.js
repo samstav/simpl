@@ -383,7 +383,7 @@ angular.module('checkmate.Blueprint')
                   y: ((height + 25) * index) + 25
                 };
                 var safeMouse = mouse || [coords.x, coords.y]
-                var meta = blueprint['meta-data'];
+                var meta = blueprint['meta-data'] || {};
 
                 d.x = ((meta.annotations || {})[d._id] || {})['gui-x'] || safeMouse[0];
                 d.y = ((meta.annotations || {})[d._id] || {})['gui-y'] || safeMouse[1];
