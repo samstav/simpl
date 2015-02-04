@@ -999,7 +999,7 @@ def evaluate(function_string):
     raise NameError("Unsupported function: %s" % function_string)
 
 
-def execute_shell(command, with_returncode=True, cwd=None):
+def execute_shell(command, with_returncode=True, cwd=None, strip=True):
     """Execute a command (containing no shell operators) locally.
 
     Raises CheckmateCalledProcessError on non-zero exit status.
@@ -1015,6 +1015,9 @@ def execute_shell(command, with_returncode=True, cwd=None):
                             path relative to this argument
     :returns:               A dict with 'stdout', and
                             (optionally), 'returncode'
+    :param strip:           Strip the output of whitespace using str.strip()
+    :returns:               A dict with 'stdout', and (optionally),
+                            'returncode'
 
     Note:   Popen is called with stderr=subprocess.STDOUT, which sends
             all stderr to stdout.
@@ -1025,7 +1028,7 @@ def execute_shell(command, with_returncode=True, cwd=None):
         cmd, stdout=subprc.PIPE, stderr=subprc.STDOUT, cwd=cwd,
         universal_newlines=True)
     out, err = pope.communicate()
-    out = {'stdout': out.strip()}
+    out = {'stdout': out.strip() if strip else out}
     if pope.returncode != 0:
         raise cmexc.CheckmateCalledProcessError(
             pope.returncode, command, output=out['stdout'])
