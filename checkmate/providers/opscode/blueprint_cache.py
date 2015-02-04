@@ -116,8 +116,69 @@ class BlueprintCache(object):
         """Delete this cache from disk."""
         return delete_cache(self._cache_path)
 
-    def _create_new_cache(self, url, branch, token_remote=None):
-        """Create cache directory and clone repository."""
+    def update(self):
+        """Cache a blueprint repo or update an existing cache, if necessary."""
+        if "#" in self.source_repo:
+            url, ref = self.source_repo.split("#", 1)
+        else:
+            url = self.source_repo
+            ref = "master"
+        token_remote = None
+        if self.github_token:
+            token_remote = utils.set_url_creds(url, username=self.github_token,
+                                               password='x-oauth-basic')
+        head_file = good_cache_exists(self.cache_path)
+        if head_file:
+            return self._update_existing(
+                head_file, url, ref, token_remote=token_remote)
+        else:
+            # cache does not exist
+            return self._create_new_cache(
+                url, ref, token_remote=token_remote)
+
+    def _update_existing(self, head_file, url, ref, token_remote=None):
+        """Cache exists, fetch latest (if stale) and perform checkout."""
+        last_update = time.time() - os.path.getmtime(head_file)
+        cache_expire_time = CONFIG.blueprint_cache_expiration
+        LOG.debug("(cache) cache_expire_time: %s", cache_expire_time)
+        LOG.debug("(cache) last_update: %s", last_update)
+
+        if last_update > cache_expire_time:  # Cache miss
+            LOG.debug("(cache) Updating repo: %s", self.cache_path)
+            tags = utils.git_tags(self.cache_path)
+            if ref in tags:
+                refspec = "refs/tags/" + ref + ":refs/tags/" + ref
+                try:
+                    if token_remote:
+                        utils.git_fetch(self.cache_path, refspec,
+                                        remote=token_remote)
+                    else:
+                        utils.git_fetch(self.cache_path, refspec)
+                except subprocess.CalledProcessError as exc:
+                    LOG.warning("Unable to fetch tag '%s' from the git "
+                                "repository at %s. Using the cached repo."
+                                "The output during error was '%s'",
+                                ref, url, exc.output)
+            else:
+                try:
+                    if token_remote:
+                        utils.git_fetch(self.cache_path, ref,
+                                        remote=token_remote)
+                    else:
+                        utils.git_fetch(self.cache_path, ref)
+                except subprocess.CalledProcessError as exc:
+                    LOG.warning("Unable to fetch ref '%s' from the git "
+                                "repository at %s. Using the cached "
+                                "repository. The output during error was %s",
+                                ref, url, exc.output)
+        else:  # Cache hit
+            LOG.debug("(cache) Using cached repo: %s", self.cache_path)
+
+        LOG.debug("(cache) Checking out ref '%s' in %s", ref, self.cache_path)
+        utils.git_checkout(self.cache_path, ref)
+
+    def _create_new_cache(self, url, ref, token_remote=None):
+        """Create cache directory, init & clone the repository."""
         LOG.debug("(cache) Cloning repo to %s", self.cache_path)
         dirsmade = None
         try:
@@ -130,99 +191,31 @@ class BlueprintCache(object):
         try:
             if token_remote:
                 utils.git_init(self.cache_path)
-                utils.git_pull(self.cache_path, branch,
+                utils.git_pull(self.cache_path, ref,
                                remote=token_remote)
             else:
-                utils.git_clone(self.cache_path, url, branch=branch)
+                utils.git_clone(self.cache_path, url, branch_or_tag=ref)
         except subprocess.CalledProcessError as exc:
+            trace = sys.exc_info()[2]
             if dirsmade:
                 # only remove if this same fn call was the creator
                 os.rmdir(dirsmade)
             error_message = ("Git repository could not be cloned from "
-                             "'%s'. The error returned was '%s'"
-                             % (url, exc))
-            raise exceptions.CheckmateException(error_message)
+                             "'%s'. The output during error was '%s'"
+                             % (url, exc.output))
+            raise exceptions.CheckmateException, (error_message,), trace
         try:
             tags = utils.git_tags(self.cache_path)
-            if branch in tags:
-                utils.git_checkout(self.cache_path, branch)
-            else:
-                LOG.warning("No such branch %s for git repository "
-                            "%s located at %s. Using 'master'",
-                            branch, url, self.cache_path)
+            if ref in tags:
+                utils.git_checkout(self.cache_path, ref)
+            # the ref *should* already be checked out
         except subprocess.CalledProcessError as exc:
+            trace = sys.exc_info()[2]
             if dirsmade:
                 os.rmdir(dirsmade)
-            error_message = ("Failed to checkout branch %s for git "
-                             "repository %s located at %s."
-                             % (branch, url, self.cache_path))
-            raise exceptions.CheckmateException(error_message)
+            error_message = ("Failed to checkout '%s' for git "
+                             "repository %s located at %s. The "
+                             "output during error was '%s'."
+                             % (ref, url, self.cache_path, exc.output))
+            raise exceptions.CheckmateException, (error_message,), trace
 
-    def update(self):
-        """Cache a blueprint repo or update an existing cache, if necessary."""
-        cache_expire_time = os.environ.get("CHECKMATE_BLUEPRINT_CACHE_EXPIRE")
-        if cache_expire_time is None:
-            cache_expire_time = 3600
-            LOG.info("(cache) CHECKMATE_BLUEPRINT_CACHE_EXPIRE variable not "
-                     "set. Defaulting to %s", cache_expire_time)
-        cache_expire_time = int(cache_expire_time)
-        if "#" in self.source_repo:
-            url, branch = self.source_repo.split("#", 1)
-        else:
-            url = self.source_repo
-            branch = "master"
-        token_remote = None
-        if self.github_token:
-            token_remote = utils.set_url_creds(url, username=self.github_token,
-                                               password='x-oauth-basic')
-
-        if (os.path.exists(self.cache_path)
-                and os.path.exists(os.path.join(self.cache_path, '.git'))):
-            # The mtime of .git/FETCH_HEAD changes upon every "git
-            # fetch".  FETCH_HEAD is only created after the first
-            # fetch, so use HEAD if it's not there
-            if os.path.isfile(os.path.join(self.cache_path, ".git",
-                                           "FETCH_HEAD")):
-                head_file = os.path.join(self.cache_path, ".git", "FETCH_HEAD")
-
-            elif os.path.isfile(os.path.join(self.cache_path, ".git", "HEAD")):
-                head_file = os.path.join(self.cache_path, ".git", "HEAD")
-            else:
-                return self._create_new_cache(
-                    url, branch, token_remote=token_remote)
-            last_update = time.time() - os.path.getmtime(head_file)
-            LOG.debug("(cache) cache_expire_time: %s", cache_expire_time)
-            LOG.debug("(cache) last_update: %s", last_update)
-
-            if last_update > cache_expire_time:  # Cache miss
-                LOG.debug("(cache) Updating repo: %s", self.cache_path)
-                tags = utils.git_tags(self.cache_path)
-                if branch in tags:
-                    tag = branch
-                    refspec = "refs/tags/" + tag + ":refs/tags/" + tag
-                    try:
-                        if token_remote:
-                            utils.git_fetch(self.cache_path, refspec,
-                                            remote=token_remote)
-                        else:
-                            utils.git_fetch(self.cache_path, refspec)
-                        utils.git_checkout(self.cache_path, tag)
-                    except subprocess.CalledProcessError:
-                        LOG.info("Unable to update git tags from the git "
-                                 "repository at %s.  Using the cached "
-                                 "repository", url)
-                else:
-                    try:
-                        if token_remote:
-                            utils.git_pull(self.cache_path, branch,
-                                           remote=token_remote)
-                        else:
-                            utils.git_pull(self.cache_path, branch)
-                    except subprocess.CalledProcessError:
-                        LOG.info("Unable to pull from git repository at %s.  "
-                                 "Using the cached repository", url)
-            else:  # Cache hit
-                LOG.debug("(cache) Using cached repo: %s", self.cache_path)
-        else:  # Cache does not exist
-            return self._create_new_cache(
-                url, branch, token_remote=token_remote)
