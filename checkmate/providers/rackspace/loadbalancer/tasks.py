@@ -87,9 +87,10 @@ def wait_on_lb_delete_task(context, lb_id, region=None, api=None):
 @task.task(base=base.RackspaceProviderTask, provider=provider.Provider,
            default_retry_delay=10, max_retries=10)
 @statsd.collect
-def add_node(context, lb_id, ipaddr, region=None, api=None):
+def add_node(context, lb_id, ipaddr, target_status, region=None, api=None):
     """Task to add node to loadbalancer."""
-    return Manager.add_node(lb_id, ipaddr, add_node.api, context.simulation)
+    return Manager.add_node(lb_id, ipaddr, target_status, add_node.api,
+                            context.simulation)
 
 
 @task.task(base=base.RackspaceProviderTask, provider=provider.Provider,

@@ -90,7 +90,7 @@ class TestCreateLoadBalancer(unittest.TestCase):
         mock_callback = mock.Mock()
         actual = manager.Manager.create_loadbalancer(
             {}, "name", "public", "http", mock_api, mock_callback,
-                simulate=True)
+            simulate=True)
         self.assertEqual(expected, actual)
         mock_callback.assert_called_once_with({'id': 'LB1'})
 
@@ -299,7 +299,8 @@ class TestDeleteNode(unittest.TestCase):
 class TestAddNode(unittest.TestCase):
     def test_sim(self):
         mock_api = mock.Mock()
-        manager.Manager.add_node("LB_ID", "0.0.0.0", mock_api, simulate=True)
+        manager.Manager.add_node("LB_ID", "0.0.0.0", None, mock_api,
+                                 simulate=True)
         self.assertFalse(mock_api.get.called)
 
     def test_success(self):
@@ -311,7 +312,7 @@ class TestAddNode(unittest.TestCase):
         mock_api.Node.return_value = node
         old_lb.add_nodes.return_value = (None, {'nodes': [{'id': 3456}]})
 
-        actual = manager.Manager.add_node(1234, "0.0.0.0", mock_api)
+        actual = manager.Manager.add_node(1234, "0.0.0.0", None, mock_api)
         self.assertDictEqual({'nodes': [3456]}, actual)
         old_lb.add_nodes.assert_called_once_with([node])
         calls = [mock.call(1234), mock.call(1234)]
@@ -324,7 +325,7 @@ class TestAddNode(unittest.TestCase):
         old_lb = mock.Mock(status="ACTIVE", port=80, nodes=[node])
         mock_api.get.return_value = old_lb
 
-        actual = manager.Manager.add_node("LB_ID", "0.0.0.0", mock_api)
+        actual = manager.Manager.add_node("LB_ID", "0.0.0.0", None, mock_api)
         self.assertDictEqual({'nodes': ["NODE_ID"]}, actual)
         mock_api.get.assert_called_once_with("LB_ID")
 
@@ -336,7 +337,7 @@ class TestAddNode(unittest.TestCase):
         old_lb = mock.Mock(status="ACTIVE", port=80, nodes=[node])
         mock_api.get.return_value = old_lb
 
-        actual = manager.Manager.add_node(1234, "0.0.0.0", mock_api)
+        actual = manager.Manager.add_node(1234, "0.0.0.0", None, mock_api)
         self.assertDictEqual({'nodes': ["NODE_ID"]}, actual)
         self.assertTrue(node.update.called)
         self.assertEqual(node.port, 80)
@@ -352,7 +353,8 @@ class TestAddNode(unittest.TestCase):
         lb.add_nodes.side_effect = pyrax.exceptions.ClientException
 
         self.assertRaises(exceptions.CheckmateException,
-                          manager.Manager.add_node, 1234, "0.0.0.0", mock_api)
+                          manager.Manager.add_node, 1234, "0.0.0.0", None,
+                          mock_api)
         lb.add_nodes.assert_called_once_with([node])
         mock_api.get.assert_called_once_with(1234)
 
@@ -365,28 +367,31 @@ class TestAddNode(unittest.TestCase):
         lb.add_nodes.side_effect = StandardError
 
         self.assertRaises(exceptions.CheckmateException,
-                          manager.Manager.add_node, 1234, "0.0.0.0", mock_api)
+                          manager.Manager.add_node, 1234, "0.0.0.0", None,
+                          mock_api)
         lb.add_nodes.assert_called_once_with([node])
         mock_api.get.assert_called_once_with(1234)
 
     def test_for_placeholder_ip(self):
         self.assertRaises(exceptions.CheckmateException,
                           manager.Manager.add_node, 1234,
-                          manager.PLACEHOLDER_IP, None)
+                          manager.PLACEHOLDER_IP, None, None)
 
     def test_for_non_active_lb(self):
         mock_api = mock.Mock()
         lb = mock.Mock(status="BUILD")
         mock_api.get.return_value = lb
         self.assertRaises(exceptions.CheckmateException,
-                          manager.Manager.add_node, 1234, "0.0.0.0", mock_api)
+                          manager.Manager.add_node, 1234, "0.0.0.0", None,
+                          mock_api)
 
     def test_for_invalid_lb(self):
         mock_api = mock.Mock()
         lb = mock.Mock(status="ACTIVE", port=None)
         mock_api.get.return_value = lb
         self.assertRaises(exceptions.CheckmateBadState,
-                          manager.Manager.add_node, 1234, "0.0.0.0", mock_api)
+                          manager.Manager.add_node, 1234, "0.0.0.0", None,
+                          mock_api)
 
     def test_placeholder_delete(self):
         mock_api = mock.Mock()
@@ -399,7 +404,7 @@ class TestAddNode(unittest.TestCase):
         mock_api.get.return_value = lb
         placeholder_node.delete = mock.Mock()
 
-        manager.Manager.add_node(1234, "0.0.0.0", mock_api)
+        manager.Manager.add_node(1234, "0.0.0.0", None, mock_api)
         self.assertTrue(placeholder_node.delete.called)
         mock_api.get.assert_called_once_with(1234)
 
@@ -416,7 +421,8 @@ class TestAddNode(unittest.TestCase):
             side_effect=pyrax.exceptions.ClientException)
 
         self.assertRaises(exceptions.CheckmateException,
-                          manager.Manager.add_node, 1234, "0.0.0.0", mock_api)
+                          manager.Manager.add_node, 1234, "0.0.0.0", None,
+                          mock_api)
         self.assertTrue(placeholder_node.delete.called)
         mock_api.get.assert_called_once_with(1234)
 

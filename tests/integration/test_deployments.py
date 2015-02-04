@@ -431,8 +431,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                 environment:
                   name: environment
                   providers: {}
-            """ % "\n                        ".join(private['PEM'].split(
-            "\n"))))
+        """ % "\n                        ".join(private['PEM'].split("\n"))))
         parsed = cmdeps.Manager.plan(deployment, cmmid.RequestContext())
         resources = parsed['resources']
 
@@ -452,9 +451,10 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
         self.assertIn("myKey", resources)
         self.assertItemsEqual(resources['myKey']['instance'].keys(),
                               ["private_key", "public_key", "public_key_ssh"])
-        self.assertEqual(resources['myKey']['instance']['private_key'].strip(
-                         '\n'),
-                         private['PEM'])
+        self.assertEqual(
+            resources['myKey']['instance']['private_key'].strip('\n'),
+            private['PEM']
+        )
 
         self.assertIn("anyKey", resources)
         self.assertItemsEqual(resources['anyKey']['instance'].keys(),
@@ -780,121 +780,122 @@ class TestDeploymentSettings(unittest.TestCase):
                     setting_2:
                         compound: "value"
                         """))
-        cases = [{
-            'case': "Path in settings",
-            'name': "keys/environment/public",
-            'expected': "this is a public key"
-        }, {
-            'case': "Path in settings 2",
-            'name': "keys/count",
-            'expected': 3
-        }, {
-            'case': "Path in settings 3",
-            'name': "setting_1",
-            'expected': "Single value"
-        }, {
-            'case': "Not in settings path",
-            'name': "keys/bob/foo",
-            'expected': None
-        }, {
-            'case': "Partial path in settings",
-            'name': "keys/environment/public/his",
-            'expected': None
-        }, {
-            'case': "Path in settings 4",
-            'name': "setting_2/compound",
-            'expected': "value"
-        }, {
-            'case': "Set in blueprint/inputs",
-            'name': "domain",
-            'expected': "example.com",
-        }, {
-            'case': "Set in blueprint/inputs with service/provider scope",
-            'name': "os",
-            'service': "web",
-            'expected': "Ubuntu 11.10",
-        }, {
-            'case': "Set in blueprint/inputs with no service scope",
-            'name': "os",
-            'expected': None,
-        }, {
-            'case': "Set in blueprint/service under provider/resource",
-            'name': "memory",
-            'service': "web",
-            'type': 'compute',
-            'expected': "2 Gb",
-        }, {
-            'case': "Set in environments/providers/common",
-            'name': "region",
-            'provider': "base",
-            'expected': "place",
-        }, {
-            'case': "Set in environments/providers/...",
-            'name': "size",
-            'provider': "base",
-            'type': "widget",
-            'expected': "big",
-        }, {
-            'case': "Provider setting is used even with service param",
-            'name': "size",
-            'provider': "base",
-            'service': 'web',
-            'type': "widget",
-            'expected': "big",
-        }, {
-            'case': "Set in blueprint/service as constraint",
-            'name': "count",
-            'type': 'compute',
-            'service': 'web',
-            'expected': 2,
-        }, {  # FIXME: remove backwards compatibility
-            'case': "Constraint as key/value pair",
-            'name': "wordpress/version",
-            'type': 'compute',
-            'provider': "base",
-            'service': 'wordpress',
-            'expected': "3.1.4",
-        }, {  # FIXME: remove backwards compatibility
-            'case': "Constraint with multiple key/value pairs",
-            'name': "wordpress/create",
-            'type': 'compute',
-            'provider': "base",
-            'service': 'wordpress',
-            'expected': True,
-        }, {
-            'case': "Constrains reading url scheme",
-            'name': "protocol",
-            'type': 'compute',
-            'provider': "base",
-            'service': 'master',
-            'expected': "git",
-        }, {
-            'case': "Url protocol is aliased to scheme",
-            'name': "protocol",
-            'type': 'compute',
-            'provider': "base",
-            'service': 'web',
-            'expected': "git",
-        }, {
-            'case': "Constrains reading url hostname",
-            'name': "domain",
-            'type': 'compute',
-            'provider': "base",
-            'service': 'web',
-            'expected': "fqdn",
-        }, {
-            'case': "Relation setting is used when relation passed in",
-            'name': "algorithm",
-            'type': 'compute',
-            'relation': 'web',
-            'service': 'wordpress',
-            'expected': "round-robin",
-        }, {
-            'case': "Set in blueprint/providers",
-            'name': "memory",
-            'type': 'compute',
-            'expected': "4 Gb",
-        },
+        cases = [
+            {
+                'case': "Path in settings",
+                'name': "keys/environment/public",
+                'expected': "this is a public key"
+            }, {
+                'case': "Path in settings 2",
+                'name': "keys/count",
+                'expected': 3
+            }, {
+                'case': "Path in settings 3",
+                'name': "setting_1",
+                'expected': "Single value"
+            }, {
+                'case': "Not in settings path",
+                'name': "keys/bob/foo",
+                'expected': None
+            }, {
+                'case': "Partial path in settings",
+                'name': "keys/environment/public/his",
+                'expected': None
+            }, {
+                'case': "Path in settings 4",
+                'name': "setting_2/compound",
+                'expected': "value"
+            }, {
+                'case': "Set in blueprint/inputs",
+                'name': "domain",
+                'expected': "example.com",
+            }, {
+                'case': "Set in blueprint/inputs with service/provider scope",
+                'name': "os",
+                'service': "web",
+                'expected': "Ubuntu 11.10",
+            }, {
+                'case': "Set in blueprint/inputs with no service scope",
+                'name': "os",
+                'expected': None,
+            }, {
+                'case': "Set in blueprint/service under provider/resource",
+                'name': "memory",
+                'service': "web",
+                'type': 'compute',
+                'expected': "2 Gb",
+            }, {
+                'case': "Set in environments/providers/common",
+                'name': "region",
+                'provider': "base",
+                'expected': "place",
+            }, {
+                'case': "Set in environments/providers/...",
+                'name': "size",
+                'provider': "base",
+                'type': "widget",
+                'expected': "big",
+            }, {
+                'case': "Provider setting is used even with service param",
+                'name': "size",
+                'provider': "base",
+                'service': 'web',
+                'type': "widget",
+                'expected': "big",
+            }, {
+                'case': "Set in blueprint/service as constraint",
+                'name': "count",
+                'type': 'compute',
+                'service': 'web',
+                'expected': 2,
+            }, {  # FIXME: remove backwards compatibility
+                'case': "Constraint as key/value pair",
+                'name': "wordpress/version",
+                'type': 'compute',
+                'provider': "base",
+                'service': 'wordpress',
+                'expected': "3.1.4",
+            }, {  # FIXME: remove backwards compatibility
+                'case': "Constraint with multiple key/value pairs",
+                'name': "wordpress/create",
+                'type': 'compute',
+                'provider': "base",
+                'service': 'wordpress',
+                'expected': True,
+            }, {
+                'case': "Constrains reading url scheme",
+                'name': "protocol",
+                'type': 'compute',
+                'provider': "base",
+                'service': 'master',
+                'expected': "git",
+            }, {
+                'case': "Url protocol is aliased to scheme",
+                'name': "protocol",
+                'type': 'compute',
+                'provider': "base",
+                'service': 'web',
+                'expected': "git",
+            }, {
+                'case': "Constrains reading url hostname",
+                'name': "domain",
+                'type': 'compute',
+                'provider': "base",
+                'service': 'web',
+                'expected': "fqdn",
+            }, {
+                'case': "Relation setting is used when relation passed in",
+                'name': "algorithm",
+                'type': 'compute',
+                'relation': 'web',
+                'service': 'wordpress',
+                'expected': "round-robin",
+            }, {
+                'case': "Set in blueprint/providers",
+                'name': "memory",
+                'type': 'compute',
+                'expected': "4 Gb",
+            },
         ]
 
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
@@ -1013,26 +1014,27 @@ class TestDeploymentSettings(unittest.TestCase):
                         provides:
                         - load-balancer: http
         """))
-        cases = [{
-            'case': "False in inputs",
-            'provider': "base",
-            'service': 'lb',
-            'type': "load-balancer",
-            'name': "create_dns",
-            'expected': False
-        }, {
-            'case': "False as a default",
-            'service': 'lb',
-            'type': "load-balancer",
-            'name': "dont_create_dns",
-            'expected': False
-        }, {
-            'case': "String is 'False'",
-            'service': 'lb',
-            'type': "load-balancer",
-            'name': "string-false",
-            'expected': "False"
-        }
+        cases = [
+            {
+                'case': "False in inputs",
+                'provider': "base",
+                'service': 'lb',
+                'type': "load-balancer",
+                'name': "create_dns",
+                'expected': False
+            }, {
+                'case': "False as a default",
+                'service': 'lb',
+                'type': "load-balancer",
+                'name': "dont_create_dns",
+                'expected': False
+            }, {
+                'case': "String is 'False'",
+                'service': 'lb',
+                'type': "load-balancer",
+                'name': "string-false",
+                'expected': "False"
+            }
         ]
 
         base.PROVIDER_CLASSES['test.base'] = base.ProviderBase
@@ -1527,10 +1529,12 @@ class TestDeleteDeployments(unittest.TestCase):
         mock_get_driver.return_value = mock_driver
 
         self._mox.StubOutWithMock(common_tasks.update_operation, "delay")
-        common_tasks.update_operation.delay('1234', 'w_id', status="COMPLETE",
-                                            deployment_status="DELETED",
-                                            complete=0, driver=mock_driver
-                                            ).AndReturn(True)
+
+        common_tasks.update_operation.delay(
+            '1234', 'w_id', status="COMPLETE", deployment_status="DELETED",
+            complete=0, driver=mock_driver
+        ).AndReturn(True)
+
         self._mox.ReplayAll()
         deployment_tasks.delete_deployment_task('1234', driver=mock_driver)
         self._mox.VerifyAll()
@@ -1754,9 +1758,11 @@ class TestDeploymentAddNodes(unittest.TestCase):
             'count': '2'
         })
 
-        manager.plan_add_nodes(self._deployment,
-                               bottle.request.environ['context'],
-                               "service_name", 2).AndReturn(self._deployment)
+        manager.plan_add_nodes(
+            self._deployment, bottle.request.environ['context'],
+            "service_name", 2, 'ONLINE'
+        ).AndReturn(self._deployment)
+
         manager.deploy_workflow(bottle.request.environ['context'],
                                 self._deployment,
                                 "T1000", "SCALE UP").AndReturn({'workflow-id':

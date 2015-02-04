@@ -88,7 +88,7 @@ def create_server(context, name, region=None, api=None, flavor="2",
             max_retries=160, provider=provider.Provider)
 @statsd.collect
 def wait_on_build(context, server_id, region=None, ip_address_type='public',
-                  api=None):
+                  api=None, desired_state=None):
     # pylint: disable=W0613
     """Checks build is complete.
 
@@ -103,7 +103,8 @@ def wait_on_build(context, server_id, region=None, ip_address_type='public',
 
     return manager.Manager.wait_on_build(
         context, server_id, wait_on_build.partial, wait_on_build.update_state,
-        ip_address_type=ip_address_type, api=wait_on_build.api)
+        ip_address_type=ip_address_type, api=wait_on_build.api,
+        desired_state=desired_state)
 
 
 @ctask.task(base=base.RackspaceProviderTask, default_retry_delay=15,

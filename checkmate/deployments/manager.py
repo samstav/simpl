@@ -410,7 +410,7 @@ class Manager(object):
                   extra=dict(data=updates))
         return dep.get('resources')
 
-    def plan_add_nodes(self, deployment, context, service_name, count,
+    def plan_add_nodes(self, deployment, context, service_name, count, status,
                        parse_only=False):
         """Process a new checkmate deployment and plan for execution.
 
@@ -425,7 +425,8 @@ class Manager(object):
 
         # Analyze Deployment and Create plan
         planner = Planner(deployment, parse_only, deployment.get('plan', {}))
-        resources = planner.plan_additional_nodes(context, service_name, count)
+        resources = planner.plan_additional_nodes(context, service_name, count,
+                                                  status=status)
         if resources:
             deployment.get('resources', {}).update(resources)
 

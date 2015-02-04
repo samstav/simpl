@@ -477,19 +477,22 @@ class Router(object):
         body = utils.read_body(bottle.request)
         service_name = body.get('service_name')
         count = int(body.get('count', 0))
+        status = body.get('status', 'ONLINE')
 
         if not service_name or count <= 0:
             raise exceptions.CheckmateValidationException(
                 "Invalid input, service_name and count is not provided in the "
                 "request body")
 
-        LOG.debug("Add %s nodes for service %s", count, service_name)
+        LOG.debug("Add %s nodes for service %s in %s mode", count,
+                  service_name, status)
         context = bottle.request.environ['context']
         planned_deployment = self.manager.plan_add_nodes(
             cmdeploy.Deployment(existing_deployment),
             context,
             service_name,
-            count
+            count,
+            status
         )
         operation = self.manager.deploy_workflow(context,
                                                  planned_deployment,

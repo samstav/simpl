@@ -814,16 +814,19 @@ class TestNovaCompute(test.ProviderTester):
 
         self.assertDictEqual(expect, ret)
         calls = [
-            mock.call('1234', {
-                "resources": {
-                    '1': {
-                        "status": "DELETED",
-                        "instance": {
+            mock.call(
+                '1234',
+                {
+                    "resources": {
+                        '1': {
                             "status": "DELETED",
-                            "status-message": ""
+                            "instance": {
+                                "status": "DELETED",
+                                "status-message": ""
+                            }
                         }
                     }
-                }}
+                }
             )
         ]
         dep_postback.assert_has_calls(calls)
@@ -1131,6 +1134,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         ).AndReturn(None)
 
         image_id = '00000000-0000-0000-0000-000000000000'
+        self.maxDiff = None
         expected = [{
             'instance': {},
             'dns-name': 'master.domain',
@@ -1139,6 +1143,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
             'service': 'master',
             'desired-state': {
                 'region': 'ORD',
+                'status': 'ACTIVE',
                 'flavor': '2',
                 'flavor-info': catalog['lists']['sizes']['2'],
                 'image': image_id,
@@ -1154,7 +1159,8 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         self.mox.ReplayAll()
         results = provider.generate_template(self.deployment, 'compute',
                                              'master', context, 1,
-                                             provider.key, None, None)
+                                             provider.key, None,
+                                             mock.MagicMock())
 
         self.assertItemsEqual(results, expected)
         self.mox.VerifyAll()
@@ -1262,7 +1268,7 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         try:
             provider.generate_template(self.deployment, 'compute',
                                        'master', context, 1, provider.key,
-                                       None, None)
+                                       None, mock.MagicMock())
         except exceptions.CheckmateException:
             self.mox.VerifyAll()
 

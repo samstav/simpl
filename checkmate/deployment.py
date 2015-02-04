@@ -1220,7 +1220,7 @@ class Deployment(ExtensibleDict):
         provider_key = definition['provider-key']
         provider = self.environment().get_provider(provider_key)
         component = provider.get_component(context, definition['id'])
-        # TODO(any): Provider key can be used from withing the provider class.
+        # TODO(any): Provider key can be used from within the provider class.
         # But if we do that then the planning mixin will start reading data
         # from the child class
         LOG.debug("Getting resource templates for %s: %s", provider_key,
