@@ -1004,8 +1004,11 @@ def execute_shell(command, with_returncode=True, cwd=None, strip=True):
 
     Raises CheckmateCalledProcessError on non-zero exit status.
 
-    :param command:         Shell command to be executed. In the exact form
-                            you would type it on the command line.
+    :param command:         Shell command to be executed. If the value is
+                            a string, it will be split using shlex.split()
+                            to return a shell-like syntax as a list. If the
+                            value is a list, it will be passed directly to
+                            Popen.
     :param with_returncode: Include the exit_code in the return body.
                             Default is True.
     :param cwd:             The child's current directory will be changed
@@ -1022,8 +1025,15 @@ def execute_shell(command, with_returncode=True, cwd=None, strip=True):
     Note:   Popen is called with stderr=subprocess.STDOUT, which sends
             all stderr to stdout.
     """
-    cmd = shlex.split(command)
+    if isinstance(command, basestring):
+        cmd = shlex.split(command)
+    elif isinstance(command, list):
+        cmd = command
+        command = " ".join(cmd)
+    else:
+        raise TypeError("'command' should be a string or a list")
     LOG.debug("Executing `%s` on local machine", command)
+    LOG.debug("Command after split: %s" % cmd)
     pope = subprc.Popen(
         cmd, stdout=subprc.PIPE, stderr=subprc.STDOUT, cwd=cwd,
         universal_newlines=True)
