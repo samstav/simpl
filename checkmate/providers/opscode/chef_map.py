@@ -501,20 +501,23 @@ class ChefMap(object):
         if 'source' in mapping:
             url = ChefMap.parse_map_uri(mapping['source'])
             if url['scheme'] in ['requirements', 'supported', 'clients']:
+                #if 'database_name' in mapping['source']:
+                #    import ipdb;ipdb.set_trace()
                 path = mapping.get('path', url['netloc'])
                 full_path = os.path.join(path, url['path'])
                 alt_path = mapping.get('alt_path')
                 if alt_path:
                     alt_path = os.path.join(alt_path, url['path'])
-                if utils.path_exists(data, full_path):
+                try:
                     value = utils.read_path(data, full_path)
-                elif alt_path and utils.path_exists(data, alt_path):
-                    value = utils.read_path(data, alt_path)
-                else:
-                    LOG.debug("'%s' not yet available at '%s'",
-                              mapping['source'], full_path,
+                    if value is None and alt_path:
+                        value = utils.read_path(data, alt_path)
+                except (KeyError, TypeError) as exc:
+                    LOG.debug("'%s' not yet available at '%s': %s",
+                              mapping['source'], full_path, exc,
                               extra={'data': data})
                     raise SoloProviderNotReady("'%s' not ready" % full_path)
+
                 LOG.debug("Resolved mapping '%s' to '%s'", mapping['source'],
                           value)
             else:
