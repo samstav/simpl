@@ -3870,13 +3870,20 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
 
 function MagentoStackController($scope, $location) {
   $scope.currentCurrency = '$';
-  $scope.go = function(path) {
-    $location.path(path);
+
+  $scope.go = {
+    design: function(repo) {
+      $location.path('/blueprints/design'+repo);
+    },
+    deploy: function(repo) {
+      $location.path('/deployments/new'+repo);
+    }
   };
+
   $scope.tiers = [
     {
       'title': 'Extra Small',
-      'link': '/blueprints/design/cbfx/magentostack/extra-small',
+      'repo': '/cbfx/magentostack/extra-small',
       'price': 1000,
       'unit': 'month',
       'features': [
@@ -3888,7 +3895,7 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Small',
-      'link': '/blueprints/design/cbfx/magentostack/small',
+      'repo': '/cbfx/magentostack/small',
       'price': 2000,
       'unit': 'month',
       'features': [
@@ -3900,7 +3907,7 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Medium',
-      'link': '/blueprints/design/cbfx/magentostack/medium',
+      'repo': '/cbfx/magentostack/medium',
       'price': 3000,
       'unit': 'month',
       'features': [
@@ -3912,7 +3919,7 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Large',
-      'link': '/blueprints/design/cbfx/magentostack/large',
+      'repo': '/cbfx/magentostack/large',
       'price': 4000,
       'unit': 'month',
       'features': [
@@ -3924,7 +3931,7 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Extra Large',
-      'link': '/blueprints/design/cbfx/magentostack/extra-large',
+      'repo': '/cbfx/magentostack/extra-large',
       'price': 5000,
       'unit': 'month',
       'features': [

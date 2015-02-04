@@ -108,8 +108,11 @@ THIS IS A TEST PAGE - NOT USED LIVE TODAY
             </tr>
           </table>
           <div class="pricing-action">
-            <button class="btn btn-large" ng-click="go(tier.link)">
-              Go {{ tier.title }}!
+            <button class="btn btn-info btn-block" ng-click="go.deploy(tier.repo)">
+              Deploy {{ tier.title }}!
+            </button>
+            <button class="btn btn-block" ng-click="go.design(tier.repo)">
+              Design {{ tier.title }}!
             </button>
           </div>
         </div>
