@@ -154,7 +154,8 @@ class Manager(object):
             flavor = utils.Simulation(id='1')
             instance = utils.Simulation(id=instance_id, name=name,
                                         hostname='srv2.rackdb.net',
-                                        flavor=flavor)
+                                        flavor=flavor,
+                                        port=3306)
         # TODO(Nate): Pretty sure this inst being used.
         elif not instance_id:
             attrs = {'name': '%s_instance' % name, 'flavor': '1', 'size': 1}
@@ -209,7 +210,8 @@ class Manager(object):
             'interfaces': {
                 'mysql': {
                     'host': instance.hostname,
-                    'database_name': name
+                    'database_name': name,
+                    'port': getattr(instance, 'port', 3306)
                 }
             }
         }

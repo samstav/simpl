@@ -207,9 +207,8 @@ class Provider(base.BaseOpscodeProvider):
             merge_results=True,
             identity_file=operators.Attrib('private_key_path'),
             description="Bootstrap server as a Chef client",
-            defines=dict(resource=key, provider=self.key,
-                         task_tags=['final']),
-            properties={'estimated_duration': 100},
+            defines=dict(resource=key, provider=self.key),
+            properties={'estimated_duration': 100, 'task_tags': ['final']},
             **kwargs
         )
 
@@ -238,6 +237,8 @@ class Provider(base.BaseOpscodeProvider):
                             "the overrides (ex. database settings) have "
                             "been applied"
             )
+            tags = anchor_task.properties.setdefault('task_tags', [])
+            tags.append('root')
 
         # if we have a host task marked 'complete', make that wait on
         # configure
@@ -248,6 +249,68 @@ class Provider(base.BaseOpscodeProvider):
                 [configure_task],
                 name='Wait for %s to be configured before completing host '
                 '%s' % (service_name, host_idx))
+
+    def add_client_ready_tasks(self, resource, target_key, relation,
+                               relation_key, wfspec, deployment, context):
+        """Get IPs of resources mapped with clients/ip."""
+        root_tasks = wfspec.find_task_specs(resource=resource['index'],
+                                            tag='root')
+        if not root_tasks:
+            return
+        component_id = resource['component']
+        key = resource['index']
+        cnxn_key = relation.get('supports-key') or relation('requires-key')
+        component = self.get_component(context, component_id)
+        context_map = self.map_file.get_map_with_context(
+            deployment=deployment, resource=resource, component=component)
+        maps = []
+        for _map in context_map.get_component_maps(component_id):
+            url = context_map.parse_map_uri(_map.get('source'))
+            if url['scheme'] == 'clients':
+                if url['netloc'] == cnxn_key:
+                    maps.append(_map)
+        if maps:
+            target = deployment['resources'][target_key]
+            if any(r['target'] for r in
+                   target.get('relations', {}).itervalues()):
+                LOG.debug("Avoiding cyclical dependency %s->%s", target_key,
+                          key)
+            else:
+                tasks = wfspec.find_task_specs(
+                    provider=target['provider'], resource=target['index'],
+                    tag='final')
+                collect_tasks = self.get_prep_tasks(
+                    wfspec, deployment, key, component, context,
+                    provider='checkmate.providers.opscode.server',
+                    reset_attribs=False)
+                wfspec.wait_for(collect_tasks['root'], tasks)
+                return
+
+            if 'hosted_on' in target:
+                host = deployment['resources'][target['hosted_on']]
+                if any(r['target'] for r in
+                       host.get('relations', {}).itervalues()):
+                    LOG.debug("Avoiding host cyclical dependency%s->%s",
+                              host['index'], key)
+                else:
+                    LOG.debug("Adding client link to host %s->%s", target_key,
+                              key)
+                    tasks = wfspec.find_task_specs(
+                        provider=host['provider'], resource=host['index'],
+                        tag='final')
+                    collect_tasks = self.get_prep_tasks(
+                        wfspec, deployment, key, component, context,
+                        provider='checkmate.providers.opscode.server',
+                        reset_attribs=False)
+                    wfspec.wait_for(collect_tasks['root'], tasks)
+                    # Add alternate path to host
+                    path_match = 'resources/%s/' % target_key
+                    alt_path = 'resources/%s/' % host['index']
+                    for _map in collect_tasks['root'].properties['chef_maps']:
+                        if (_map['resource'] == key and
+                                _map['path'].startswith(path_match)):
+                            path = _map['path'].replace(path_match, alt_path)
+                            _map['alt_path'] = path
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):

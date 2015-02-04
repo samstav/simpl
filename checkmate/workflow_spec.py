@@ -434,15 +434,16 @@ class WorkflowSpec(specs.WorkflowSpec):
             if 'hosts' in resource:
                 for index in resource['hosts']:
                     hosted_resource = deployment['resources'][index]
-                    relations = [r for r in
-                                 hosted_resource['relations'].values()
+                    relations = [(k, r) for k, r in
+                                 hosted_resource['relations'].items()
                                  if (r.get('relation') == 'host'
                                      and r['target'] == key)]
                     if len(relations) > 1:
                         error_message = ("Multiple 'host' relations for "
                                          "resource '%s'" % key)
                         raise exceptions.CheckmateException(error_message)
-                    relation = relations[0]
+                    name, relation = relations[0]
+                    # Call connection source to add tasks
                     provider = providers[hosted_resource['provider']]
                     provider_result = provider.add_connection_tasks(
                         hosted_resource, index, relation, 'host', wf_spec,
@@ -466,6 +467,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                             and (relation['target'] in
                                  new_and_planned_resources or
                                  key in new_and_planned_resources)):
+                        # Call connection source to add tasks
                         provider = providers[resource['provider']]
                         provider_result = provider.add_connection_tasks(
                             resource, key, relation, name, wf_spec,
@@ -476,6 +478,45 @@ class WorkflowSpec(specs.WorkflowSpec):
                             LOG.debug("Attaching '%s' to 'Start'",
                                       provider_result['root'].name)
                             wf_spec.start.connect(provider_result['root'])
+
+                        # Call connection target to respond with tasks
+                        target = non_deleted_resources[relation['target']]
+                        provider = providers[target['provider']]
+                        provider_result = provider.add_client_ready_tasks(
+                            target, key, relation, name, wf_spec,
+                            deployment, context)
+                        if (provider_result and provider_result.get('root')
+                                and not provider_result['root'].inputs):
+                            # Attach unattached tasks
+                            LOG.debug("Attaching '%s' to 'Start'",
+                                      provider_result['root'].name)
+                            wf_spec.start.connect(provider_result['root'])
+
+           # Process client side of hosting relationship
+            if 'hosts' in resource:
+                for index in resource['hosts']:
+                    hosted_resource = deployment['resources'][index]
+                    relations = [(k, r) for k, r in
+                                 hosted_resource['relations'].items()
+                                 if (r.get('relation') == 'host'
+                                     and r['target'] == key)]
+                    if len(relations) > 1:
+                        error_message = ("Multiple 'host' relations for "
+                                         "resource '%s'" % key)
+                        raise exceptions.CheckmateException(error_message)
+                    name, relation = relations[0]
+
+                    # Call connection target to respond with tasks
+                    provider = providers[resource['provider']]
+                    provider_result = provider.add_client_ready_tasks(
+                        resource, key, relation, name, wf_spec,
+                        deployment, context)
+                    if (provider_result and provider_result.get('root')
+                            and not provider_result['root'].inputs):
+                        # Attach unattached tasks
+                        LOG.debug("Attaching '%s' to 'Start'",
+                                  provider_result['root'].name)
+                        wf_spec.start.connect(provider_result['root'])
 
         for key, provider in providers.iteritems():
             cleanup_result = provider.cleanup_temp_files(wf_spec, deployment)

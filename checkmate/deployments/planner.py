@@ -565,6 +565,7 @@ class Planner(classes.ExtensibleDict):
         }
         if connection['direction'] == 'inbound':
             result['source'] = target['index']
+            result['provides-key'] = connection['provides-key']
         elif connection['direction'] == 'outbound':
             result['target'] = target['index']
             if 'requires-key' in connection:

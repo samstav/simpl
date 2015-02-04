@@ -502,12 +502,17 @@ class ChefMap(object):
             url = ChefMap.parse_map_uri(mapping['source'])
             if url['scheme'] in ['requirements', 'supported', 'clients']:
                 path = mapping.get('path', url['netloc'])
-                try:
-                    value = utils.read_path(data, os.path.join(path,
-                                            url['path']))
-                except (KeyError, TypeError) as exc:
-                    LOG.debug("'%s' not yet available at '%s': %s",
-                              mapping['source'], path, exc,
+                full_path = os.path.join(path, url['path'])
+                alt_path = mapping.get('alt_path')
+                if alt_path:
+                    alt_path = os.path.join(alt_path, url['path'])
+                if utils.path_exists(data, full_path):
+                    value = utils.read_path(data, full_path)
+                elif alt_path and utils.path_exists(data, alt_path):
+                    value = utils.read_path(data, alt_path)
+                else:
+                    LOG.debug("'%s' not yet available at '%s'",
+                              mapping['source'], full_path,
                               extra={'data': data})
                     raise SoloProviderNotReady("Not ready")
                 LOG.debug("Resolved mapping '%s' to '%s'", mapping['source'],
