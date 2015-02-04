@@ -568,7 +568,8 @@ class Provider(RackspaceComputeProviderBase):
                 provider=self.key,
                 task_tags=['create', 'root']
             ),
-            properties={'estimated_duration': 20}
+            properties={'estimated_duration': 20},
+            merge_results=True
         )
 
         kwargs = dict(
