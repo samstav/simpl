@@ -107,12 +107,18 @@ class BlueprintCache(object):
         self.source_repo = source_repo
         self.github_token = github_token
         self._cache_path = os.path.join(repo_cache_base(), suffix)
-        self.repo = common_git.GitRepo(self._cache_path)
+        self._repo = None
 
     @property
     def cache_path(self):
         """Cache path for blueprint."""
         return self._cache_path
+
+    @property
+    def repo(self):
+        if not self._repo:
+            self._repo = common_git.GitRepo(self._cache_path)
+        return self._repo
 
     def delete(self):
         """Delete this cache from disk."""
