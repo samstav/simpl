@@ -202,7 +202,7 @@ angular.module('checkmate.Blueprint')
               draw(blueprint);
             } catch(e) {
               scope.$emit('topology:error', e);
-              console.error(e.message);
+              console.error(e);
             }
           }
         }, true);
@@ -986,7 +986,7 @@ angular.module('checkmate.Blueprint')
           var original = Blueprint.get();
 
           original.services = blueprint.services;
-          _.extend(original['meta-data'], blueprint['meta-data']);
+          original['meta-data'] = _.extend({}, original['meta-data'], blueprint['meta-data']);
 
           Blueprint.set(original);
         }
