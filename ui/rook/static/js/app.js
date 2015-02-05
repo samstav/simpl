@@ -3910,6 +3910,7 @@ function MagentoStackController($scope, $location) {
 checkmate.controller('DeploymentController', DeploymentController);
 checkmate.controller('DeploymentListController', DeploymentListController);
 checkmate.controller('BlueprintRemoteListController', BlueprintRemoteListController);
+checkmate.controller('DeploymentManagedCloudController', DeploymentManagedCloudController);
 checkmate.controller('BlueprintNewController', BlueprintNewController);
 checkmate.controller('DeploymentNewController', DeploymentNewController);
 checkmate.controller('DeploymentNewRemoteController', DeploymentNewRemoteController);
