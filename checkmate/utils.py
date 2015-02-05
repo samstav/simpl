@@ -1118,50 +1118,6 @@ def get_id(is_sim):
         return uuid.uuid4().hex
 
 
-def git_init(repo_dir):
-    """Do a git init in `repo_dir'."""
-    return execute_shell('git init', cwd=repo_dir)
-
-
-def git_clone(repo_dir, url, branch_or_tag="master"):
-    """Do a git checkout of `head' in `repo_dir'."""
-    repo_dir = pipes.quote(repo_dir)
-    return execute_shell(
-        'git clone %s %s --branch %s'
-        % (url, repo_dir, '--branch', branch_or_tag))
-
-
-def git_remote_tag_exists(repo_dir, tag_name, remote='origin'):
-    output = execute_shell('git ls-remote %s %s' % (remote, tag_name),
-                           cwd=repo_dir)
-    if output['stdout']:
-        return True
-    return False
-
-
-def git_tags(repo_dir):
-    """Return a list of git tags for the git repo in `repo_dir'."""
-    return execute_shell(
-        'git tag -l', cwd=repo_dir)['stdout'].splitlines()
-
-
-def git_checkout(repo_dir, head):
-    """Do a git checkout of `head' in `repo_dir'."""
-    return execute_shell('git checkout --force %s'
-                         % head, cwd=repo_dir)
-
-
-def git_fetch(repo_dir, refspec, remote="origin"):
-    """Do a git fetch of `refspec' in `repo_dir'."""
-    return execute_shell(
-        'git fetch --update-head-ok --tags %s %s'
-        % (remote, refspec), cwd=repo_dir)
-
-
-def git_pull(repo_dir, head, remote="origin"):
-    """Do a git pull of `head' from `remote'."""
-    return execute_shell('git pull %s %s' % (remote, head), cwd=repo_dir)
-
 
 def copy_contents(source, dest, with_overwrite=False, create_path=True):
     """Copy the contents of a `source' directory to `dest'.
