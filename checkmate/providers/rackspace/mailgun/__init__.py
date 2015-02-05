@@ -16,7 +16,5 @@ Mailgun init module.
 """
 from checkmate.providers.rackspace.mailgun.manager import Manager
 from checkmate.providers.rackspace.mailgun.provider import Provider
-from checkmate.providers.rackspace.mailgun.tasks import (
-    create_domain,
-    delete_domain,
-)
+from checkmate.providers.rackspace.mailgun.tasks import create_domain
+from checkmate.providers.rackspace.mailgun.tasks import delete_domain

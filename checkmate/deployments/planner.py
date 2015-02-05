@@ -24,11 +24,9 @@ import eventlet
 from checkmate import classes
 from checkmate.common import schema
 from checkmate import deployment as cm_dep
-from checkmate.exceptions import (
-    BLUEPRINT_ERROR,
-    CheckmateException,
-    CheckmateValidationException,
-)
+from checkmate.exceptions import BLUEPRINT_ERROR
+from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import CheckmateValidationException
 from checkmate import keys
 from checkmate import resource as cm_res
 from checkmate import utils
@@ -463,7 +461,7 @@ class Planner(classes.ExtensibleDict):
                     else:
                         # Private key was supplied
                         instance['private_key'] = private_key
-                        #make sure we have or can get a public key
+                        # make sure we have or can get a public key
                         if 'public_key' in resource:
                             public_key = resource['public_key']
                         else:
@@ -573,11 +571,11 @@ class Planner(classes.ExtensibleDict):
             if 'supports-key' in connection:
                 result['supports-key'] = connection['supports-key']
 
-        #FIXME: remove v0.2 feature
+        # FIXME: remove v0.2 feature
         if 'attribute' in connection:
             LOG.warning("Using v0.2 feature")
             result['attribute'] = connection['attribute']
-            #END v0.2 feature
+            # END v0.2 feature
 
         if 'relation-key' in connection:
             result['relation-key'] = connection['relation-key']

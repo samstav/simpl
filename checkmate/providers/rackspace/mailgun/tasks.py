@@ -38,6 +38,7 @@ def create_domain(context, domain_name, password, api=None, callback=None):
 @statsd.collect
 def delete_domain(context, domain_name, exists, api=None, callback=None):
     """Task for deleting a domain in Mailgun.
+
     :params
         exists: Boolean value from resource, indicating the domain existed
                 when creating.

@@ -18,8 +18,9 @@ import json
 import logging
 import os
 
-from checkmate import exceptions, utils
+from checkmate import exceptions
 from checkmate.providers.opscode import knife
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 

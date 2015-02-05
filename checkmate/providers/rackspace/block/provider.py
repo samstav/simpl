@@ -22,10 +22,9 @@ import logging
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
-from checkmate.exceptions import (
-    BLUEPRINT_ERROR,
-    CheckmateException,
-)
+from checkmate.exceptions import BLUEPRINT_ERROR
+from checkmate.exceptions import CheckmateException
+
 from checkmate import middleware
 from checkmate.providers import base
 from checkmate.providers.rackspace.block import cbs

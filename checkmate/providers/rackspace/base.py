@@ -71,7 +71,7 @@ class RackspaceProviderBase(base.ProviderBase):
     @staticmethod
     def _connect(context, region=None):
         '''Use context info to connect to API and return api object.'''
-        #FIXME: figure out better serialization/deserialization scheme
+        # FIXME: figure out better serialization/deserialization scheme
         if isinstance(context, dict):
             context = middleware.RequestContext(**context)
         elif not isinstance(context, middleware.RequestContext):

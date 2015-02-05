@@ -94,7 +94,7 @@ class Driver(common.DbBase):
     _environment_collection_name = "environments"
     _tenant_collection_name = "tenants"
 
-    #db fields we do not want returned to the client
+    # db fields we do not want returned to the client
     _object_projection = {'_lock': 0, '_lock_timestamp': 0, '_id': 0}
 
     _deployment_projection = copy.deepcopy(_object_projection)
@@ -407,20 +407,20 @@ class Driver(common.DbBase):
                                                      partial,
                                                      resource_secrets)
 
-        #If there is a partial update for a single resource don't update the
+        # If there is a partial update for a single resource don't update the
         # deployment
         if (len(body) == 1 and body.get('resources') and
                 not is_legacy_resources_format) and not deployment_secrets:
             deployment = existing_deployment
-        #Deployment is saved when its a full update or a partial update
-        #involving deployment data or deployment secrets
+        # Deployment is saved when its a full update or a partial update
+        # involving deployment data or deployment secrets
         else:
             deployment = self._save_object(self._deployment_collection_name,
                                            api_id, body, deployment_secrets,
                                            tenant_id, merge_existing=partial)
 
         if not partial and existing_deployment:
-             # Deleting old/orphaned documents
+            # Deleting old/orphaned documents
             self._remove_all('resources',
                              existing_deployment.get('resources'))
             self._remove_all('deployments_secrets', [deployment["id"]])
@@ -558,7 +558,7 @@ class Driver(common.DbBase):
                                      secrets=secrets)
         return resource
 
-    #BLUEPRINTS
+    # BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
         return self._get_object(self._blueprint_collection_name, api_id,
                                 with_secrets=with_secrets)
@@ -794,7 +794,9 @@ class Driver(common.DbBase):
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
                      merge_existing=False):
-        """Clients that wish to save the body but do/did not have access to
+        """Don't overwrite secrets
+
+        Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
         overwrite the secrets. To clear the secrets for an object, a non-None
         dict needs to be passed in: ex. {}.
