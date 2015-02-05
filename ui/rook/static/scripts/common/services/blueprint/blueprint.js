@@ -531,7 +531,7 @@ angular.module('checkmate.Blueprint')
           if(!_component) {
             return;
           }
-          return _component.id == componentId || _component.name == componentId;
+          return _component.id == componentId || _component.name == componentId || {};
         });
 
         return component;
