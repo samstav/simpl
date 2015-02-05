@@ -1995,6 +1995,7 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
       }));
 
       this.selected = (((selected[0] || {}).blueprint || {})['meta-data'] || {}).flavor || this.default;
+      this.select();
     }
   };
 
