@@ -43,11 +43,9 @@ from redis import exceptions as redisexc
 import yaml
 
 from checkmate.common import caching
-from checkmate.common import config
 from checkmate import exceptions
 
 LOG = logging.getLogger(__name__)
-CONFIG = config.current()
 DEFAULT_CACHE_TIMEOUT = 10 * 60
 BLUEPRINT_CACHE = {}
 
@@ -82,7 +80,7 @@ class GitHubManager(object):
         """
         self._github_api_base = git_config.github_api
         if self._github_api_base:
-            self._github = github.Github(CONFIG.github_token,
+            self._github = github.Github(git_config.github_token,
                                          base_url=self._github_api_base)
             self._api_host = urlparse.urlparse(self._github_api_base).netloc
         self._repo_org = git_config.organization
@@ -103,7 +101,7 @@ class GitHubManager(object):
         self.last_refresh = time.time() - DEFAULT_CACHE_TIMEOUT
         self.start_refresh_lock = threading.Lock()
         self.refresh_lock = threading.Lock()
-        if not CONFIG.bottle_parent:
+        if not git_config.bottle_parent:
             self.load_cache()
             self.check_cache_freshess()
 
