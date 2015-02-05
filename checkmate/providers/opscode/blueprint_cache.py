@@ -199,9 +199,7 @@ class BlueprintCache(object):
                 raise
         try:
             if token_remote:
-                self.repo.init()
-                self.repo.commit(message='blank commit so HEAD exists')
-                self.repo.pull(remote=token_remote, ref=ref)
+                self.repo.clone(token_remote, branch_or_tag=ref)
             else:
                 self.repo.clone(url, branch_or_tag=ref)
         except subprocess.CalledProcessError as exc:
