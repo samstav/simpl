@@ -220,6 +220,26 @@ class ProviderBaseWorkflowMixIn(object):
         LOG.debug("%s.%s.add_connection_tasks called, "
                   "but was not implemented", self.vendor, self.name)
 
+    def add_client_ready_tasks(self, resource, target_key, relation,
+                               relation_key, wfspec, deployment, context):
+        """Add tasks needed to when a connection is made to a target.
+
+        :param resource: the resource being connected to
+        :param target_key: the ID of resource connecting to us
+        :param relation: the relation we are connecting
+        :param relation_key: the ID of the relation
+        :param wfspec: the SpiffWorkflow WorkflowSpec we are building
+        :returns: a hash (dict) of relevant tasks. The hash keys are:
+                'root': the root task in the sequence
+                'final': the task that signifies readiness (work is done)
+        Note: the tasks also have defined properties that mark the resource
+              impacted, the provider who owns the task, and the position or
+              role of the task (ex. final, root, etc). This allows for other
+              providers top look this task up and connect to it if needed
+        """
+        LOG.debug("%s.%s.add_client_ready_tasks called, "
+                  "but was not implemented", self.vendor, self.name)
+
     @staticmethod
     def get_host_ready_tasks(resource, wfspec, deployment):
         """Get tasks to wait on host if this is hosted on another resource.

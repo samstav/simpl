@@ -201,7 +201,7 @@ class Provider(base.BaseOpscodeProvider):
         wfspec.wait_for(
             anchor_task, dependencies,
             name="After server %s (%s) is registered and options are ready"
-                 % (server_id, service_name),
+            % (server_id, service_name),
             description="Before applying chef recipes, we need to know that "
                         "the server has chef on it and that the overrides "
                         "(ex. database settings) have been applied"
@@ -214,7 +214,7 @@ class Provider(base.BaseOpscodeProvider):
                 host_complete,
                 [configure_task],
                 name='Wait for %s to be configured before completing host %s' %
-                     (service_name, resource.get('hosted_on', key)))
+                (service_name, resource.get('hosted_on', key)))
 
     def _hash_all_user_resource_passwords(self, deployment):
         """Chef needs all passwords to be a hash."""
@@ -253,8 +253,8 @@ class Provider(base.BaseOpscodeProvider):
                                            tag='final')
 
         elif ('supports-key' in relation and
-                context_map.has_supported_mapping(resource['component'],
-                                                  relation['supports-key'])):
+              context_map.has_supported_mapping(resource['component'],
+                                                relation['supports-key'])):
             LOG.debug("Relation '%s' for resource '%s' has a mapping",
                       relation_key, key)
             # Set up a wait for the relation target to be ready
@@ -345,8 +345,8 @@ class Provider(base.BaseOpscodeProvider):
                     'resources/%s/instance/password' % relation['target']
                 ),
                 identity_file=operators.Attrib('private_key_path'),
-                description="Install basic pre-requisites on %s"
-                            % relation['target'],
+                description="Install basic pre-requisites on %s" %
+                relation['target'],
                 merge_results=True,
                 defines=dict(
                     resource=key, relation=relation_key, provider=self.key
@@ -361,7 +361,7 @@ class Provider(base.BaseOpscodeProvider):
             root = wfspec.wait_for(
                 register_node_task, wait_on,
                 name="After Environment is Ready and Server %s (%s) is Up" %
-                     (relation['target'], service_name),
+                (relation['target'], service_name),
                 resource=key, relation=relation_key, provider=self.key
             )
             if 'task_tags' in root.properties:
@@ -458,7 +458,8 @@ class Provider(base.BaseOpscodeProvider):
             name = 'Reconfigure %s: client ready' % server['component']
             host_idx = server.get('hosted_on', server['index'])
             run_list = self.map_file.get_component_run_list(server_component)
-            instance_ip = operators.PathAttrib("resources/%s/instance/ip" % host_idx)
+            instance_ip = operators.PathAttrib("resources/%s/instance/ip" %
+                                               host_idx)
 
             reconfigure_task = specs.Celery(
                 wfspec,
