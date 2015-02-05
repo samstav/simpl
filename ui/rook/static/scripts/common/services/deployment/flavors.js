@@ -44,11 +44,14 @@ angular.module('checkmate.Flavors')
       flavors.select = function(selected) {
         var copy = angular.copy(this.original);
         var blueprint;
-        selected = selected || this.selected;
+
+        if(selected) {
+          this.selected = selected;
+        }
 
         if(this.selected !== this.default.id) {
           blueprint = options.extendDeep(copy.blueprint, this.getFlavor().blueprint);
-          $location.search('flavor', selected);
+          $location.search('flavor', this.selected);
         } else {
           blueprint = copy.blueprint;
           $location.search('flavor', null);

@@ -3841,7 +3841,7 @@ function MagentoStackController($scope, $location) {
   $scope.tiers = [
     {
       'title': 'Extra Small',
-      'repo': '/cbfx/magentostack/',
+      'repo': '/AutomationSupport/magentostack/',
       'flavor': 'extra-small',
       'price': 1000,
       'unit': 'month',
@@ -3854,7 +3854,7 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Small',
-      'repo': '/cbfx/magentostack/',
+      'repo': '/AutomationSupport/magentostack/',
       'flavor': 'small',
       'price': 2000,
       'unit': 'month',
@@ -3867,7 +3867,7 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Medium',
-      'repo': '/cbfx/magentostack/',
+      'repo': '/AutomationSupport/magentostack/',
       'flavor': 'medium',
       'price': 3000,
       'unit': 'month',
@@ -3880,7 +3880,7 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Large',
-      'repo': '/cbfx/magentostack/',
+      'repo': '/AutomationSupport/magentostack/',
       'flavor': 'large',
       'price': 4000,
       'unit': 'month',
@@ -3893,7 +3893,7 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Extra Large',
-      'repo': '/cbfx/magentostack/',
+      'repo': '/AutomationSupport/magentostack/',
       'flavor': 'extra-large',
       'price': 5000,
       'unit': 'month',
