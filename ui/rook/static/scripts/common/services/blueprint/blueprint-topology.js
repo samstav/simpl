@@ -798,6 +798,15 @@ angular.module('checkmate.Blueprint')
                 d3.select(this).classed('target unsuitable', false);
               }
             });
+
+          orient(blueprint['meta-data'].annotations['gui-zoom']);
+        }
+
+        function orient(data) {
+          if(data && data.scale) zoom.scale(data.scale);
+          if(data && data.translate) zoom.translate(data.translate);
+
+          return zoom.event(svg);
         }
 
         function getAppropriateId(d) {
@@ -936,7 +945,12 @@ angular.module('checkmate.Blueprint')
           var blueprint = {
             services: {},
             'meta-data': {
-              annotations: {}
+              annotations: {
+                'gui-zoom': {
+                  'scale': state.scale,
+                  'translate': state.translation
+                }
+              }
             }
           };
 
@@ -999,6 +1013,7 @@ angular.module('checkmate.Blueprint')
           state.scale = d3.event.scale;
           removeDragConnector();
           container.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+          save();
         }
       }
     };
