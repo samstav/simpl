@@ -196,26 +196,26 @@ class BlueprintCache(object):
             else:
                 self.repo.clone(url, branch_or_tag=ref)
         except subprocess.CalledProcessError as exc:
-            trace = sys.exc_info()[2]
             if dirsmade:
                 # only remove if this same fn call was the creator
                 os.rmdir(dirsmade)
             error_message = ("Git repository could not be cloned from "
                              "'%s'. The output during error was '%s'"
                              % (url, exc.output))
-            raise exceptions.CheckmateException, (error_message,), trace
+            raise (exceptions.CheckmateException, (error_message,),
+                   sys.exc_info()[2])
         try:
             tags = self.repo.list_tags()
             if ref in tags:
                 self.repo.checkout(ref)
             # the ref *should* already be checked out
         except subprocess.CalledProcessError as exc:
-            trace = sys.exc_info()[2]
             if dirsmade:
                 os.rmdir(dirsmade)
             error_message = ("Failed to checkout '%s' for git "
                              "repository %s located at %s. The "
                              "output during error was '%s'."
                              % (ref, url, self.cache_path, exc.output))
-            raise exceptions.CheckmateException, (error_message,), trace
+            raise (exceptions.CheckmateException, (error_message,),
+                   sys.exc_info()[2])
 
