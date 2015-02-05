@@ -77,6 +77,12 @@ def get_ident_hash(source_repo, github_token=None):
     return hashlib.md5(ident).hexdigest()
 
 
+def get_repo_cache_path(source_repo, github_token=None):
+    """Return the calculated path to the cache for 'source_repo'."""
+    suffix = get_ident_hash(source_repo, github_token=github_token)
+    return os.path.join(repo_cache_base(), suffix)
+
+
 def good_cache_exists(cache_path):
     """Determine if a good cache exists.
 
@@ -103,10 +109,10 @@ class BlueprintCache(object):
     """Blueprints cache."""
 
     def __init__(self, source_repo, github_token=None):
-        suffix = get_ident_hash(source_repo, github_token=github_token)
         self.source_repo = source_repo
         self.github_token = github_token
-        self._cache_path = os.path.join(repo_cache_base(), suffix)
+        self._cache_path = get_repo_cache_path(
+            source_repo, github_token=github_token)
         self._repo = None
 
     @property
