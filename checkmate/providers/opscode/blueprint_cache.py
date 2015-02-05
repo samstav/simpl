@@ -22,6 +22,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import time
 
 from checkmate import exceptions
@@ -186,7 +187,8 @@ class BlueprintCache(object):
         else:  # Cache hit
             LOG.warning("(cache) Using cached repo: %s", self.cache_path)
 
-        LOG.warning("(cache) Checking out ref '%s' in %s", ref, self.cache_path)
+        LOG.warning("(cache) Checking out ref '%s' in %s",
+                    ref, self.cache_path)
         self.repo.checkout(ref)
 
     def _create_new_cache(self, url, ref, token_remote=None):
@@ -231,4 +233,3 @@ class BlueprintCache(object):
                              % (ref, url, self.cache_path, exc.output))
             raise (exceptions.CheckmateException, (error_message,),
                    sys.exc_info()[2])
-
