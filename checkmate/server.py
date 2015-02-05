@@ -542,7 +542,6 @@ def run_with_profiling():
                   str(stat[1]).ljust(6), stat[0])
 
 
-
 #
 # Main function
 #

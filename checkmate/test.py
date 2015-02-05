@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # pylint: disable=C0302,R0904,C0103,R0903
 # Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
@@ -12,8 +13,6 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-#!/usr/bin/env python
 
 """File with testing primitives for use in tests and external providers."""
 
@@ -696,8 +695,8 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'resource': key,
                 })
             elif (resource.get('provider') == 'database' and
-                     resource.get('type') == 'compute' and
-                     'disk' in resource['desired-state']):
+                  resource.get('type') == 'compute' and
+                  'disk' in resource['desired-state']):
                 expected_calls.extend([{
                     # Create Instance
                     'call': 'checkmate.providers.rackspace.database.tasks.'
@@ -751,7 +750,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'resource': key,
                 }])
             elif (resource.get('provider') == 'database' and
-                     resource.get('type') == 'cache'):
+                  resource.get('type') == 'cache'):
                 expected_calls.extend([{
                     # Create Instance
                     'call': 'checkmate.providers.rackspace.database.tasks.'

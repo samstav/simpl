@@ -28,7 +28,7 @@ DbBase = dbBaseClass
 LOG = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 1
 DEFAULT_RETRIES = 5
-#amount of time before a lock can be force deleted
+# amount of time before a lock can be force deleted
 DEFAULT_STALE_LOCK_TIMEOUT = 10
 
 DRIVER_INSTANCES = {}  # stored by connection string

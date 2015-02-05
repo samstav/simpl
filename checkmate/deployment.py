@@ -520,8 +520,8 @@ class Deployment(ExtensibleDict):
                 )
                 return result
         if service_name:
-            result = self._get_input_service_override(name, service_name,
-                resource_type=resource_type)
+            result = self._get_input_service_override(
+                name, service_name, resource_type=resource_type)
             if result is not None:
                 LOG.debug(
                     "Setting '%s' matched in _get_input_service_override", name
@@ -535,23 +535,23 @@ class Deployment(ExtensibleDict):
                 return result
 
         if provider_key:
-            result = self._get_input_provider_option(name, provider_key,
-                resource_type=resource_type)
+            result = self._get_input_provider_option(
+                name, provider_key, resource_type=resource_type)
             if result is not None:
                 LOG.debug(
                     "Setting '%s' matched in _get_input_provider_option", name
                 )
                 return result
 
-        result = self._check_resources_constraints(name,
-            service_name=service_name, resource_type=resource_type)
+        result = self._check_resources_constraints(
+            name, service_name=service_name, resource_type=resource_type)
         if result is not None:
             LOG.debug("Setting '%s' matched in "
                       "_check_resources_constraints", name)
             return result
 
-        result = self._check_options_constraints(name,
-            service_name=service_name, resource_type=resource_type)
+        result = self._check_options_constraints(
+            name, service_name=service_name, resource_type=resource_type)
         if result is not None:
             LOG.debug("Setting '%s' matched in "
                       "_check_options_constraints", name)
@@ -567,15 +567,15 @@ class Deployment(ExtensibleDict):
             LOG.debug("Setting '%s' matched in _get_input_global", name)
             return result
 
-        result = self._get_env_provider_constraint(name, provider_key,
-            resource_type=resource_type)
+        result = self._get_env_provider_constraint(
+            name, provider_key, resource_type=resource_type)
         if result is not None:
             LOG.debug("Setting '%s' matched in "
                       "_get_env_provider_constraint", name)
             return result
 
-        result = self._get_env_provider_constraint(name, 'common',
-            resource_type=resource_type)
+        result = self._get_env_provider_constraint(
+            name, 'common', resource_type=resource_type)
         if result is not None:
             LOG.debug("Setting '%s' matched 'common' setting in "
                       "_get_env_provider_constraint", name)
@@ -976,7 +976,9 @@ class Deployment(ExtensibleDict):
 
     def _get_env_provider_constraint(self, name, provider_key,
                                      resource_type=None):
-        """Get a setting applied through a provider constraint in the
+        """Apply a setting
+
+        Apply a setting through a provider constraint in the
         environment
 
         :param name: the name of the setting
@@ -1271,7 +1273,9 @@ class Deployment(ExtensibleDict):
         utils.merge_dictionary(target, updated)
 
     def on_resource_postback(self, contents, target=None):
-        """Merge in contents when a postback with new resource data is
+        """Merge in contents
+
+        Merge in contents when a postback with new resource data is
         received.
 
         Translates values to canonical names. Iterates to one level of depth to
@@ -1341,7 +1345,9 @@ class Deployment(ExtensibleDict):
                                               "yet supported: %s" % key)
 
     def on_connection_postback(self, contents, target=None):
-        """Merge in contents when a postback with new connection data is
+        """Merge in contents
+
+        Merge in contents when a postback with new connection data is
         received.
 
         Translates values to canonical names. Iterates to one level of depth to

@@ -24,9 +24,9 @@ import logging
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
 from checkmate import constraints
+from checkmate.exceptions import CheckmateValidationException
 from checkmate import functions
 from checkmate import inputs
-from checkmate.exceptions import CheckmateValidationException
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)

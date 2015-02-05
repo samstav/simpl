@@ -125,8 +125,8 @@ def parse(template, extra_globals=None, **kwargs):
     template = env.get_template('template')
     try:
         result = template.render(**minimum_kwargs)
-        #TODO(zns): exceptions in Jinja template sometimes missing
-        #traceback
+        # TODO(zns): exceptions in Jinja template sometimes missing
+        # traceback
     except StandardError as exc:
         LOG.error(exc, exc_info=True)
         error_message = "Template rendering failed: %s" % exc

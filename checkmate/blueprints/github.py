@@ -365,7 +365,9 @@ class GitHubManager(object):
         self._store(blueprint, self._ref, self._blueprints)
 
     def refresh(self, repo_name):
-        """Get updated deployment blueprint information from the specified
+        """Get updated blueprint info from GitHub
+
+        Get updated deployment blueprint information from the specified
         github repository.
 
         :param repo_name: the name of the github repository containing the
@@ -375,7 +377,9 @@ class GitHubManager(object):
         self._update_cache()
 
     def refresh_all(self):
-        """Get all deployment blueprints from the repositories owned by
+        """Get deployment blueprints owned by :self.repo_org:.
+
+        Get all deployment blueprints from the repositories owned by
         :self.repo_org:.
         """
         org = self._get_repo_owner()
@@ -436,8 +440,9 @@ class GitHubManager(object):
         return False
 
     def load_cache(self):
-        """Pre-seed with existing cache if any in case we can't connect to the
-        repo.
+        """Pre-seed with existing cache if any
+
+        Only in case we can't connect to the repo.
         """
         if not self._load_redis_cache():
             if os.path.exists(self._cache_file):

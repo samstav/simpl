@@ -267,8 +267,10 @@ class Cache:
             del self._store[key]
 
     def collect(self):
-        """Clean out any cache entries in this store that are currently older
-        than allowed.
+        """Clean out any cache entries
+
+        Cleans cache entries in this store that are currently older than
+        allowed.
         """
         now = time.time()
         for key, entry in self._store.items():

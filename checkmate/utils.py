@@ -170,6 +170,7 @@ def match_celery_logging(logger):
 
 def pytb_lastline(excinfo=None):
     """Return the actual last line of the (current) traceback.
+
     To provide exc_info, rather than allowing this function
     to read the stack automatically, this function may be called like so:
         ll = pytb_lastline(sys.exc_info())
@@ -209,6 +210,7 @@ def pytb_lastline(excinfo=None):
 
 def scrub_data(data, conf=None, exempt=None):
     """Remove password and conf values from dict.
+
     :param data:    A dict or iterable of results to sanitize.
     :param config:  A dict (optional) of config values to sanitize
                     against in addition to the common keys.
@@ -1182,9 +1184,11 @@ def get_ips_from_server(server, is_rackconnected_account=False,
 
 
 def is_rackconnect_account(context):
-    """Check if the context has information that indicates that the account
-     is a RackConnect account
-     """
+    """Check if the context for RackConnect account.
+
+    Check if the context has information that indicates that the account
+    is a RackConnect account
+    """
     return 'rack_connect' in context['roles']
 
 
@@ -1333,7 +1337,7 @@ def run_ruby_command(path, command, params, env=None, lock=True):
                     raise cmexc.CheckmateException(msg)
             raise exc
         except subprc.CalledProcessError as exc:
-            #retry and pass ex
+            # retry and pass ex
             # CalledProcessError cannot be serialized using Pickle,
             # so raising it would fail in celery; we wrap the exception in
             # something Pickle-able.

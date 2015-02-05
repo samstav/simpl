@@ -102,17 +102,17 @@ Source: https://code.google.com/p/ibkon-wsgi-gzip-middleware/source/browse/
         Modified: ZNS 2013-05-31
 """
 
-
-from gzip import GzipFile
 import cStringIO
-
+from gzip import GzipFile
 
 __version__ = '1.0.1'
 
 
 def compress(data, compression_level):
-    """The `gzip` module didn't provide a way to gzip just a string.
-        Had to hack together this. I know, it isn't pretty.
+    """The `gzip` module didn't provide a way to gzip
+
+    It only provides a string. Had to hack together this.
+    I know, it isn't pretty.
     """
     _buffer = cStringIO.StringIO()
     gz_file = GzipFile(None, 'wb', compression_level, _buffer)
@@ -122,8 +122,9 @@ def compress(data, compression_level):
 
 
 def parse_encoding_header(header):
-    """Break up the `HTTP_ACCEPT_ENCODING` header into a dict of
-        the form, {'encoding-name':qvalue}.
+    """Break up the `HTTP_ACCEPT_ENCODING` header
+
+    Breaks up the header into a dict of the form, {'encoding-name':qvalue}.
     """
     encodings = {'identity': 1.0}
     for encoding in header.split(','):
@@ -141,9 +142,11 @@ def parse_encoding_header(header):
 
 
 def client_wants_gzip(accept_encoding_header):
-    """Check to see if the client can accept gzipped output, and whether
-        or not it is even the preferred method. If `identity` is higher, then
-        no gzipping should occur.
+    """Check if the client can accept gzipped output.
+
+    Check to see if the client can accept gzipped output, and whether
+    or not it is even the preferred method. If `identity` is higher, then
+    no gzipping should occur.
     """
     encodings = parse_encoding_header(accept_encoding_header)
     if 'gzip' in encodings:
@@ -172,7 +175,8 @@ DEFAULT_COMPRESSABLES = set(
 
 class Gzipper(object):
     """WSGI middleware to wrap around and gzip all output.
-        This automatically adds the content-encoding header.
+
+    This automatically adds the content-encoding header.
     """
     def __init__(self, app, content_types=None, compresslevel=6):
         self.app = app
@@ -183,9 +187,11 @@ class Gzipper(object):
         self.compresslevel = compresslevel
 
     def __call__(self, environ, start_response):
-        """Do the actual work. If the host doesn't support gzip
-            as a proper encoding,then simply pass over to the
-            next app on the wsgi stack.
+        """Do the actual work.
+
+        If the host doesn't support gzip
+        as a proper encoding,then simply pass over to the
+        next app on the wsgi stack.
         """
         if not client_wants_gzip(environ.get('HTTP_ACCEPT_ENCODING', '')):
             return self.app(environ, start_response)
@@ -197,9 +203,10 @@ class Gzipper(object):
             _buffer['body'] = body
 
         def _start_response(status, headers, exc_info=None):
-            ''' Wrapper around the original `start_response` function.
-                The sole purpose being to add the proper headers automatically.
-            '''
+            """Wrapper around the original `start_response` function.
+
+            The sole purpose being to add the proper headers automatically.
+            """
             for header in headers:
                 field = header[0].lower()
                 if field == 'content-encoding':
