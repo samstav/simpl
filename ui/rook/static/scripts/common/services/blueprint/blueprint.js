@@ -313,9 +313,9 @@ angular.module('checkmate.Blueprint')
         }
 
         var components = Catalog.getComponents();
-        var provides = components[target.componentId].provides || [];
-        var requires = components[source.componentId].requires || [];
-        var supports = components[source.componentId].supports || [];
+        var provides = (components[target.componentId] || {}).provides || [];
+        var requires = (components[source.componentId] || {}).requires || [];
+        var supports = (components[source.componentId] || {}).supports || [];
         var interfaces = requires.concat(supports);
 
         var required = normalize(interfaces);
