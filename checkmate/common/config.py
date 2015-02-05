@@ -270,10 +270,10 @@ OPTIONS = [
                   help="Disables anonymous endpoints"
                   ),
     config.Option("--anonymous-github-base-uri",
-                  default="https://api.github.com/",
+                  default="https://api.github.com",
                   help="Root github API uri for the repository "
                        "containing anonymous blueprints. "
-                       "ex: https://api.github.com/",
+                       "ex: https://api.github.com",
                   ),
     config.Option("--anonymous-github-org",
                   default="checkmate-blueprints",
