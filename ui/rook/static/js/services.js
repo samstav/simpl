@@ -1,4 +1,7 @@
-var services = angular.module('checkmate.services', ['ngResource']);
+var services = angular.module('checkmate.services', [
+  'ngResource',
+  'checkmate.Flavors'
+]);
 
 /*
  * shared Workflow utilities
@@ -551,7 +554,7 @@ services.value('options', {
 });
 
 /* Github APIs for blueprint parsing*/
-services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$location', '$window', '$rootScope', 'options', function($http, $q, $cookies, $cookieStore, $location, $window, $rootScope, options) {
+services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$location', '$window', '$rootScope', 'options', 'Flavors', function($http, $q, $cookies, $cookieStore, $location, $window, $rootScope, options, Flavors) {
   var set_remote_owner_type = function(remote, type) {
     remote[type] = remote.owner;
     return remote;
@@ -832,9 +835,14 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
     deployment = scope.get_blueprint(remote);
 
     return deployment.then(function(resp) {
-      if(resp.flavors && flavor && resp.flavors[flavor]) {
-        options.extendDeep(resp, resp.flavors[flavor])
+      if(resp.flavors) {
+        Flavors.set(resp);
+        if(resp.flavors[flavor])
+          options.extendDeep(resp, resp.flavors[flavor])
+      } else {
+        Flavors.reset();
       }
+
       return resp;
     });
   };

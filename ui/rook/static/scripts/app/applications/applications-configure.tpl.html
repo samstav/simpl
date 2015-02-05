@@ -1,13 +1,13 @@
 <div class="rs-container">
   <div class="rs-app-launch-container rs-panel"
         ng-class="{
+          'catalog-open': catalog.isVisible,
           'editor-open': codemirror.isVisible,
           'editor-full-screen': codemirror.isFullScreen,
           'editor-error': codemirror.hasError,
           'github-invalid-import-open': prompts.githubInvalidImport.isVisible,
           'github-auth-open': prompts.githubAuth.isVisible,
           'github-empty-repo-open': prompts.githubEmptyRepo.isVisible,
-          'catalog-open': catalog.isVisible,
           'selection-open': selection.isVisible && selection.hasSelection()
         }">
 
@@ -110,6 +110,10 @@
           <div class="rs-table-overlay-subtitle">Add one now.</div>
           <div class="rs-table-overlay-message">Drag a service here. We'll draw the topology, just for you.</div>
         </div>
+      </div>
+
+      <div class="rs-app-config-controls checkmate-flavors" ng-class="{'config-open': flavors.list.length}">
+        <cm-flavor-select class="span5"></cm-flavor-select>
       </div>
 
       <div class="rs-app-launch-controls">

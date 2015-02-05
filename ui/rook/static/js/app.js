@@ -48,25 +48,29 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: 'DeploymentManagedCloudController'
   })
-  .when('/deployments/new/:owner?/:repo?/:flavor?', {
+  .when('/deployments/new/:owner?/:repo?', {
     templateUrl: '/partials/deployment-new-remote.html',
-    controller: 'DeploymentNewRemoteController'
+    controller: 'DeploymentNewRemoteController',
+    reloadOnSearch: false
   })
   .when('/:tenantId?/blueprints/new', {
     templateUrl: '/partials/blueprints/new.html',
     controller: 'BlueprintNewController'
   })
-  .when('/:tenantId?/blueprints/design/:owner?/:repo?/:flavor?', {
+  .when('/:tenantId?/blueprints/design/:owner?/:repo?', {
     templateUrl: '/partials/blueprints/design.html',
     controller: 'ConfigureCtrl',
+    reloadOnSearch: false,
     resolve: {
-      deployment: function($route, github) {
+      deployment: function($route, github, Flavors) {
         var owner = $route.current.params.owner;
         var repo = $route.current.params.repo;
         var flavor = $route.current.params.flavor;
 
         if(owner && repo) {
           return github.get_public_blueprint(owner, repo, flavor);
+        } else {
+          Flavors.reset();
         }
 
         return undefined;
@@ -1765,7 +1769,7 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   });
 }
 
-function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData) {
+function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors) {
   //Inherit from Blueprint List Controller
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null, DeploymentData);
   //Model: UI
@@ -1944,60 +1948,11 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
   };
 
-  $scope.flavors = {
-    data: null,
-    list: [],
-    selected: null,
-    original: {},
-    getFlavor: function(selected) {
-      selected = selected || this.selected;
+  $scope.flavors = Flavors;
 
-      return _.filter(angular.copy(this.data), function(flav, id) {
-        var _flavor = ((flav.blueprint || {})['meta-data'] || {}).flavor;
-        return _flavor == selected || id == selected;
-      });
-    },
-    default: 'Original - No Changes',
-    reset: function() {
-      this.data = null;
-      this.original = {};
-    },
-    select: function() {
-      var copy = angular.copy(this.original);
-      var blueprint;
-
-      if(this.selected !== this.default) {
-        var selected = this.getFlavor();
-        blueprint = options.extendDeep(copy.blueprint || {}, selected[0].blueprint);
-      } else {
-        blueprint = copy.blueprint;
-      }
-
-      $scope.setBlueprint(blueprint);
-    },
-    set: function(deployment) {
-      var selected;
-
-      this.original = angular.copy(deployment);
-      this.data = angular.copy(deployment.flavors);
-      this.data.original = {
-        blueprint: {
-          'meta-data': {
-            flavor: this.default
-          }
-        }
-      };
-
-      selected = this.getFlavor($routeParams.flavor);
-
-      this.list = angular.copy(_.map(this.data, function(flav, id) {
-        return ((flav.blueprint || {})['meta-data'] || {}).flavor || id;
-      }));
-
-      this.selected = (((selected[0] || {}).blueprint || {})['meta-data'] || {}).flavor || this.default;
-      this.select();
-    }
-  };
+  $scope.$on('flavors:select', function(event, blueprint) {
+    $scope.setBlueprint(blueprint)
+  });
 
   $scope.receive_blueprint = function(data, remote) {
     if ('environment' in data) {
@@ -2589,7 +2544,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 }
 
 //Select one remote blueprint
-function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData) {
+function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors) {
   var blueprint = $location.search().blueprint;
   var u;
   var owner = $routeParams.owner;
@@ -2615,7 +2570,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
     $location.path('/deployments/new/' + default_blueprint);
   }
 
-  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData);
+  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors);
 
   // Override it with a one repo load
   $scope.load = function() {
@@ -3873,18 +3828,23 @@ function MagentoStackController($scope, $location) {
   $scope.currentCurrency = '$';
 
   $scope.go = {
-    design: function(repo) {
-      $location.path('/blueprints/design'+repo);
+    design: function(tier) {
+      $location
+        .path('/blueprints/design'+tier.repo)
+        .search('flavor', tier.flavor);
     },
-    deploy: function(repo) {
-      $location.path('/deployments/new'+repo);
+    deploy: function(tier) {
+      $location
+        .path('/deployments/new'+tier.repo)
+        .search('flavor', tier.flavor);
     }
   };
 
   $scope.tiers = [
     {
       'title': 'Extra Small',
-      'repo': '/cbfx/magentostack/extra-small',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'extra-small',
       'price': 1000,
       'unit': 'month',
       'features': [
@@ -3896,7 +3856,8 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Small',
-      'repo': '/cbfx/magentostack/small',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'small',
       'price': 2000,
       'unit': 'month',
       'features': [
@@ -3908,7 +3869,8 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Medium',
-      'repo': '/cbfx/magentostack/medium',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'medium',
       'price': 3000,
       'unit': 'month',
       'features': [
@@ -3920,7 +3882,8 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Large',
-      'repo': '/cbfx/magentostack/large',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'large',
       'price': 4000,
       'unit': 'month',
       'features': [
@@ -3932,7 +3895,8 @@ function MagentoStackController($scope, $location) {
     },
     {
       'title': 'Extra Large',
-      'repo': '/cbfx/magentostack/extra-large',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'extra-large',
       'price': 5000,
       'unit': 'month',
       'features': [

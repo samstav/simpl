@@ -2,14 +2,14 @@ angular.module('checkmate.applications-configure', [
   'lvl.directives.dragdrop',
   'checkmate.Blueprint',
   'checkmate.Catalog',
+  'checkmate.Flavors',
   'checkmate.DeploymentData',
   'checkmate.Drag',
   'checkmate.ComponentOptions'
 ]);
 
 angular.module('checkmate.applications-configure')
-  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window) {
-
+  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window, Flavors) {
     $scope.deployment = DeploymentData.get();
 
     // This selects the object being sent to the Blueprint.
@@ -25,6 +25,8 @@ angular.module('checkmate.applications-configure')
       Blueprint.add(source, target);
       Drag.reset();
     };
+
+    $scope.flavors = Flavors;
 
     // This could toggle an extra sidebar to reveal details about a service.
     $scope.selection = {
@@ -248,6 +250,10 @@ angular.module('checkmate.applications-configure')
 
     $scope.$on('editor:nsync', function(event, data) {
       $scope.codemirror.isOutOfSync = false;
+    });
+
+    $scope.$on('flavors:select', function(event, blueprint) {
+      Blueprint.set(blueprint);
     });
 
     $scope.$on('topology:select', function(event, selection) {

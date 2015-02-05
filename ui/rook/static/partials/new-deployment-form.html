@@ -117,13 +117,7 @@ input {
             <br />
             <label class="control-label" for="flavor" ng-show="flavors.list.length">Which flavor?</label>
             <div class="controls" ng-show="flavors.list.length">
-              <select id="flavor"
-                      class="span8"
-                      ng-model="flavors.selected"
-                      ng-change="flavors.select()"
-                      ng-options="flavor as flavor for flavor in flavors.list"
-                      required>
-              </select>
+              <cm-flavor-select class="span8"></cm-flavor-select>
             </div>
 
             <br />
