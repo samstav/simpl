@@ -230,14 +230,15 @@
   left: 0;
   height: 35px;
   padding: 10px;
-  z-index: 900;
 }
 .rs-app-config-controls {
   top: -55px;
+  z-index: 100;
 }
 .rs-app-launch-controls {
   bottom: -55px;
   background-color: #f5f5f5;
+  z-index: 900;
 }
 .rs-app-launch-controls .rs-btn-group {
   margin-top: 5px;
