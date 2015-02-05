@@ -1,4 +1,7 @@
-var services = angular.module('checkmate.services', ['ngResource']);
+var services = angular.module('checkmate.services', [
+  'ngResource',
+  'checkmate.Flavors'
+]);
 
 /*
  * shared Workflow utilities
@@ -482,6 +485,22 @@ services.value('options', {
     }
   },
 
+  extendDeep: function extendDeep(dst) {
+    angular.forEach(arguments, function(obj) {
+      if (obj !== dst) {
+        angular.forEach(obj, function(value, key) {
+          if (dst[key] && dst[key].constructor && dst[key].constructor === Object) {
+            extendDeep(dst[key], value);
+          } else {
+            dst[key] = value;
+          }
+        });
+      }
+    });
+
+    return dst;
+  },
+
   //Merges src into target. Returns target. Modifies target with differences.
   mergeInto: function mergeInto(target, src) {
     var array = Array.isArray(src);
@@ -535,7 +554,7 @@ services.value('options', {
 });
 
 /* Github APIs for blueprint parsing*/
-services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$location', '$window', '$rootScope', function($http, $q, $cookies, $cookieStore, $location, $window, $rootScope) {
+services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$location', '$window', '$rootScope', 'options', 'Flavors', function($http, $q, $cookies, $cookieStore, $location, $window, $rootScope, options, Flavors) {
   var set_remote_owner_type = function(remote, type) {
     remote[type] = remote.owner;
     return remote;
@@ -795,7 +814,8 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
     return checkmate_yaml;
   };
 
-  scope.get_public_blueprint = function(owner, repo) {
+  scope.get_public_blueprint = function(owner, repo, flavor) {
+    var deployment;
     var fragments = [];
     var url;
     var remote;
@@ -812,8 +832,19 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
 
     url = fragments.join('');
     remote = scope.parse_url(url);
+    deployment = scope.get_blueprint(remote);
 
-    return scope.get_blueprint(remote);
+    return deployment.then(function(resp) {
+      if(resp.flavors) {
+        Flavors.set(resp);
+        if(resp.flavors[flavor])
+          options.extendDeep(resp, resp.flavors[flavor])
+      } else {
+        Flavors.reset();
+      }
+
+      return resp;
+    });
   };
 
   scope.get_blueprint = function(remote, username) {

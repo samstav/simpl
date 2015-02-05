@@ -1,13 +1,13 @@
 <div class="rs-container">
   <div class="rs-app-launch-container rs-panel"
         ng-class="{
+          'catalog-open': catalog.isVisible,
           'editor-open': codemirror.isVisible,
           'editor-full-screen': codemirror.isFullScreen,
           'editor-error': codemirror.hasError,
           'github-invalid-import-open': prompts.githubInvalidImport.isVisible,
           'github-auth-open': prompts.githubAuth.isVisible,
           'github-empty-repo-open': prompts.githubEmptyRepo.isVisible,
-          'catalog-open': catalog.isVisible,
           'selection-open': selection.isVisible && selection.hasSelection()
         }">
 
@@ -112,8 +112,17 @@
         </div>
       </div>
 
+      <div class="rs-app-config-controls checkmate-flavors" ng-class="{'config-open': flavors.list.length}">
+        <cm-flavor-select class="span5"></cm-flavor-select>
+      </div>
+
       <div class="rs-app-launch-controls">
         <div class="rs-btn-group rs-pull-right">
+          <span class="rs-pull-left rs-quiet" ng-show="!auth.identity.loggedIn">
+            <i class="fa fa-exclamation-triangle"></i>
+            You must have Rackspace credentials to Launch or Simulate.
+            <a href="#" ng-click="loginPrompt()">Authenticate</a>
+          </span>
           <button class="rs-btn rs-btn-primary" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit()">Launch</button>
           <button class="rs-btn" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit('simulate')">Simulate</button>
           <button class="rs-btn" ng-disabled="!controls.canRevert" ng-click="revert()">Revert</button>

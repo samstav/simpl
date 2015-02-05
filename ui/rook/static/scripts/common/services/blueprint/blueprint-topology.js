@@ -9,6 +9,7 @@ angular.module('checkmate.Blueprint')
         $scope.components = Catalog.getComponents();
 
         $scope.getTattoo = function(componentId) {
+
           return (((Catalog.getComponent(componentId) || {})['meta-data'] || {})['display-hints'] || {}).tattoo || '';
         };
 
@@ -62,7 +63,8 @@ angular.module('checkmate.Blueprint')
 
         var zoom = d3.behavior.zoom()
             .scaleExtent([0.2, 3])
-            .on("zoom", zoomed);
+            .on("zoom", zoomed)
+            .on("zoomend", save);
 
         var drag = d3.behavior.drag()
             .origin(function(d) { return d; })
@@ -382,7 +384,7 @@ angular.module('checkmate.Blueprint')
                   y: ((height + 25) * index) + 25
                 };
                 var safeMouse = mouse || [coords.x, coords.y]
-                var meta = blueprint['meta-data'];
+                var meta = blueprint['meta-data'] || {};
 
                 d.x = ((meta.annotations || {})[d._id] || {})['gui-x'] || safeMouse[0];
                 d.y = ((meta.annotations || {})[d._id] || {})['gui-y'] || safeMouse[1];
@@ -664,7 +666,8 @@ angular.module('checkmate.Blueprint')
               return 'translate('+x+','+y+')';
             })
             .attr('xlink:href', function(d) {
-              return scope.getTattoo((d.name || d.id));
+              var id = getAppropriateId(d);
+              return scope.getTattoo(id);
             })
             .attr('class', 'component-icon');
 
@@ -796,11 +799,34 @@ angular.module('checkmate.Blueprint')
                 d3.select(this).classed('target unsuitable', false);
               }
             });
+
+          if(blueprint['meta-data'].annotations) {
+            orient(blueprint['meta-data'].annotations['gui-zoom']);
+          }
+        }
+
+        function orient(data) {
+          if(data && data.scale) zoom.scale(data.scale);
+          if(data && data.translate) zoom.translate(data.translate);
+
+          return zoom.event(svg);
+        }
+
+        function getAppropriateId(d) {
+          var id = d.id || d.name || d.type;
+          var component = Catalog.getComponent(id);
+
+          if(!component && Catalog.getComponent(d.interface)) {
+            id = d.interface;
+          }
+
+          return id;
         }
 
         function getDisplayName(d) {
-          var display = (Catalog.getComponent(d.id || d.name) || {}).display_name;
-          var label =  display || d.id || d.name || '';
+          var id = d.id || d.name || d.type;
+          var display = (Catalog.getComponent(id) || {}).display_name;
+          var label =  display || id || '';
 
           return label;
         }
@@ -922,7 +948,12 @@ angular.module('checkmate.Blueprint')
           var blueprint = {
             services: {},
             'meta-data': {
-              annotations: {}
+              annotations: {
+                'gui-zoom': {
+                  'scale': state.scale,
+                  'translate': state.translation
+                }
+              }
             }
           };
 
