@@ -445,15 +445,9 @@ class WorkflowSpec(specs.WorkflowSpec):
                     name, relation = relations[0]
                     # Call connection source to add tasks
                     provider = providers[hosted_resource['provider']]
-                    provider_result = provider.add_connection_tasks(
-                        hosted_resource, index, relation, 'host', wf_spec,
-                        deployment, context)
-                    if (provider_result and provider_result.get('root') and
-                            not provider_result['root'].inputs):
-                        # Attach unattached tasks
-                        LOG.debug("Attaching '%s' to 'Start'",
-                                  provider_result['root'].name)
-                        wf_spec.start.connect(provider_result['root'])
+                    WorkflowSpec.add_connection_tasks(
+                        provider, wf_spec, hosted_resource, index, relation,
+                        'host', deployment, context)
 
         # Do relations
         for key, resource in non_deleted_resources.iteritems():
@@ -469,28 +463,16 @@ class WorkflowSpec(specs.WorkflowSpec):
                                  key in new_and_planned_resources)):
                         # Call connection source to add tasks
                         provider = providers[resource['provider']]
-                        provider_result = provider.add_connection_tasks(
-                            resource, key, relation, name, wf_spec,
+                        WorkflowSpec.add_connection_tasks(
+                            provider, wf_spec, resource, key, relation, name,
                             deployment, context)
-                        if (provider_result and provider_result.get('root')
-                                and not provider_result['root'].inputs):
-                            # Attach unattached tasks
-                            LOG.debug("Attaching '%s' to 'Start'",
-                                      provider_result['root'].name)
-                            wf_spec.start.connect(provider_result['root'])
 
                         # Call connection target to respond with tasks
                         target = non_deleted_resources[relation['target']]
                         provider = providers[target['provider']]
-                        provider_result = provider.add_client_ready_tasks(
-                            target, key, relation, name, wf_spec,
+                        WorkflowSpec.add_client_ready_tasks(
+                            provider, wf_spec, target, key, relation, name,
                             deployment, context)
-                        if (provider_result and provider_result.get('root')
-                                and not provider_result['root'].inputs):
-                            # Attach unattached tasks
-                            LOG.debug("Attaching '%s' to 'Start'",
-                                      provider_result['root'].name)
-                            wf_spec.start.connect(provider_result['root'])
 
            # Process client side of hosting relationship
             if 'hosts' in resource:
@@ -508,15 +490,9 @@ class WorkflowSpec(specs.WorkflowSpec):
 
                     # Call connection target to respond with tasks
                     provider = providers[resource['provider']]
-                    provider_result = provider.add_client_ready_tasks(
-                        resource, key, relation, name, wf_spec,
+                    WorkflowSpec.add_client_ready_tasks(
+                        provider, wf_spec, resource, key, relation, name,
                         deployment, context)
-                    if (provider_result and provider_result.get('root')
-                            and not provider_result['root'].inputs):
-                        # Attach unattached tasks
-                        LOG.debug("Attaching '%s' to 'Start'",
-                                  provider_result['root'].name)
-                        wf_spec.start.connect(provider_result['root'])
 
         for key, provider in providers.iteritems():
             cleanup_result = provider.cleanup_temp_files(wf_spec, deployment)
@@ -529,6 +505,44 @@ class WorkflowSpec(specs.WorkflowSpec):
             noop = specs.Simple(wf_spec, "end")
             wf_spec.start.connect(noop)
         return wf_spec
+
+    @staticmethod
+    def add_connection_tasks(provider, wf_spec, resource, relation, name,
+                             deployment, context):
+        """Call provider to add connection tasks to workflow.
+
+        Attaches the resulting tasks if they come back unattached to the
+        workflow.
+        """
+        provider_result = provider.add_connection_tasks(
+            resource, resource['index'], relation, name, wf_spec,
+            deployment, context)
+        if (provider_result and provider_result.get('root')
+                and not provider_result['root'].inputs):
+            # Attach unattached tasks
+            LOG.debug("Attaching '%s' to 'Start'",
+                      provider_result['root'].name)
+            wf_spec.start.connect(provider_result['root'])
+        return provider_result
+
+    @staticmethod
+    def add_client_ready_tasks(provider, wf_spec, resource, target_key,
+                               relation, name, deployment, context):
+        """Call provider to add tasks for client connection to workflow.
+
+        Attaches the resulting tasks if they come back unattached to the
+        workflow.
+        """
+        provider_result = provider.add_client_ready_tasks(
+            resource, target_key, relation, name, wf_spec,
+            deployment, context)
+        if (provider_result and provider_result.get('root')
+                and not provider_result['root'].inputs):
+            # Attach unattached tasks
+            LOG.debug("Attaching '%s' to 'Start'",
+                      provider_result['root'].name)
+            wf_spec.start.connect(provider_result['root'])
+        return provider_result
 
     def find_task_specs(self, **kwargs):
         """Find tasks in the workflow with matching properties.
