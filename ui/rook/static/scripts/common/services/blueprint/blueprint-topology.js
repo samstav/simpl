@@ -63,7 +63,8 @@ angular.module('checkmate.Blueprint')
 
         var zoom = d3.behavior.zoom()
             .scaleExtent([0.2, 3])
-            .on("zoom", zoomed);
+            .on("zoom", zoomed)
+            .on("zoomend", save);
 
         var drag = d3.behavior.drag()
             .origin(function(d) { return d; })
@@ -1013,7 +1014,6 @@ angular.module('checkmate.Blueprint')
           state.scale = d3.event.scale;
           removeDragConnector();
           container.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-          save();
         }
       }
     };
