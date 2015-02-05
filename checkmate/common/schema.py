@@ -23,16 +23,15 @@ stabilized the schema.
 import logging
 import os
 
-from voluptuous import (
-    All,
-    Any,
-    Extra,
-    Invalid,
-    Length,
-    MultipleInvalid,
-    Required,
-    Schema,
-)
+from voluptuous import All
+from voluptuous import Any
+from voluptuous import Extra
+from voluptuous import Invalid
+from voluptuous import Length
+from voluptuous import MultipleInvalid
+from voluptuous import Required
+from voluptuous import Schema
+
 import yaml
 from yaml.composer import ComposerError
 from yaml.parser import ParserError
@@ -740,6 +739,7 @@ def validate_inputs(deployment):
 
 def validate_type_inputs(inputs):
     """Validate deployment inputs in a type hierarchy
+
     This is the structure under inputs/services and inputs/providers.
     """
     errors = []
@@ -989,7 +989,7 @@ def translate(name):
         # FIXME: this breaks some recipes used in chef components, so we won't
         # return it, but we also won't log it until we fix this.
         recognized = True
-        #return '_'.join(words)
+        # return '_'.join(words)
 
     if not recognized:
         LOG.debug("Unrecognized name: %s", name)

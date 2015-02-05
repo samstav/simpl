@@ -19,7 +19,9 @@ Inspired by the PyPI codegen package:
 https://github.com/andreif/codegen/blob/master/codegen.py
 """
 
-from ast import literal_eval, NodeVisitor, parse
+from ast import literal_eval
+from ast import NodeVisitor
+from ast import parse
 
 
 def _params_as_dict(expression):

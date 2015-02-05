@@ -15,5 +15,5 @@
 """All the Deployments things."""
 
 from checkmate.deployments.manager import Manager
-from checkmate.deployments.router import Router
 from checkmate.deployments.planner import Planner
+from checkmate.deployments.router import Router

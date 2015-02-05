@@ -350,8 +350,9 @@ class WorkflowSpec(specs.WorkflowSpec):
 
     @staticmethod
     def create_build_spec(context, deployment):
-        """Create a SpiffWorkflow spec for initial deployment of a Checkmate
-        deployment.
+        """Create a SpiffWorkflow spec
+
+        SpiffWorkflow spec is for initial deployment of a Checkmate deployment.
 
         :return: SpiffWorkflow.WorkflowSpec
         """
@@ -400,7 +401,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                                 error_message = ("Circular dependency in "
                                                  "resources between %s and "
                                                  "%s" % (resource_key,
-                                                 relation['target']))
+                                                         relation['target']))
                                 raise exceptions.CheckmateException(
                                     error_message,
                                     friendly_message=exceptions.BLUEPRINT_ERROR
@@ -589,7 +590,9 @@ class WorkflowSpec(specs.WorkflowSpec):
         return tasks
 
     def wait_for(self, task, wait_list, name=None, **kwargs):
-        """Wire up tasks so that 'task' will wait for all tasks in 'wait_list'
+        """Wait for all tasks in 'wait_list' to complete before proceeding.
+
+        Wire up tasks so that 'task' will wait for all tasks in 'wait_list'
         to complete before proceeding.
 
         If wait_list has more than one task, we'll use a Merge task. If
@@ -683,7 +686,7 @@ class WorkflowSpec(specs.WorkflowSpec):
             resource = resources.get(resource_key)
             resource_ids_to_delete = [resource_key]
 
-            #Process relations for resource
+            # Process relations for resource
             WorkflowSpec._add_del_tasks_for_res_relatns(wf_spec,
                                                         deployment,
                                                         resource_key,
@@ -691,11 +694,11 @@ class WorkflowSpec(specs.WorkflowSpec):
             wait_tasks.extend(wf_spec.find_task_specs(resource=resource_key,
                                                       tag="delete_connection"))
 
-            #Process host-relations for resource
+            # Process host-relations for resource
             if 'hosted_on' in resource:
                 resource_ids_to_delete.append(resource['hosted_on'])
 
-            #Process resource to be deleted
+            # Process resource to be deleted
             for resource_id_to_delete in resource_ids_to_delete:
                 resource_to_delete = resources.get(resource_id_to_delete)
                 provider_key = resource_to_delete.get("provider")

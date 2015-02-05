@@ -21,12 +21,10 @@ import logging
 import uuid
 
 from celery.exceptions import MaxRetriesExceededError
-from SpiffWorkflow import (
-    Workflow as SpiffWorkflow,
-    Task
-)
 from SpiffWorkflow.specs import Celery
 from SpiffWorkflow.storage import DictionarySerializer
+from SpiffWorkflow import Task
+from SpiffWorkflow import Workflow as SpiffWorkflow
 
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
@@ -90,7 +88,9 @@ def get_errored_tasks(d_wf):
 
 
 def get_dump(workflow, state=Task.ANY_MASK):
-    """Get a dict representation of the internal attributes of all the
+    """Get a dict representation of internal attributes.
+
+    Get a dict representation of the internal attributes of all the
     tasks in the given state in a spiff workflow.
 
     :param workflow: spiff workflow
@@ -291,8 +291,9 @@ def convert_exc_to_dict(info, task_id, tenant_id, workflow_id, traceback):
 
 
 def get_errors(wf_dict, tenant_id):
-    """Traverse through the workflow-tasks, and collects errors information
-    from all the failed tasks.
+    """Traverse through the workflow-tasks
+
+    Collects errors information from all the failed tasks.
 
     :param wf_dict: The workflow to get the tasks from
     :return: List of error information
@@ -322,8 +323,9 @@ def get_errors(wf_dict, tenant_id):
 
 
 def get_exceptions(wf_dict):
-    """Traverses through the workflow-tasks, and collects errors information
-    from all the failed tasks.
+    """Traverses through the workflow-tasks
+
+    Collects errors information from all the failed tasks.
 
     :param wf_dict: The workflow to get the tasks from
     :return: List of exceptions
@@ -353,9 +355,8 @@ def get_status_info(d_wf, workflow_id):
 
     for exception in distinct_exceptions:
         if hasattr(exception, 'friendly_message'):
-            friendly_messages.append("%s. %s\n" %
-                                    (len(friendly_messages) + 1,
-                                     exception.friendly_message))
+            friendly_messages.append("%s. %s\n" % (len(friendly_messages) + 1,
+                                                   exception.friendly_message))
 
     if distinct_exceptions:
         if len(distinct_exceptions) == len(friendly_messages):
@@ -431,7 +432,7 @@ def init_spiff_workflow(spiff_wf_spec, deployment, context, workflow_id,
         raise exceptions.CheckmateException(error_message)
 
     workflow = SpiffWorkflow(spiff_wf_spec)
-    #Pass in the initial deployemnt dict (task 2 is the Start task)
+    # Pass in the initial deployemnt dict (task 2 is the Start task)
     runtime_context = copy.copy(deployment.settings())
     runtime_context['token'] = context["auth_token"]
     runtime_context['resources'] = deployment.get('resources', {})
@@ -489,7 +490,9 @@ def find_tasks(d_wf, state=Task.ANY_MASK, **kwargs):
 
 
 def add_subworkflow(d_wf, subworkflow_id, task_id):
-    """Add a subworkflow_id corresponding to a failed task to an existing
+    """Add a subworkflow_id
+
+    The subworkflow_id corresponds to a failed task to an existing
     workflow.
 
     If the failed task already has a subworkflow_id associated with it,

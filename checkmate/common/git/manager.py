@@ -99,7 +99,9 @@ git reset --hard HEAD
 
 
 def init_deployment_repo(dep_path):
-    """Ensure that an existing deployment folder and its sub-directories are
+    """Make sure existing deployment is git-ready
+
+    Ensure that an existing deployment folder and its sub-directories are
     git-ready.
 
     IMPORTANT NOTE: Typically, server based repos (ie: github) are 'bare' --
