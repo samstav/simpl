@@ -326,7 +326,7 @@ class TestRelationSchema(unittest.TestCase):
 class TestUICatalog(unittest.TestCase):
 
     def test_catalog(self):
-        rel_path = '../../ui/rook/static/scripts/common/services/catalog.yml'
+        rel_path = '../../ui/rook/static/scripts/common/services/catalog/catalog.yml'
         path = os.path.join(os.path.dirname(__file__), rel_path)
         with open(path) as fh:
             components = fh.read()

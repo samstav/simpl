@@ -1023,7 +1023,7 @@ interfaces/mysql/database_name
             'resource': '0',
             'deployment': 'DEP-ID-1000',
             'provider': 'chef-server',
-            'task_tags': ['collect'],
+            'task_tags': ['collect', 'root'],
             'extend_lists': True,
             'chef_options': {
                 'roles': {
@@ -1070,7 +1070,7 @@ interfaces/mysql/database_name
             'resource': '2',
             'deployment': 'DEP-ID-1000',
             'provider': 'chef-server',
-            'task_tags': ['collect', 'options-ready'],
+            'task_tags': ['collect', 'options-ready', 'root'],
             'extend_lists': True,
             'chef_options': {
                 'outputs': {
@@ -1100,6 +1100,7 @@ interfaces/mysql/database_name
                     'source': 'clients://database:mysql/ip',
                     'resource': '2',
                     'targets': ['attributes://connections'],
+                    'alt_path': 'resources/1/instance',
                     'path': 'resources/0/instance',  # front-end as client
                 }
             ]

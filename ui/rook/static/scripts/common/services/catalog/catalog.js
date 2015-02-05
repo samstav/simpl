@@ -67,7 +67,7 @@ angular.module('checkmate.Catalog')
         });
     };
 
-    Catalog.fromUrl('/scripts/common/services/catalog.yml');
+    Catalog.fromUrl('/scripts/common/services/catalog/catalog.yml');
 
     return Catalog;
   });

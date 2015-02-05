@@ -48,9 +48,10 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: 'DeploymentManagedCloudController'
   })
-  .when('/deployments/new', {
+  .when('/deployments/new/:owner?/:repo?', {
     templateUrl: '/partials/deployment-new-remote.html',
-    controller: 'DeploymentNewRemoteController'
+    controller: 'DeploymentNewRemoteController',
+    reloadOnSearch: false
   })
   .when('/:tenantId?/blueprints/new', {
     templateUrl: '/partials/blueprints/new.html',
@@ -59,16 +60,14 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   .when('/:tenantId?/blueprints/design/:owner?/:repo?', {
     templateUrl: '/partials/blueprints/design.html',
     controller: 'ConfigureCtrl',
+    reloadOnSearch: false,
     resolve: {
-      deployment: function($route, github, DeploymentData) {
+      deployment: function($route, github, Flavors) {
         var owner = $route.current.params.owner;
         var repo = $route.current.params.repo;
+        var flavor = $route.current.params.flavor;
 
-        if(owner && repo) {
-          return github.get_public_blueprint(owner, repo);
-        } else {
-          return DeploymentData.get();
-        }
+        return github.get_public_blueprint(owner, repo, flavor);
       }
     }
   })
@@ -77,9 +76,13 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     controller: 'DeploymentNewRemoteController',
     reloadOnSearch: false
   })
-  .when('/deployments/wordpress-stacks', {
+  .when('/deployments/stacks/wordpress', {
     templateUrl: '/partials/wordpress-stacks.html',
     controller: 'StaticController'
+  })
+  .when('/deployments/stacks/magento', {
+    templateUrl: '/partials/magento-stacks.html',
+    controller: 'MagentoStackController'
   });
 
   // Admin pages
@@ -1760,7 +1763,7 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   });
 }
 
-function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData) {
+function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors) {
   //Inherit from Blueprint List Controller
   BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null, DeploymentData);
   //Model: UI
@@ -1939,6 +1942,12 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
     });
   };
 
+  $scope.flavors = Flavors;
+
+  $scope.$on('flavors:select', function(event, blueprint) {
+    $scope.setBlueprint(blueprint)
+  });
+
   $scope.receive_blueprint = function(data, remote) {
     if ('environment' in data) {
       if (!('name' in data.environment))
@@ -1956,8 +1965,15 @@ function BlueprintRemoteListController($scope, $location, $routeParams, $resourc
 
     if ('blueprint' in data) {
       $scope.blueprint = data.blueprint;
+
+      if('flavors' in data) {
+        $scope.flavors.set(data);
+      } else {
+        $scope.flavors.reset();
+      }
     } else {
       $scope.blueprint = null;
+      $scope.flavors.reset();
     }
 
     $scope.updateOptions();
@@ -2522,28 +2538,42 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 }
 
 //Select one remote blueprint
-function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData) {
-
+function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors) {
   var blueprint = $location.search().blueprint;
-  if (blueprint === undefined)
-    blueprint = "https://github.com/checkmate/helloworld";
-  var u = URI(blueprint);
-  if (u.fragment() === "") {
-    u.fragment($location.hash() || 'master');
-    $location.hash("");
-    $location.search('blueprint', u.normalize());
+  var u;
+  var owner = $routeParams.owner;
+  var repo = $routeParams.repo;
+  var default_blueprint = 'checkmate-blueprints/hello-world';
+
+  if(blueprint) {
+    u = URI(blueprint);
+
+    if (u.fragment() === "") {
+      u.fragment($location.hash() || 'master');
+      $location.hash("");
+      $location.search('blueprint', u.normalize());
+    }
   }
 
-  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData);
+  if(!blueprint && owner && repo) {
+    blueprint = 'https://github.com/' + owner + '/' + repo;
+  }
 
-  //Override it with a one repo load
+  if(!blueprint) {
+    blueprint = "https://github.com/" + default_blueprint;
+    $location.path('/deployments/new/' + default_blueprint);
+  }
+
+  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors);
+
+  // Override it with a one repo load
   $scope.load = function() {
     console.log("Starting load", $scope.remote);
     $scope.loading_remote_blueprints = true;
     github.get_repo($scope.remote, $scope.remote.repo.name,
       function(data) {
         $scope.remote.repo = data;
-        $scope.default_branch = u.fragment() || $location.hash() || 'master';
+        $scope.default_branch = (u ? u.fragment() : false) || $location.hash() || 'master';
         $scope.selected = $scope.remote.repo;
       },
       function(data) {
@@ -3788,6 +3818,90 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   $scope.$watch('deployment_string', $scope.refresh_parse_deployment);
 }
 
+function MagentoStackController($scope, $location) {
+  $scope.currentCurrency = '$';
+
+  $scope.go = {
+    design: function(tier) {
+      $location
+        .path('/blueprints/design'+tier.repo)
+        .search('flavor', tier.flavor);
+    },
+    deploy: function(tier) {
+      $location
+        .path('/deployments/new'+tier.repo)
+        .search('flavor', tier.flavor);
+    }
+  };
+
+  $scope.tiers = [
+    {
+      'title': 'Extra Small',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'extra-small',
+      'price': 1000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 100, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '7.5G App Server', 'count': 1, 'enabled': true}
+      ]
+    },
+    {
+      'title': 'Small',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'small',
+      'price': 2000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 200, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '15G App Server', 'count': 1, 'enabled': true}
+      ]
+    },
+    {
+      'title': 'Medium',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'medium',
+      'price': 3000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 400, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '15G App Server', 'count': 2, 'enabled': true}
+      ]
+    },
+    {
+      'title': 'Large',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'large',
+      'price': 4000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 750, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '30G App Server', 'count': 2, 'enabled': true}
+      ]
+    },
+    {
+      'title': 'Extra Large',
+      'repo': '/cbfx/magentostack/',
+      'flavor': 'extra-large',
+      'price': 5000,
+      'unit': 'month',
+      'features': [
+        {'title': 'Concurrent Users', 'count': 1125, 'enabled': true},
+        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '30G App Server', 'count': 3, 'enabled': true}
+      ]
+    }
+  ];
+}
 
 checkmate.controller('DeploymentController', DeploymentController);
 checkmate.controller('DeploymentListController', DeploymentListController);
@@ -3797,6 +3911,7 @@ checkmate.controller('DeploymentNewController', DeploymentNewController);
 checkmate.controller('DeploymentNewRemoteController', DeploymentNewRemoteController);
 checkmate.controller('StaticController', StaticController);
 checkmate.controller('RawController', RawController);
+checkmate.controller('MagentoStackController', MagentoStackController);
 checkmate.controller('NavBarController', NavBarController);
 checkmate.controller('AppController', AppController);
 checkmate.controller('ActivityFeedController', ActivityFeedController);

@@ -43,6 +43,12 @@ url: shows "Address Builder" to handle url options
     content: ' *';
     display:inline;
 }
+input {
+  margin-bottom: 0 !important;
+}
+.controls span {
+  margin-left: 5px;
+}
 </style>
 
 <div class="alert" ng-class="{'alert-info': stable}" ng-show="blueprint &amp;&amp; remote.branch.name != 'stable'">
@@ -75,14 +81,51 @@ url: shows "Address Builder" to handle url options
             <label class="control-label" for="blueprint">What to deploy?</label>
             <div class="controls">
                 <!-- Show list if list exists -->
-                <select ng-show="blueprints" id="blueprint" ng-class="{span7: branches, span9: !branches}" ng-model="blueprint" ng-change="setBlueprint(blueprint)"
-                        ng-options="blueprint.name for (id, blueprint) in blueprints" required>
+                <select ng-show="blueprints"
+                        id="blueprint"
+                        ng-class="{
+                          span5: branches,
+                          span7: !branches
+                        }"
+                        ng-model="blueprint"
+                        ng-change="setBlueprint(blueprint)"
+                        ng-options="blueprint.name for (id, blueprint) in blueprints"
+                        required>
                 </select>
+
                 <!-- Show text if only one exists -->
-                <input ng-show="!blueprints" readonly="" type="text" value="{{blueprint.name}}" ng-class="{span7: branches, span9: !branches}"><span ng-show="branches"> branch/tag: <select id="branch" name="branch" class="span3" ng-model="$parent.remote.branch" ng-change="loadBlueprint()" ng-options="branch.name for branch in branches"></select></span>
-                <div ng-show="blueprint.documentation.abstract">
-                  <markdown text="blueprint.documentation.abstract"></markdown>
-                </div>
+                <input ng-show="!blueprints"
+                       readonly=""
+                       type="text"
+                       value="{{blueprint.name}}"
+                       ng-class="{
+                         span5: branches,
+                         span7: !branches
+                       }">
+
+                <span ng-show="branches"> Branch/Tag:</span>
+                <select ng-show="branches"
+                        id="branch"
+                        name="branch"
+                        class="span2"
+                        ng-model="$parent.remote.branch"
+                        ng-change="loadBlueprint()"
+                        ng-options="branch.name for branch in branches">
+                </select>
+            </div>
+
+            <br />
+            <label class="control-label" for="flavor" ng-show="flavors.list.length">Which flavor?</label>
+            <div class="controls" ng-show="flavors.list.length">
+              <cm-flavor-select class="span8"></cm-flavor-select>
+            </div>
+
+            <br />
+
+            <div class="controls">
+              <div ng-show="blueprint.documentation.abstract">
+                <markdown text="blueprint.documentation.abstract"></markdown>
+              </div>
             </div>
         </div>
     </div>
@@ -132,4 +175,3 @@ url: shows "Address Builder" to handle url options
     </li>
   </ul>
 </div>
-

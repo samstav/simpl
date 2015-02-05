@@ -379,6 +379,20 @@ INTERFACE_SCHEMA = yaml_to_dict("""
 
       rackspace-cloud-monitoring:
       redis:
+        options:
+          username:
+            type: string
+            required: false
+          password:
+            type: string
+            required: false
+          host:
+            type: string
+            required: true
+          port:
+            type: int
+            required: true
+            default: 3306
       rdp:
       sftp:
       smtp:

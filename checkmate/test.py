@@ -411,7 +411,7 @@ class StubbedWorkflowBase(unittest.TestCase):
             })
         # Add repetitive calls (per resource)
         for key, resource in self.deployment.get('resources', {}).iteritems():
-            desired = resource.get('desired-state')
+            desired = resource.get('desired-state') or {}
             if resource.get('type') == 'compute' and desired.get('image'):
                 if 'master' in resource['dns-name']:
                     fake_id = 10000 + int(key)  # legacy format
@@ -468,6 +468,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                         'status': "ACTIVE",
                                         'ip': '4.4.4.%s' % fake_ip,
                                         'private_ip': '10.1.2.%s' % fake_ip,
+                                        'public_ip': '4.4.4.%s' % fake_ip,
                                         'addresses': {
                                             'public': [
                                                 {
@@ -848,7 +849,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     'username',
                     resource_type=resource.get('type'),
                     provider_key=resource.get('provider'),
-                    default='wp_user_db1'
+                    default='db_user_1'
                 )
                 expected_calls.append({
                     # Create Database
@@ -869,6 +870,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                                             'host':
                                             'verylong.rackspaceclouddb.com',
                                             'database_name': 'db1',
+                                            'port': 3306,
                                         },
                                     }
                                 }

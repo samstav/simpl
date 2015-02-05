@@ -214,7 +214,7 @@ def get_flavor_ref(context, flavor_id):
 
 
 def create_instance(context, name, flavor, **kwargs):
-    """Calls _create_instance then formats the response for Checkmate
+    """Calls _create_instance then formats the response for Checkmate.
 
     :param context: must have attributes 'region', 'tenant', 'auth_token'.
                     'resource_key' is used in simulation mode.
@@ -347,7 +347,10 @@ def _build_create_response(region, instance, inputs):
         }
     else:
         interfaces = {
-            'mysql': {'host': instance.get('hostname')}
+            'mysql': {
+                'host': instance.get('hostname'),
+                'port': instance.get('port', 3306),
+            }
         }
     response['interfaces'] = interfaces
 

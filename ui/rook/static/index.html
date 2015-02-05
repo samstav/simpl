@@ -107,7 +107,8 @@
                   <li class="divider"></li>
                   <li id="nav-blueprints-github"><a href="/{{auth.context.tenantId}}/blueprints">Github</a></li>
                   <li id="nav-blueprints-tenant"><a href="/{{auth.context.tenantId}}/blueprints">Tenant</a></li>
-                  <li id="nav-wordpress-stacks"><a href="/deployments/wordpress-stacks">Wordpress Stacks</a></li>
+                  <li id="nav-wordpress-stacks"><a href="/deployments/stacks/wordpress">Wordpress</a></li>
+                  <li id="nav-magento-stacks"><a href="/deployments/stacks/magento">Magento</a></li>
                   <li class="divider"></li>
                   <li id="nav-blueprints-blank"><a href="/{{auth.context.tenantId}}/deployments/custom">Bring your own components (BYOC)</a></li>
                 </ul>
@@ -313,12 +314,13 @@
   <script src="/scripts/common/directives/componentOptions.js"></script>
 
   <!-- App -->
-  <script src="/scripts/common/services/blueprint.js"></script>
-  <script src="/scripts/common/services/blueprint-topology.js"></script>
-  <script src="/scripts/common/services/blueprint-topology-constants.js"></script>
-  <script src="/scripts/common/services/deployment.js"></script>
-  <script src="/scripts/common/services/deployment-editor.js"></script>
-  <script src="/scripts/common/services/catalog.js"></script>
+  <script src="/scripts/common/services/blueprint/blueprint.js"></script>
+  <script src="/scripts/common/services/blueprint/blueprint-topology.js"></script>
+  <script src="/scripts/common/services/blueprint/blueprint-topology-constants.js"></script>
+  <script src="/scripts/common/services/deployment/deployment.js"></script>
+  <script src="/scripts/common/services/deployment/flavors.js"></script>
+  <script src="/scripts/common/services/deployment/deployment-editor.js"></script>
+  <script src="/scripts/common/services/catalog/catalog.js"></script>
   <script src="/scripts/common/services/drag.js"></script>
   <script src="/scripts/app/applications/applications-configure.js"></script>
   <script src="/scripts/app/applications/applications.js"></script>

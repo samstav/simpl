@@ -895,7 +895,7 @@ def read_path(source, path):
         if part not in current:
             return
         current = current[part]
-        if not isinstance(current, dict):
+        if not isinstance(current, collections.MutableMapping):
             return
     return current.get(parts[-1])
 
@@ -909,7 +909,7 @@ def path_exists(source, path):
         return False
     current = source
     for part in parts:
-        if not isinstance(current, dict):
+        if not isinstance(current, collections.MutableMapping):
             return False
         if part not in current:
             return False

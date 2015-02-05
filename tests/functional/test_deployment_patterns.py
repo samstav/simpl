@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Deployment Patterns."""
+
 import unittest
 
 from checkmate import deployment as cmdep
@@ -25,6 +26,7 @@ from checkmate import utils
 
 
 class TestDeploymentValidation(unittest.TestCase):
+
     """Deployment validation works as expected."""
 
     def test_regex_pattern(self):

@@ -63,7 +63,8 @@ class TestDatabase(test.ProviderTester):
                         'disk': 1,
                         'interfaces': {
                             'mysql': {
-                                'host': 'mysql1.rax.net'
+                                'host': 'mysql1.rax.net',
+                                'port': 3306,
                             },
                         },
                         'databases': [
@@ -138,6 +139,7 @@ class TestDatabase(test.ProviderTester):
         instance.name = 'fake_instance'
         instance.status = 'ACTIVE'
         instance.hostname = 'fake.cloud.local'
+        instance.port = 4000
 
         # Create clouddb mock
         clouddb_api_mock = self.mox.CreateMockAnything()
@@ -153,7 +155,8 @@ class TestDatabase(test.ProviderTester):
                         'interfaces': {
                             'mysql': {
                                 'host': instance.hostname,
-                                'database_name': 'db1'
+                                'database_name': 'db1',
+                                'port': 4000,
                             }
                         },
                         'name': 'db1',

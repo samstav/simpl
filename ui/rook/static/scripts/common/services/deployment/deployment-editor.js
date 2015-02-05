@@ -5,7 +5,7 @@ angular.module('checkmate.DeploymentData')
       replace: true,
       scope: {},
       template: '<div class="deployment-editor">\
-                  <checkmate-codemirror checkmate-codemirror-opts="codemirror.options" ng-model="deployment" ui-refresh="codemirror.options.mode"></checkmate-codemirror>\
+                  <checkmate-codemirror checkmate-codemirror-opts="codemirror.options" ng-model="codeText" ui-refresh="codemirror.options.mode"></checkmate-codemirror>\
                   <div class="toggle-editor btn-group">\
                     <button class="btn btn-mini" \
                             ng-click="codemirror.toggleMode()"\
@@ -25,7 +25,7 @@ angular.module('checkmate.DeploymentData')
           return line.text.replace(/[^a-zA-Z0-9_-]+/g, "");
         };
 
-        $scope.deployment = '';
+        $scope.codeText = '';
 
         $scope.codemirror = {
           editor: null,
@@ -37,11 +37,11 @@ angular.module('checkmate.DeploymentData')
           toggleMode: function() {
             try {
               if ($scope.codemirror.options.mode == 'application/json') {
-                $scope.deployment = jsyaml.safeDump(JSON.parse($scope.deployment));
+                $scope.codeText = jsyaml.safeDump(JSON.parse($scope.codeText));
                 $scope.codemirror.options.mode = 'text/x-yaml';
                 $scope.codemirror.foldFunction = CodeMirror.newFoldFunction(CodeMirror.fold.indent);
               } else {
-                $scope.deployment = JSON.stringify(jsyaml.safeLoad($scope.deployment), undefined, 2);
+                $scope.codeText = JSON.stringify(jsyaml.safeLoad($scope.codeText), undefined, 2);
                 $scope.codemirror.options.mode = 'application/json';
                 $scope.codemirror.foldFunction = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
               }
@@ -111,9 +111,9 @@ angular.module('checkmate.DeploymentData')
           onLoad: function(_editor) {
             _editor.on("change", function(d) {
               try {
-                var deployment = jsyaml.load($scope.deployment);
+                var deployment = jsyaml.load($scope.codeText);
                 $scope.$emit('editor:nsync');
-                DeploymentData.set(deployment);
+                Blueprint.set(deployment);
               } catch(e) {
                 $scope.$emit('editor:out_of_sync');
                 $scope.$apply();
@@ -140,14 +140,14 @@ angular.module('checkmate.DeploymentData')
             var newDeployment;
 
             if($scope.codemirror.options.mode == 'application/json') {
-              newDeployment = JSON.stringify(data, undefined, 2);
+              newDeployment = JSON.stringify(data.blueprint, undefined, 2);
             } else {
-              newDeployment = jsyaml.safeDump(data);
+              newDeployment = jsyaml.safeDump(data.blueprint);
             }
 
-            if ($scope.deployment != newDeployment) {
+            if ($scope.codeText != newDeployment) {
               $timeout(function() {
-                $scope.deployment = newDeployment;
+                $scope.codeText = newDeployment;
               });
             }
           }
