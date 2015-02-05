@@ -9,7 +9,8 @@
   overflow: hidden;
 }
 .rs-app-launch-container .rs-app-launch-sidebar,
-.rs-app-launch-container .rs-app-prompt {
+.rs-app-launch-container .rs-app-prompt,
+.rs-app-launch-container .rs-app-config-controls {
   transition: width 0.5s ease, height 0.5s ease, transform 0.5s ease, top 0.5s ease, right 0.5s ease, bottom 0.5s ease, left 0.5s ease;
 }
 .rs-app-launch-container button,
@@ -226,16 +227,18 @@
 .rs-app-config-controls,
 .rs-app-launch-controls {
   position: absolute;
-  right: 0;
-  left: 0;
   height: 35px;
   padding: 10px;
 }
 .rs-app-config-controls {
+  left: 0;
+  right: 0%;
   top: -55px;
   z-index: 100;
 }
 .rs-app-launch-controls {
+  right: 0;
+  left: 0;
   bottom: -55px;
   background-color: #f5f5f5;
   z-index: 900;
@@ -266,7 +269,6 @@
 }
 
 .rs-app-config-controls.config-open {
-  width: 100%;
   top: 0;
   text-align: center;
 }
@@ -383,6 +385,9 @@
 .catalog-open .rs-app-launch-sidebar.stick-left.app-catalog {
   left: 0;
 }
+.catalog-open .rs-app-config-controls {
+  left: 260px;
+}
 
 /* App Selection */
 .rs-app-launch-sidebar.stick-left.app-selection {
@@ -425,6 +430,9 @@
 }
 .editor-open .codemirror-full-screen-button:hover i {
   opacity: 1;
+}
+.editor-open .rs-app-config-controls {
+  right: 30%;
 }
 
 /* Component Editor */
