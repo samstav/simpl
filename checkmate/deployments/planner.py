@@ -640,7 +640,8 @@ class Planner(classes.ExtensibleDict):
                                                    service_name))
             LOG.debug("Component '%s' identified as '%s' for service '%s'",
                       definition, component['id'], service_name)
-            self['services'][service_name]['component'] = component
+            self['services'][service_name]['component'] = copy.deepcopy(
+                component)
 
     def resolve_relations(self):
         """Identify source and target provides/requires/supports keys for all
