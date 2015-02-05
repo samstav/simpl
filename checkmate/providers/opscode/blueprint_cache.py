@@ -27,6 +27,7 @@ import time
 from checkmate import exceptions
 from checkmate import utils
 
+from checkmate.common import git as common_git
 from checkmate.common import config
 
 CONFIG = config.current()
@@ -106,6 +107,7 @@ class BlueprintCache(object):
         self.source_repo = source_repo
         self.github_token = github_token
         self._cache_path = os.path.join(repo_cache_base(), suffix)
+        self.repo = common_git.GitRepo(self._cache_path)
 
     @property
     def cache_path(self):
@@ -140,20 +142,19 @@ class BlueprintCache(object):
         """Cache exists, fetch latest (if stale) and perform checkout."""
         last_update = time.time() - os.path.getmtime(head_file)
         cache_expire_time = CONFIG.blueprint_cache_expiration
-        LOG.debug("(cache) cache_expire_time: %s", cache_expire_time)
-        LOG.debug("(cache) last_update: %s", last_update)
+        LOG.warning("(cache) cache_expire_time: %s", cache_expire_time)
+        LOG.warning("(cache) last_update: %s", last_update)
 
         if last_update > cache_expire_time:  # Cache miss
-            LOG.debug("(cache) Updating repo: %s", self.cache_path)
-            tags = utils.git_tags(self.cache_path)
+            LOG.warning("(cache) Updating repo: %s", self.cache_path)
+            tags = self.repo.list_tags()
             if ref in tags:
                 refspec = "refs/tags/" + ref + ":refs/tags/" + ref
                 try:
                     if token_remote:
-                        utils.git_fetch(self.cache_path, refspec,
-                                        remote=token_remote)
+                        self.repo.fetch(remote=token_remote, refspec)
                     else:
-                        utils.git_fetch(self.cache_path, refspec)
+                        self.repo.fetch(refspec=refspec)
                 except subprocess.CalledProcessError as exc:
                     LOG.warning("Unable to fetch tag '%s' from the git "
                                 "repository at %s. Using the cached repo."
@@ -162,24 +163,23 @@ class BlueprintCache(object):
             else:
                 try:
                     if token_remote:
-                        utils.git_fetch(self.cache_path, ref,
-                                        remote=token_remote)
+                        self.repo.fetch(remote=token_remote, refspec=ref)
                     else:
-                        utils.git_fetch(self.cache_path, ref)
+                        self.repo.fetch(refspec=ref)
                 except subprocess.CalledProcessError as exc:
                     LOG.warning("Unable to fetch ref '%s' from the git "
                                 "repository at %s. Using the cached "
                                 "repository. The output during error was %s",
                                 ref, url, exc.output)
         else:  # Cache hit
-            LOG.debug("(cache) Using cached repo: %s", self.cache_path)
+            LOG.warning("(cache) Using cached repo: %s", self.cache_path)
 
-        LOG.debug("(cache) Checking out ref '%s' in %s", ref, self.cache_path)
-        utils.git_checkout(self.cache_path, ref)
+        LOG.warning("(cache) Checking out ref '%s' in %s", ref, self.cache_path)
+        self.repo.checkout(ref)
 
     def _create_new_cache(self, url, ref, token_remote=None):
         """Create cache directory, init & clone the repository."""
-        LOG.debug("(cache) Cloning repo to %s", self.cache_path)
+        LOG.warning("(cache) Cloning repo to %s", self.cache_path)
         dirsmade = None
         try:
             os.makedirs(self.cache_path)
@@ -190,11 +190,11 @@ class BlueprintCache(object):
             pass
         try:
             if token_remote:
-                utils.git_init(self.cache_path)
-                utils.git_pull(self.cache_path, ref,
-                               remote=token_remote)
+                self.repo.init()
+                self.repo.commit(message='blank commit so HEAD exists')
+                self.repo.pull(remote=token_remote, ref=ref)
             else:
-                utils.git_clone(self.cache_path, url, branch_or_tag=ref)
+                self.repo.clone(url, branch_or_tag=ref)
         except subprocess.CalledProcessError as exc:
             trace = sys.exc_info()[2]
             if dirsmade:
@@ -205,9 +205,9 @@ class BlueprintCache(object):
                              % (url, exc.output))
             raise exceptions.CheckmateException, (error_message,), trace
         try:
-            tags = utils.git_tags(self.cache_path)
+            tags = self.repo.list_tags()
             if ref in tags:
-                utils.git_checkout(self.cache_path, ref)
+                self.repo.checkout(ref)
             # the ref *should* already be checked out
         except subprocess.CalledProcessError as exc:
             trace = sys.exc_info()[2]
