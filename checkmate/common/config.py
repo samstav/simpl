@@ -260,6 +260,32 @@ OPTIONS = [
                   type=config.comma_separated_pairs,
                   default=None
                   ),
+
+    #
+    # Anonymous Blueprints
+    #
+    config.Option("--without-anonymous",
+                  action='store_true',
+                  default=False,
+                  help="Disables anonymous endpoints"
+                  ),
+    config.Option("--anonymous-github-base-uri",
+                  default="https://api.github.com/",
+                  help="Root github API uri for the repository "
+                       "containing anonymous blueprints. "
+                       "ex: https://api.github.com/",
+                  ),
+    config.Option("--anonymous-github-org",
+                  default="checkmate-blueprints",
+                  help="The github organization owning the anonymous"
+                       "blueprint repositories.",
+                  ),
+    config.Option("--anonymous-github-ref",
+                  default="master",
+                  help="Branch/tag/reference denoting the version of "
+                  "anonymous blueprints to use.",
+                  ),
+
     #
     # Github Integration
     #
