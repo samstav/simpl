@@ -26,10 +26,10 @@ from Crypto.PublicKey import RSA
 from Crypto import Random
 
 from checkmate.common import config
-from checkmate import exceptions, utils
+from checkmate import exceptions
 from checkmate.providers.opscode.blueprint_cache import BlueprintCache
 from checkmate.providers.opscode.knife import Knife
-
+from checkmate import utils
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)

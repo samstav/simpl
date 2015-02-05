@@ -102,6 +102,7 @@ class Provider(base.BaseOpscodeProvider):
 
     def cleanup_temp_files(self, wfspec, deployment):
         """Cleans up temporary files created during a deployment
+
         :param wfspec: workflow spec
         :param deployment: deployment being worked on
         :return: root and final tasks for cleaning up the environment
@@ -228,8 +229,9 @@ class Provider(base.BaseOpscodeProvider):
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
-        """Write out or Transform data. Provide final task for relation sources
-        to hook into.
+        """Write out or Transform data.
+
+        Provide final task for relation sources to hook into.
         """
         LOG.debug("Adding connection task for resource '%s' for relation '%s'",
                   key, relation_key, extra={'data': {'resource': resource,
@@ -421,10 +423,10 @@ class Provider(base.BaseOpscodeProvider):
 
     def get_reconfigure_tasks(self, wfspec, deployment, client, server,
                               server_component, context):
-        """Gets (creates if does not exist) a task to reconfigure a server when
-        a client is ready.
+        """Gets a task to reconfigure a server when a client is ready.
 
-        This generates only one task per workflow which all clients tie in to.
+        The task is created if it does not exist. This generates only one task
+        per workflow which all clients tie in to.
         If it is desired for each client to trigger a separate call to
         reconfigure the server, then the client creation should be launched in
         a separate workflow.

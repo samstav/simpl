@@ -624,7 +624,7 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
         else:
             LOG.debug("Resource status %s was not found in status mapping",
                       status)
-            #TODO(Nate): add other updates like status-message etc.
+            # TODO(Nate): add other updates like status-message etc.
             return "UNDEFINED"
 
     def _verify_existing_resource(self, resource, key):

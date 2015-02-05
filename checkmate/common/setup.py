@@ -64,8 +64,9 @@ def parse_dependency_links(requirements_files=None):
 
 
 def _parse_requirement_line(line):
-    """Parse a line in a pip requirements file and return modules (with
-    version constraints if they exist).
+    """Parse a line in a pip requirements file
+
+    return modules (with version constraints if they exist).
     """
     parsed = None
     # skip comments and blank lines

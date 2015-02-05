@@ -161,6 +161,7 @@ def cache_blueprint(source_repo):
 
 def blueprint_exists(source, dest):
     """Check that all files in the source blueprint exist in the destination.
+
     """
     for source_file in os.listdir(source):
         dest_file = os.path.join(dest, source_file)
@@ -204,7 +205,7 @@ def create_workspace(context, name, source_repo=None):
     """
     utils.match_celery_logging(LOG)
 
-    #TODO(zns): add context
+    # TODO(zns): add context
     if context['simulation'] is True:
         return {
             'workspace': '/var/tmp/%s/' % name
