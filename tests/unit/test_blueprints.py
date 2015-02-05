@@ -193,6 +193,7 @@ class TestGitHubManagerTenantTag(unittest.TestCase):
         self.config.cache_dir = 'blah'
         self.config.group_refs = {}
         self.config.preview_tenants = []
+        self.config.github_token = None
         self._manager = blueprints.GitHubManager(self.config)
 
     def test_no_api(self):

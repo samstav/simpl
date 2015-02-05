@@ -132,9 +132,13 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
     templateUrl: '/partials/blueprints/blueprints-remote.html',
     controller: 'BlueprintRemoteListController'
   })
-  .when('/:tenantId/blueprints', {
+  .when('/blueprints', {
     templateUrl: '/partials/blueprints/blueprints-remote.html',
     controller: 'BlueprintRemoteListController'
+  })
+  .when('/:tenantId/blueprints', {
+    templateUrl: '/partials/blueprints/blueprints.html',
+    controller: 'BlueprintListController'
   })
   .when('/:tenantId/deployments', {
     templateUrl: '/partials/deployments/index.html',
@@ -3906,6 +3910,7 @@ function MagentoStackController($scope, $location) {
 checkmate.controller('DeploymentController', DeploymentController);
 checkmate.controller('DeploymentListController', DeploymentListController);
 checkmate.controller('BlueprintRemoteListController', BlueprintRemoteListController);
+checkmate.controller('DeploymentManagedCloudController', DeploymentManagedCloudController);
 checkmate.controller('BlueprintNewController', BlueprintNewController);
 checkmate.controller('DeploymentNewController', DeploymentNewController);
 checkmate.controller('DeploymentNewRemoteController', DeploymentNewRemoteController);

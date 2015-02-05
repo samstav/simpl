@@ -46,8 +46,8 @@ class TestConfig(unittest.TestCase):
         self.assertFalse(default.worker)
 
         self.assertFalse(default.webhook)
-        self.assertIsNone(default.github_api)
-        self.assertEqual(default.organization, 'Blueprints')
+        self.assertEqual(default.github_api, "https://api.github.com/v3")
+        self.assertEqual(default.organization, 'checkmate-blueprints')
         self.assertEqual(default.ref, 'master')
         self.assertIsNone(default.cache_dir)
         self.assertIsNone(default.preview_ref)

@@ -78,6 +78,8 @@ def _content_to_deployment(request=bottle.request, deployment_id=None,
             db.any_id_problems(entity['id']))
     if 'includes' in entity:
         del entity['includes']
+    if 'flavors' in entity:
+        del entity['flavors']
     if 'tenantId' in entity and tenant_id:
         if entity['tenantId'] != tenant_id:
             msg = "tenantId must match with current tenant ID"

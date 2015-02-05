@@ -182,10 +182,11 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
                 request=mock_request, deployment_id='Dtest', tenant_id='Ttest')
         )
 
+    @mock.patch('checkmate.common.config.current')
     @mock.patch('checkmate.deployment.utils.get_time_string')
     @mock.patch('checkmate.deployments.router.utils.read_body')
     def test_untrusted_request_but_no_github_config(
-            self, mock_read_body, mock_get_time_string):
+            self, mock_read_body, mock_get_time_string, mock_config):
         mock_read_body.return_value = {
             'deployment': {
                 'tenantId': 'Ttest',
@@ -197,6 +198,13 @@ class TestPostDeployment_content_to_deployment(unittest.TestCase):
         context.username = 'Me'
         mock_request.environ = {'context': context}
         mock_request.headers = {'X-Source-Untrusted': 'True'}
+        config = mock.Mock()
+        config.github_api = None
+        config.github_token = None
+        config.organization = None
+        config.ref = None
+        config.cache_dir = None
+        mock_config.return_value = config
         with self.assertRaises(cmexc.CheckmateValidationException) as expected:
             router._content_to_deployment(
                 request=mock_request, deployment_id='Dtest', tenant_id='Ttest')

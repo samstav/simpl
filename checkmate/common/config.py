@@ -223,12 +223,13 @@ OPTIONS = [
                   help="Root github API uri for the repository "
                        "containing blueprints. "
                        "ex: https://api.github.com/v3",
+                  default="https://api.github.com/v3",
                   env="CHECKMATE_GITHUB_ENDPOINT",
                   ),
     config.Option("-o", "--organization",
                   help="The github organization owning the "
                        "blueprint repositories",
-                  default="Blueprints"
+                  default="checkmate-blueprints"
                   ),
     config.Option("-r", "--ref",
                   help="Branch/tag/reference denoting the version of "
