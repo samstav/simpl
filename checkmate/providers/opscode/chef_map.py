@@ -501,8 +501,6 @@ class ChefMap(object):
         if 'source' in mapping:
             url = ChefMap.parse_map_uri(mapping['source'])
             if url['scheme'] in ['requirements', 'supported', 'clients']:
-                #if 'database_name' in mapping['source']:
-                #    import ipdb;ipdb.set_trace()
                 path = mapping.get('path', url['netloc'])
                 full_path = os.path.join(path, url['path'])
                 alt_path = mapping.get('alt_path')

@@ -207,7 +207,7 @@ class Provider(base.BaseOpscodeProvider):
             merge_results=True,
             identity_file=operators.Attrib('private_key_path'),
             description="Bootstrap server as a Chef client",
-            defines=dict(resource=key, provider=self.key),
+            defines={'resource': key, 'provider': self.key},
             properties={'estimated_duration': 100, 'task_tags': ['final']},
             **kwargs
         )
@@ -382,12 +382,12 @@ class Provider(base.BaseOpscodeProvider):
                 ],
                 environment=deployment['id'],
                 attributes=attributes,
-                defines=dict(
-                    resource=key, relation=relation_key, provider=self.key,
-                    task_tags=['final']
-                ),
+                defines={
+                    'resource': key, 'relation': relation_key,
+                    'provider': self.key, 'task_tags': ['final']
+                },
                 description=("Register the node on the Chef server"),
-                properties=dict(estimated_duration=120),
+                properties={'estimated_duration': 120},
                 **kwargs
             )
             # Register only when server is up and environment is ready
@@ -396,14 +396,14 @@ class Provider(base.BaseOpscodeProvider):
             root = wfspec.wait_for(
                 register_node_task, wait_on,
                 name="After Environment is Ready and Server %s (%s) is Up" %
-                    (relation['target'], service_name),
+                (relation['target'], service_name),
                 resource=key, relation=relation_key, provider=self.key
             )
             if 'task_tags' in root.properties:
                 root.properties['task_tags'].append('root')
             else:
                 root.properties['task_tags'] = ['root']
-            return dict(root=root, final=register_node_task)
+            return {'root': root, 'final': register_node_task}
 
         # Inform server when a client is ready if it has client mappings
         # TODO(zns): put this in an add_client_ready_tasks for all providers or
