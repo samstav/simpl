@@ -598,6 +598,7 @@ DEPLOYMENT_SCHEMA_DICT = {
     'check-limit-results': object,
     'check-access-results': object,
     'includes': object,  # temp store for YAML-referenced parts (then removed)
+    'flavors': object,
 }
 DEPLOYMENT_SCHEMA = Schema(DEPLOYMENT_SCHEMA_DICT, required=False)
 
