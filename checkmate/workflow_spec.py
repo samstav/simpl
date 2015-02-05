@@ -431,23 +431,13 @@ class WorkflowSpec(specs.WorkflowSpec):
                 # Attach unattached tasks
                 wf_spec.start.connect(provider_result['root'])
             # Process hosting relationship before the hosted resource
-            if 'hosts' in resource:
-                for index in resource['hosts']:
-                    hosted_resource = deployment['resources'][index]
-                    relations = [(k, r) for k, r in
-                                 hosted_resource['relations'].items()
-                                 if (r.get('relation') == 'host'
-                                     and r['target'] == key)]
-                    if len(relations) > 1:
-                        error_message = ("Multiple 'host' relations for "
-                                         "resource '%s'" % key)
-                        raise exceptions.CheckmateException(error_message)
-                    name, relation = relations[0]
-                    # Call connection source to add tasks
-                    provider = providers[hosted_resource['provider']]
-                    WorkflowSpec.add_connection_tasks(
-                        provider, wf_spec, hosted_resource, index, relation,
-                        'host', deployment, context)
+            for name, relation, hosted_resource in WorkflowSpec.\
+                    host_relations_iter(resource, deployment):
+                # Call connection source to add tasks
+                provider = providers[hosted_resource['provider']]
+                WorkflowSpec.add_connection_tasks(
+                    provider, wf_spec, hosted_resource, relation, 'host',
+                    deployment, context)
 
         # Do relations
         for key, resource in non_deleted_resources.iteritems():
@@ -464,7 +454,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                         # Call connection source to add tasks
                         provider = providers[resource['provider']]
                         WorkflowSpec.add_connection_tasks(
-                            provider, wf_spec, resource, key, relation, name,
+                            provider, wf_spec, resource, relation, name,
                             deployment, context)
 
                         # Call connection target to respond with tasks
@@ -475,24 +465,13 @@ class WorkflowSpec(specs.WorkflowSpec):
                             deployment, context)
 
            # Process client side of hosting relationship
-            if 'hosts' in resource:
-                for index in resource['hosts']:
-                    hosted_resource = deployment['resources'][index]
-                    relations = [(k, r) for k, r in
-                                 hosted_resource['relations'].items()
-                                 if (r.get('relation') == 'host'
-                                     and r['target'] == key)]
-                    if len(relations) > 1:
-                        error_message = ("Multiple 'host' relations for "
-                                         "resource '%s'" % key)
-                        raise exceptions.CheckmateException(error_message)
-                    name, relation = relations[0]
-
-                    # Call connection target to respond with tasks
-                    provider = providers[resource['provider']]
-                    WorkflowSpec.add_client_ready_tasks(
-                        provider, wf_spec, resource, key, relation, name,
-                        deployment, context)
+            for name, relation, hosted_resource in WorkflowSpec.\
+                    host_relations_iter(resource, deployment):
+                # Call connection target to respond with tasks
+                provider = providers[resource['provider']]
+                WorkflowSpec.add_client_ready_tasks(
+                    provider, wf_spec, resource, hosted_resource['index'],
+                    relation, name, deployment, context)
 
         for key, provider in providers.iteritems():
             cleanup_result = provider.cleanup_temp_files(wf_spec, deployment)
@@ -505,6 +484,28 @@ class WorkflowSpec(specs.WorkflowSpec):
             noop = specs.Simple(wf_spec, "end")
             wf_spec.start.connect(noop)
         return wf_spec
+
+    @staticmethod
+    def host_relations_iter(resource, deployment):
+        """Create iterator over a resource's host relations.
+
+        :returns: iterator returning tuple of relation name(str),
+                  relation(dict), and resource (dict)
+        """
+        if 'hosts' not in resource:
+            return
+        for index in resource['hosts']:
+            hosted_resource = deployment['resources'][index]
+            relations = [(k, r) for k, r in
+                         hosted_resource['relations'].items()
+                         if (r.get('relation') == 'host'
+                             and r['target'] == resource['index'])]
+            if len(relations) > 1:
+                error_message = ("Multiple 'host' relations for "
+                                 "resource '%s'" % resource['index'])
+                raise exceptions.CheckmateException(error_message)
+            name, relation = relations[0]
+            yield name, relation, hosted_resource
 
     @staticmethod
     def add_connection_tasks(provider, wf_spec, resource, relation, name,
