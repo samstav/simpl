@@ -158,7 +158,7 @@ class BlueprintCache(object):
                 refspec = "refs/tags/" + ref + ":refs/tags/" + ref
                 try:
                     if token_remote:
-                        self.repo.fetch(remote=token_remote, refspec)
+                        self.repo.fetch(remote=token_remote, refspe=refspec)
                     else:
                         self.repo.fetch(refspec=refspec)
                 except subprocess.CalledProcessError as exc:
