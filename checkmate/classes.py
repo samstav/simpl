@@ -16,6 +16,7 @@
 """Utility Classes."""
 
 import collections
+import copy
 import json
 
 from checkmate.common import schema
@@ -58,6 +59,12 @@ class ExtensibleDict(collections.MutableMapping):
     def __dict__(self):
         return self._data
 
+    def __copy__(self):
+        return type(self)(self._data.copy())
+
+    def __deepcopy__(self, memo):
+        return type(self)(copy.deepcopy(self._data, memo))
+
     def dumps(self, *args, **kwargs):
         """Dump json string of this class,
 
@@ -66,6 +73,13 @@ class ExtensibleDict(collections.MutableMapping):
         if 'default' not in kwargs:
             kwargs['default'] = lambda obj: obj.__dict__
         return json.dumps(self._data, *args, **kwargs)
+
+    def update(self, data):
+        """Update data of this class,
+
+        This is required when creating a copy or deepcopy of this class
+        """
+        return self._data.update(data)
 
     @classmethod
     def validate(cls, obj):

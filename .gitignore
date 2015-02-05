@@ -96,3 +96,8 @@ tests/coverage.xml
 .rvmrc
 .ruby-gemset
 /cookbooks/
+
+### Berkshelf
+Berksfile.lock
+
+.ropeproject
