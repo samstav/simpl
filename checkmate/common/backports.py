@@ -1,19 +1,24 @@
 #    License: Python Software Foundation License
 #
 #         http://opensource.org/licenses/Python-2.0
+#
+# pylint: skip-file
 
 """Backports from stdlib > 2.7"""
 from __future__ import print_function
 
 import os
-import tempfile
 import sys
+import tempfile
 import warnings
 
 
 class TemporaryDirectory(object):
-    """Create and return a temporary directory.  This has the same
-    behavior as tempfile.mkdtemp but can be used as a context manager.
+    """Create and return a temporary directory.
+
+    This has the same behavior as tempfile.mkdtemp but can be used
+    as a context manager.
+
     For example:
         with TemporaryDirectory() as tmpdir:
             ...
