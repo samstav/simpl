@@ -184,10 +184,13 @@ class BlueprintCache(object):
         try:
             os.makedirs(self.cache_path)
             dirsmade = self.cache_path
-        except OSError:
-            # makedirs() will not overwrite: cache_path exists
-            # previous clone likely failed
-            pass
+        except OSError as err:
+            if err.errno == errno.EEXIST:
+                # makedirs() will not overwrite: cache_path exists
+                # previous clone likely failed
+                pass
+            else:
+                raise
         try:
             if token_remote:
                 self.repo.init()
