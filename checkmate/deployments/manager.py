@@ -25,20 +25,16 @@ import eventlet
 
 from .planner import Planner
 from checkmate import db
+from checkmate.deployment import Deployment
+from checkmate.deployment import generate_keys
+from checkmate.exceptions import CheckmateBadState
+from checkmate.exceptions import CheckmateDoesNotExist
+from checkmate.exceptions import CheckmateValidationException
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow
 from checkmate import workflow_spec
 from checkmate import workflows
-from checkmate.deployment import (
-    Deployment,
-    generate_keys,
-)
-from checkmate.exceptions import (
-    CheckmateBadState,
-    CheckmateDoesNotExist,
-    CheckmateValidationException,
-)
 
 LOG = logging.getLogger(__name__)
 
@@ -85,7 +81,7 @@ class Manager(object):
             status=status,
             query=query,
         )
-        #FIXME: inefficient and not fail-safe. We need better secrets handling
+        # FIXME: inefficient and not fail-safe. We need better secrets handling
         for dep in results['results'].itervalues():
             outputs = dep.get('display-outputs')
             if outputs:
@@ -233,7 +229,7 @@ class Manager(object):
 
     def update_deployment_secrets(self, api_id, data, tenant_id=None):
         """Update the passwords and keys of a single deployment."""
-        #FIXME: test this
+        # FIXME: test this
         entity = self.get_deployment(api_id, tenant_id=tenant_id,
                                      with_secrets=True)
         updates = {}
@@ -349,7 +345,9 @@ class Manager(object):
         return deployment
 
     def reset_failed_resource(self, deployment_id, resource_id):
-        """Create a copy of a failed resource and appends it at the end of
+        """Create a copy of a failed resource
+
+        Create a copy of a failed resource and appends it at the end of
         the resources collection.
 
         :param deployment_id:
@@ -379,7 +377,7 @@ class Manager(object):
                                  partial=True)
 
     def postback(self, dep_id, contents):
-        #TODO(any): we need to receive a context and check access?
+        # TODO(any): we need to receive a context and check access?
         """Generic postback intended to handle all postback calls.
 
         Accepts back results from a remote call and updates the deployment with
@@ -440,8 +438,9 @@ class Manager(object):
 
     def deploy_workflow(self, context, deployment, tenant_id, wf_type,
                         workflow_id=None, **kwargs):
-        """Create a workflow and operation based on the passed in workflow
-        type.
+        """Create a workflow and operation
+
+        based on the passed in workflow type.
 
         :param context: request context
         :param deployment: deployment

@@ -36,8 +36,8 @@ TODO:
 
 import logging
 
-from checkmate import utils
 from checkmate.db import db_lock
+from checkmate import utils
 
 LOG = logging.getLogger()
 

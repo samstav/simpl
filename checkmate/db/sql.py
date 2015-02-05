@@ -23,20 +23,18 @@ import re
 import time
 import uuid
 
-from sqlalchemy import (
-    Column,
-    Integer,
-    ForeignKey,
-    String,
-    Text,
-    PickleType,
-    Float,
-    event
-)
+from sqlalchemy import Column
 from sqlalchemy import create_engine
 from sqlalchemy.engine.base import Engine
+from sqlalchemy import event
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Float
+from sqlalchemy import ForeignKey
+from sqlalchemy import Integer
 from sqlalchemy import or_
+from sqlalchemy import PickleType
+from sqlalchemy import String
+from sqlalchemy import Text
 from sqlalchemy.orm import sessionmaker, scoped_session, relationship
 from sqlalchemy.pool import StaticPool
 
@@ -44,19 +42,17 @@ from SpiffWorkflow import util as swfutil
 import sqlite3
 
 from checkmate import classes
-from checkmate.db.common import (
-    DbBase,
-    DEFAULT_RETRIES,
-    DEFAULT_STALE_LOCK_TIMEOUT,
-    DEFAULT_TIMEOUT,
-    DatabaseTimeoutException,
-    ObjectLockedError,
-    InvalidKeyError
-)
-from checkmate.exceptions import (
-    CheckmateException,
-    CheckmateInvalidParameterError,
-)
+from checkmate.db.common import DatabaseTimeoutException
+from checkmate.db.common import DbBase
+from checkmate.db.common import DEFAULT_RETRIES
+from checkmate.db.common import DEFAULT_STALE_LOCK_TIMEOUT
+from checkmate.db.common import DEFAULT_TIMEOUT
+from checkmate.db.common import InvalidKeyError
+from checkmate.db.common import ObjectLockedError
+
+from checkmate.exceptions import CheckmateException
+from checkmate.exceptions import CheckmateInvalidParameterError
+
 from checkmate import utils
 
 
@@ -246,7 +242,7 @@ class Driver(DbBase):
     def __setstate__(self, state_dict):
         """Support deserializing from connection string."""
         DbBase.__setstate__(self, state_dict)
-        #FIXME: make DRY
+        # FIXME: make DRY
         if self.connection_string == 'sqlite://':
             self.engine = create_engine(self.connection_string,
                                         connect_args={
@@ -403,7 +399,7 @@ class Driver(DbBase):
             merge_existing=partial
         )
 
-    #BLUEPRINTS
+    # BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
         """Retrieve a blueprint by blueprint id."""
         return self._get_object(Blueprint, api_id, with_secrets=with_secrets)
@@ -549,12 +545,12 @@ class Driver(DbBase):
             body = body.__dict__()
         assert isinstance(body, dict), "dict required by sqlalchemy backend"
 
-        #object locking logic
+        # object locking logic
         results = None
         tries = 0
         lock_timestamp = time.time()
         while tries < DEFAULT_RETRIES:
-            #try to get the lock
+            # try to get the lock
             updated = self.session.query(klass).filter_by(
                 id=api_id,
                 locked=0
@@ -562,7 +558,7 @@ class Driver(DbBase):
             self.session.commit()
 
             if updated > 0:
-                #get the object that we just locked
+                # get the object that we just locked
                 results = self.session.query(klass).filter_by(id=api_id,
                                                               locked=
                                                               lock_timestamp)
@@ -574,13 +570,13 @@ class Driver(DbBase):
                 existing_object = self.session.query(klass)\
                     .filter_by(id=api_id).first()
                 if not existing_object:
-                    #this is a new object
+                    # this is a new object
                     break
 
                 elif ((lock_timestamp - existing_object.locked) >=
                       DEFAULT_STALE_LOCK_TIMEOUT):
 
-                    #the lock is stale, remove it
+                    # the lock is stale, remove it
                     stale_lock_object = \
                         self.session.query(klass).filter_by(
                             id=api_id,
@@ -591,7 +587,7 @@ class Driver(DbBase):
                     results = self.session.query(klass).filter_by(id=api_id)
 
                     if stale_lock_object:
-                        #updated the stale lock
+                        # updated the stale lock
                         break
 
                 if (tries + 1) == DEFAULT_RETRIES:
@@ -636,7 +632,7 @@ class Driver(DbBase):
         else:
             assert klass is Blueprint or tenant_id or 'tenantId' in body, \
                 "tenantId must be specified"
-            #new item
+            # new item
             entry = klass(id=api_id, body=body, tenant_id=tenant_id,
                           secrets=secrets, locked=0)
 

@@ -55,7 +55,9 @@ LOG = logging.getLogger(__name__)
 
 
 def simple_decorator(decorator):
-    """Borrowed from:
+    """This can be used to turn simple functions into decorators
+
+    Borrowed from:
     http://wiki.python.org/moin/PythonDecoratorLibrary#Property_Definition
 
     Original docstring:

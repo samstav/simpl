@@ -423,7 +423,9 @@ HANDLERS = {
 
 
 def formatted_response(uripath, with_pagination=False):
-    """A function decorator that adds pagination information to the response
+    """A function decorator
+
+    A function decorator that adds pagination information to the response
     header of a route/get/post/put function.
     """
     def _formatted_response(fxn):
@@ -558,7 +560,7 @@ def write_body(data, request, response):
             return HANDLERS[content_type](
                 data, request, response)
 
-    #Use default
+    # Use default
     return HANDLERS['default'](data, request, response)
 
 

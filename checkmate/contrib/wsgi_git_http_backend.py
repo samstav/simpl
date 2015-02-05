@@ -1,3 +1,16 @@
+# Copyright (c) 2011-2015 Rackspace US, Inc.
+# All Rights Reserved.
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
 """Utility functions to invoke git-http-backend in a Bottle context.
 
 Original Author+Credit: Walker Hale IV <walker.hale.iv@gmail.com>
@@ -32,11 +45,11 @@ def wsgi_to_git_http_backend(wsgi_environ, user=None):
     cgi_header, response_body_generator = run_git_http_backend(
         cgi_environ, input_stream, error_stream
     )
-    #print "[attempt]\n"
+    # print "[attempt]\n"
     status_line, list_of_headers = parse_cgi_header(cgi_header)
-    #print "[status]: "+str(status_line)+"\n"
-    #print "[headers]: "+str(dict(list_of_headers))+"\n"
-    #print "[body]: "+repr(response_body_generator)+"\n"
+    # print "[status]: "+str(status_line)+"\n"
+    # print "[headers]: "+str(dict(list_of_headers))+"\n"
+    # print "[body]: "+repr(response_body_generator)+"\n"
     return status_line, list_of_headers, response_body_generator
 
 
