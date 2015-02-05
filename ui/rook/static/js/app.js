@@ -67,13 +67,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
         var repo = $route.current.params.repo;
         var flavor = $route.current.params.flavor;
 
-        if(owner && repo) {
-          return github.get_public_blueprint(owner, repo, flavor);
-        } else {
-          Flavors.reset();
-        }
-
-        return undefined;
+        return github.get_public_blueprint(owner, repo, flavor);
       }
     }
   })

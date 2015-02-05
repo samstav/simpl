@@ -53,11 +53,16 @@ angular.module('checkmate.Flavors')
           $location.search('flavor', null);
         }
 
-        $rootScope.$broadcast('flavors:select', blueprint);
+        return $rootScope.$broadcast('flavors:select', blueprint);
       };
 
       flavors.set = function(deployment) {
         var selected;
+
+        if(!deployment.flavors) {
+          this.reset();
+          return;
+        }
 
         this.original = angular.copy(deployment);
         this.data = angular.copy(deployment.flavors);
@@ -82,7 +87,7 @@ angular.module('checkmate.Flavors')
           this.selected = flavors.default.id;
         }
 
-        this.select();
+        return this.select();
       };
 
       return flavors;
