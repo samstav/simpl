@@ -800,7 +800,9 @@ angular.module('checkmate.Blueprint')
               }
             });
 
-          orient(blueprint['meta-data'].annotations['gui-zoom']);
+          if(blueprint['meta-data'].annotations) {
+            orient(blueprint['meta-data'].annotations['gui-zoom']);
+          }
         }
 
         function orient(data) {
