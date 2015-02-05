@@ -11,7 +11,7 @@ angular.module('checkmate.Flavors')
       template: '<select id="flavor" \
                           ng-model="flavors.selected" \
                           ng-change="flavors.select()" \
-                          ng-options="flavor.id as flavor.name for flavor in flavors.list" \
+                          ng-options="flavor.id as flavor.name for flavor in flavors.list | orderBy:weight" \
                           required> \
                   </select>'
     };
@@ -26,7 +26,8 @@ angular.module('checkmate.Flavors')
       flavors.list = [];
       flavors.default = {
         id: 'original',
-        name: 'Original'
+        name: 'Original',
+        weight: 10000
       };
       flavors.selected = flavors.default.id;
       flavors.original = {};
@@ -69,7 +70,8 @@ angular.module('checkmate.Flavors')
         this.data[flavors.default.id] = {
           blueprint: {
             'meta-data': {
-              flavor: flavors.default.name
+              flavor: flavors.default.name,
+              'flavor-weight': flavors.default.weight
             }
           }
         };
@@ -77,7 +79,8 @@ angular.module('checkmate.Flavors')
         this.list = angular.copy(_.map(this.data, function(flav, id) {
           return {
             'name': ((flav.blueprint || {})['meta-data'] || {}).flavor,
-            'id': id
+            'id': id,
+            'weight': ((flav.blueprint || {})['meta-data'] || {})['flavor-weight']
           };
         }));
 
