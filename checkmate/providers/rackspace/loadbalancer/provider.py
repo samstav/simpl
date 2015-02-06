@@ -74,7 +74,8 @@ class Provider(rsbase.RackspaceProviderBase):
         'ERROR': 'ERROR',
         'PENDING_UPDATE': 'CONFIGURE',
         'PENDING_DELETE': 'DELETING',
-        'SUSPENDED': 'ERROR'
+        'SUSPENDED': 'ERROR',
+        'OFFLINE': 'OFFLINE',
     }
 
     def _get_connection_params(self, connections, deployment, index,
