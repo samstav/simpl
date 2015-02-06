@@ -479,7 +479,7 @@ class Router(object):
         body = utils.read_body(bottle.request)
         service_name = body.get('service_name')
         count = int(body.get('count', 0))
-        status = body.get('status', 'ONLINE')
+        status = body.get('status', 'ONLINE').upper()
 
         if not service_name or count <= 0:
             raise exceptions.CheckmateValidationException(
