@@ -2,8 +2,23 @@ FROM debian:wheezy
 
 # Base packages and Python install
 ADD docker/config/sources.list /etc/apt/
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y procps autoconf build-essential python python-dev python-pip git libssl-dev
-RUN pip install -U pip
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
+    apt-get install -y \
+    procps \
+    autoconf \
+    build-essential \
+    python \
+    python-dev \
+    git \
+    libssl-dev \
+    wget
+
+# Install pip from get-pip in order to avoid issues with the Ubuntu pip
+# package and issues with using easy_install to install pip. This is
+# ridiculous, but the only way I could get everything to work...
+RUN wget -O /tmp/get-pip.py https://raw.githubusercontent.com/pypa/pip/1.5.6/contrib/get-pip.py
+RUN python /tmp/get-pip.py
+
 RUN pip install -U distribute
 RUN pip install supervisor
 RUN pip install superlance
