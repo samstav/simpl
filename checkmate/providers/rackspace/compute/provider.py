@@ -193,6 +193,8 @@ class Provider(RackspaceComputeProviderBase):
         'ERROR': 'ERROR',
         'HARD_REBOOT': 'CONFIGURE',
         'MIGRATING': 'CONFIGURE',
+        'ONLINE': 'ACTIVE',
+        'OFFLINE': 'OFFLINE',
         'PASSWORD': 'CONFIGURE',
         'REBOOT': 'CONFIGURE',
         'REBUILD': 'BUILD',
