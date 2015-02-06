@@ -241,6 +241,8 @@ OPTIONS = [
                   ),
     config.Option("--blueprint-cache-expiration",
                   env="CHECKMATE_BLUEPRINT_CACHE_EXPIRE",
+                  type=int,
+                  default=3600,
                   ),
     config.Option("--preview-ref",
                   help="version of deployment templates for preview",

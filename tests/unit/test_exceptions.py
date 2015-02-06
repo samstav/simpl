@@ -98,7 +98,7 @@ class TestCheckmateException(unittest.TestCase):
     def test_calls_superclass_with_correct_parameters(self):
         exc = cmexc.CheckmateCalledProcessError(
             "RETURN_CODE", "EXECUTED_COMMAND", output="OUTPUT_MESSAGE")
-        self.assertEqual("Call EXECUTED_COMMAND failed with return code "
+        self.assertEqual("Call `EXECUTED_COMMAND` failed with return code "
                           "RETURN_CODE: OUTPUT_MESSAGE", exc.message)
         self.assertEqual(cmexc.UNEXPECTED_ERROR, exc.friendly_message)
         self.assertFalse(exc.resumable)

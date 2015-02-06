@@ -27,6 +27,7 @@ import json
 import logging.config
 import os
 import re
+import shlex
 import shutil
 import string
 import struct
@@ -998,6 +999,54 @@ def evaluate(function_string):
     raise NameError("Unsupported function: %s" % function_string)
 
 
+def execute_shell(command, with_returncode=True, cwd=None, strip=True):
+    """Execute a command (containing no shell operators) locally.
+
+    Raises CheckmateCalledProcessError on non-zero exit status.
+
+    :param command:         Shell command to be executed. If the value is
+                            a string, it will be split using shlex.split()
+                            to return a shell-like syntax as a list. If the
+                            value is a list, it will be passed directly to
+                            Popen.
+    :param with_returncode: Include the exit_code in the return body.
+                            Default is True.
+    :param cwd:             The child's current directory will be changed
+                            to `cwd` before it is executed. Note that this
+                            directory is not considered when searching the
+                            executable, so you can't specify the program's
+                            path relative to this argument. Value should not
+                            be quoted or shell escaped, since it is passed
+                            directly to os.chdir() by subprocess.Popen
+    :param strip:           Strip the output of whitespace using str.strip()
+    :returns:               A dict with 'stdout', and (optionally),
+                            'returncode'
+
+    Note:   Popen is called with stderr=subprocess.STDOUT, which sends
+            all stderr to stdout.
+    """
+    if isinstance(command, basestring):
+        cmd = shlex.split(command)
+    elif isinstance(command, list):
+        cmd = command
+        command = " ".join(cmd)
+    else:
+        raise TypeError("'command' should be a string or a list")
+    LOG.debug("Executing `%s` on local machine", command)
+    LOG.debug("Command after split: %s" % cmd)
+    pope = subprc.Popen(
+        cmd, stdout=subprc.PIPE, stderr=subprc.STDOUT, cwd=cwd,
+        universal_newlines=True)
+    out, err = pope.communicate()
+    out = {'stdout': out.strip() if strip else out}
+    if pope.returncode != 0:
+        raise cmexc.CheckmateCalledProcessError(
+            pope.returncode, command, output=out['stdout'])
+    if with_returncode:
+        out.update({'returncode': pope.returncode})
+    return out
+
+
 def check_all_output(params, find="ERROR", env=None, cwd=None):
     """Detect 'find' string in params, returning a list of all matching lines.
 
@@ -1068,38 +1117,6 @@ def get_id(is_sim):
     else:
         return uuid.uuid4().hex
 
-
-def git_init(repo_dir):
-    """Do a git init in `repo_dir'."""
-    return subprc.check_output(['git', 'init'], cwd=repo_dir)
-
-
-def git_clone(repo_dir, url, branch="master"):
-    """Do a git checkout of `head' in `repo_dir'."""
-    return subprc.check_output(
-        ['git', 'clone', url, repo_dir, '--branch', branch])
-
-
-def git_tags(repo_dir):
-    """Return a list of git tags for the git repo in `repo_dir'."""
-    return subprc.check_output(
-        ['git', 'tag', '-l'], cwd=repo_dir).split("\n")
-
-
-def git_checkout(repo_dir, head):
-    """Do a git checkout of `head' in `repo_dir'."""
-    return subprc.check_output(['git', 'checkout', head], cwd=repo_dir)
-
-
-def git_fetch(repo_dir, refspec, remote="origin"):
-    """Do a git fetch of `refspec' in `repo_dir'."""
-    return subprc.check_output(
-        ['git', 'fetch', remote, refspec], cwd=repo_dir)
-
-
-def git_pull(repo_dir, head, remote="origin"):
-    """Do a git pull of `head' from `remote'."""
-    return subprc.check_output(['git', 'pull', remote, head], cwd=repo_dir)
 
 
 def copy_contents(source, dest, with_overwrite=False, create_path=True):
