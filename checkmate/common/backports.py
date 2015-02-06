@@ -4,7 +4,7 @@
 #
 # pylint: skip-file
 
-"""Backports from stdlib > 2.7"""
+"""Backports from stdlib > 2.7."""
 from __future__ import print_function
 
 import os
@@ -14,6 +14,7 @@ import warnings
 
 
 class TemporaryDirectory(object):
+
     """Create and return a temporary directory.
 
     This has the same behavior as tempfile.mkdtemp but can be used
@@ -27,13 +28,16 @@ class TemporaryDirectory(object):
     """
 
     def __init__(self, suffix="", prefix=tempfile.template, dir=None):
+        """Initialize and create the tempdir."""
         self.name = tempfile.mkdtemp(suffix, prefix, dir)
         self._closed = False
 
     def __enter__(self):
+        """Context manager entrace."""
         return self.name
 
     def cleanup(self, _warn=False):
+        """Gracefully remove the tempdir."""
         if self.name and not self._closed:
             try:
                 self._rmtree(self.name)
@@ -52,9 +56,11 @@ class TemporaryDirectory(object):
                            Warning)
 
     def __exit__(self, exc, value, tb):
+        """Context manager exits."""
         self.cleanup()
 
     def __del__(self):
+        """Destructor, ensure cleanup occurs."""
         # Issue a ResourceWarning if implicit cleanup needed
         self.cleanup(_warn=True)
 

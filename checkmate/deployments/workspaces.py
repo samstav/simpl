@@ -30,11 +30,8 @@ Examples:
 """
 
 import errno
-import hashlib
 import logging
 import os
-import subprocess
-import time
 
 from celery.task import task
 
@@ -103,9 +100,7 @@ def cache_blueprint(source_repo):
 
 
 def blueprint_exists(source, dest):
-    """Check that all files in the source blueprint exist in the destination.
-
-    """
+    """Check that all files in the source blueprint exist at destination."""
     for source_file in os.listdir(source):
         dest_file = os.path.join(dest, source_file)
         if not os.path.exists(dest_file):
