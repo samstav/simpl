@@ -790,10 +790,6 @@ class TestDeploymentSettings(unittest.TestCase):
                 'name': "keys/count",
                 'expected': 3
             }, {
-                'case': "Path in settings 3",
-                'name': "setting_1",
-                'expected': "Single value"
-            }, {
                 'case': "Not in settings path",
                 'name': "keys/bob/foo",
                 'expected': None

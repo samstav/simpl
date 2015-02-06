@@ -637,8 +637,11 @@ class Deployment(ExtensibleDict):
         return default
 
     def _get_setting_value(self, name):
-        """Get a value from the deployment hierarchy with support for paths."""
-        if name:
+        """Get a value from the deployment hierarchy with support for paths.
+
+        But does not allow root items.
+        """
+        if name and isinstance(name, basestring) and '/' in name:
             node = self
             for key in name.split("/"):
                 if key in node:
