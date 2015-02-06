@@ -48,6 +48,7 @@ from checkmate import exceptions
 LOG = logging.getLogger(__name__)
 DEFAULT_CACHE_TIMEOUT = 10 * 60
 BLUEPRINT_CACHE = {}
+ANONYMOUS_BLUEPRINT_CACHE = {}
 
 REDIS = None
 if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
@@ -684,6 +685,560 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
                 _handle_ghe(ghe,
                             msg="Unexpected error getting blueprint from repo "
                             "%s" % repo.clone_url)
+            if dep_file and dep_file.content:
+                dep_content = base64.b64decode(dep_file.content)
+                dep_content = dep_content.replace("%repo_url%",
+                                                  "%s" % str(repo.ssh_url))
+                try:
+                    ret = yaml.safe_load(dep_content)
+                except (yaml.scanner.ScannerError, yaml.parser.ParserError):
+                    LOG.warn("Blueprint '%s' has invalid YAML", repo.clone_url)
+                    return None
+
+                if "inputs" in ret:
+                    del ret['inputs']
+
+                if 'heat_template_version' in ret:
+                    parsed = self.parse_hot(ret)
+                elif 'blueprint' in ret:
+                    parsed = self.parse_blueprint(repo, ret)
+                else:
+                    LOG.warn("Blueprint '%s' is not in a recognized format",
+                             repo.clone_url)
+                    return None
+
+                parsed['repo_id'] = repo.id
+                parsed['blueprint']['source'] = {
+                    'repo-url': repo.ssh_url,
+                    'sha': github_ref.object.sha,
+                    'ref': github_ref.ref,
+                }
+                LOG.info("Retrieved blueprint: %s#%s", repo.url, tag)
+                return parsed
+        return None
+
+    @staticmethod
+    def _get_repo_file_contents(repo, filename):
+        """Get contents of the given file from the repository.
+
+        :param repo: the repo containing the blueprint
+        :param filename: file name
+        """
+        isinstance(repo, github.Repository.Repository)
+        try:
+            repo_file = repo.get_file_contents(filename)
+            return base64.b64decode(repo_file.content)
+
+        except GithubException:
+            return None
+
+    @staticmethod
+    def _store(blueprint, tag, target):
+        """Store the blueprint in the target memory.
+
+        :param blueprint: the deployment blueprint to store
+        """
+        if blueprint and tag and isinstance(blueprint, collections.Mapping):
+            if "repo_id" not in blueprint:
+                LOG.warn("Blueprint id missing in: %s", blueprint)
+            else:
+                bp_id = "%s:%s" % (blueprint.get("repo_id"), tag)
+                del blueprint['repo_id']
+                target.update({bp_id: blueprint})
+
+
+class AnonymousGitHubManager(object):
+
+    """Manage the catalog of "known good" anonymous blueprints."""
+
+    def __init__(self, git_config):
+        """Init Github blueprint manager.
+
+        Config params used
+        :anonymous_github_base_uri: Base uri for the github api hosting the
+                                blueprint repository (required)
+        :anonymous_github_ref: tag/branch/ref to pull as the "supported"
+                                version of the blueprint; defaults to 'master'
+        :anonymous_github_org: the organization owning the blueprint
+                                repositories.
+        :cache_dir: directory to write cached blueprint data to
+        """
+        self._github_api_base = git_config.anonymous_github_base_uri
+        if self._github_api_base:
+            self._github = github.Github(base_url=self._github_api_base)
+            self._api_host = urlparse.urlparse(self._github_api_base).netloc
+        self._repo_org = git_config.anonymous_github_org
+        self._ref = git_config.anonymous_github_ref
+        self._cache_root = git_config.cache_dir or os.path.dirname(__file__)
+        self._cache_file = os.path.join(self._cache_root,
+                                        ".anon_blueprint_cache")
+        self._blueprints = {}
+        assert self._github_api_base, ("Must specify a source blueprint "
+                                       "repository")
+        assert self._repo_org, ("Must specify a Github organization owning "
+                                "blueprint repositories")
+        assert self._ref, "Must specify a branch or tag"
+        self.background = None
+        self.last_refresh = time.time() - DEFAULT_CACHE_TIMEOUT
+        self.start_refresh_lock = threading.Lock()
+        self.refresh_lock = threading.Lock()
+        if not git_config.bottle_parent:
+            self.load_cache()
+            self.check_cache_freshness()
+
+    @property
+    def api_host(self):
+        """Source for github request.
+
+        :return: source Github api host (not url)
+        """
+        return self._api_host
+
+    @property
+    def repo_owner(self):
+        """Github repository owner (org or user).
+
+        :return: repository owner
+        """
+        return self._repo_org
+
+    #
+    # blueprint calls
+    #
+    def get_blueprints(self, offset=0, limit=100, details=0):
+        """Return an abbreviated list of known deployment blueprints.
+
+        :param offset: pagination start
+        :param limit: pagination length
+        :param details: amount detail to include
+        """
+        tag = self._ref
+        if not tag:
+            return
+        if offset is None:
+            offset = 0
+        if limit is None:
+            limit = 100
+
+        results = self._get_blueprint_list_by_tag(tag)
+
+        # Skip filtering for most common use case (details=1 and no pagination)
+        only_basic_info = details is 0
+        paginate = offset > 0 or len(results) > limit
+        if results and (only_basic_info or paginate):
+            LOG.debug("Paginating blueprints")
+            blueprint_ids = results.keys()
+            blueprint_ids.sort()
+            if only_basic_info:
+                results = {
+                    k: v for k, v in results.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
+            else:
+                results = {
+                    k: {
+                        "name": v.get("blueprint", {}).get("name"),
+                        "description": v.get("blueprint", {})
+                                        .get("description")
+                    } for k, v in self._blueprints.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
+
+        self.check_cache_freshness()
+
+        return {
+            'collection-count': len(results),
+            '_links': {},
+            'results': results,
+        }
+
+    def list_cache(self):
+        """List cached blueprints."""
+        results = {}
+        for key, blueprint in self._blueprints.iteritems():
+            try:
+                source = blueprint['blueprint'].get('source') or {}
+                sha = source.get('sha') or key  # to not break on old format
+                results[sha] = {
+                    'id': blueprint['blueprint'].get('id') or key,
+                    'name': blueprint['blueprint']['name'],
+                    'version': blueprint['blueprint'].get('version'),
+                    'repo-url': source.get('repo-url'),
+                    'sha': sha,
+                }
+            except KeyError as exc:
+                LOG.info("Error parsing blueprint '%s': missing key %s", key,
+                         exc)
+                continue
+            except StandardError as exc:
+                LOG.info("Error parsing blueprint '%s': %s", key, exc)
+                continue
+        return {
+            'collection-count': len(results),
+            '_links': {},
+            'results': results,
+        }
+
+    @caching.CacheMethod(store=ANONYMOUS_BLUEPRINT_CACHE, timeout=60,
+                         backing_store=REDIS)
+    def _get_blueprint_list_by_tag(self, tag):
+        """Filter blueprints to show.
+
+        :param tag: git to include
+        :returns: filtered blueprints dict
+        """
+        LOG.debug("Filtering blueprints: cache miss")
+        tag_filter = ":%s" % tag
+        return {
+            key: value for key, value in self._blueprints.items()
+            if key.endswith(tag_filter)
+        }
+
+    def get_blueprint(self, blueprint_id):
+        """Get blueprint by id.
+
+        :param blueprint_id: the deployment blueprint identifier
+        :returns: the specified deployment blueprint
+        """
+        if not self._blueprints:
+            self.refresh_all()
+
+        return self._blueprints.get(str(blueprint_id))
+
+    #
+    # refresh
+    #
+    def _blocking_refresh_if_needed(self):
+        """If _blueprints is None, perform a refresh of all blueprints."""
+        if not self._blueprints:
+            # Wait for refresh to complete (block)
+            if self.background is None:
+                self.start_background_refresh()
+            try:
+                LOG.warning("Call to GET /blueprints blocking on refresh")
+                self.refresh_lock.acquire()
+            finally:
+                self.refresh_lock.release()
+
+    def background_refresh(self):
+        """Called by background thread to start a refresh."""
+        with self.refresh_lock:
+            LOG.info("Starting background refresh of blueprint cache")
+            try:
+                self.refresh_all()
+                LOG.info("Background refresh of blueprint cache complete")
+            except StandardError as exc:
+                LOG.warning("Background refresh of blueprint cache failed: %s",
+                            exc)
+            finally:
+                self.background = None
+
+    def start_background_refresh(self):
+        """Initiate a background refresh of all blueprints."""
+        if self.background is None and self.start_refresh_lock.acquire(False):
+            try:
+                self.background = eventlet.spawn_n(self.background_refresh)
+                LOG.debug("Refreshing blueprint cache")
+            except StandardError:
+                self.background = None
+                LOG.error("Error initiating refresh", exc_info=True)
+                raise
+            finally:
+                self.start_refresh_lock.release()
+        else:
+            LOG.debug("Already refreshing")
+
+    def _update_cache(self):
+        """Write the current blueprint map to local disk and Redis."""
+        if REDIS:
+            try:
+                timestamped = copy.copy(self._blueprints)
+                timestamped['timestamp'] = self.last_refresh
+                value = json.dumps(timestamped)
+                REDIS.setex('anon_blueprint_cache', value,
+                            DEFAULT_CACHE_TIMEOUT)
+                LOG.info("Wrote blueprints to Redis")
+            except redisexc.ConnectionError as exc:
+                LOG.warn("Error connecting to Redis: %s", exc)
+            except StandardError:
+                pass
+
+        if not os.path.exists(self._cache_root):
+            try:
+                os.makedirs(self._cache_root, 0o766)
+            except (OSError, IOError):
+                LOG.warn("Could not create cache directory", exc_info=True)
+                return
+        try:
+            with open(self._cache_file, 'w') as cache:
+                cache.write(json.dumps(self._blueprints))
+        except IOError:
+            LOG.warn("Error updating disk cache", exc_info=True)
+        else:
+            LOG.info("Cached blueprints to file: %s", self._cache_file)
+
+    def _refresh_from_repo(self, repo):
+        """Store/update blueprint info from the specified repository.
+
+        :param repo: the repository containing blueprint data or :None:
+        """
+        if repo:
+            self._refresh_blueprint(repo, self._ref)
+
+    def _refresh_blueprint(self, repo, ref):
+        """Get a new copy of the specified blueprint."""
+        rid = "%s:%s" % (str(repo.id), ref)
+        blueprint = self._get_blueprint(repo, ref)
+        if rid in self._blueprints:
+            del self._blueprints[rid]
+        self._store(blueprint, self._ref, self._blueprints)
+
+    def refresh(self, repo_name):
+        """Get updated deployment blueprint information from the specified
+        github repository.
+
+        :param repo_name: the name of the github repository containing the
+                          the blueprint
+        """
+        self._refresh_from_repo(self._get_repo(repo_name))
+        self._update_cache()
+
+    def refresh_all(self):
+        """Get all deployment blueprints from the repositories owned by
+        :self._repo_org:.
+        """
+        org = self._get_repo_owner()
+        if not org:
+            LOG.error("No user or group matching %s", self._repo_org)
+            return
+        repos = org.get_repos()
+
+        pool = greenpool.GreenPile()
+        for repo in repos:
+            pool.spawn(self._get_blueprint, repo, self._ref)
+
+        fresh = {}
+
+        for repo, result in zip(repos, pool):
+            self._store(result, self._ref, fresh)
+
+        self._blueprints = fresh
+        self.last_refresh = time.time()
+        self._update_cache()
+
+    def check_cache_freshness(self):
+        """Check if cache is up to date and trigger refresh if not."""
+        if (self.background is None and
+                time.time() - self.last_refresh > DEFAULT_CACHE_TIMEOUT):
+            if not self._load_redis_cache():
+                self.start_background_refresh()
+
+    def _load_redis_cache(self):
+        """Load blueprints from Redis.
+
+        :returns: True if loaded valid blueprints
+        """
+        if REDIS:
+            try:
+                cache = REDIS['anon_blueprint_cache']
+                data = json.loads(cache)
+                timestamp = data.pop('timestamp', None)
+                self._blueprints = data  # make available to calls
+                if timestamp:
+                    self.last_refresh = timestamp
+                    expire = (timestamp + DEFAULT_CACHE_TIMEOUT) - time.time()
+                    if expire > 0:
+                        LOG.info("Retrieved blueprints from Redis with %ss "
+                                 "left until they expire", int(expire))
+                        return True
+                    else:
+                        LOG.debug("Retrieved expired blueprints.")
+            except redisexc.ConnectionError as exc:
+                LOG.warn("Error connecting to Redis: %s", exc)
+            except KeyError:
+                pass  # expired or not there
+            except StandardError as exc:
+                LOG.debug("Error retrieving blueprints from Redis: %s", exc)
+        return False
+
+    def load_cache(self):
+        """Pre-seed with existing cache if any in case we can't connect to the
+        repo.
+        """
+        if not self._load_redis_cache():
+            if os.path.exists(self._cache_file):
+                try:
+                    with open(self._cache_file, 'r') as cache:
+                        self._blueprints = json.load(cache)
+                        LOG.info("Retrieved blueprints from cache file")
+                except IOError:
+                    LOG.warn("Could not load cache file", exc_info=True)
+                except ValueError:
+                    LOG.warn("Cache file contains invalid data", exc_info=True)
+
+    #
+    # blueprint parsing
+    #
+    def parse_blueprint(self, repo, content):
+        """Parse dict as a checkmate blueprint."""
+        if 'documentation' not in content['blueprint']:
+            content['blueprint']['documentation'] = {}
+
+        # if blueprint does not contain abstract field, check repo for
+        # abstract.md file
+        self._inline_documentation_field(content['blueprint'], repo,
+                                         'abstract')
+
+        # if blueprint does not contain instructions field, check repo
+        # for instructions.md
+        self._inline_documentation_field(content['blueprint'], repo,
+                                         'instructions')
+
+        # if blueprint does not contain guide field, check repo for
+        # guide.md
+        self._inline_documentation_field(content['blueprint'], repo,
+                                         'guide')
+
+        content['repo_id'] = repo.id
+        return content
+    @staticmethod
+    def parse_hot(content):
+        """Parse dict as a HOT template."""
+        types = {
+            'String': 'string',
+            'Number': 'integer',
+        }
+        blueprint = {}
+        if 'parameters' in content:
+            blueprint['options'] = copy.deepcopy(content['parameters'])
+            for _, value in blueprint['options'].iteritems():
+                value['type'] = types.get(value.get('type'), 'String')
+            blueprint['options']['API Key'] = {
+                'label': 'Your API Key',
+                'help': 'Heat requires your API key',
+                'type': 'string',
+                'required': True
+            }
+        blueprint['meta-data'] = {
+            "schema-version": "v0.7",
+            "application-name": "Heat Template",
+            "blueprint-type": "Application",
+            "flavor": "Example Heat Template",
+            "flavor-weight": 2,
+            "application-version": "Preview",
+            "reach-info": {
+                "tattoo": "http://7555e8905adb704bd73e-744765205721eed93c384da\
+e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
+                "icon-20x20": "http://7555e8905adb704bd73e-744765205721eed93c3\
+84dae790e86aa.r66.cf2.rackcdn.com/heat-20x20.png",
+            },
+        }
+        blueprint["documentation"] = {
+            "abstract": "HOT template converted for Rackspace Deployements "
+            "compatibility",
+            "instructions": "This is a demo conversion from HOT (OpenStack's "
+            "Heat Orchestration Template) syntax to Rackspace Deployments "
+            "Service format."
+        }
+        content['blueprint'] = blueprint
+        return content
+
+    def _inline_documentation_field(self, blueprint, repo, doc_field):
+        """Set documentation field.
+
+        'documentation.abstract/instructions/guide' etc... field if they are
+        not present in the blueprint and respective
+        abstract.md/instructions.md/guide.md files exists in repo
+
+        :param blueprint: the blueprint blueprint
+        :param repo: the repo containing the blueprint
+        :param doc_field: documentation field in the blueprint
+        """
+
+        file_name = ""
+        # if a field (abstract/instructions/guide) does not exist in the
+        # blueprint, then check for {field}.md file in the repo
+        if doc_field not in blueprint['documentation']:
+            file_name = doc_field + ".md"
+        else:
+            # if the field exists, check if it is a relative path. If it
+            # is a relative path, then inline the content from that file
+            field_content = blueprint['documentation'][doc_field]
+            if field_content and field_content.startswith("=include('"):
+                file_name = field_content.replace("=include('", '')
+                file_name = file_name.replace("')", '')
+
+        if file_name:
+            file_content = self._get_repo_file_contents(repo, file_name)
+            if file_content:
+                blueprint['documentation'][doc_field] = file_content
+
+    #
+    # github repo
+    #
+    def _get_repo_owner(self):
+        """Return the user or organization owning the repo."""
+        if self._repo_org:
+            return self._retrieve_repo_owner(self._github, self._repo_org)
+
+    @staticmethod
+    def _retrieve_repo_owner(github_instance, owner):
+        try:
+            return github_instance.get_organization(owner)
+        except GithubException:
+            LOG.debug("Could not retrieve org information for %s; trying "
+                      "users", owner, exc_info=True)
+            try:
+                return github_instance.get_user(owner)
+            except GithubException:
+                LOG.warn("Could not find user or org %s.", owner)
+
+    def _get_repo(self, repo_name):
+        """Return the specified github repo.
+
+        :param repo_name: the repo to get; must belong to :self.repo_org:
+        """
+        if repo_name:
+            owner = self._get_repo_owner()
+            if owner:
+                try:
+                    return owner.get_repo(repo_name)
+                except GithubException as ghe:
+                    _handle_ghe(ghe,
+                                msg="Unexpected error getting repository %s"
+                                % repo_name)
+
+    @staticmethod
+    def _repo_find_ref(repo, ref_name):
+        """Return a reference or tag if the repo contains it."""
+        refs = repo.get_git_refs()
+        if '/' in ref_name:
+            return refs.get(ref_name)
+        else:
+            ref_ending = '/%s' % ref_name
+            for ref in refs:
+                if '/pull/' not in ref.ref and ref.ref.endswith(ref_ending):
+                    return ref
+
+    def _get_blueprint(self, repo, tag):
+        """Get the deployment blueprint from the specified repo if any; format
+        and correct as needed.
+
+        :param repo: the repo containing the blueprint
+        """
+        if repo and isinstance(repo, github.Repository.Repository) and tag:
+            dep_file = None
+            try:
+                github_ref = self._repo_find_ref(repo, tag)
+                if not github_ref:
+                    return None
+
+                dep_file = repo.get_file_contents("checkmate.yaml", ref=tag)
+            except GithubException as ghe:
+                _handle_ghe(ghe,
+                            msg="Unexpected error getting blueprint from repo "
+                            "%s" % repo.clone_url)
+
             if dep_file and dep_file.content:
                 dep_content = base64.b64decode(dep_file.content)
                 dep_content = dep_content.replace("%repo_url%",
