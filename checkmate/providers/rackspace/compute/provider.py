@@ -302,7 +302,7 @@ class Provider(RackspaceComputeProviderBase):
                         "hidden flavor, you must include the image id "
                         "explicitely since Checkmate does not have enough "
                         "information about the flavor to select a matching "
-                        "image.", flavor_setting)
+                        "image." % flavor_setting)
         else:
             flavor_matches = filter_flavors(flavors,
                                             class_rules=flavor_class_rules,
@@ -858,6 +858,10 @@ class Provider(RackspaceComputeProviderBase):
         images = None
         flavors = None
         types = None
+
+        if not context.catalog:
+            raise cmexc.CheckmateException(
+                friendly_message="Missing tenant catalog", http_status=400)
 
         vals = self._get_api_info(context, **kwargs)
 
