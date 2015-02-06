@@ -127,7 +127,7 @@ class TestUpdate(unittest.TestCase):
             self.cache.cache_path, remote="origin",
             refspec="refs/tags/master:refs/tags/master",
             verbose=False)
-        mock_checkout.assert_called_once_with(self.cache.cache_path, 'master')
+        mock_checkout.assert_called_once_with(self.cache.cache_path, 'FETCH_HEAD')
 
     @mock.patch('checkmate.common.git.git_list_tags')
     @mock.patch('checkmate.common.git.git_fetch')
@@ -156,7 +156,7 @@ class TestUpdate(unittest.TestCase):
         mock_fetch.assert_called_once_with(
             self.cache.cache_path, remote='origin',
             verbose=False, refspec="master")
-        mock_checkout.assert_called_once_with(self.cache.cache_path, 'master')
+        mock_checkout.assert_called_once_with(self.cache.cache_path, 'FETCH_HEAD')
 
 
 if __name__ == '__main__':

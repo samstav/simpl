@@ -168,7 +168,7 @@ class BlueprintCache(object):
                         self.repo.fetch(remote=token_remote, refspec=refspec)
                     else:
                         self.repo.fetch(refspec=refspec)
-                    self.repo.checkout(ref)
+                    self.repo.checkout('FETCH_HEAD')
                 except subprocess.CalledProcessError as exc:
                     LOG.warning("Unable to fetch tag '%s' from the git "
                                 "repository at %s. Using the cached repo."
@@ -180,7 +180,7 @@ class BlueprintCache(object):
                         self.repo.fetch(remote=token_remote, refspec=ref)
                     else:
                         self.repo.fetch(refspec=ref)
-                    self.repo.checkout(ref)
+                    self.repo.checkout('FETCH_HEAD')
                 except subprocess.CalledProcessError as exc:
                     LOG.warning("Unable to fetch ref '%s' from the git "
                                 "repository at %s. Using the cached "
