@@ -624,7 +624,11 @@ class Planner(classes.ExtensibleDict):
         LOG.debug("Analyzing service components")
         services = self.deployment['blueprint'].get('services', {})
         for service_name, service in services.iteritems():
+            override = self.deployment.get_setting(
+                'id', service_name=service_name)
             definition = service['component']
+            if override:
+                definition['id'] = override
             LOG.debug("Identifying component '%s' for service '%s'",
                       definition, service_name)
             try:
