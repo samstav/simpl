@@ -133,8 +133,8 @@ class Provider(base.BaseOpscodeProvider):
         ]
         properties = {'estimated_duration': 1, 'task_tags': ['cleanup']}
         cleanup_task = specs.Celery(wfspec, 'Delete Chef Environment', call,
-                                    call_args=call_args,
-                                    defines=defines, properties=properties)
+                                    call_args=call_args, defines=defines,
+                                    properties=properties)
 
         return {'root': cleanup_task, 'final': cleanup_task}
 
@@ -205,7 +205,6 @@ class Provider(base.BaseOpscodeProvider):
             password=operators.PathAttrib('resources/%s/instance/password'
                                           % host_idx),
             bootstrap_version=bootstrap_version,
-            merge_results=True,
             identity_file=operators.Attrib('private_key_path'),
             description="Bootstrap server as a Chef client",
             defines={'resource': key, 'provider': self.key},

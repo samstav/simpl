@@ -1153,19 +1153,19 @@ interfaces/mysql/database_name
         workflow = cm_wf.init_spiff_workflow(
             wf_spec, self.deployment, context, "w_id", "BUILD")
 
-        self.assertFalse(workflow.spec.task_specs[
+        self.assertTrue(workflow.spec.task_specs[
             'Create Resource 1'].merge_results)
-        self.assertFalse(workflow.spec.task_specs[
+        self.assertTrue(workflow.spec.task_specs[
             'Upload Cookbooks'].merge_results)
         self.assertTrue(workflow.spec.task_specs[
             'Write Role foo-master for 0'].merge_results)
-        self.assertFalse(workflow.spec.task_specs[
+        self.assertTrue(workflow.spec.task_specs[
             'Register Server 1 (frontend)'].merge_results)
-        self.assertFalse(workflow.spec.task_specs[
+        self.assertTrue(workflow.spec.task_specs[
             'Create Workspace'].merge_results)
-        self.assertFalse(workflow.spec.task_specs[
+        self.assertTrue(workflow.spec.task_specs[
             'Create Chef Server Environment'].merge_results)
-        self.assertFalse(workflow.spec.task_specs[
+        self.assertTrue(workflow.spec.task_specs[
             'Write Data Bag for 0'].merge_results)
 
     @mock.patch.object(chef_map.ChefMap, "get_map_file")

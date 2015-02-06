@@ -308,7 +308,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 key
             ),
             port=port,
-            parent_lb=parent_lb,
+            parent_lb=parent_lb
         )
         if vip_tasks:
             vip_tasks[0].connect(create_lb)
@@ -331,7 +331,6 @@ class Provider(rsbase.RackspaceProviderBase):
             ],
             properties={'estimated_druation': 150,
                         'auto_retry_count': 3},
-            merge_results=True,
             defines=dict(
                 resource=key,
                 provider=self.key,
@@ -357,7 +356,8 @@ class Provider(rsbase.RackspaceProviderBase):
                 ],
                 rec_ttl=300,
                 makedomain=True,
-                result_key="dns-record")
+                result_key="dns-record"
+            )
             build_wait_task.connect(create_record_task)
             task_name = ("Update Load Balancer %s (%s) DNS Data"
                          % (key, resource['service']))
@@ -386,7 +386,8 @@ class Provider(rsbase.RackspaceProviderBase):
                         resource_key=key,
                         region=desired['region']),
                     operators.PathAttrib('resources/%s/instance/id' % key),
-                ])
+                ]
+            )
             build_wait_task.connect(enable_caching_task)
 
         task_name = ('Add monitor to Loadbalancer %s (%s) build' %
@@ -442,7 +443,7 @@ class Provider(rsbase.RackspaceProviderBase):
             call_args=[context, lb_id],
             properties={
                 'estimated_duration': 5,
-            },
+            }
         )
 
         wait_on_lb_delete = specs.Celery(
@@ -453,7 +454,7 @@ class Provider(rsbase.RackspaceProviderBase):
             call_args=[context, lb_id],
             properties={
                 'estimated_duration': 20,
-            },
+            }
         )
 
         delete_lb.connect(wait_on_lb_delete)
@@ -466,7 +467,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 call_args=[context, dom_id, rec_id],
                 properties={
                     'estimated_duration': 5,
-                },
+                }
             )
             task_dict["root"].append(delete_record)
         return task_dict
@@ -503,7 +504,8 @@ class Provider(rsbase.RackspaceProviderBase):
                 "OFFLINE",
             ],
             defines=dict(provider=self.key, resource=target_key),
-            properties={'estimated_duration': 5})
+            properties={'estimated_duration': 5}
+        )
         return {'root': delete_node_task, 'final': delete_node_task}
 
     def enable_connection_tasks(self, wf_spec, deployment, context,
@@ -538,7 +540,8 @@ class Provider(rsbase.RackspaceProviderBase):
                 "ACTIVE",
             ],
             defines=dict(provider=self.key, resource=target_key),
-            properties={'estimated_duration': 5})
+            properties={'estimated_duration': 5}
+        )
         return {'root': enable_node_task, 'final': enable_node_task}
 
     def add_delete_connection_tasks(self, wf_spec, context,
@@ -561,7 +564,8 @@ class Provider(rsbase.RackspaceProviderBase):
             ],
             defines=dict(provider=self.key, resource=target_key,
                          task_tags=['delete_connection']),
-            properties={'estimated_duration': 5})
+            properties={'estimated_duration': 5}
+        )
         wf_spec.start.connect(delete_node_task)
 
     def add_connection_tasks(self, resource, key, relation, relation_key,

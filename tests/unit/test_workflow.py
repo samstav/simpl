@@ -1106,7 +1106,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         mox.IsA(dict),
                         121212,
                         '10.1.2.1',
-                        None
+                        'PLANNED'
                     ],
                     'kwargs': None,
                     'result': None,
