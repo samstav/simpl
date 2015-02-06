@@ -12,5 +12,5 @@ end
 
 group :server do
     gem 'berkshelf', '~> 3'
-    gem 'chef', '~> 11'
+    gem 'chef', '~> 12.0'
 end

@@ -179,16 +179,12 @@ knife-solo_data_bag:
     curl -k -L get.rvm.io | bash -s stable
     source ~/.rvm/scripts/rvm
 
-    # Install Ruby 1.9.3 locally
-    rvm install 1.9.3-p327
-    rvm use ruby-1.9.3-p327
-    rvm gemset create chef
-    rvm gemset use chef
-    gem install bundler
-    gem install knife-solo
-    gem install knife-solo_data_bag
-    gem install librarian
-    gem install berkshelf
+    # Install Ruby 2.1.3 locally
+    rvm install 2.1.3
+    rvm use ruby-2.1.3
+    rvm gemset create checkmate
+    rvm gemset use checkmate
+    bundle install
 
 LKG: To install the last known good and tested config of Chef for the Checkmate
 server:
@@ -201,8 +197,8 @@ server:
     source /etc/profile.d/rvm.sh
 
     # Install Ruby 1.9.3 locally
-    rvm install 1.9.3-p327
-    rvm use ruby-1.9.3-p327
+    rvm install 2.1.3
+    rvm use ruby-2.1.3
 
     # Exit and delete any existing gemset (makes this idempotent)
     rvm gemset use global
@@ -213,24 +209,10 @@ server:
     rvm gemset use checkmate
     # Install know good versions
     gem install bundler --no-rdoc --no-ri
-    gem install chef --version 11.4.0 --no-rdoc --no-ri
-    gem install knife-solo --version 0.3.0 --no-rdoc --no-ri
-    gem install knife-solo_data_bag --version 0.4.0 --no-rdoc --no-ri
-    gem install librarian-chef --version 0.0.2 --no-rdoc --no-ri
-    gem install berkshelf --version 2.0.10 --no-rdoc --no-ri
-
-    # If this is a production system, install the same gems in global, because
-    # root from cron needs them
-    rvm gemset use global
-    gem install bundler --no-rdoc --no-ri
-    gem install chef --version 11.4.0 --no-rdoc --no-ri
-    gem install knife-solo --version 0.3.0 --no-rdoc --no-ri
-    gem install knife-solo_data_bag --version 0.4.0 --no-rdoc --no-ri
-    gem install librarian-chef --version 0.0.2 --no-rdoc --no-ri
-    gem install berkshelf --version 2.0.10 --no-rdoc --no-ri
+    bundle install
 
     # Verify
-    knife -v  # should show 'Chef: 11.4.0'
+    knife -v  # should show 'Chef: 12.3.x'
     gem list knife  # should show solo at 0.3.0 and data_bag at 0.4.0
 
 ### MongoDB Installation
