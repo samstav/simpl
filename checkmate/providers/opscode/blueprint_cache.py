@@ -168,6 +168,7 @@ class BlueprintCache(object):
                         self.repo.fetch(remote=token_remote, refspe=refspec)
                     else:
                         self.repo.fetch(refspec=refspec)
+                    self.repo.checkout(ref)
                 except subprocess.CalledProcessError as exc:
                     LOG.warning("Unable to fetch tag '%s' from the git "
                                 "repository at %s. Using the cached repo."
@@ -179,6 +180,7 @@ class BlueprintCache(object):
                         self.repo.fetch(remote=token_remote, refspec=ref)
                     else:
                         self.repo.fetch(refspec=ref)
+                    self.repo.checkout(ref)
                 except subprocess.CalledProcessError as exc:
                     LOG.warning("Unable to fetch ref '%s' from the git "
                                 "repository at %s. Using the cached "
@@ -189,7 +191,6 @@ class BlueprintCache(object):
 
         LOG.warning("(cache) Checking out ref '%s' in %s",
                     ref, self.cache_path)
-        self.repo.checkout(ref)
 
     def _create_new_cache(self, url, ref, token_remote=None):
         """Create cache directory, init & clone the repository."""
