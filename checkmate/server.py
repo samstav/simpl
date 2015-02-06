@@ -311,9 +311,20 @@ def main():
         if 'github' not in MANAGERS:
             MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
         MANAGERS['blueprint-cache'] = MANAGERS['github']
+
+    # Load anonymous blueprint manager, resource and anonymous path allowance.
+    MANAGERS['anonymous-blueprints'] = None
+    if not CONFIG.without_anonymous:
+        LOG.debug("Adding anonymous Github Manager")
+        MANAGERS['anonymous-blueprints'] = \
+            blueprints.github.AnonymousGitHubManager(CONFIG)
+        resources.append('anonymous')
+        anonymous_paths.append('^[/]?anonymous')
+
     ROUTERS['blueprints'] = blueprints.Router(
         root_app, MANAGERS['blueprints'],
-        cache_manager=MANAGERS['blueprint-cache']
+        cache_manager=MANAGERS['blueprint-cache'],
+        anonymous_manager=MANAGERS['anonymous-blueprints']
     )
     resources.append('blueprints')
 
