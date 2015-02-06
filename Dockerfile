@@ -21,12 +21,15 @@ RUN apt-get install -y curl bison ruby \
   && make install \
   && rm -r /usr/src/ruby
 
+ADD Gemfile /opt/rubysetup/Gemfile
+ADD Gemfile.lock /opt/rubysetup/Gemfile.lock
 ENV GEM_HOME /usr/local/bundle
 RUN echo 'gem: --no-rdoc --no-ri' >> "$HOME/.gemrc"
 ENV PATH $GEM_HOME/bin:$PATH
 RUN gem install bundler \
   && bundle config --global path "$GEM_HOME" \
   && bundle config --global bin "$GEM_HOME/bin"
+RUN cd /opt/rubysetup && bundle install
 
 # Put Checkmate in there
 ADD . /app
@@ -39,13 +42,14 @@ RUN (mkdir /var/log/supervisor; \
      useradd -m -u 8888 checkmate; \
      mkdir -p /var/local/checkmate; \
      chown checkmate /var/local/checkmate; \
-     cd /app && bundle install; \
      git config --global url."https://".insteadOf git://; \
      pip install -r /app/requirements.txt; \
      pip install -e /app/ui; \
      pip install -e /app; \
-     chmod +x /app/run.sh; \
-     apt-get clean; \
+     chmod +x /app/run.sh;)
+
+# Cleanup
+RUN (apt-get clean; \
      rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*;)
 
 EXPOSE 8080
