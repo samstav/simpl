@@ -19,11 +19,10 @@ import hashlib
 import logging
 import os
 import shutil
-import subprocess
 import sys
 import time
 
-from checkmate import exceptions
+from checkmate import exceptions as cmexc
 from checkmate import utils
 
 from checkmate.common import config
@@ -48,7 +47,7 @@ def delete_cache(path):
     except OSError as err:
         if err.errno == errno.ENOENT:
             # No such file or directory
-            raise (exceptions.CheckmateNothingToDo,
+            raise (cmexc.CheckmateNothingToDo,
                    ("No existing repo cache to remove.",),
                    sys.exc_info()[2])
         else:
@@ -147,7 +146,12 @@ class BlueprintCache(object):
             return self._update_existing(
                 head_file, url, ref, token_remote=token_remote)
         else:
-            # cache does not exist
+            # if a good cache does not exist, blow away the broken cache
+            try:
+                shutil.rmtree(self.cache_path)
+            except OSError as err:
+                if err.errno != errno.ENOENT:
+                    raise
             return self._create_new_cache(
                 url, ref, token_remote=token_remote)
 
@@ -169,11 +173,11 @@ class BlueprintCache(object):
                     else:
                         self.repo.fetch(refspec=refspec)
                     self.repo.checkout('FETCH_HEAD')
-                except subprocess.CalledProcessError as exc:
-                    LOG.warning("Unable to fetch tag '%s' from the git "
-                                "repository at %s. Using the cached repo."
-                                "The output during error was '%s'",
-                                ref, url, exc.output)
+                except cmexc.CheckmateCalledProcessError as exc:
+                    LOG.error("Unable to fetch tag '%s' from the git "
+                              "repository at %s. Using the cached repo."
+                              "The output during error was '%s'",
+                              ref, url, exc.output)
             else:
                 try:
                     if token_remote:
@@ -181,11 +185,11 @@ class BlueprintCache(object):
                     else:
                         self.repo.fetch(refspec=ref)
                     self.repo.checkout('FETCH_HEAD')
-                except subprocess.CalledProcessError as exc:
-                    LOG.warning("Unable to fetch ref '%s' from the git "
-                                "repository at %s. Using the cached "
-                                "repository. The output during error was %s",
-                                ref, url, exc.output)
+                except cmexc.CheckmateCalledProcessError as exc:
+                    LOG.error("Unable to fetch ref '%s' from the git "
+                              "repository at %s. Using the cached "
+                              "repository. The output during error was %s",
+                              ref, url, exc.output)
         else:  # Cache hit
             LOG.warning("(cache) Using cached repo: %s", self.cache_path)
 
@@ -194,43 +198,46 @@ class BlueprintCache(object):
 
     def _create_new_cache(self, url, ref, token_remote=None):
         """Create cache directory, init & clone the repository."""
-        LOG.warning("(cache) Cloning repo to %s", self.cache_path)
+        LOG.info("(cache) Cloning repo to %s", self.cache_path)
+
         dirsmade = None
         try:
             os.makedirs(self.cache_path)
             dirsmade = self.cache_path
         except OSError as err:
-            if err.errno == errno.EEXIST:
-                # makedirs() will not overwrite: cache_path exists
-                # previous clone likely failed
-                pass
-            else:
+            if err.errno != errno.EEXIST:
                 raise
+
+        if os.listdir(self.cache_path):
+            raise cmexc.CheckmateException(
+                "Target dir %s for clone is non-empty" % self.cache_path,
+                options=cmexc.CAN_RETRY)
+
         try:
             if token_remote:
                 self.repo.clone(token_remote, branch_or_tag=ref)
             else:
                 self.repo.clone(url, branch_or_tag=ref)
-        except subprocess.CalledProcessError as exc:
+        except cmexc.CheckmateCalledProcessError as exc:
             if dirsmade:
                 # only remove if this same fn call was the creator
-                os.rmdir(dirsmade)
-            error_message = ("Git repository could not be cloned from "
-                             "'%s'. The output during error was '%s'"
-                             % (url, exc.output))
-            raise (exceptions.CheckmateException, (error_message,),
-                   sys.exc_info()[2])
+                shutil.rmtree(dirsmade)
+            LOG.error("Git repository could not be cloned from "
+                      "'%s'. The output during error was '%s'"
+                      % (url, exc.output))
+            raise
+
         try:
             tags = self.repo.list_tags()
             if ref in tags:
                 self.repo.checkout(ref)
             # the ref *should* already be checked out
-        except subprocess.CalledProcessError as exc:
+        except cmexc.CheckmateCalledProcessError as exc:
             if dirsmade:
-                os.rmdir(dirsmade)
-            error_message = ("Failed to checkout '%s' for git "
-                             "repository %s located at %s. The "
-                             "output during error was '%s'."
-                             % (ref, url, self.cache_path, exc.output))
-            raise (exceptions.CheckmateException, (error_message,),
-                   sys.exc_info()[2])
+                # only remove if this same fn call was the creator
+                shutil.rmtree(dirsmade)
+            LOG.error("Failed to checkout '%s' for git "
+                      "repository %s located at %s. The "
+                      "output during error was '%s'."
+                      % (ref, url, self.cache_path, exc.output))
+            raise
