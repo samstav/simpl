@@ -13,7 +13,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """Unit Tests for Script class."""
+
 import json
 import os
 import unittest
@@ -134,8 +136,29 @@ class TestTemplating(unittest.TestCase):
         data = yaml.safe_load(result)
         self.assertEqual(data['value'], TEST_CERT)
 
+    def test_parsing_functions_bool_string(self):
+        template = "value: {{ bool('foo') }}"
+        expected = ("value: True")
+        self.assertEqual(templating.parse(template), expected)
+
+    def test_parsing_functions_bool_emptystring(self):
+        template = "value: {{ bool('') }}"
+        expected = ("value: False")
+        self.assertEqual(templating.parse(template), expected)
+
+    def test_parsing_functions_bool_none(self):
+        template = "value: {{ bool(None) }}"
+        expected = ("value: False")
+        self.assertEqual(templating.parse(template), expected)
+
+    def test_parsing_functions_bool_number(self):
+        template = "value: {{ bool(1) }}"
+        expected = ("value: True")
+        self.assertEqual(templating.parse(template), expected)
+
 
 class TestJsonYamlCoexistance(unittest.TestCase):
+
     """Test that we can use templating in JSON and YAML."""
 
     def test_preserve_linefeed_escaping(self):

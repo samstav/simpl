@@ -108,6 +108,7 @@ def parse(template, extra_globals=None, **kwargs):
     env.json = json
     env.globals['parse_url'] = parse_url
     env.globals['patterns'] = functions.get_patterns()
+    env.globals['bool'] = lambda x: not not x
 
     env.globals['setting'] = functions.get_settings_fxn(**kwargs)
     env.globals['hash'] = hash_SHA512
