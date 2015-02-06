@@ -34,21 +34,31 @@ class Router(object):
 
     """Route /blueprints/ calls."""
 
-    def __init__(self, app, manager, cache_manager=None):
+    def __init__(self, app, manager, cache_manager=None,
+                 anonymous_manager=None):
         """Takes a bottle app and routes traffic for it.
 
         :param manager: default manager
         :param cache_manager: optional cache (ex. Github) manager.
+        :param anonymous_manager: optional cache (ex. Github) manager.
         """
         self.app = app
         self.manager = manager
         self.cache_manager = cache_manager
+        self.anonymous_manager = anonymous_manager
 
         # Blueprint list
         app.route('/blueprints', 'GET', self.get_blueprints)
         app.route('/blueprints/<api_id>', 'GET', self.get_blueprint)
         app.route('/blueprints', 'POST', self.post_blueprint)
         app.route('/blueprints/<api_id>', 'PUT', self.put_blueprint)
+
+        # Only adding anonymous routes if we have manager
+        if self.anonymous_manager:
+            LOG.debug("Adding anonymous blueprint routes.")
+            app.route('/anonymous/blueprints', 'GET', self.get_anon_blueprints)
+            app.route('/anonymous/blueprints/<api_id>', 'GET',
+                      self.get_anon_blueprint)
 
     @statsd.collect
     @utils.with_tenant
@@ -168,4 +178,35 @@ class Router(object):
         blueprint = self.manager.get_blueprint(api_id, tenant_id=tenant_id)
         if not blueprint:
             blueprint = self.cache_manager.get_blueprint(str(api_id))
+        return blueprint
+
+    #
+    # Anonymous Blueprint functions
+    #
+    @utils.formatted_response('blueprints', with_pagination=True)
+    def get_anon_blueprints(self, offset=None, limit=None):
+        """Get existing anonymous blueprints."""
+        start = time.time()
+        results = {}
+        if self.anonymous_manager:
+            details = bottle.request.query.get('details')
+            remaining = math.floor(limit) if limit else None
+            results = self.anonymous_manager.get_blueprints(
+                offset=offset,
+                limit=remaining,
+                details=details == '1',
+            )
+        duration = time.time() - start
+        if duration <= 0.5:
+            LOG.debug("Get blueprints took less than 500ms: %s", duration)
+        elif duration <= 1:
+            LOG.warn("Get blueprints took more than 500ms: %s", duration)
+        else:
+            LOG.error("Get blueprints took more than 1 seconds: %s", duration)
+
+        return results
+
+    def get_anon_blueprint(self, api_id):
+        """Get a blueprint."""
+        blueprint = self.anonymous_manager.get_blueprint(api_id)
         return blueprint
