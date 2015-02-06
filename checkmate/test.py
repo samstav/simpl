@@ -233,7 +233,7 @@ class StubbedWorkflowBase(unittest.TestCase):
         self.mox.UnsetStubs()
 
     def result_postback(self, *args, **kwargs):
-        """Simulates a postback from the called resource.
+        """Simulate a postback from the called resource.
 
         This updates the deployment data. The results will be appended to the
         simulated deployment results.
@@ -332,9 +332,8 @@ class StubbedWorkflowBase(unittest.TestCase):
 
     def _get_expected_calls(self):
         """Prepare expected call names, args, and returns for mocking."""
-
         def is_good_context(context):
-            """Checks that call has all necessary context data."""
+            """Check that call has all necessary context data."""
             for key in ['auth_token', 'username', 'catalog']:
                 if key not in context:
                     LOG.warn("Context does not have a '%s'", key)
@@ -1102,7 +1101,7 @@ class TestProvider(base.ProviderBase):
 
 class ProviderTester(unittest.TestCase):
 
-    """Basic Provider Test Suite
+    """Basic Provider Test Suite.
 
     To use this, load it in the provider tests and set the override the klass
     property with the provider class to test:
@@ -1174,7 +1173,7 @@ class ProviderTester(unittest.TestCase):
         self.assertIs(base.PROVIDER_CLASSES[key], self.klass)
 
     def test_translate_status(self):
-        """Tests that provider status is translated."""
+        """Test that provider status is translated."""
         expected = 'UNDEFINED'
         results = self.klass.translate_status('DOESNOTEXIST')
         self.assertEqual(expected, results)
