@@ -622,8 +622,8 @@ class ProviderBase(ProviderBasePlanningMixIn, ProviderBaseWorkflowMixIn):
                 status in cls.__status_mapping__):
             return cls.__status_mapping__[status]
         else:
-            LOG.debug("Resource status %s was not found in status mapping",
-                      status)
+            LOG.warning("Resource status '%s' from %s.%s was not found "
+                        "in status mapping", status, cls.vendor, cls.name)
             # TODO(Nate): add other updates like status-message etc.
             return "UNDEFINED"
 
