@@ -6,11 +6,9 @@ ROLE=$@
 
 sed -i "s,REPLACEME,$ROLE,g" /etc/supervisor.d/checkmate.conf
 
+touch /var/log/checkmate-stdout.log
+tail -f /var/log/checkmate-stdout.log&
+
 echo "Starting Supervisor..."
 
-supervisord -c /etc/supervisord.conf &
-
-sleep 5
-
-echo "Tailing Checkmate logs"
-tail -f /var/log/checkmate-stdout.log
+exec supervisord -n -c /etc/supervisord.conf
