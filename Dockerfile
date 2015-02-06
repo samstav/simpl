@@ -11,7 +11,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
     python-dev \
     git \
     libssl-dev \
-    wget
+    wget \
+    libreadline-dev
 
 # Install pip from get-pip in order to avoid issues with the Ubuntu pip
 # package and issues with using easy_install to install pip. This is
