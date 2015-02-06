@@ -23,6 +23,8 @@ import urlparse
 
 import mox
 
+from checkmate.common import config
+from checkmate.common import git as common_git
 from checkmate.providers.opscode import blueprint_cache
 from checkmate.providers.opscode import chef_map
 from checkmate import test
@@ -76,8 +78,8 @@ class TestChefMap(unittest.TestCase):
             """Helper method to mock update_map."""
             with open(self.chef_map_path, 'a') as the_file:
                 the_file.write("new information")
-        utils.git_pull = self.mox.CreateMockAnything()
-        utils.git_pull(
+        common_git.git_pull = self.mox.CreateMockAnything()
+        common_git.git_pull(
             mox.IgnoreArg(), mox.IgnoreArg()).WithSideEffects(update_map)
         self.assertEqual(map_file, TEMPLATE)
 
@@ -87,7 +89,8 @@ class TestChefMap(unittest.TestCase):
             self.mox.VerifyAll()
 
     def test_get_map_file_miss_cache(self):
-        os.makedirs(os.path.join(self.cache_path, ".git"))
+        dotgit = os.path.join(self.cache_path, '.git')
+        os.makedirs(dotgit)
         LOG.info("Created '%s'", self.cache_path)
 
         # Create a dummy Chefmap and .git/FETCH_HEAD
@@ -100,18 +103,21 @@ class TestChefMap(unittest.TestCase):
         chefmap = chef_map.ChefMap()
         # Make sure the expire time is set to something that WILL
         # cause a cache miss
-        os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "0"
+        blueprint_cache.CONFIG.blueprint_cache_expiration = 0
 
         def update_map(repo_dir=None, head=None):
             """Helper method to fake an update."""
             with open(self.chef_map_path, 'a') as the_file:
                 the_file.write("new information")
-        utils.git_tags = self.mox.CreateMockAnything()
-        utils.git_tags(mox.IgnoreArg()).AndReturn(["master"])
-        utils.git_fetch = self.mox.CreateMockAnything()
-        utils.git_fetch(mox.IgnoreArg(), mox.IgnoreArg())
-        utils.git_checkout = self.mox.CreateMockAnything()
-        utils.git_checkout(
+        common_git.git_list_tags = self.mox.CreateMockAnything()
+        common_git.git_list_tags(
+            self.cache_path, with_messages=False).AndReturn(['master'])
+        common_git.git_fetch = self.mox.CreateMockAnything()
+        common_git.git_fetch(
+            self.cache_path, refspec=mox.IgnoreArg(),
+            remote='origin', verbose=False)
+        common_git.git_checkout = self.mox.CreateMockAnything()
+        common_git.git_checkout(
             mox.IgnoreArg(), mox.IgnoreArg()).WithSideEffects(update_map)
         self.mox.ReplayAll()
 
@@ -125,7 +131,7 @@ class TestChefMap(unittest.TestCase):
     def test_get_map_file_no_cache(self):
         chefmap = chef_map.ChefMap()
 
-        def fake_clone(url=None, path=None, branch=None):
+        def fake_clone(url=None, path=None, branch_or_tag=None, verbose=False):
             """Helper method to fake a git clone."""
             os.makedirs(os.path.join(self.cache_path, ".git"))
             with file(self.fetch_head_path, 'a'):
@@ -133,13 +139,15 @@ class TestChefMap(unittest.TestCase):
             with open(self.chef_map_path, 'w') as the_file:
                 the_file.write(TEMPLATE)
 
-        utils.git_clone = self.mox.CreateMockAnything()
-        utils.git_clone(mox.IgnoreArg(), mox.IgnoreArg(),
-                        branch=mox.IgnoreArg()).WithSideEffects(fake_clone)
-        utils.git_tags = self.mox.CreateMockAnything()
-        utils.git_tags(mox.IgnoreArg()).AndReturn(["master"])
-        utils.git_checkout = self.mox.CreateMockAnything()
-        utils.git_checkout(mox.IgnoreArg(), mox.IgnoreArg())
+        common_git.git_clone = self.mox.CreateMockAnything()
+        common_git.git_clone(
+            mox.IgnoreArg(), mox.IgnoreArg(), branch_or_tag=mox.IgnoreArg(),
+            verbose=False).WithSideEffects(fake_clone)
+        common_git.git_list_tags = self.mox.CreateMockAnything()
+        common_git.git_list_tags(
+            self.cache_path, with_messages=False).AndReturn(['master'])
+        common_git.git_checkout = self.mox.CreateMockAnything()
+        common_git.git_checkout(mox.IgnoreArg(), mox.IgnoreArg())
         self.mox.ReplayAll()
 
         chefmap.url = self.url
