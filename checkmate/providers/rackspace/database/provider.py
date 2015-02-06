@@ -316,7 +316,6 @@ class Provider(cmbase.ProviderBase):
                 instance_id=operators.PathAttrib(
                     'resources/%s/instance/id' % resource['hosted_on']
                 ),
-                merge_results=True,
                 defines=dict(
                     resource=key,
                     provider=self.key,
@@ -341,7 +340,6 @@ class Provider(cmbase.ProviderBase):
                     operators.PathAttrib(
                         'resources/%s/instance/host_region' % key),
                 ],
-                merge_results=True,
                 defines=dict(
                     resource=key,
                     provider=self.key,
@@ -382,7 +380,6 @@ class Provider(cmbase.ProviderBase):
                         resource['desired-state']['datastore-version'],
                         resource['desired-state']['config-params']
                     ],
-                    merge_results=True,
                     defines=defines,
                     properties={'estimated_duration': 10}
                 )
@@ -402,7 +399,6 @@ class Provider(cmbase.ProviderBase):
                 ],
                 config_id=operators.PathAttrib(
                     'resources/%s/instance/configuration/id' % key),
-                merge_results=True,
                 defines=defines,
                 properties={'estimated_duration': 80}
             )
@@ -425,7 +421,6 @@ class Provider(cmbase.ProviderBase):
                         resource_type=resource_type
                     ),
                 ],
-                merge_results=True,
                 defines=dict(
                     resource=key,
                     provider=self.key,
@@ -433,7 +428,7 @@ class Provider(cmbase.ProviderBase):
                 ),
                 properties={'estimated_duration': 80,
                             'auto_retry_count': 3},
-                instance=operators.PathAttrib('resources/%s/instance' % key),
+                instance=operators.PathAttrib('resources/%s/instance' % key)
             )
             wait_task.follow(create_instance_task)
             return dict(root=root, final=wait_task)
@@ -497,13 +492,17 @@ class Provider(cmbase.ProviderBase):
             wf_spec, 'Delete Computer Resource Tasks (%s)' % key,
             'checkmate.providers.rackspace.database.tasks.'
             'delete_instance_task',
-            call_args=[context], properties={'estimated_duration': 5})
+            call_args=[context],
+            properties={'estimated_duration': 5}
+        )
 
         wait_on_delete = specs.Celery(
             wf_spec, 'Wait on delete Database (%s)' % key,
             'checkmate.providers.rackspace.database.tasks.'
             'wait_on_del_instance',
-            call_args=[context], properties={'estimated_duration': 10})
+            call_args=[context],
+            properties={'estimated_duration': 10}
+        )
 
         delete_instance.connect(wait_on_delete)
 
@@ -553,7 +552,9 @@ class Provider(cmbase.ProviderBase):
         delete_db = specs.Celery(
             wf_spec, 'Delete DB Resource tasks (%s)' % key,
             'checkmate.providers.rackspace.database.tasks.delete_database',
-            call_args=[context], properties={'estimated_duration': 15})
+            call_args=[context],
+            properties={'estimated_duration': 15}
+        )
 
         return {'root': delete_db, 'final': delete_db}
 

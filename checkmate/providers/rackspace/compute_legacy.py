@@ -266,14 +266,13 @@ class Provider(provider.RackspaceComputeProviderBase):
                 'resources/%s/instance/password' % key),
             private_key=deployment.settings().get('keys', {}).get(
                 'deployment', {}).get('private_key'),
-            merge_results=True,
             properties={'estimated_duration': 150,
                         'auto_retry_count': 3},
             defines=dict(
                 resource=key,
                 provider=self.key,
                 task_tags=['build', 'final']
-            ),
+            )
         )
         create_server_task.connect(build_wait_task)
 
@@ -300,6 +299,7 @@ class Provider(provider.RackspaceComputeProviderBase):
                     task_tags=['complete']
                 )
             )
+
             build_wait_task.connect(touch_complete)
 
         if wait_on is None:

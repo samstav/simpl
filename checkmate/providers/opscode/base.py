@@ -277,7 +277,6 @@ class BaseOpscodeProvider(base.ProviderBase):
                             "it into the application role. It will be "
                             "used by the Chef recipe to access global "
                             "data",
-                merge_results=True,
                 defines={
                     'provider': self.key,
                     'resource': resource_key
@@ -285,7 +284,7 @@ class BaseOpscodeProvider(base.ProviderBase):
                 properties={
                     'estimated_duration': 5,
                     'task_tags': ['write-role'],
-                },
+                }
             )
         elif len(roles) > 1:
             raise NotImplementedError("Chef provider does not currently "

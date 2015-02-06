@@ -208,7 +208,6 @@ class Provider(base.ProviderBase):
                 context.base_url, context.tenant, deployment['id'],
                 resource['index']
             ),
-            merge_results=True,
             defines=dict(
                 resource=key,
                 provider=self.key,
@@ -229,8 +228,7 @@ class Provider(base.ProviderBase):
                 resource=key,
                 provider=self.key,
                 task_tags=['build', 'final']
-            ),
-            merge_results=True
+            )
         )
 
         task_name = 'Wait for Volume %s (%s) build' % (key,
@@ -262,7 +260,8 @@ class Provider(base.ProviderBase):
             wf_spec, 'Delete Block Volume (%s)' % key,
             'checkmate.providers.rackspace.block.tasks.delete_volume',
             call_args=[context, region, instance['id']],
-            properties={'estimated_duration': 15})
+            properties={'estimated_duration': 15}
+        )
 
         return {'root': delete_volume, 'final': delete_volume}
 

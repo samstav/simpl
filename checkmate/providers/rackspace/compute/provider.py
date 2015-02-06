@@ -576,8 +576,7 @@ class Provider(RackspaceComputeProviderBase):
                 provider=self.key,
                 task_tags=['create', 'root']
             ),
-            properties={'estimated_duration': 20},
-            merge_results=True
+            properties={'estimated_duration': 20}
         )
 
         kwargs = dict(
@@ -592,8 +591,7 @@ class Provider(RackspaceComputeProviderBase):
                 resource=key,
                 provider=self.key,
                 task_tags=['build']
-            ),
-            merge_results=True
+            )
         )
 
         task_name = 'Wait for Server %s (%s) build' % (key,
@@ -624,7 +622,7 @@ class Provider(RackspaceComputeProviderBase):
                 resource=key,
                 provider=self.key,
                 task_tags=['final']
-            ),
+            )
             **proxy_kwargs
         )
         build_wait_task.connect(verify_ssh_task)
@@ -652,7 +650,7 @@ class Provider(RackspaceComputeProviderBase):
                     resource=key,
                     provider=self.key,
                     task_tags=['complete']
-                ),
+                )
                 **proxy_kwargs
             )
             verify_ssh_task.connect(touch_complete)
@@ -711,8 +709,7 @@ class Provider(RackspaceComputeProviderBase):
                     device_name=vol_device_name,
                     defines=dict(relation=relation_key, provider=self.key,
                                  task_tags=['attach']),
-                    properties={'estimated_duration': 10},
-                    merge_results=True,
+                    properties={'estimated_duration': 10}
                 )
                 # Wait for seerver and volume build before connecting
                 wfspec.wait_for(
@@ -771,7 +768,7 @@ class Provider(RackspaceComputeProviderBase):
             call_args=[context],
             properties={
                 'estimated_duration': 5,
-            },
+            }
         )
         wait_on_delete = specs.Celery(
             wf_spec,
@@ -781,7 +778,7 @@ class Provider(RackspaceComputeProviderBase):
             call_args=[context],
             properties={
                 'estimated_duration': 10,
-            },
+            }
         )
         delete_server.connect(wait_on_delete)
         return {'root': delete_server, 'final': wait_on_delete}

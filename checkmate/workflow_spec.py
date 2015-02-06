@@ -168,7 +168,8 @@ class WorkflowSpec(specs.WorkflowSpec):
                                                    current_workflow_id),
                 'checkmate.workflows.tasks.pause_workflow',
                 call_args=[current_workflow_id],
-                properties={'estimated_duration': 10})
+                properties={'estimated_duration': 10}
+            )
             wf_spec.start.connect(root_task)
 
         factory = ProviderFactory(deployment, environment)
