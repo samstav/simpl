@@ -45,6 +45,7 @@ class Provider(base.BaseOpscodeProvider):
         'DELETED': 'DELETED',
         'ERROR': 'ERROR',
         'CONFIGURE': 'CONFIGURE',
+        'OFFLINE': 'OFFLINE',
     }
 
     def __init__(self, provider, key=None):

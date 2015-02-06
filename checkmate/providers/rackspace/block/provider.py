@@ -71,6 +71,7 @@ class Provider(base.ProviderBase):
         'deleting': 'DELETING',
         'error': 'ERROR',
         'error_deleting': 'ERROR',
+        'ACTIVE': 'ACTIVE',
     }
 
     def generate_template(self, deployment, resource_type, service, context,
