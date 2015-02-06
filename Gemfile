@@ -13,4 +13,5 @@ ruby '2.1.3'
 group :server do
     gem 'berkshelf', '~> 3'
     gem 'chef', '~> 12.0'
+    gem 'rb-readline'
 end
