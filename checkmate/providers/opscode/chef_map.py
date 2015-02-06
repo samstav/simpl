@@ -32,6 +32,7 @@ Extended functions (added to normal Jinja functions):
     hash(string) - returns an MD5 hash as expected by chef for values like
         passwords
     source(string) - evaluates a source string
+    bool(var) - evaluates any source to True or False
 
 Extended filters (added to normal Jinja filters):
     base64 - a filter to convert to multiline base64 encoded string
