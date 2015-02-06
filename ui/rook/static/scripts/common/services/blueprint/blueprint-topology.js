@@ -63,8 +63,8 @@ angular.module('checkmate.Blueprint')
 
         var zoom = d3.behavior.zoom()
             .scaleExtent([0.2, 3])
-            .on("zoom", zoomed)
-            .on("zoomend", save);
+            .on("zoom", zoomed);
+            // .on("zoomend", save);
 
         var drag = d3.behavior.drag()
             .origin(function(d) { return d; })
