@@ -265,7 +265,7 @@ class Deployment(ExtensibleDict):
     Acts like a dict. Includes validation, setting logic and other useful
     methods.
     Holds the Environment and providers during the processing of a deployment
-    and creation of a workflow
+    and creation of a workflow.
     """
 
     __schema__ = staticmethod(DEPLOYMENT_SCHEMA)
@@ -283,6 +283,7 @@ class Deployment(ExtensibleDict):
     }
 
     def __init__(self, *args, **kwargs):
+        """Initialize Deployment."""
         super(Deployment, self).__init__(*args, **kwargs)
         self._settings = None
         self._environment = None
@@ -303,6 +304,7 @@ class Deployment(ExtensibleDict):
             self['created'] = utils.get_time_string()
 
     def __setitem__(self, key, value):
+        """Emulate dict's __setitem__."""
         if key == 'status':
             if value != self.fsm.current:
                 try:
@@ -316,6 +318,7 @@ class Deployment(ExtensibleDict):
 
     @classmethod
     def inspect(cls, obj, fail_fast=False):
+        """Check deployment for errors."""
         errors = super(Deployment, cls).inspect(obj)
         if 'id' in obj:
             error = db.any_id_problems(obj['id'])
@@ -976,7 +979,7 @@ class Deployment(ExtensibleDict):
 
     def _get_env_provider_constraint(self, name, provider_key,
                                      resource_type=None):
-        """Apply a setting
+        """Apply a setting.
 
         Apply a setting through a provider constraint in the
         environment
@@ -1053,7 +1056,7 @@ class Deployment(ExtensibleDict):
 
     @staticmethod
     def parse_source_uri(uri):
-        """Parses the URI format of source.
+        """Parse the URI format of source.
 
         :param uri: string uri based on display-output sources
         :returns: dict
@@ -1176,7 +1179,7 @@ class Deployment(ExtensibleDict):
         return results
 
     def calculate_services(self):
-        """Generates list of services with interfaces and output data."""
+        """Generate list of services with interfaces and output data."""
         services = {}
 
         # Populate services key in deployment
@@ -1273,7 +1276,7 @@ class Deployment(ExtensibleDict):
         utils.merge_dictionary(target, updated)
 
     def on_resource_postback(self, contents, target=None):
-        """Merge in contents
+        """Merge in contents.
 
         Merge in contents when a postback with new resource data is
         received.
@@ -1345,7 +1348,7 @@ class Deployment(ExtensibleDict):
                                               "yet supported: %s" % key)
 
     def on_connection_postback(self, contents, target=None):
-        """Merge in contents
+        """Merge in contents.
 
         Merge in contents when a postback with new connection data is
         received.
@@ -1418,7 +1421,7 @@ def update_deployment_status(deployment_id, new_status, driver=None):
 
 
 def get_status(deployment_id):
-    """Gets the deployment status by deployment id.
+    """Get the deployment status by deployment id.
 
     Protects against invalid types and key errors.
     """
