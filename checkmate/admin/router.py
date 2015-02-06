@@ -355,15 +355,17 @@ class Router(object):
             body = None
         if not body:
             return self._delete_all_caches()
-        elif not all(k in body for k in ('url', 'token')):
+        elif 'url' not in body:
             fmsg = ("Repo cache to delete must be specified using "
-                    "'url' and 'token' in the request body.")
+                    "'url' (and 'token', if from a private repo) "
+                    "in the request body.")
             raise exceptions.CheckmateException(friendly_message=fmsg,
                                                 http_status=406)
         else:
             try:
+                token = body.get('token') or None
                 blueprint_cache.delete_repo_cache(
-                    body['url'], github_token=body['token'])
+                    body['url'], github_token=token)
                 bottle.response.status = 204
             except exceptions.CheckmateNothingToDo:
                 cls, _, trace = sys.exc_info()
