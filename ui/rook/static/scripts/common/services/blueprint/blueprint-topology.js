@@ -63,8 +63,8 @@ angular.module('checkmate.Blueprint')
 
         var zoom = d3.behavior.zoom()
             .scaleExtent([0.2, 3])
-            .on("zoom", zoomed);
-            // .on("zoomend", save);
+            .on("zoom", zoomed)
+            .on("zoomend", zoomend);
 
         var drag = d3.behavior.drag()
             .origin(function(d) { return d; })
@@ -404,6 +404,12 @@ angular.module('checkmate.Blueprint')
 
                 //toggleSelect(d3.select(this), data);
                 d3.event.stopPropagation();
+              })
+              .on('dblclick', function() {
+                if(d3.event.defaultPrevented) {
+                  return;
+                }
+                d3.event.stopPropagation();
               });
 
           // This defines service drag events.
@@ -617,6 +623,12 @@ angular.module('checkmate.Blueprint')
                   };
 
                   toggleSelect(d3.select(this), data);
+                  d3.event.stopPropagation();
+                })
+                .on('dblclick', function() {
+                  if(d3.event.defaultPrevented) {
+                    return;
+                  }
                   d3.event.stopPropagation();
                 });
 
@@ -1016,6 +1028,10 @@ angular.module('checkmate.Blueprint')
           state.scale = d3.event.scale;
           removeDragConnector();
           container.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+        }
+
+        function zoomend() {
+          save();
         }
       }
     };
