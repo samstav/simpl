@@ -1,5 +1,3 @@
-# pylint: disable=R0912,R0913,R0914,R0915,W0613
-
 # Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -28,8 +26,8 @@ import time
 from checkmate import exceptions
 from checkmate import utils
 
-from checkmate.common import git as common_git
 from checkmate.common import config
+from checkmate.common import git as common_git
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)
@@ -58,7 +56,7 @@ def delete_cache(path):
 
 
 def delete_all_caches():
-    """Are you sure?"""
+    """Delete *all* of the local repo caches."""
     return delete_cache(repo_cache_base())
 
 
@@ -110,6 +108,7 @@ class BlueprintCache(object):
     """Blueprints cache."""
 
     def __init__(self, source_repo, github_token=None):
+        """Initialize the blueprint repo cache with git location."""
         self.source_repo = source_repo
         self.github_token = github_token
         self._cache_path = get_repo_cache_path(
@@ -123,6 +122,7 @@ class BlueprintCache(object):
 
     @property
     def repo(self):
+        """Pointer to this cache's GitRepo instance."""
         if not self._repo:
             self._repo = common_git.GitRepo(self._cache_path)
         return self._repo
@@ -168,7 +168,7 @@ class BlueprintCache(object):
                         self.repo.fetch(remote=token_remote, refspec=refspec)
                     else:
                         self.repo.fetch(refspec=refspec)
-                    self.repo.checkout(ref)
+                    self.repo.checkout('FETCH_HEAD')
                 except subprocess.CalledProcessError as exc:
                     LOG.warning("Unable to fetch tag '%s' from the git "
                                 "repository at %s. Using the cached repo."
@@ -180,7 +180,7 @@ class BlueprintCache(object):
                         self.repo.fetch(remote=token_remote, refspec=ref)
                     else:
                         self.repo.fetch(refspec=ref)
-                    self.repo.checkout(ref)
+                    self.repo.checkout('FETCH_HEAD')
                 except subprocess.CalledProcessError as exc:
                     LOG.warning("Unable to fetch ref '%s' from the git "
                                 "repository at %s. Using the cached "

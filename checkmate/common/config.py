@@ -523,8 +523,7 @@ def preconfigure(*args, **kwargs):
     conf.parse()
     if (role == 'API' and conf.bottle_reloader and not conf.eventlet
             and not os.environ.get('BOTTLE_CHILD')):
-        conf.quiet = True
-        import logging
+        conf.quiet = True  # noqa
         logging.getLogger().setLevel(logging.ERROR)
     else:
         # this is the bottle child OR reloader is off

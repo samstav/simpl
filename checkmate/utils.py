@@ -1,4 +1,4 @@
-# pylint: disable=C0302
+# pylint: disable=C0302,E1101
 # Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -22,7 +22,6 @@ import base64
 import collections
 import copy
 import inspect
-import itertools
 import json
 import logging.config
 import os
@@ -66,103 +65,6 @@ DEFAULT_SENSITIVE_KEYS = [
 ]
 
 
-def get_debug_level(config):
-    """Get debug settings from arguments.
-
-    --debug: turn on additional debug code/inspection (implies logging.DEBUG)
-    --verbose: turn up logging output (logging.DEBUG)
-    --quiet: turn down logging output (logging.WARNING)
-    default is logging.INFO
-    """
-    if config.debug is True:
-        return logging.DEBUG
-    elif config.verbose is True:
-        return logging.DEBUG
-    elif config.quiet is True:
-        return logging.WARNING
-    else:
-        return logging.INFO
-
-
-class DebugFormatter(logging.Formatter):
-
-    """Log formatter.
-
-    Outputs any 'data' values passed in the 'extra' parameter if provided.
-    """
-
-    def format(self, record):
-        # Print out any 'extra' data provided in logs
-        if hasattr(record, 'data'):
-            return "%s. DEBUG DATA=%s" % (logging.Formatter.format(self,
-                                          record), record.__dict__['data'])
-        return logging.Formatter.format(self, record)
-
-
-def get_debug_formatter(config):
-    """Get debug formatter based on configuration.
-
-    :param config: configurtration namespace (ex. argparser)
-
-    --debug: log line numbers and file data also
-    --verbose: standard debug
-    --quiet: turn down logging output (logging.WARNING)
-    default is logging.INFO
-    """
-    if config.debug is True:
-        return DebugFormatter('%(pathname)s:%(lineno)d: %(levelname)-8s '
-                              '%(message)s')
-    elif config.verbose is True:
-        return logging.Formatter('%(name)-30s: %(levelname)-8s %(message)s')
-    elif config.quiet is True:
-        return logging.Formatter('%(message)s')
-    else:
-        return logging.Formatter('%(message)s')
-
-
-def find_console_handler(logger):
-    """Return a stream handler, if it exists."""
-    for handler in logger.handlers:
-        if isinstance(handler, logging.StreamHandler) and \
-                handler.stream == sys.stderr:
-            return handler
-
-
-def init_logging(config, default_config=None):
-    """Configure logging
-
-    :param config: object with configuration namespace (argparse parser)
-    """
-    if config.logconfig:
-        logging.config.fileConfig(config.logconfig,
-                                  disable_existing_loggers=False)
-    elif default_config and os.path.isfile(default_config):
-        logging.config.fileConfig(default_config,
-                                  disable_existing_loggers=False)
-    else:
-        init_console_logging(config)
-
-
-def init_console_logging(config):
-    """Log to console."""
-    # define a Handler which writes messages to the sys.stderr
-    console = find_console_handler(logging.getLogger())
-    if not console:
-        logging_level = get_debug_level(config)
-        console = logging.StreamHandler()
-        console.setLevel(logging_level)
-
-        # set a format which is simpler for console use
-        formatter = get_debug_formatter(config)
-        # tell the handler to use this format
-        console.setFormatter(formatter)
-        # add the handler to the root logger
-        logging.getLogger().addHandler(console)
-        logging.getLogger().setLevel(logging_level)
-        global LOG
-        LOG = logging.getLogger(__name__)  # reset
-
-
 def match_celery_logging(logger):
     """Match celery log level."""
     if logger.level < int(os.environ.get('CELERY_LOG_LEVEL', logger.level)):
@@ -200,11 +102,9 @@ def pytb_lastline(excinfo=None):
                           exc_info=err)
     if not lines:
         lines = traceback_module.format_exc().split('\n')
-    lines = [line.strip() for line in lines]
-    # remove Falsy values
-    lines = itertools.ifilter(None, lines)
-    # remove the word "None" (returned by the traceback module sometimes)
-    lines = filter(lambda line: line != 'None', lines)
+    # remove Falsy values and the word "None"
+    lines = [line.strip() for line in lines
+             if line.strip() and line.strip() != 'None']
     if lines:
         return lines[-1]
 
@@ -288,7 +188,7 @@ def import_object(import_str, *args, **kw):
 
 
 def resolve_yaml_external_refs(document):
-    """Parse YAML and resolves any external references
+    """Parse YAML and resolves any external references.
 
     :param document: a stream object
     :returns: an iterable
@@ -424,7 +324,7 @@ HANDLERS = {
 
 
 def formatted_response(uripath, with_pagination=False):
-    """A function decorator
+    """A function decorator for http responses.
 
     A function decorator that adds pagination information to the response
     header of a route/get/post/put function.
@@ -484,7 +384,7 @@ def formatted_response(uripath, with_pagination=False):
 
 
 def _validate_range_values(request, label, kwargs):
-    """Ensures value contained in label is a positive integer."""
+    """Ensure value contained in label is a positive integer."""
     value = kwargs.get(label, request.query.get(label))
     if value:
         kwargs[label] = int(value)
@@ -574,7 +474,7 @@ def extract_sensitive_data(data, sensitive_keys=None):
     :param sensitive_keys: a list of keys considered sensitive
     """
     def key_match(key, sensitive_keys):
-        """Determines whether or not key is in sensitive_keys."""
+        """Determine whether or not key is in sensitive_keys."""
         if key in sensitive_keys:
             return True
         if key is None:
@@ -723,11 +623,9 @@ def merge_lists(dest, source, extend_lists=False):
         left = dest
         right = source[:]
         if len(dest) > len(source):
-            right.extend([None for _ in range(len(dest) -
-                          len(source))])
+            right.extend([None for _ in range(len(dest) - len(source))])
         elif len(dest) < len(source):
-            left.extend([None for _ in range(len(source) -
-                         len(dest))])
+            left.extend([None for _ in range(len(source) - len(dest))])
         # Merge lists
         for index, value in enumerate(left):
             if value is None and right[index] is not None:
@@ -778,7 +676,7 @@ def get_class_name(instance):
 
 
 def get_source_body(function):
-    """Gets the body of a function (i.e. no definition line, and unindented."""
+    """Get the body of a function (i.e. no definition line, and unindented."""
     lines = inspect.getsource(function).split('\n')
 
     # Find body - skip decorators and definition
@@ -799,7 +697,7 @@ def get_source_body(function):
 
 
 def with_tenant(fxn):
-    """Ensure a context tenant_id is passed into decorated function
+    """Ensure a context tenant_id is passed into decorated function.
 
     A function decorator that ensures a context tenant_id is passed in to
     the decorated function as a kwarg
@@ -817,7 +715,7 @@ def with_tenant(fxn):
 
 
 def support_only(types):
-    """Ensures route is only accepted if content type is supported.
+    """Ensure route is only accepted if content type is supported.
 
     A function decorator that ensures the route is only accepted if the
     content type is in the list of types supplied
@@ -864,7 +762,7 @@ def get_time_string(time_gmt=None):
 
 
 def is_uuid(value):
-    """Tests if a provided value is a valid uuid."""
+    """Test that a provided value is a valid uuid."""
     if not value:
         return False
     if isinstance(value, uuid.UUID):
@@ -929,7 +827,7 @@ def is_evaluable(value):
 
 def generate_password(min_length=None, max_length=None, required_chars=None,
                       starts_with=string.ascii_letters, valid_chars=None):
-    """Generates a password based on constraints provided
+    """Generate a password based on constraints provided.
 
     :param min_length: minimum password length
     :param max_length: maximum password length
@@ -1033,11 +931,12 @@ def execute_shell(command, with_returncode=True, cwd=None, strip=True):
     else:
         raise TypeError("'command' should be a string or a list")
     LOG.debug("Executing `%s` on local machine", command)
-    LOG.debug("Command after split: %s" % cmd)
+    LOG.debug("Command after split: %s", cmd)
     pope = subprc.Popen(
         cmd, stdout=subprc.PIPE, stderr=subprc.STDOUT, cwd=cwd,
         universal_newlines=True)
     out, err = pope.communicate()
+    assert not err
     out = {'stdout': out.strip() if strip else out}
     if pope.returncode != 0:
         raise cmexc.CheckmateCalledProcessError(
@@ -1116,7 +1015,6 @@ def get_id(is_sim):
         return 'simulate%s' % uuid.uuid4().hex[0:12]
     else:
         return uuid.uuid4().hex
-
 
 
 def copy_contents(source, dest, with_overwrite=False, create_path=True):
@@ -1216,7 +1114,7 @@ class Simulation(object):
     """Generic object used to set simulation attrs."""
 
     def __init__(self, *args, **kwargs):
-        """Assigns arguments to attributes.  Kwargs sets key to attr name."""
+        """Assign arguments to attributes, 'kwargs' sets key to attr name."""
         self.args = args
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -1288,11 +1186,13 @@ def format_check(data):
             instance[key]['region'] = value.get('region')
             desired[key] = value['desired-state']
         elif 'desired-state' in value:  # instance is missing
-            body['resources'][key] = [{
-                'type': 'WARNING',
-                'message': 'Resource %s has desired-state but no instance.' %
-                key
-            }]
+            body['resources'][key] = [
+                {
+                    'type': 'WARNING',
+                    'message': ('Resource %s has desired-state '
+                                'but no instance.' % key)
+                }
+            ]
 
     # Build the output
     for resource, checks in desired.iteritems():
@@ -1309,15 +1209,16 @@ def format_check(data):
                     'message': '%s %s is valid.' % (setting, value)
                 })
             else:
-                body['resources'][resource].append({
-                    'type': 'WARNING',
-                    'message': "%s invalid: currently '%s'. Should be '%s'." %
-                    (
-                        setting,
-                        instance[resource].get(setting),
-                        value
-                    )
-                })
+                body['resources'][resource].append(
+                    {
+                        'type': 'WARNING',
+                        'message': ("%s invalid: currently '%s'. "
+                                    "Should be '%s'."
+                                    % (setting,
+                                       instance[resource].get(setting),
+                                       value))
+                    }
+                )
     return body
 
 
@@ -1392,6 +1293,7 @@ class MutatingIterator(object):  # pylint: disable=R0903
     """
 
     def __init__(self, data):
+        """Initialize the iterator with data."""
         self.data = data
 
     class Iterator(object):  # pylint: disable=R0903
@@ -1415,4 +1317,5 @@ class MutatingIterator(object):  # pylint: disable=R0903
             raise StopIteration()
 
     def __iter__(self):
+        """Run the iterator."""
         return MutatingIterator.Iterator(self.data)

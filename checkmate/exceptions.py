@@ -100,6 +100,7 @@ class CheckmateException(Exception):
         return self.options & CAN_RESET
 
     def __str__(self):
+        """String representation."""
         return self.message
 
 
@@ -177,6 +178,7 @@ class CheckmateCalledProcessError(CheckmateException):
     """Wrap CalledProcessError but support passing in specific error_info."""
 
     def __init__(self, returncode, cmd, output=None, error_info=None):
+        """Initialize checkmate subprocess exception."""
         self.returncode = returncode
         self.cmd = cmd
         self.output = output
@@ -190,12 +192,14 @@ class CheckmateCalledProcessError(CheckmateException):
             friendly_message=UNEXPECTED_ERROR)
 
     def __repr__(self):
+        """Show instance values."""
         if self.error_info:
             return self.error_info
         else:
             return super(CheckmateCalledProcessError, self).__repr__()
 
     def __str__(self):
+        """String representation."""
         if self.error_info:
             return self.error_info
         else:
@@ -224,9 +228,7 @@ class CheckmateDataIntegrityError(CheckmateException):
 
 class CheckmateHOTTemplateException(CheckmateException):
 
-    """A HOT template was encountered where a Checkmate blueprint was expected.
-
-    """
+    """A HOT template was encountered, but expected a Checkmate blueprint."""
 
 
 class CheckmateNothingToDo(CheckmateException):
