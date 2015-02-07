@@ -932,9 +932,13 @@ def execute_shell(command, with_returncode=True, cwd=None, strip=True):
         raise TypeError("'command' should be a string or a list")
     LOG.debug("Executing `%s` on local machine", command)
     LOG.debug("Command after split: %s", cmd)
-    pope = subprc.Popen(
-        cmd, stdout=subprc.PIPE, stderr=subprc.STDOUT, cwd=cwd,
-        universal_newlines=True)
+    try:
+        pope = subprc.Popen(
+            cmd, stdout=subprc.PIPE, stderr=subprc.STDOUT, cwd=cwd,
+            universal_newlines=True)
+    except OSError as err:
+        raise cmexc.CheckmateCalledProcessError(
+            1, command, output=repr(err))
     out, err = pope.communicate()
     assert not err
     out = {'stdout': out.strip() if strip else out}
