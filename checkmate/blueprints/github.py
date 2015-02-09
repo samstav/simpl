@@ -1102,6 +1102,7 @@ class AnonymousGitHubManager(object):
 
         content['repo_id'] = repo.id
         return content
+    
     @staticmethod
     def parse_hot(content):
         """Parse dict as a HOT template."""
