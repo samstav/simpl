@@ -880,7 +880,8 @@ class AnonymousGitHubManager(object):
         }
 
     @caching.CacheMethod(store=ANONYMOUS_BLUEPRINT_CACHE, timeout=60,
-                         backing_store=REDIS)
+                         backing_store=REDIS,
+                         backing_store_key='anon_blueprint_cache')
     def _get_blueprint_list_by_tag(self, tag):
         """Filter blueprints to show.
 
