@@ -200,6 +200,20 @@ class Manager(object):
         knife.run_command(['knife', 'environment', 'delete', name, '-y'])
 
     @staticmethod
+    def delete_client(name, deployment_id):
+        """Delete client."""
+        kitchen = ChefKitchen(deployment_id)
+        knife = kitchen._knife
+        knife.run_command(['knife', 'client', 'delete', name, '-y'])
+
+    @staticmethod
+    def delete_node(name, deployment_id):
+        """Delete node."""
+        kitchen = ChefKitchen(deployment_id)
+        knife = kitchen._knife
+        knife.run_command(['knife', 'node', 'delete', name, '-y'])
+
+    @staticmethod
     def update_role(name, deployment_id, desc=None, run_list=None,
                     default_attributes=None, override_attributes=None,
                     run_lists=None):

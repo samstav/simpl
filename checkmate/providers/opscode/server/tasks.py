@@ -356,6 +356,74 @@ def delete_environment(context, deployment, name, api=None):
         delete_environment.retry(exc=exc)
 
 
+@ctask.task(base=base.ProviderTask, provider=Provider)
+@statsd.collect
+def delete_node(context, deployment, name, api=None):
+    """Delete node on Chef Server."""
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        data = {
+            'status': 'ERROR',
+            'error-message': 'Error deleting node'
+        }
+        delete_node.partial(data)
+    delete_node.on_failure = on_failure
+
+    if context.simulation:
+        LOG.info("Would delete node: %s", name)
+        return True
+
+    try:
+        if api:
+            e = chef.Node(name, api=api)
+            e.delete()
+        else:
+            Manager.delete_node(name, deployment)
+        LOG.info("Chef Node %s deleted.", name)
+        return True
+    except chef.ChefError, exc:
+        LOG.debug('Node deletion failed. Chef Error: %s. Retrying.',
+                  exc)
+        delete_node.retry(exc=exc)
+    except Exception, exc:
+        LOG.debug('Node deletion failed. Error: %s. Retrying.', exc)
+        delete_node.retry(exc=exc)
+
+
+@ctask.task(base=base.ProviderTask, provider=Provider)
+@statsd.collect
+def delete_client(context, deployment, name, api=None):
+    """Delete client on Chef Server."""
+    def on_failure(exc, task_id, args, kwargs, einfo):
+        """Handle task failure."""
+        data = {
+            'status': 'ERROR',
+            'error-message': 'Error deleting client'
+        }
+        delete_client.partial(data)
+    delete_client.on_failure = on_failure
+
+    if context.simulation:
+        LOG.info("Would delete client: %s", name)
+        return True
+
+    try:
+        if api:
+            e = chef.Client(name, api=api)
+            e.delete()
+        else:
+            Manager.delete_client(name, deployment)
+        LOG.info("Chef Client %s deleted.", name)
+        return True
+    except chef.ChefError, exc:
+        LOG.debug('Client deletion failed. Chef Error: %s. Retrying.',
+                  exc)
+        delete_client.retry(exc=exc)
+    except Exception, exc:
+        LOG.debug('Client deletion failed. Error: %s. Retrying.', exc)
+        delete_client.retry(exc=exc)
+
+
 def create_role_recipe_string(roles=None, recipes=None):
     """Return roles and recipes in chef cook format."""
     recipe_string = ''

@@ -22,6 +22,7 @@ from SpiffWorkflow import specs
 
 from checkmate.common import threadlocal
 from checkmate import exceptions
+from checkmate import middleware as cmmid
 from checkmate.providers.opscode import base
 from checkmate.providers import base as cmbase
 from checkmate.providers.opscode.chef_map import ChefMap
@@ -198,8 +199,8 @@ class Provider(base.BaseOpscodeProvider):
                     deployment_id=deployment['id'],
                     resource_key=key),
                 deployment['id'],
-                instance_ip,
                 instance_ip,  # name
+                instance_ip,
             ],
             environment=deployment['id'],
             password=operators.PathAttrib('resources/%s/instance/password'
@@ -455,6 +456,59 @@ class Provider(base.BaseOpscodeProvider):
                     LOG.debug("Re-ordering the Mark Server Online task to "
                               "follow Reconfigure tasks")
                     wfspec.wait_for(host_complete, [recon_tasks['final']])
+
+    def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
+                              key):
+        """Delete all Node and Client resources in chef server."""
+        self._verify_existing_resource(resource, key)
+        inst_id = resource.get("instance", {}).get("id")
+        if isinstance(context, cmmid.RequestContext):
+            context = context.get_queued_task_dict(deployment_id=deployment_id,
+                                                   resource_key=key,
+                                                   resource=resource,
+                                                   instance_id=inst_id)
+        else:
+            context['deployment_id'] = deployment_id
+            context['resource_key'] = key
+            context['resource'] = resource
+            context['instance_id'] = inst_id
+
+        host_idx = resource.get('hosted_on')
+        if not host_idx:
+            LOG.debug("Bypassing chef resource since no 'host' was supplied")
+            return
+
+        instance_ip = operators.PathAttrib("resources/%s/instance/ip" %
+                                           host_idx)
+
+        delete_node = specs.Celery(
+            wf_spec,
+            'Delete Chef Node (%s)' % key,
+            'checkmate.providers.opscode.server.tasks.delete_node',
+            call_args=[
+                context,
+                deployment_id,
+                instance_ip,
+            ],
+            properties={
+                'estimated_duration': 5,
+            }
+        )
+        delete_client = specs.Celery(
+            wf_spec,
+            'Delete Chef Client (%s)' % key,
+            'checkmate.providers.opscode.server.tasks.delete_client',
+            call_args=[
+                context,
+                deployment_id,
+                instance_ip,
+            ],
+            properties={
+                'estimated_duration': 5,
+            }
+        )
+        delete_node.follow(delete_client)
+        return {'root': delete_client, 'final': delete_node}
 
     def get_reconfigure_tasks(self, wfspec, deployment, client, server,
                               server_component, context):
