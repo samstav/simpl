@@ -622,7 +622,7 @@ class Provider(RackspaceComputeProviderBase):
                 resource=key,
                 provider=self.key,
                 task_tags=['final']
-            )
+            ),
             **proxy_kwargs
         )
         build_wait_task.connect(verify_ssh_task)
@@ -650,7 +650,7 @@ class Provider(RackspaceComputeProviderBase):
                     resource=key,
                     provider=self.key,
                     task_tags=['complete']
-                )
+                ),
                 **proxy_kwargs
             )
             verify_ssh_task.connect(touch_complete)
