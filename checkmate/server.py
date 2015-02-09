@@ -314,12 +314,14 @@ def main():
 
     # Load anonymous blueprint manager, resource and anonymous path allowance.
     MANAGERS['anonymous-blueprints'] = None
+    # We need to load the anonymous path and resource here otherwise it
+    # believes "anonymous" is a tenant id and hits identity with it.
+    resources.append('anonymous')
+    anonymous_paths.append('^[/]?anonymous')
     if not CONFIG.without_anonymous:
         LOG.debug("Adding anonymous Github Manager")
         MANAGERS['anonymous-blueprints'] = \
             blueprints.github.AnonymousGitHubManager(CONFIG)
-        resources.append('anonymous')
-        anonymous_paths.append('^[/]?anonymous')
 
     ROUTERS['blueprints'] = blueprints.Router(
         root_app, MANAGERS['blueprints'],
