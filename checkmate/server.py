@@ -177,7 +177,10 @@ def error_formatter(error):
         error.output = cmexc.UNEXPECTED_ERROR
 
     if not hasattr(error, 'output'):
-        error.output = cmexc.UNEXPECTED_ERROR
+        if error.status_code == 404:
+            error.output = error.body
+        else:
+            error.output = cmexc.UNEXPECTED_ERROR
     if not hasattr(error, 'status'):
         error.status = 500
 
