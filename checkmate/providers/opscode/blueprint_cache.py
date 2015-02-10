@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 
 def repo_cache_base():
     """Return the current config's base path to repo caches."""
-    return os.path.join(CONFIG.deployments_path, "cache", "blueprints")
+    return os.path.join(CONFIG.cache_dir, "blueprint-repos")
 
 
 def delete_cache(path):

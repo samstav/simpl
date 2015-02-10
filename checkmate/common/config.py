@@ -66,6 +66,9 @@ OPTIONS = [
                   ),
     config.Option("-m", "--connection-string",
                   help="URL to the database store (ex: mongodb://localhost)"
+    config.Option("--cache-dir",
+                  default="/var/local/checkmate/cache",
+                  help="root cache directory"
                   ),
     config.Option("-c", "--cache-connection-string",
                   help="URL to a cache, ex: redis://localhost",
@@ -246,9 +249,6 @@ OPTIONS = [
                   help="Branch/tag/reference denoting the version of "
                   "blueprints to use.",
                   default="master"
-                  ),
-    config.Option("--cache-dir",
-                  help="blueprint cache directory"
                   ),
     config.Option("--blueprint-cache-expiration",
                   env="CHECKMATE_BLUEPRINT_CACHE_EXPIRE",
