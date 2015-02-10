@@ -16,6 +16,7 @@
 
 """Tests for Blueprints class."""
 import copy
+import os
 import unittest
 
 import mock
@@ -181,6 +182,45 @@ class TestBlueprints(unittest.TestCase):
                                 "This server does not support version "
                                 "'unrecognized' blueprints",
                                 blueprints.Blueprint, blueprint)
+
+
+class TestAnonymousGitHubManager(unittest.TestCase):
+    """Test anonymous github manager."""
+
+    def setUp(self):
+        self.config = mock.Mock()
+        self.config.anonymous_github_base_uri = 'http://localhost'
+        self.config.anonymous_github_org = 'checkmate-blueprints'
+        self.config.anonymous_github_ref = 'master'
+        self.config.cache_dir = '/tmp'
+
+    def test_no_base_uri(self):
+        """Verify exception raised if no base uri supplied."""
+        conf = self.config
+        conf.anonymous_github_base_uri = None
+        with self.assertRaises(AssertionError):
+            blueprints.GitHubManager(conf)
+
+    def test_no_org(self):
+        """"Verify exception raised if no github org supplied."""
+        conf = self.config
+        conf.anonymous_github_org = None
+        with self.assertRaises(AssertionError):
+            blueprints.AnonymousGitHubManager(conf)
+
+    def test_no_ref(self):
+        """Verify exception raised if no github ref supplied."""
+        conf = self.config
+        conf.anonymous_github_ref = None
+        with self.assertRaises(AssertionError):
+            blueprints.AnonymousGitHubManager(conf)
+
+    def test_default_cache_dir(self):
+        """Verify cache_root is not None if no cache_dir is supplied."""
+        conf = self.config
+        conf.cache_dir = None
+        gh = blueprints.AnonymousGitHubManager(conf)
+        self.assertIsNotNone(gh._cache_root)
 
 
 class TestGitHubManagerTenantTag(unittest.TestCase):
