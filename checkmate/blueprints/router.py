@@ -30,6 +30,51 @@ from checkmate import utils
 LOG = logging.getLogger(__name__)
 
 
+class AnonymousRouter(object):
+
+    """Route /anonymous/blueprints calls."""
+
+    def __init__(self, app, manager=None):
+
+        self.app = app
+        self.manager = manager
+
+        # Only adding anonymous routes if we have manager
+        if self.manager:
+            LOG.debug("Adding anonymous blueprint routes.")
+            app.route('/anonymous/blueprints', 'GET', self.get_blueprints)
+            app.route('/anonymous/blueprints/<api_id>', 'GET',
+                      self.get_blueprint)
+
+    @utils.formatted_response('blueprints', with_pagination=True)
+    def get_blueprints(self, offset=None, limit=None):
+        """Get existing anonymous blueprints."""
+        start = time.time()
+        results = {}
+        if self.manager:
+            details = bottle.request.query.get('details')
+            remaining = math.floor(limit) if limit else None
+            results = self.manager.get_blueprints(
+                offset=offset,
+                limit=remaining,
+                details=details == '1',
+            )
+        duration = time.time() - start
+        if duration <= 0.5:
+            LOG.debug("Get blueprints took less than 500ms: %s", duration)
+        elif duration <= 1:
+            LOG.warn("Get blueprints took more than 500ms: %s", duration)
+        else:
+            LOG.error("Get blueprints took more than 1 seconds: %s", duration)
+
+        return results
+
+    def get_blueprint(self, api_id):
+        """Get a blueprint."""
+        blueprint = self.manager.get_blueprint(api_id)
+        return blueprint
+
+
 class Router(object):
 
     """Route /blueprints/ calls."""
@@ -53,12 +98,7 @@ class Router(object):
         app.route('/blueprints', 'POST', self.post_blueprint)
         app.route('/blueprints/<api_id>', 'PUT', self.put_blueprint)
 
-        # Only adding anonymous routes if we have manager
-        if self.anonymous_manager:
-            LOG.debug("Adding anonymous blueprint routes.")
-            app.route('/anonymous/blueprints', 'GET', self.get_anon_blueprints)
-            app.route('/anonymous/blueprints/<api_id>', 'GET',
-                      self.get_anon_blueprint)
+
 
     @statsd.collect
     @utils.with_tenant
@@ -178,35 +218,4 @@ class Router(object):
         blueprint = self.manager.get_blueprint(api_id, tenant_id=tenant_id)
         if not blueprint:
             blueprint = self.cache_manager.get_blueprint(str(api_id))
-        return blueprint
-
-    #
-    # Anonymous Blueprint functions
-    #
-    @utils.formatted_response('blueprints', with_pagination=True)
-    def get_anon_blueprints(self, offset=None, limit=None):
-        """Get existing anonymous blueprints."""
-        start = time.time()
-        results = {}
-        if self.anonymous_manager:
-            details = bottle.request.query.get('details')
-            remaining = math.floor(limit) if limit else None
-            results = self.anonymous_manager.get_blueprints(
-                offset=offset,
-                limit=remaining,
-                details=details == '1',
-            )
-        duration = time.time() - start
-        if duration <= 0.5:
-            LOG.debug("Get blueprints took less than 500ms: %s", duration)
-        elif duration <= 1:
-            LOG.warn("Get blueprints took more than 500ms: %s", duration)
-        else:
-            LOG.error("Get blueprints took more than 1 seconds: %s", duration)
-
-        return results
-
-    def get_anon_blueprint(self, api_id):
-        """Get a blueprint."""
-        blueprint = self.anonymous_manager.get_blueprint(api_id)
         return blueprint

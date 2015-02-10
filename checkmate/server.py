@@ -325,11 +325,13 @@ def main():
         LOG.debug("Adding anonymous Github Manager")
         MANAGERS['anonymous-blueprints'] = \
             blueprints.github.AnonymousGitHubManager(CONFIG)
+        ROUTERS['anonymous-blueprints'] = blueprints.AnonymousRouter(
+            root_app, MANAGERS['anonymous-blueprints']
+        )
 
     ROUTERS['blueprints'] = blueprints.Router(
         root_app, MANAGERS['blueprints'],
         cache_manager=MANAGERS['blueprint-cache'],
-        anonymous_manager=MANAGERS['anonymous-blueprints']
     )
     resources.append('blueprints')
 
