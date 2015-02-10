@@ -1217,7 +1217,7 @@ class MockWsgiFilters(object):
         path = environ['PATH_INFO']
         if path and not self.context.tenant:
             parts = path.strip('/').split('/')
-            if parts[0] != 'admin':
+            if parts[0] != 'admin' and parts[0] != 'anonymous':
                 self.context.tenant = parts[0]
                 environ['PATH_INFO'] = '/%s' % '/'.join(parts[1:])
         return self.app(environ, start_response)

@@ -177,7 +177,10 @@ def error_formatter(error):
         error.output = cmexc.UNEXPECTED_ERROR
 
     if not hasattr(error, 'output'):
-        error.output = cmexc.UNEXPECTED_ERROR
+        if error.status_code == 404:
+            error.output = error.body
+        else:
+            error.output = cmexc.UNEXPECTED_ERROR
     if not hasattr(error, 'status'):
         error.status = 500
 
@@ -311,9 +314,24 @@ def main():
         if 'github' not in MANAGERS:
             MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
         MANAGERS['blueprint-cache'] = MANAGERS['github']
+
+    # Load anonymous blueprint manager, resource and anonymous path allowance.
+    MANAGERS['anonymous-blueprints'] = None
+    # We need to load the anonymous path and resource here otherwise it
+    # believes "anonymous" is a tenant id and hits identity with it.
+    resources.append('anonymous')
+    anonymous_paths.append('^[/]?anonymous')
+    if not CONFIG.without_anonymous:
+        LOG.debug("Adding anonymous Github Manager")
+        MANAGERS['anonymous-blueprints'] = \
+            blueprints.github.AnonymousGitHubManager(CONFIG)
+        ROUTERS['anonymous-blueprints'] = blueprints.AnonymousRouter(
+            root_app, MANAGERS['anonymous-blueprints']
+        )
+
     ROUTERS['blueprints'] = blueprints.Router(
         root_app, MANAGERS['blueprints'],
-        cache_manager=MANAGERS['blueprint-cache']
+        cache_manager=MANAGERS['blueprint-cache'],
     )
     resources.append('blueprints')
 
