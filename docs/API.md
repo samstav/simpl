@@ -14,6 +14,8 @@ The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 - /webhooks/...
 - /version
 
+- /anonymous/blueprints[/:id]/
+
 *Note: not all verbs on all paths. DELETE not yet ready*
 
 ### POST & PUT
@@ -185,3 +187,9 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by
     # available:
 
     POST /webhooks/blueprints
+    
+    # Anonymous paths are enabled by default. Disabled by starting the 
+    # application using --without-anonymous
+    
+    GET /anonymous/blueprints
+    GET /anonymous/blueprints/:id/
