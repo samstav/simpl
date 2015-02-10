@@ -246,6 +246,61 @@ class TestChefServerProvider(test.ProviderTester):
             cleanup_task_spec.call, 'checkmate.providers.opscode.server.tasks'
                                     '.delete_environment')
 
+    def test_delete_resource_tasks(self):
+        """Test delete resources tasks in the chef-server provider."""
+        resource = {
+            'hosted_on': '0',
+            'provider': 'chef-server'
+        }
+        expected_context = {
+            'username': 'MOCK_USER',
+            'domain': None,
+            'user_tenants': None,
+            'auth_token': 'MOCK_TOKEN',
+            'catalog': None,
+            'is_admin': False,
+            'instance_id': None,
+            'resource_key': '1',
+            'resource': resource,
+            'tenant': None,
+            'read_only': False,
+            'user_id': None,
+            'show_deleted': False,
+            'roles': [],
+            'region': None,
+            'authenticated': False,
+            'base_url': None,
+            'simulation': False,
+            'kwargs': {},
+            'auth_source': None,
+            'deployment_id': 'DEP1'
+        }
+
+        context = middleware.RequestContext(auth_token='MOCK_TOKEN',
+                                            username='MOCK_USER')
+        wf_spec = workflow_spec.WorkflowSpec()
+        server_provider = server.Provider({})
+        delete_result = server_provider.delete_resource_tasks(
+            wf_spec, context, 'DEP1', resource, '1')
+        delete_client_spec = delete_result['root']
+        delete_node_spec = delete_client_spec.outputs[0]
+        self.assertIsInstance(delete_client_spec, specs.Celery)
+        self.assertIsInstance(delete_node_spec, specs.Celery)
+        self.assertEqual(delete_client_spec.args[0], expected_context)
+        self.assertEqual(delete_client_spec.args[1], 'DEP1')
+        self.assertEqual(delete_client_spec.args[2].path,
+                         'resources/0/instance/ip')
+        self.assertEqual(delete_node_spec.args[0], expected_context)
+        self.assertEqual(delete_node_spec.args[1], 'DEP1')
+        self.assertEqual(delete_node_spec.args[2].path,
+                         'resources/0/instance/ip')
+        self.assertEqual(
+            delete_client_spec.call, 'checkmate.providers.opscode.server.tasks'
+                                     '.delete_client')
+        self.assertEqual(
+            delete_node_spec.call, 'checkmate.providers.opscode.server.tasks'
+                                   '.delete_node')
+
 
 class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
     """Test that cookbooks can be used without a map file (only catalog)
