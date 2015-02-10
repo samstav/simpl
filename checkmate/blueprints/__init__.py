@@ -16,7 +16,9 @@
 """All the Blueprints things."""
 
 from .blueprint import Blueprint
-from .github import AnonymousGitHubManager, GitHubManager
+from .github import AnonymousGitHubManager
+from .github import GitHubManager
 from .github import WebhookRouter
 from .manager import Manager
-from .router import AnonymousRouter, Router
+from .router import AnonymousRouter
+from .router import Router
