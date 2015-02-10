@@ -452,7 +452,7 @@ class Provider(base.BaseOpscodeProvider):
                 if recollect_task:
                     wfspec.wait_for(recollect_task, final_tasks)
 
-                if host_complete:
+                if host_complete and 'final' in recon_tasks:
                     LOG.debug("Re-ordering the Mark Server Online task to "
                               "follow Reconfigure tasks")
                     wfspec.wait_for(host_complete, [recon_tasks['final']])
