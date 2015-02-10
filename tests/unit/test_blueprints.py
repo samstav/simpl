@@ -16,7 +16,6 @@
 
 """Tests for Blueprints class."""
 import copy
-import os
 import unittest
 
 import mock
