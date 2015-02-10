@@ -151,6 +151,96 @@ class TestGitHubManagerV1Cache(unittest.TestCase):
         self.assertEqual(len(results['results']), 53)
 
 
+class TestAnonymousGitHubManager(unittest.TestCase):
+    def setUp(self):
+        self.mox = mox.Mox()
+        self.config = config.current()
+        self.config.update({
+            'anonymous_github_base_uri': 'http://localhost',
+            'anonymous_github_org': 'checkmate-blueprints',
+            'anonymous_github_ref': 'master',
+            'cache_dir': '/tmp',
+            'bottle_parent': None,
+        })
+        self.manager = github.AnonymousGitHubManager(self.config)
+
+    def tearDown(self):
+        self.mox.UnsetStubs()
+
+    def test_get_blueprint_bad_yaml(self):
+        yaml = '@'
+        tag = self.config.ref
+        repo = self.mox.CreateMock(gh.Repository.Repository)
+        repo.clone_url = "https://clone"
+        repo.ssh_url = "https://ssh"
+
+        self.mox.StubOutWithMock(self.manager, '_repo_find_ref')
+        self.manager._repo_find_ref(repo, tag).AndReturn(mock.Mock())
+
+        dep_file = self.mox.CreateMockAnything()
+        dep_file.content = base64.b64encode(yaml)
+        repo.get_file_contents("checkmate.yaml", ref=tag).AndReturn(dep_file)
+
+        self.mox.ReplayAll()
+        result = self.manager._get_blueprint(repo, tag)
+        self.mox.VerifyAll()
+        self.assertIsNone(result)
+
+    def test_get_blueprint_yaml_sans_blueprint(self):
+        yaml = 'inputs: {}'
+        tag = self.config.ref
+        repo = self.mox.CreateMock(gh.Repository.Repository)
+        repo.clone_url = "https://clone"
+        repo.ssh_url = "https://ssh"
+
+        self.mox.StubOutWithMock(self.manager, '_repo_find_ref')
+        self.manager._repo_find_ref(repo, tag).AndReturn(mock.Mock())
+
+        dep_file = self.mox.CreateMockAnything()
+        dep_file.content = base64.b64encode(yaml)
+        repo.get_file_contents("checkmate.yaml", ref=tag).AndReturn(dep_file)
+
+        self.mox.ReplayAll()
+        result = self.manager._get_blueprint(repo, tag)
+        self.mox.VerifyAll()
+        self.assertIsNone(result)
+
+    def test_get_blueprint_bad_escape(self):
+        yaml = ('- regex: "[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+ Za-z0-9!#$%&''*+/='
+                '?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+')
+        tag = self.config.ref
+        repo = self.mox.CreateMock(gh.Repository.Repository)
+        repo.clone_url = "https://clone"
+        repo.ssh_url = "https://ssh"
+
+        self.mox.StubOutWithMock(self.manager, '_repo_find_ref')
+        self.manager._repo_find_ref(repo, tag).AndReturn(mock.Mock())
+
+        dep_file = self.mox.CreateMockAnything()
+        dep_file.content = base64.b64encode(yaml)
+        repo.get_file_contents("checkmate.yaml", ref=tag).AndReturn(dep_file)
+
+        self.mox.ReplayAll()
+        result = self.manager._get_blueprint(repo, tag)
+        self.mox.VerifyAll()
+        self.assertIsNone(result)
+
+    def test_write_cache_no_dir_access(self):
+        self.mox.StubOutWithMock(github, 'REDIS')
+        github.REDIS = None
+
+        self.mox.StubOutWithMock(os.path, 'exists')
+        os.path.exists(self.config.cache_dir).AndReturn(False)
+
+        error = OSError("[Errno 13] Permission denied: '%s'" %
+                        self.config.cache_dir)
+        self.mox.StubOutWithMock(os, 'makedirs')
+        os.makedirs(self.config.cache_dir, 502).AndRaise(error)
+
+        self.mox.ReplayAll()
+        self.manager._update_cache()
+        self.mox.VerifyAll()
+
 if __name__ == '__main__':
     from checkmate import test
     test.run_with_params()
