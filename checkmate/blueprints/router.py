@@ -98,8 +98,6 @@ class Router(object):
         app.route('/blueprints', 'POST', self.post_blueprint)
         app.route('/blueprints/<api_id>', 'PUT', self.put_blueprint)
 
-
-
     @statsd.collect
     @utils.with_tenant
     @utils.formatted_response('blueprints', with_pagination=True)
