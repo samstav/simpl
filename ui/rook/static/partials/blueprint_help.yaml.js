@@ -22,7 +22,7 @@ _: |
   The Checkmate DSL
   -------------
 
-  - YAML and JSON are both first class citizens. We can do all this in JSON, just easier to type and read YAML (for humans, less puntuation). In fact, JSON is a subset of YAML (a YAML parser will understand JSON).
+  - YAML and JSON are both first class citizens. We can do all this in JSON, just easier to type and read YAML (for humans, less punctuation). In fact, JSON is a subset of YAML (a YAML parser will understand JSON).
   - A deployment contains a blueprint and an environment. Those can be references or they can be embedded (a copy) in the YAML/JSON.
   - App.yaml contains everything in one file JUST to make it easier to run Checkmate. That's not the typical use case. Typically, users will have existing environments and blueprints and they'll reference those (like in the new deployment screen).
   - Components should come from providers. Component IDs are universal. We'll need a catalog somewhere. Ex. wordpress is wordpress is wordpress....
