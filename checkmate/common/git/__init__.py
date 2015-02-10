@@ -36,15 +36,6 @@ def git_clone(target_dir, location, branch_or_tag=None, verbose=False):
     return utils.execute_shell(command)
 
 
-def git_remote_tag_exists(repo_dir, tag, remote='origin'):
-    """Return True if 'tag' matches an existing remote tag name."""
-    output = utils.execute_shell('git ls-remote %s %s' % (remote, tag),
-                                 cwd=repo_dir)
-    if output['stdout']:
-        return True
-    return False
-
-
 def git_tag(repo_dir, tagname, message=None, force=True):
     """Create an annotated tag at the current HEAD."""
     message = pipes.quote(message or "%s" % tagname)
@@ -61,6 +52,20 @@ def git_list_tags(repo_dir, with_messages=False):
     command = 'git tag -l'
     if with_messages:
         command = "%s -n1" % command
+    return utils.execute_shell(command, cwd=repo_dir)['stdout'].splitlines()
+
+
+def git_ls_remote(repo_dir, remote='origin', refs=None):
+    """Run git ls-remote.
+
+    'remote' can be a remote ref in a local repo, e.g. origin,
+    or url of a remote repository.
+    """
+    command = 'git ls-remote %s' % remote
+    if refs:
+        if isinstance(refs, list):
+            refs = " ".join(refs)
+        command = "%s %s" % (command, refs)
     return utils.execute_shell(command, cwd=repo_dir)['stdout'].splitlines()
 
 
@@ -138,6 +143,8 @@ class GitRepo(object):
 
     def __init__(self, repo_dir):
         """Initialize wrapper and check for existence of dir."""
+        repo_dir = os.path.abspath(
+            os.path.expanduser(os.path.normpath(repo_dir)))
         if not os.path.exists(repo_dir):
             raise OSError(errno.ENOENT, "No such file or directory")
         self.repo_dir = repo_dir
@@ -165,9 +172,19 @@ class GitRepo(object):
         """Create an annotated tag."""
         return git_tag(self.repo_dir, tagname, message=message, force=force)
 
-    def remote_tag_exists(self, tag, remote='origin'):
-        """Determine if 'tag' matches an existing remote tag name."""
-        return git_remote_tag_exists(self.repo_dir, tag, remote=remote)
+    def ls_remote(self, remote='origin', refs=None):
+        """Return a list of refs for the given remote.
+
+        Returns a list of (hash, ref) tuples
+            [(<hash1>, <ref1>), (<hash2>, <ref2>)]
+        """
+        output = git_ls_remote(
+            self.repo_dir, remote='origin', refs=refs)
+        output = [l.replace('\t', ' ') for l in output if l.strip()
+                  and not l.strip().lower().startswith('from ')]
+        output = [tuple(j.strip() for j in line.split(' ', 1))
+                  for line in output]
+        return output
 
     def list_tags(self, with_messages=False):
         """Return a list of git tags for the git repo.
@@ -178,7 +195,7 @@ class GitRepo(object):
         """
         output = git_list_tags(
             self.repo_dir, with_messages=with_messages)
-        output = [l for l in output if l.strip()]
+        output = [l.replace('\t', ' ') for l in output if l.strip()]
         if with_messages:
             output = [tuple(j.strip() for j in line.split(' ', 1))
                       for line in output]
