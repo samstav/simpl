@@ -47,6 +47,13 @@ class Manager(object):
             limit=limit,
         )
 
+    def get_all_blueprints(self, offset=None, limit=None):
+        """Get a full list of all blueprints."""
+        return self.driver.get_blueprints(
+            offset=offset,
+            limit=limit,
+        )
+
     def get_blueprint(self, api_id, tenant_id=None):
         """Get an existing blueprint."""
         blueprint = self.driver.get_blueprint(api_id)
