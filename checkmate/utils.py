@@ -343,6 +343,7 @@ def formatted_response(uripath, with_pagination=False):
 
             data = fxn(*args, **kwargs)
             context = bottle.request.environ['context']
+            prefix = kwargs.get('tenant_id', context.tenant) or ''
             if with_pagination:
                 _write_pagination_headers(
                     data,
@@ -350,7 +351,7 @@ def formatted_response(uripath, with_pagination=False):
                     kwargs.get('limit') or 100,
                     bottle.response,
                     uripath,
-                    kwargs.get('tenant_id', context.tenant)
+                    prefix
                 )
             if 'deployments' in uripath:
                 expected_tenant = kwargs.get(
@@ -393,7 +394,7 @@ def _validate_range_values(request, label, kwargs):
 
 
 def _write_pagination_headers(data, offset, limit, response,
-                              uripath, tenant_id):
+                              uripath, tenant_id=None):
     """Add pagination headers to the response body."""
     count = len(data.get('results'))
     if 'collection-count' in data:
@@ -402,7 +403,9 @@ def _write_pagination_headers(data, offset, limit, response,
         total = count
     else:
         total = None
-
+    url = uripath
+    if tenant_id:
+        url = '%s/%s' % (tenant_id, uripath)
     # Set 'content-range' header
     response.set_header(
         'Content-Range',
@@ -416,34 +419,34 @@ def _write_pagination_headers(data, offset, limit, response,
         # Add Next page link to http header
         if (offset + limit) < total - 1:
             nextfmt = \
-                '</%s/%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
+                '</%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
             response.add_header(
-                "Link", nextfmt % (tenant_id, uripath, limit, offset + limit)
+                "Link", nextfmt % (url, limit, offset + limit)
             )
 
         # Add Previous page link to http header
         if offset > 0 and (offset - limit) >= 0:
-            prevfmt = '</%s/%s?limit=%d&offset=%d>; rel="previous"; \
+            prevfmt = '</%s?limit=%d&offset=%d>; rel="previous"; \
             title="Previous page"'
             response.add_header(
-                "Link", prevfmt % (tenant_id, uripath, limit, offset - limit)
+                "Link", prevfmt % (url, limit, offset - limit)
             )
 
         # Add first page link to http header
         if offset > 0:
-            firstfmt = '</%s/%s?limit=%d>; rel="first"; title="First page"'
+            firstfmt = '</%s?limit=%d>; rel="first"; title="First page"'
             response.add_header(
-                "Link", firstfmt % (tenant_id, uripath, limit))
+                "Link", firstfmt % (url, limit))
 
         # Add last page link to http header
         if limit and limit < total:
-            lastfmt = '</%s/%s?offset=%d>; rel="last"; title="Last page"'
+            lastfmt = '</%s?offset=%d>; rel="last"; title="Last page"'
             if limit and total % limit:
                 last_offset = total - (total % limit)
             else:
                 last_offset = total - limit
             response.add_header(
-                "Link", lastfmt % (tenant_id, uripath, last_offset))
+                "Link", lastfmt % (url, last_offset))
 
 
 def write_body(data, request, response):
