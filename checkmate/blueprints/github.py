@@ -200,6 +200,49 @@ class GitHubManager(object):
             'results': results,
         }
 
+    def get_all_blueprints(self, offset=None, limit=100, details=0):
+        """Return a full list of known blueprints.
+
+        :param offset: pagination start
+        :param limit: pagination length
+        :param details: detail level of blueprints
+        """
+        if offset is None:
+            offset = 0
+        if limit is None:
+            limit = 100
+        results = self._get_full_blueprint_list()
+
+        # Skip filtering for most common use case (details=1 and no pagination)
+        only_basic_info = details is 0
+        paginate = offset > 0 or len(results) > limit
+        if results and (only_basic_info or paginate):
+            LOG.debug("Paginating blueprints")
+            blueprint_ids = results.keys()
+            blueprint_ids.sort()
+            if only_basic_info:
+                results = {
+                    k: v for k, v in results.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
+            else:
+                results = {
+                    k: {
+                        "name": v.get("blueprint", {}).get("name"),
+                        "description": v.get("blueprint", {})
+                                        .get("description")
+                    } for k, v in self._blueprints.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
+
+        self.check_cache_freshess()
+
+        return {
+            'collection-count': len(results),
+            '_links': {},
+            'results': results,
+        }
+
     def list_cache(self):
         """List cached blueprints."""
         results = {}
@@ -226,6 +269,12 @@ class GitHubManager(object):
             '_links': {},
             'results': results,
         }
+
+    @caching.CacheMethod(store=BLUEPRINT_CACHE, timeout=60,
+                         backing_store=REDIS)
+    def _get_full_blueprint_list(self):
+        """Return a full dict of known blueprints."""
+        return self._blueprints
 
     @caching.CacheMethod(store=BLUEPRINT_CACHE, timeout=60,
                          backing_store=REDIS)
@@ -1102,7 +1151,7 @@ class AnonymousGitHubManager(object):
 
         content['repo_id'] = repo.id
         return content
-    
+
     @staticmethod
     def parse_hot(content):
         """Parse dict as a HOT template."""
