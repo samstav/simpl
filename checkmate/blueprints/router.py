@@ -53,7 +53,7 @@ class AnonymousRouter(object):
         results = {}
         if self.manager:
             details = bottle.request.query.get('details')
-            remaining = math.floor(limit) if limit else None
+            remaining = int(math.floor(limit)) if limit else None
             results = self.manager.get_blueprints(
                 offset=offset,
                 limit=remaining,
@@ -113,9 +113,12 @@ class Router(object):
 
         combined = {}
         if self.cache_manager and self.cache_manager is not self.manager:
-            remaining = math.floor(limit - local_count) if limit else None
+            # Casting math.floor result to an int as it returns a float.
+            # Floats raise TypeError when trying to slice lists which we do
+            # later to deal with the pagination.
+            remaining = int(math.floor(limit - local_count)) if limit else None
             if offset:
-                relative_offset = math.floor(offset - local_count)
+                relative_offset = int(math.floor(offset - local_count))
             else:
                 relative_offset = None
             details = bottle.request.query.get('details')
