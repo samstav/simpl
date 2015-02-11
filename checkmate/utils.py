@@ -418,16 +418,16 @@ def _write_pagination_headers(data, offset, limit, response,
 
         # Add Next page link to http header
         if (offset + limit) < total - 1:
-            nextfmt = \
-                '</%s?limit=%d&offset=%d>; rel="next"; title="Next page"'
+            nextfmt = ('</%s?limit=%d&offset=%d>; '
+                       'rel="next"; title="Next page"')
             response.add_header(
                 "Link", nextfmt % (url, limit, offset + limit)
             )
 
         # Add Previous page link to http header
         if offset > 0 and (offset - limit) >= 0:
-            prevfmt = '</%s?limit=%d&offset=%d>; rel="previous"; \
-            title="Previous page"'
+            prevfmt = ('</%s?limit=%d&offset=%d>; rel="previous"; '
+                       'title="Previous page"')
             response.add_header(
                 "Link", prevfmt % (url, limit, offset - limit)
             )
