@@ -343,7 +343,7 @@ def formatted_response(uripath, with_pagination=False):
 
             data = fxn(*args, **kwargs)
             context = bottle.request.environ['context']
-            prefix = kwargs.get('tenant_id', context.tenant) or ''
+            tenant_id = kwargs.get('tenant_id', context.tenant) or None
             if with_pagination:
                 _write_pagination_headers(
                     data,
@@ -351,7 +351,7 @@ def formatted_response(uripath, with_pagination=False):
                     kwargs.get('limit') or 100,
                     bottle.response,
                     uripath,
-                    prefix
+                    tenant_id
                 )
             if 'deployments' in uripath:
                 expected_tenant = kwargs.get(
