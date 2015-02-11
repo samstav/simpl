@@ -49,7 +49,7 @@ class Router(object):
     """Route /admin/ calls."""
 
     def __init__(self, app, deployments_manager, tenants_manager,
-                 blueprints_manager=None):
+                 blueprints_manager=None, blueprints_local_manager=None):
         """Take a bottle app and route traffic for it.
 
         :param app: bottle application to route to
@@ -80,6 +80,7 @@ class Router(object):
                   self.migrate_deployment)
 
         self.blueprints_manager = blueprints_manager
+        self.blueprints_local_manager = blueprints_local_manager
         if blueprints_manager:
             app.route('/admin/cache/blueprints', 'GET',
                       self.list_blueprints_cache)
@@ -88,6 +89,11 @@ class Router(object):
                       partial(self.not_loaded, "blueprints"))
         app.route('/admin/cache/repos', 'DELETE',
                   self.delete_repo_cache)
+
+        app.route('/admin/blueprints/github', 'GET',
+                  self.list_all_github_blueprints)
+        app.route('/admin/blueprints/local', 'GET',
+                  self.list_all_local_blueprints)
 
     @utils.only_admins
     def migrate_deployment(self, deployment_id):
@@ -326,6 +332,22 @@ class Router(object):
     def list_blueprints_cache(self):
         """Return the list of cached blueprints."""
         return self.blueprints_manager.list_cache()
+
+    @utils.only_admins
+    @utils.formatted_response('admin/blueprints/local', with_pagination=True)
+    def list_all_local_blueprints(self, limit=None, offset=None):
+        limit = utils.cap_limit(limit, None)
+        res = self.blueprints_local_manager.get_all_blueprints(limit=limit,
+                                                               offset=offset)
+        return res
+
+    @utils.only_admins
+    @utils.formatted_response('admin/blueprints/github', with_pagination=True)
+    def list_all_github_blueprints(self, limit=None, offset=None):
+        limit = utils.cap_limit(limit, None)
+        res = self.blueprints_manager.get_all_blueprints(limit=limit,
+                                                         offset=offset)
+        return res
 
     #
     # Repositories
