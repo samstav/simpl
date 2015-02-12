@@ -138,7 +138,7 @@ checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$comp
   })
   .when('/:tenantId/blueprints', {
     templateUrl: '/partials/blueprints/blueprints.html',
-    controller: 'BlueprintListController'
+    controller: 'BlueprintsController'
   })
   .when('/:tenantId/deployments', {
     templateUrl: '/partials/deployments/index.html',
@@ -1724,6 +1724,9 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 }
 
 //Blueprint controllers
+function BlueprintsController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, DeploymentData) {
+  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null, DeploymentData);
+}
 function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, blueprints, initial_blueprint, environments, initial_environment, DeploymentData) {
   //Model: UI
   $scope.showSummaries = true;
@@ -3911,6 +3914,7 @@ checkmate.controller('DeploymentController', DeploymentController);
 checkmate.controller('DeploymentListController', DeploymentListController);
 checkmate.controller('BlueprintRemoteListController', BlueprintRemoteListController);
 checkmate.controller('DeploymentManagedCloudController', DeploymentManagedCloudController);
+checkmate.controller('BlueprintsController', BlueprintsController);
 checkmate.controller('BlueprintNewController', BlueprintNewController);
 checkmate.controller('DeploymentNewController', DeploymentNewController);
 checkmate.controller('DeploymentNewRemoteController', DeploymentNewRemoteController);
