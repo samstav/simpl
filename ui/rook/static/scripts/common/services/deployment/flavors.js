@@ -32,7 +32,13 @@ angular.module('checkmate.Flavors')
       flavors.selected = flavors.default.id;
       flavors.original = {};
       flavors.getFlavor = function(selected) {
-        selected = selected || this.selected || this.default.id;
+        selected = selected || this.selected;
+
+        if(!this.data[selected]) {
+          this.selected = flavors.default.id;
+          return this.original;
+        }
+
         return this.data[selected];
       };
 
