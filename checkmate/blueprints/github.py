@@ -109,7 +109,7 @@ class GitHubManager(object):
     def get_tenant_tag(self, tenant_id, tenant_auth_groups):
         """Find the tag to return for this tenant.
 
-        If the tenant is explicitely called out in preview-refs, then use the
+        If the tenant is explicitly called out in preview-refs, then use the
         preview ref.
         If the tenant is in a group that has a tag, then return that ref (first
         match wins).
@@ -141,7 +141,7 @@ class GitHubManager(object):
 
     @property
     def repo_owner(self):
-        """Github reposiroty owner (org or user).
+        """Github repository owner (org or user).
 
         :return: repository owner
         """
