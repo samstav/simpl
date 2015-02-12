@@ -27,6 +27,7 @@ import logging
 import os
 import re
 import traceback
+import urlparse
 import uuid
 
 # some distros install as PAM (Ubuntu, SuSE)
@@ -1015,3 +1016,66 @@ class CatchAll404(object):
 
     def __call__(self, environ, start_response):
         return self.app(environ, start_response)
+
+
+class CORSMiddleware(object):
+
+    """Responds to CORS requests."""
+
+    default_methods = ('GET', 'OPTIONS', 'POST', 'PUT', 'HEAD')
+    default_headers = (
+        'Accept',
+        'Connection',
+        'Content-Length',
+        'Content-Type',
+        'Accept-Language',
+        'Accept-Encoding',
+        'User-Agent',
+        'X-CSRF-Token',
+        'X-Requested-With',
+    )
+
+    def __init__(self, app, allowed_netlocs=None, allowed_hostnames=None,
+                 allowed_headers=default_headers,
+                 allowed_methods=default_methods):
+        """Determine what requests to allow.
+
+        :keyword allowed_netlocs: includes port (ex localhost:8080)
+        :keyword allowed_hostnames: names, FQDNs or IP addresses
+        """
+        self.app = app
+        self.allowed_netlocs = allowed_netlocs or []
+        self.allowed_hostnames = allowed_hostnames or []
+        self.allowed_methods = ', '.join(allowed_methods)
+        self.allowed_headers = ', '.join(allowed_headers)
+        self.header_string = ', '.join(self.allowed_headers)
+
+    def __call__(self, environ, start_response):
+        """Filter for CORS."""
+        request = webob.Request(environ)
+        origin = request.headers.get('Origin', 'http://noaccess')
+        url = urlparse.urlparse(origin)
+        if (url.netloc in self.allowed_netlocs or
+                url.hostname in self.allowed_hostnames):
+            start_response = self.start_response_callback(start_response,
+                                                          origin)
+            if environ['REQUEST_METHOD'] == 'OPTIONS':
+                response = webob.Response()
+                response.headerlist = [
+                    ('Access-Control-Allow-Methods', self.allowed_methods),
+                    ('Access-Control-Allow-Headers', self.allowed_headers),
+                ]
+                return response(environ, start_response)
+        elif origin != 'http://noaccess':
+            LOG.info("Unknown origin '%s'. Responding without CORS headers",
+                     origin)
+        return self.app(environ, start_response)
+
+    def start_response_callback(self, start_response, origin):
+        """Intercept upstream start_response and adds our headers."""
+        def callback(status, headers, exc_info=None):
+            """Add our headers to response using a closure."""
+            headers.append(('Access-Control-Allow-Origin', origin))
+            # Call upstream start_response
+            start_response(status, headers, exc_info)
+        return callback
