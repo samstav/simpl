@@ -525,7 +525,7 @@ class GitHubManager(object):
         return False
 
     def parse_blueprint(self, repo, content):
-        '''Parse dict as a checkmate blueprint.'''
+        """Parse dict as a checkmate blueprint."""
         if 'documentation' not in content['blueprint']:
             content['blueprint']['documentation'] = {}
 
@@ -549,7 +549,7 @@ class GitHubManager(object):
 
     @staticmethod
     def parse_hot(content):
-        '''Parse dict as a HOT template.'''
+        """Parse dict as a HOT template."""
         types = {
             'String': 'string',
             'Number': 'integer',
