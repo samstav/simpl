@@ -162,10 +162,8 @@ class GitHubManager(object):
 
         if not tag:
             return
-        if offset is None:
-            offset = 0
-        if limit is None:
-            limit = 100
+        offset = offset or 0
+        limit = limit or 100
 
         preview = self._preview_tenants and tenant_id in self._preview_tenants
         results = self._get_blueprint_list_by_tag(tag, include_preview=preview)
@@ -207,10 +205,8 @@ class GitHubManager(object):
         :param limit: pagination length
         :param details: detail level of blueprints
         """
-        if offset is None:
-            offset = 0
-        if limit is None:
-            limit = 100
+        offset = offset or 0
+        limit = limit or 100
         results = self._get_full_blueprint_list()
 
         # Skip filtering for most common use case (details=1 and no pagination)
@@ -864,10 +860,8 @@ class AnonymousGitHubManager(object):
         tag = self._ref
         if not tag:
             return
-        if offset is None:
-            offset = 0
-        if limit is None:
-            limit = 100
+        offset = offset or 0
+        limit = limit or 100
 
         results = self._get_blueprint_list_by_tag(tag)
 
