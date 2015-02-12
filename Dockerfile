@@ -48,6 +48,11 @@ RUN gem install bundler \
   && bundle config --global bin "$GEM_HOME/bin"
 RUN cd /opt/rubysetup && bundle install
 
+# Install dependencies
+ADD ./requirements.txt /app/requirements.txt
+RUN git config --global url."https://".insteadOf git://
+RUN pip install -r /app/requirements.txt
+
 # Put Checkmate in there
 ADD . /app
 ADD docker/config/checkmate-supervisor.conf /etc/supervisor.d/checkmate.conf
@@ -59,8 +64,6 @@ RUN (mkdir /var/log/supervisor; \
      useradd -m -u 8888 checkmate; \
      mkdir -p /var/local/checkmate; \
      chown checkmate /var/local/checkmate; \
-     git config --global url."https://".insteadOf git://; \
-     pip install -r /app/requirements.txt; \
      pip install -e /app/ui; \
      pip install -e /app; \
      chmod +x /app/run.sh;)
