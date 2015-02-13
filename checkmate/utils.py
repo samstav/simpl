@@ -343,7 +343,7 @@ def formatted_response(uripath, with_pagination=False):
 
             data = fxn(*args, **kwargs)
             context = bottle.request.environ['context']
-            tenant_id = kwargs.get('tenant_id', context.tenant) or None
+            tenant_id = kwargs.get('tenant_id', context.tenant)
             if with_pagination:
                 _write_pagination_headers(
                     data,
