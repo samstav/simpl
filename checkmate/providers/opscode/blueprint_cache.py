@@ -170,11 +170,11 @@ class BlueprintCache(object):
         """Cache exists, fetch latest (if stale) and perform checkout."""
         last_update = time.time() - os.path.getmtime(head_file)
         cache_expire_time = CONFIG.blueprint_cache_expiration
-        LOG.warning("(cache) cache_expire_time: %s", cache_expire_time)
-        LOG.warning("(cache) last_update: %s", last_update)
+        LOG.debug("(cache) cache_expire_time: %s", cache_expire_time)
+        LOG.debug("(cache) last_update: %s", last_update)
 
         if last_update > cache_expire_time:  # Cache miss
-            LOG.warning("(cache) Updating repo: %s", self.cache_path)
+            LOG.info("(cache) Updating repo: %s", self.cache_path)
             tags = self.repo.list_tags()
             if ref in tags:
                 refspec = "refs/tags/" + ref + ":refs/tags/" + ref
@@ -196,10 +196,7 @@ class BlueprintCache(object):
                               "repository. The output during error was %s",
                               ref, hide_git_url_password(remote), exc.output)
         else:  # Cache hit
-            LOG.warning("(cache) Using cached repo: %s", self.cache_path)
-
-        LOG.warning("(cache) Checking out ref '%s' in %s",
-                    ref, self.cache_path)
+            LOG.info("(cache) Using cached repo: %s", self.cache_path)
 
     def _create_new_cache(self, remote, ref):
         """Create cache directory, init & clone the repository."""
