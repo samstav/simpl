@@ -56,7 +56,7 @@ class TransactionalDirCreation(object):  # pylint: disable=R0903
                 except OSError as exc:
                     if exc_type.errno != errno.EEXIST:
                         raise
-                    # Otherwise exist is fine! We shhould be OK
+                    # Otherwise exist is fine! We should be OK
         finally:
             try:
                 shutil.rmtree(self.working_dir)
@@ -253,11 +253,10 @@ class BlueprintCache(object):
                     "Target dir %s for clone is non-empty" % self.cache_path,
                     options=cmexc.CAN_RETRY)
 
-        cache_path = self.cache_path
-        with TransactionalDirCreation(cache_path) as temp_path:
-            self.cache_path = temp_path
+        with TransactionalDirCreation(self.cache_path) as temp_path:
+            repo = common_git.GitRepo(temp_path)
             try:
-                self.repo.clone(remote, branch_or_tag=ref)
+                repo.clone(remote, branch_or_tag=ref)
             except cmexc.CheckmateCalledProcessError as exc:
                 LOG.error("Git repository could not be cloned from '%s'. The "
                           "output during error was '%s'",
@@ -266,16 +265,15 @@ class BlueprintCache(object):
                 raise
 
             try:
-                tags = self.repo.list_tags()
+                tags = repo.list_tags()
                 if ref in tags:
-                    self.repo.checkout(ref)
+                    repo.checkout(ref)
                 # the ref *should* already be checked out
             except cmexc.CheckmateCalledProcessError as exc:
                 LOG.error("Failed to checkout '%s' for git repository %s "
                           "located at %s. The output during error was '%s'.",
                           ref, hide_git_url_password(remote),
-                          self.cache_path, exc.output)
+                          temp_path, exc.output)
                 raise
         LOG.info("(cache) Repo %s cloned to cache.",
                  hide_git_url_password(remote))
-        self.cache_path = cache_path
