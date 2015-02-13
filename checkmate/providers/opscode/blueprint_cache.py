@@ -21,13 +21,12 @@ import os
 import shutil
 import sys
 import time
-
-from checkmate import exceptions as cmexc
-from checkmate import utils
 import urlparse
 
 from checkmate.common import config
 from checkmate.common import git as common_git
+from checkmate import exceptions as cmexc
+from checkmate import utils
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)
