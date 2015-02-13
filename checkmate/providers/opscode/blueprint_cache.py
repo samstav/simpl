@@ -24,12 +24,30 @@ import time
 
 from checkmate import exceptions as cmexc
 from checkmate import utils
+import urlparse
 
 from checkmate.common import config
 from checkmate.common import git as common_git
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)
+
+
+def hide_git_url_password(url):
+    """Detect a password part of a URL and replaces it with *****.
+
+    Also handles GitHub URL where username has OAuth token.
+    """
+    try:
+        parsed = urlparse.urlsplit(url)
+        if parsed.password:
+            if parsed.password.lower() == 'x-auth-basic' and parsed.username:
+                return url.replace('//%s:' % parsed.username, '//*****:')
+            else:
+                return url.replace(':%s@' % parsed.password, ':*****@')
+    except StandardError:
+        pass
+    return url
 
 
 def repo_cache_base():
@@ -137,14 +155,14 @@ class BlueprintCache(object):
         else:
             url = self.source_repo
             ref = "master"
-        token_remote = None
+        remote = url
         if self.github_token:
-            token_remote = utils.set_url_creds(url, username=self.github_token,
-                                               password='x-oauth-basic')
+            remote = utils.set_url_creds(url, username=self.github_token,
+                                         password='x-oauth-basic')
         head_file = good_cache_exists(self.cache_path)
         if head_file:
             return self._update_existing(
-                head_file, url, ref, token_remote=token_remote)
+                head_file, url, ref)
         else:
             # if a good cache does not exist, blow away the broken cache
             try:
@@ -152,10 +170,9 @@ class BlueprintCache(object):
             except OSError as err:
                 if err.errno != errno.ENOENT:
                     raise
-            return self._create_new_cache(
-                url, ref, token_remote=token_remote)
+            return self._create_new_cache(remote, ref)
 
-    def _update_existing(self, head_file, url, ref, token_remote=None):
+    def _update_existing(self, head_file, remote, ref):
         """Cache exists, fetch latest (if stale) and perform checkout."""
         last_update = time.time() - os.path.getmtime(head_file)
         cache_expire_time = CONFIG.blueprint_cache_expiration
@@ -168,35 +185,29 @@ class BlueprintCache(object):
             if ref in tags:
                 refspec = "refs/tags/" + ref + ":refs/tags/" + ref
                 try:
-                    if token_remote:
-                        self.repo.fetch(remote=token_remote, refspec=refspec)
-                    else:
-                        self.repo.fetch(refspec=refspec)
+                    self.repo.fetch(remote=remote, refspec=refspec)
                     self.repo.checkout('FETCH_HEAD')
                 except cmexc.CheckmateCalledProcessError as exc:
                     LOG.error("Unable to fetch tag '%s' from the git "
                               "repository at %s. Using the cached repo."
                               "The output during error was '%s'",
-                              ref, url, exc.output)
+                              ref, hide_git_url_password(remote), exc.output)
             else:
                 try:
-                    if token_remote:
-                        self.repo.fetch(remote=token_remote, refspec=ref)
-                    else:
-                        self.repo.fetch(refspec=ref)
+                    self.repo.fetch(remote=remote, refspec=ref)
                     self.repo.checkout('FETCH_HEAD')
                 except cmexc.CheckmateCalledProcessError as exc:
                     LOG.error("Unable to fetch ref '%s' from the git "
                               "repository at %s. Using the cached "
                               "repository. The output during error was %s",
-                              ref, url, exc.output)
+                              ref, hide_git_url_password(remote), exc.output)
         else:  # Cache hit
             LOG.warning("(cache) Using cached repo: %s", self.cache_path)
 
         LOG.warning("(cache) Checking out ref '%s' in %s",
                     ref, self.cache_path)
 
-    def _create_new_cache(self, url, ref, token_remote=None):
+    def _create_new_cache(self, remote, ref):
         """Create cache directory, init & clone the repository."""
         LOG.info("(cache) Cloning repo to %s", self.cache_path)
 
@@ -214,17 +225,15 @@ class BlueprintCache(object):
                 options=cmexc.CAN_RETRY)
 
         try:
-            if token_remote:
-                self.repo.clone(token_remote, branch_or_tag=ref)
-            else:
-                self.repo.clone(url, branch_or_tag=ref)
+            self.repo.clone(remote, branch_or_tag=ref)
         except cmexc.CheckmateCalledProcessError as exc:
             if dirsmade:
                 # only remove if this same fn call was the creator
                 shutil.rmtree(dirsmade)
-            LOG.error("Git repository could not be cloned from "
-                      "'%s'. The output during error was '%s'"
-                      % (url, exc.output))
+            LOG.error("Git repository could not be cloned from '%s'. The "
+                      "output during error was '%s'",
+                      hide_git_url_password(remote), exc.output,
+                      exc_info=exc)
             raise
 
         try:
@@ -236,8 +245,8 @@ class BlueprintCache(object):
             if dirsmade:
                 # only remove if this same fn call was the creator
                 shutil.rmtree(dirsmade)
-            LOG.error("Failed to checkout '%s' for git "
-                      "repository %s located at %s. The "
-                      "output during error was '%s'."
-                      % (ref, url, self.cache_path, exc.output))
+            LOG.error("Failed to checkout '%s' for git repository %s "
+                      "located at %s. The output during error was '%s'.",
+                      ref, hide_git_url_password(remote),
+                      self.cache_path, exc.output)
             raise
