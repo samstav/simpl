@@ -380,7 +380,7 @@ class GitHubManager(object):
 
         if not os.path.exists(self._cache_root):
             try:
-                os.makedirs(self._cache_root, 0o766)
+                os.makedirs(self._cache_root, 0o770)
             except (OSError, IOError):
                 LOG.warn("Could not create cache directory", exc_info=True)
                 return
@@ -1011,7 +1011,7 @@ class AnonymousGitHubManager(object):
 
         if not os.path.exists(self._cache_root):
             try:
-                os.makedirs(self._cache_root, 0o766)
+                os.makedirs(self._cache_root, 0o770)
                 LOG.info("Created cache directory: %s", self._cache_root)
             except (OSError, IOError):
                 LOG.warn("Could not create cache directory", exc_info=True)
