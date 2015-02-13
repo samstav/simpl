@@ -183,6 +183,17 @@ OPTIONS = [
                   default=None,
                   help='port for eventlet backdoor to listen'
                   ),
+    config.Option("--cors-hosts",
+                  help="Host names to allow cross-origin calls from",
+                  type=config.comma_separated_strings,
+                  default=[],
+                  env="CHECKMATE_CORS"),
+    config.Option("--cors-netlocs",
+                  help="Host name/port pairs to allow cross-origin calls from",
+                  type=config.comma_separated_strings,
+                  default=[],
+                  env="CHECKMATE_CORS_NETLOCS"),
+
     #
     # Optional Airbrake
     #

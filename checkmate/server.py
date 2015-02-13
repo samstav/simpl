@@ -487,6 +487,26 @@ def main():
                     "the same command line arguments used to start the main "
                     "process. All module-level code is executed at least "
                     "twice! Be careful.")
+
+    # Add CORS Headers
+    etc_headers = (
+        'X-API-version',
+        'X-Auth-Source',
+        'X-Auth-Token',
+        'X-Proxy',
+        'WWW-Authenticate')
+
+    next_app = middleware.CORSMiddleware(
+        next_app,
+        allowed_headers=(middleware.CORSMiddleware.default_headers +
+                         etc_headers),
+        allowed_hostnames=CONFIG.cors_hosts or ['localhost', '127.0.0.1'],
+        allowed_netlocs=CONFIG.cors_netlocs or [
+            'checkmate.rax.io',
+            'staging-checkmate.rax.io',
+        ]
+    )
+
     # Start listening. Enable reload by default to pick up file changes
     try:
         bottle.run(app=next_app, host=ip_address, port=port, **kwargs)
