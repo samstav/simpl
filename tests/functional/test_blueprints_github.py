@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Blueprints' GithubManager class."""
+
 import base64
 import os
 import unittest
@@ -111,7 +112,7 @@ class TestGitHubManager(unittest.TestCase):
         error = OSError("[Errno 13] Permission denied: '%s'" %
                         self.config.cache_dir)
         self.mox.StubOutWithMock(os, 'makedirs')
-        os.makedirs(self.config.cache_dir, 502).AndRaise(error)
+        os.makedirs(self.config.cache_dir, 0o770).AndRaise(error)
 
         self.mox.ReplayAll()
         self.manager._update_cache()
@@ -119,7 +120,9 @@ class TestGitHubManager(unittest.TestCase):
 
 
 class TestGitHubManagerV1Cache(unittest.TestCase):
+
     """Test local cache code."""
+
     def setUp(self):
         os.environ['BOTTLE_CHILD'] = '1'
         self.config = config.current()
@@ -235,7 +238,7 @@ class TestAnonymousGitHubManager(unittest.TestCase):
         error = OSError("[Errno 13] Permission denied: '%s'" %
                         self.config.cache_dir)
         self.mox.StubOutWithMock(os, 'makedirs')
-        os.makedirs(self.config.cache_dir, 502).AndRaise(error)
+        os.makedirs(self.config.cache_dir, 0o770).AndRaise(error)
 
         self.mox.ReplayAll()
         self.manager._update_cache()

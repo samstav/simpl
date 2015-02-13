@@ -15,6 +15,7 @@
 #    under the License.
 
 """Tests for Blueprints class."""
+
 import copy
 import unittest
 
@@ -25,6 +26,7 @@ from checkmate import exceptions
 
 
 class TestBlueprints(unittest.TestCase):
+
     """Tests for main blueprints module."""
 
     def test_schema(self):
@@ -214,15 +216,9 @@ class TestAnonymousGitHubManager(unittest.TestCase):
         with self.assertRaises(AssertionError):
             blueprints.AnonymousGitHubManager(conf)
 
-    def test_default_cache_dir(self):
-        """Verify cache_root is not None if no cache_dir is supplied."""
-        conf = self.config
-        conf.cache_dir = None
-        gh = blueprints.AnonymousGitHubManager(conf)
-        self.assertIsNotNone(gh._cache_root)
-
 
 class TestGitHubManagerTenantTag(unittest.TestCase):
+
     """Test github manager filtering by tenants."""
 
     def setUp(self):

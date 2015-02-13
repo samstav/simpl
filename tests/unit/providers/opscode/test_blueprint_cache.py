@@ -34,7 +34,6 @@ class TestUpdate(unittest.TestCase):
         self.source_repo = "https://foo.com/checkmate/wordpress.git"
         self.cache = BlueprintCache(self.source_repo)
 
-    @mock.patch.object(common_git.GitRepo, '__init__')
     @mock.patch('checkmate.common.git.git_checkout')
     @mock.patch('checkmate.common.git.git_list_tags')
     @mock.patch('checkmate.common.git.git_clone')
@@ -43,13 +42,11 @@ class TestUpdate(unittest.TestCase):
     @mock.patch('os.listdir')
     def test_non_existing_cache(self, mock_listdir, mock_path_exists,
                                 mock_make_dirs, mock_clone, mock_tags,
-                                mock_checkout, mock_repo_init):
+                                mock_checkout):
         mock_listdir.return_value = []
-        mock_repo_init.return_value = None
         mock_path_exists.return_value = False
         mock_tags.return_value = ['master', 'working']
 
-        self.cache.repo.repo_dir = self.cache.cache_path
         self.cache.update()
 
         mock_path_exists.assert_called_with(self.cache.cache_path)
@@ -133,7 +130,7 @@ class TestUpdate(unittest.TestCase):
         self.assertTrue(time.time.called)
         mock_mtime.assert_called_once_with(head_file_path)
         mock_tags.assert_called_once_with(
-            self.cache.cache_path, with_messages=False)
+            os.path.normpath(self.cache.cache_path), with_messages=False)
         mock_fetch.assert_called_once_with(
             self.cache.cache_path, remote=self.source_repo,
             refspec="refs/tags/master:refs/tags/master",
@@ -164,8 +161,8 @@ class TestUpdate(unittest.TestCase):
         mock_is_file.assert_called_once_with(head_file_path)
         self.assertTrue(time.time.called)
         mock_mtime.assert_called_once_with(head_file_path)
-        mock_tags.assert_called_once_with(self.cache.cache_path,
-                                          with_messages=False)
+        mock_tags.assert_called_once_with(
+            os.path.normpath(self.cache.cache_path), with_messages=False)
         mock_fetch.assert_called_once_with(
             self.cache.cache_path, remote=self.source_repo,
             verbose=False, refspec="master")

@@ -49,7 +49,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(default.github_api, "https://api.github.com/v3")
         self.assertEqual(default.organization, 'checkmate-blueprints')
         self.assertEqual(default.ref, 'master')
-        self.assertIsNone(default.cache_dir)
+        self.assertEqual(default.cache_dir, '/var/local/checkmate/cache')
         self.assertIsNone(default.preview_ref)
         self.assertIsNone(default.preview_tenants)
         self.assertIsNone(default.group_refs)

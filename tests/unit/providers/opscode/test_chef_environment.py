@@ -156,7 +156,6 @@ class TestCreateKitchen(TestKitchenSolo):
     @mock.patch.object(Random, 'atfork')
     @mock.patch('os.mkdir')
     @mock.patch('os.path.exists')
-    @mock.patch.object(BlueprintCache, 'cache_path')
     @mock.patch.object(utils, 'copy_contents')
     @mock.patch.object(BlueprintCache, 'update')
     @mock.patch.object(KnifeSolo, 'config_path')
@@ -166,7 +165,7 @@ class TestCreateKitchen(TestKitchenSolo):
     @mock.patch.object(KnifeSolo, 'init')
     def test_success(self, mock_init_solo, mock_write_solo_config,
                      mock_file, mock_dump, mock_solo_config,
-                     mock_cache_update, mock_copy_contents, mock_cache_path,
+                     mock_cache_update, mock_copy_contents,
                      mock_path_exists, mock_mkdir, mock_fork,
                      mock_rsa_generate):
         nodes_path = "%s/nodes" % self.kitchen_path
@@ -210,7 +209,7 @@ class TestCreateKitchen(TestKitchenSolo):
         mock_rsa_generate.return_value.exportKey.assert_called_once_with('PEM')
         file_handle.write.assert_called_once_with("secret_key")
         self.assertTrue(mock_cache_update.called)
-        mock_copy_contents.assert_called_once_with(mock_cache_path,
+        mock_copy_contents.assert_called_once_with(mock.ANY,
                                                    self.kitchen_path,
                                                    with_overwrite=True,
                                                    create_path=True)
