@@ -20,6 +20,7 @@ import logging
 import os
 import shutil
 import sys
+import tempfile
 import time
 import urlparse
 
@@ -30,6 +31,39 @@ from checkmate import utils
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)
+
+
+class TransactionalDirCreation(object):  # pylint: disable=R0903
+
+    """Create directory if all post-creation jobs succeed."""
+
+    def __init__(self, path):
+        self.path = path
+        self.working_dir = None
+
+    def __enter__(self):
+        if os.path.exists(self.path):
+            raise OSError(errno.EEXIST, os.strerror(errno.EEXIST), self.path)
+        self.working_dir = tempfile.mkdtemp()
+        return self.working_dir
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if not exc_type:
+                # Move temp dir to final location
+                try:
+                    shutil.move(self.working_dir, self.path)
+                except OSError as exc:
+                    if exc_type.errno != errno.EEXIST:
+                        raise
+                    # Otherwise exist is fine! We shhould be OK
+        finally:
+            try:
+                shutil.rmtree(self.working_dir)
+            except OSError as exc:
+                if exc.errno != errno.ENOENT:
+                    LOG.error("Unable to clean up '%s'", self.working_dir,
+                              exc_info=exc)
 
 
 def hide_git_url_password(url):
@@ -202,42 +236,46 @@ class BlueprintCache(object):
         """Create cache directory, init & clone the repository."""
         LOG.info("(cache) Cloning repo to %s", self.cache_path)
 
-        dirsmade = None
-        try:
-            os.makedirs(self.cache_path)
-            dirsmade = self.cache_path
-        except OSError as err:
-            if err.errno != errno.EEXIST:
+        # Make sure base exists
+        base_dir = repo_cache_base()
+        if not os.path.exists(base_dir):
+            try:
+                os.makedirs(base_dir, 0o770)
+            except OSError as err:
+                if err.errno != errno.EEXIST:
+                    raise
+
+        # Make sure path is clear for creation
+        if os.path.exists(self.cache_path):
+            LOG.warning("Cache directory already exists: %s", self.cache_path)
+            if os.listdir(self.cache_path):
+                raise cmexc.CheckmateException(
+                    "Target dir %s for clone is non-empty" % self.cache_path,
+                    options=cmexc.CAN_RETRY)
+
+        cache_path = self.cache_path
+        with TransactionalDirCreation(cache_path) as temp_path:
+            self.cache_path = temp_path
+            try:
+                self.repo.clone(remote, branch_or_tag=ref)
+            except cmexc.CheckmateCalledProcessError as exc:
+                LOG.error("Git repository could not be cloned from '%s'. The "
+                          "output during error was '%s'",
+                          hide_git_url_password(remote), exc.output,
+                          exc_info=exc)
                 raise
 
-        if os.listdir(self.cache_path):
-            raise cmexc.CheckmateException(
-                "Target dir %s for clone is non-empty" % self.cache_path,
-                options=cmexc.CAN_RETRY)
-
-        try:
-            self.repo.clone(remote, branch_or_tag=ref)
-        except cmexc.CheckmateCalledProcessError as exc:
-            if dirsmade:
-                # only remove if this same fn call was the creator
-                shutil.rmtree(dirsmade)
-            LOG.error("Git repository could not be cloned from '%s'. The "
-                      "output during error was '%s'",
-                      hide_git_url_password(remote), exc.output,
-                      exc_info=exc)
-            raise
-
-        try:
-            tags = self.repo.list_tags()
-            if ref in tags:
-                self.repo.checkout(ref)
-            # the ref *should* already be checked out
-        except cmexc.CheckmateCalledProcessError as exc:
-            if dirsmade:
-                # only remove if this same fn call was the creator
-                shutil.rmtree(dirsmade)
-            LOG.error("Failed to checkout '%s' for git repository %s "
-                      "located at %s. The output during error was '%s'.",
-                      ref, hide_git_url_password(remote),
-                      self.cache_path, exc.output)
-            raise
+            try:
+                tags = self.repo.list_tags()
+                if ref in tags:
+                    self.repo.checkout(ref)
+                # the ref *should* already be checked out
+            except cmexc.CheckmateCalledProcessError as exc:
+                LOG.error("Failed to checkout '%s' for git repository %s "
+                          "located at %s. The output during error was '%s'.",
+                          ref, hide_git_url_password(remote),
+                          self.cache_path, exc.output)
+                raise
+        LOG.info("(cache) Repo %s cloned to cache.",
+                 hide_git_url_password(remote))
+        self.cache_path = cache_path

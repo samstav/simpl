@@ -14,7 +14,10 @@
 
 """Test Blueprints cache."""
 
-import subprocess
+import errno
+import os
+import shutil
+import tempfile
 import time
 
 import mock
@@ -22,6 +25,7 @@ import unittest
 
 from checkmate import exceptions as cmexc
 from checkmate.common import git as common_git
+from checkmate.providers.opscode import blueprint_cache
 from checkmate.providers.opscode.blueprint_cache import BlueprintCache
 
 
@@ -48,13 +52,15 @@ class TestUpdate(unittest.TestCase):
         self.cache.repo.repo_dir = self.cache.cache_path
         self.cache.update()
 
-        mock_path_exists.assert_called_once_with(self.cache.cache_path)
-        mock_make_dirs.assert_called_once_with(self.cache.cache_path)
-        mock_clone.assert_called_once_with(
+        mock_path_exists.assert_called_with(self.cache.cache_path)
+        mock_make_dirs.assert_called_with(
+            os.path.dirname(self.cache.cache_path), 0o770)
+        mock_clone.assert_called_with(
             self.cache.cache_path, self.source_repo,
             branch_or_tag='master', verbose=False)
-        mock_tags.assert_called_once_with(self.cache.cache_path, with_messages=False)
-        mock_checkout.assert_called_once_with(self.cache.cache_path, 'master')
+        mock_tags.assert_called_once_with(self.cache.cache_path,
+                                          with_messages=False)
+        mock_checkout.assert_called_with(self.cache.cache_path, 'master')
 
     @mock.patch.object(common_git.GitRepo, '__init__')
     @mock.patch('checkmate.common.git.git_clone')
@@ -72,12 +78,11 @@ class TestUpdate(unittest.TestCase):
         mock_path_exists.return_value = False
         mock_clone.side_effect = cmexc.CheckmateCalledProcessError(1, "cmd")
 
-        self.assertRaises(cmexc.CheckmateCalledProcessError,
-                          self.cache.update)
+        self.assertRaises(cmexc.CheckmateCalledProcessError, self.cache.update)
 
-        mock_path_exists.assert_called_once_with(self.cache.cache_path)
-        mock_make_dirs.assert_called_once_with(self.cache.cache_path)
-        mock_clone.assert_called_once_with(self.cache.cache_path,
+        mock_path_exists.assert_called()
+        mock_make_dirs.assert_called_once()
+        mock_clone.assert_called_once_with(mock.ANY,
                                            self.source_repo,
                                            branch_or_tag='master',
                                            verbose=False)
@@ -130,10 +135,11 @@ class TestUpdate(unittest.TestCase):
         mock_tags.assert_called_once_with(
             self.cache.cache_path, with_messages=False)
         mock_fetch.assert_called_once_with(
-            self.cache.cache_path, remote="origin",
+            self.cache.cache_path, remote=self.source_repo,
             refspec="refs/tags/master:refs/tags/master",
             verbose=False)
-        mock_checkout.assert_called_once_with(self.cache.cache_path, 'FETCH_HEAD')
+        mock_checkout.assert_called_once_with(self.cache.cache_path,
+                                              'FETCH_HEAD')
 
     @mock.patch('checkmate.common.git.git_list_tags')
     @mock.patch('checkmate.common.git.git_fetch')
@@ -158,11 +164,32 @@ class TestUpdate(unittest.TestCase):
         mock_is_file.assert_called_once_with(head_file_path)
         self.assertTrue(time.time.called)
         mock_mtime.assert_called_once_with(head_file_path)
-        mock_tags.assert_called_once_with(self.cache.cache_path, with_messages=False)
+        mock_tags.assert_called_once_with(self.cache.cache_path,
+                                          with_messages=False)
         mock_fetch.assert_called_once_with(
-            self.cache.cache_path, remote='origin',
+            self.cache.cache_path, remote=self.source_repo,
             verbose=False, refspec="master")
-        mock_checkout.assert_called_once_with(self.cache.cache_path, 'FETCH_HEAD')
+        mock_checkout.assert_called_once_with(self.cache.cache_path,
+                                              'FETCH_HEAD')
+
+    def test_cache_creation(self):
+        tempdir = tempfile.gettempdir()
+        tempfile_name = next(tempfile._get_candidate_names())
+        test_path = os.path.join(tempdir, tempfile_name)
+        with blueprint_cache.TransactionalDirCreation(test_path) as tdc:
+            with open(os.path.join(tdc, 'foo.txt'), 'w') as handle:
+                handle.write("Hi!")
+
+        assert not os.path.exists(tdc)
+        assert os.path.exists(test_path)
+        assert os.path.exists(os.path.join(test_path, 'foo.txt'))
+
+        try:
+            with blueprint_cache.TransactionalDirCreation(test_path) as tdc:
+                pass
+        except OSError as exc:
+            assert exc.errno == errno.EEXIST
+            shutil.rmtree(test_path)
 
 
 if __name__ == '__main__':
