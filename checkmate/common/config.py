@@ -54,18 +54,13 @@ OPTIONS = [
                   default="127.0.0.1:8080",
                   env="CHECKMATE_ADDRESS"
                   ),
+    config.Option("-m", "--connection-string",
+                  help="URL to the database store (ex: mongodb://localhost)"
+                  ),
     config.Option("--deployments-path",
                   default="/var/local/checkmate/deployments",
                   env="CHECKMATE_CHEF_LOCAL_PATH",
                   ),
-    config.Option("--omnibus-version",
-                  env="CHECKMATE_CHEF_OMNIBUS_VERSION",
-                  ),
-    config.Option("--berkshelf-path",
-                  env="BERKSHELF_PATH",
-                  ),
-    config.Option("-m", "--connection-string",
-                  help="URL to the database store (ex: mongodb://localhost)"
     config.Option("--cache-dir",
                   default="/var/local/checkmate/cache",
                   help="root cache directory"
@@ -226,7 +221,7 @@ OPTIONS = [
                   ),
 
     #
-    # Blueprint handling (CrossCheck functionality)
+    # Blueprint handling
     #
     config.Option("--webhook",
                   action="store_true",
@@ -250,11 +245,6 @@ OPTIONS = [
                   "blueprints to use.",
                   default="master"
                   ),
-    config.Option("--blueprint-cache-expiration",
-                  env="CHECKMATE_BLUEPRINT_CACHE_EXPIRE",
-                  type=int,
-                  default=3600,
-                  ),
     config.Option("--preview-ref",
                   help="version of deployment templates for preview",
                   default=None
@@ -270,6 +260,11 @@ OPTIONS = [
                   "--group-refs tester=master,prod=stable",
                   type=config.comma_separated_pairs,
                   default=None
+                  ),
+    config.Option("--blueprint-cache-expiration",
+                  env="CHECKMATE_BLUEPRINT_CACHE_EXPIRE",
+                  type=int,
+                  default=3600,
                   ),
 
     #
@@ -298,10 +293,10 @@ OPTIONS = [
                   ),
 
     #
-    # Github Integration
+    # Github Auth Integration
     #
     config.Option("--github-token",
-                  help="Token for GitHub Auth."
+                  help="Token for GitHub Auth Override (DEPRECATED: avoid)"
                   ),
     config.Option("--github-client-id",
                   help="Github Client ID for Github Auth"
@@ -335,11 +330,23 @@ OPTIONS = [
                   help="SSH password for bastion access",
                   default=None
                   ),
+    #
+    # Chef Options
+    #
+    config.Option("--omnibus-version",
+                  env="CHECKMATE_CHEF_OMNIBUS_VERSION",
+                  ),
     config.Option("--knife-bastion-suffix",
                   help="A suffix to add to host name to route knife "
                   "calls through a ~/.ssh/config rule",
                   default=None
                   ),
+    config.Option("--berkshelf-path",
+                  default="/var/local/checkmate/cache/berkshelf",
+                  env="BERKSHELF_PATH",
+                  ),
+
+
 
 ]
 
