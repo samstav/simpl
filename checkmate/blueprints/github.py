@@ -86,7 +86,7 @@ class GitHubManager(object):
             self._api_host = urlparse.urlparse(self._github_api_base).netloc
         self._repo_org = git_config.organization
         self._ref = git_config.ref
-        self._cache_root = git_config.cache_dir or os.path.dirname(__file__)
+        self._cache_root = git_config.cache_dir
         self._cache_file = os.path.join(self._cache_root, ".blueprint_cache")
         self._blueprints = {}
         self._preview_ref = git_config.preview_ref
@@ -816,7 +816,7 @@ class AnonymousGitHubManager(object):
             self._api_host = urlparse.urlparse(self._github_api_base).netloc
         self._repo_org = git_config.anonymous_github_org
         self._ref = git_config.anonymous_github_ref
-        self._cache_root = git_config.cache_dir or os.path.dirname(__file__)
+        self._cache_root = git_config.cache_dir
         self._cache_file = os.path.join(self._cache_root,
                                         ".anon_blueprint_cache")
         self._blueprints = {}
