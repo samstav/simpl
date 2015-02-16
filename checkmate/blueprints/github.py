@@ -171,6 +171,7 @@ class GitHubManager(object):
         # Skip filtering for most common use case (details=1 and no pagination)
         only_basic_info = details is 0
         paginate = offset > 0 or len(results) > limit
+        collection_count = len(results)
         if results and (only_basic_info or paginate):
             LOG.debug("Paginating blueprints")
             blueprint_ids = results.keys()
@@ -193,7 +194,7 @@ class GitHubManager(object):
         self.check_cache_freshess()
 
         return {
-            'collection-count': len(results),
+            'collection-count': collection_count,
             '_links': {},
             'results': results,
         }
@@ -212,6 +213,7 @@ class GitHubManager(object):
         # Skip filtering for most common use case (details=1 and no pagination)
         only_basic_info = details is 0
         paginate = offset > 0 or len(results) > limit
+        collection_count = len(results)
         if results and (only_basic_info or paginate):
             LOG.debug("Paginating blueprints")
             blueprint_ids = results.keys()
@@ -234,7 +236,7 @@ class GitHubManager(object):
         self.check_cache_freshess()
 
         return {
-            'collection-count': len(results),
+            'collection-count': collection_count,
             '_links': {},
             'results': results,
         }
