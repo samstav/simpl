@@ -109,7 +109,7 @@ class GitHubManager(object):
     def get_tenant_tag(self, tenant_id, tenant_auth_groups):
         """Find the tag to return for this tenant.
 
-        If the tenant is explicitely called out in preview-refs, then use the
+        If the tenant is explicitly called out in preview-refs, then use the
         preview ref.
         If the tenant is in a group that has a tag, then return that ref (first
         match wins).
@@ -141,7 +141,7 @@ class GitHubManager(object):
 
     @property
     def repo_owner(self):
-        """Github reposiroty owner (org or user).
+        """Github repository owner (org or user).
 
         :return: repository owner
         """
@@ -162,10 +162,8 @@ class GitHubManager(object):
 
         if not tag:
             return
-        if offset is None:
-            offset = 0
-        if limit is None:
-            limit = 100
+        offset = offset or 0
+        limit = limit or 100
 
         preview = self._preview_tenants and tenant_id in self._preview_tenants
         results = self._get_blueprint_list_by_tag(tag, include_preview=preview)
@@ -173,6 +171,7 @@ class GitHubManager(object):
         # Skip filtering for most common use case (details=1 and no pagination)
         only_basic_info = details is 0
         paginate = offset > 0 or len(results) > limit
+        collection_count = len(results)
         if results and (only_basic_info or paginate):
             LOG.debug("Paginating blueprints")
             blueprint_ids = results.keys()
@@ -195,7 +194,49 @@ class GitHubManager(object):
         self.check_cache_freshess()
 
         return {
-            'collection-count': len(results),
+            'collection-count': collection_count,
+            '_links': {},
+            'results': results,
+        }
+
+    def get_all_blueprints(self, offset=None, limit=100, details=0):
+        """Return a full list of known blueprints.
+
+        :param offset: pagination start
+        :param limit: pagination length
+        :param details: detail level of blueprints
+        """
+        offset = offset or 0
+        limit = limit or 100
+        results = self._get_full_blueprint_list()
+
+        # Skip filtering for most common use case (details=1 and no pagination)
+        only_basic_info = details is 0
+        paginate = offset > 0 or len(results) > limit
+        collection_count = len(results)
+        if results and (only_basic_info or paginate):
+            LOG.debug("Paginating blueprints")
+            blueprint_ids = results.keys()
+            blueprint_ids.sort()
+            if only_basic_info:
+                results = {
+                    k: v for k, v in results.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
+            else:
+                results = {
+                    k: {
+                        "name": v.get("blueprint", {}).get("name"),
+                        "description": v.get("blueprint", {})
+                                        .get("description")
+                    } for k, v in self._blueprints.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
+
+        self.check_cache_freshess()
+
+        return {
+            'collection-count': collection_count,
             '_links': {},
             'results': results,
         }
@@ -226,6 +267,12 @@ class GitHubManager(object):
             '_links': {},
             'results': results,
         }
+
+    @caching.CacheMethod(store=BLUEPRINT_CACHE, timeout=60,
+                         backing_store=REDIS)
+    def _get_full_blueprint_list(self):
+        """Return a full dict of known blueprints."""
+        return self._blueprints
 
     @caching.CacheMethod(store=BLUEPRINT_CACHE, timeout=60,
                          backing_store=REDIS)
@@ -480,7 +527,7 @@ class GitHubManager(object):
         return False
 
     def parse_blueprint(self, repo, content):
-        '''Parse dict as a checkmate blueprint.'''
+        """Parse dict as a checkmate blueprint."""
         if 'documentation' not in content['blueprint']:
             content['blueprint']['documentation'] = {}
 
@@ -504,7 +551,7 @@ class GitHubManager(object):
 
     @staticmethod
     def parse_hot(content):
-        '''Parse dict as a HOT template.'''
+        """Parse dict as a HOT template."""
         types = {
             'String': 'string',
             'Number': 'integer',
@@ -815,10 +862,8 @@ class AnonymousGitHubManager(object):
         tag = self._ref
         if not tag:
             return
-        if offset is None:
-            offset = 0
-        if limit is None:
-            limit = 100
+        offset = offset or 0
+        limit = limit or 100
 
         results = self._get_blueprint_list_by_tag(tag)
 
@@ -1102,7 +1147,7 @@ class AnonymousGitHubManager(object):
 
         content['repo_id'] = repo.id
         return content
-    
+
     @staticmethod
     def parse_hot(content):
         """Parse dict as a HOT template."""

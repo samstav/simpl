@@ -357,7 +357,8 @@ def main():
             MANAGERS['github'] = blueprints.GitHubManager(CONFIG)
         ROUTERS['admin'] = admin.Router(
             root_app, MANAGERS['deployments'], MANAGERS['tenants'],
-            blueprints_manager=MANAGERS.get('github'))
+            blueprints_manager=MANAGERS.get('github'),
+            blueprints_local_manager=MANAGERS['blueprints'])
         resources.append('admin')
 
     next_app = middleware.AuthorizationMiddleware(

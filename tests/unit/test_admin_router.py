@@ -31,6 +31,7 @@ class TestAdminRouter(unittest.TestCase):
     deployments_manager = mock.Mock()
     tenant_manager = mock.Mock()
     blueprints_manager = mock.Mock()
+    blueprints_local_manager = mock.Mock()
 
     def setUp(self):
         """Sets up mocked router and webtest apps.
@@ -44,7 +45,8 @@ class TestAdminRouter(unittest.TestCase):
         self.app = webtest.TestApp(self.filters)
         self.router = admin.Router(self.root_app, self.deployments_manager,
                                    self.tenant_manager,
-                                   blueprints_manager=self.blueprints_manager)
+                                   blueprints_manager=self.blueprints_manager,
+                                   blueprints_local_manager=self.blueprints_local_manager)
 
         results = {'_links': {}, 'results': {}, 'collection-count': 0}
         self.deployments_manager.get_deployments.return_value = results
@@ -165,6 +167,57 @@ class TestBlueprints(TestAdminRouter):
         response = self.app.get('/admin/cache/blueprints')
         self.assertEqual(response.json, {'results': {}})
 
+    def test_returns_github(self):
+        """Admin call returns github blueprints from manager."""
+        github = {
+            'results': {
+                '1234': {
+                    'id': '1234',
+                }
+            },
+            'collection-count': 1
+        }
+        local = {
+            'results': {
+                '4567': {
+                    'id': '4567',
+                }
+            },
+            'collection-count': 1
+        }
+        self.blueprints_manager.get_all_blueprints.return_value = github
+        self.blueprints_local_manager.get_all_blueprints.return_value = local
+        response = self.app.get('/admin/blueprints/github',
+                                headers={'accept': 'application/json'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'application/json')
+        self.assertEqual(response.json, github)
+
+    def test_returns_local(self):
+        """Admin call returns github blueprints from manager."""
+        github = {
+            'results': {
+                '1234': {
+                    'id': '1234',
+                }
+            },
+            'collection-count': 1
+        }
+        local = {
+            'results': {
+                '4567': {
+                    'id': '4567',
+                }
+            },
+            'collection-count': 1
+        }
+        self.blueprints_manager.get_all_blueprints.return_value = github
+        self.blueprints_local_manager.get_all_blueprints.return_value = local
+        response = self.app.get('/admin/blueprints/local',
+                                headers={'accept': 'application/json'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'application/json')
+        self.assertEqual(response.json, local)
 
 if __name__ == '__main__':
     test.run_with_params()
