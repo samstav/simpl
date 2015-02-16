@@ -153,12 +153,28 @@ def good_cache_exists(cache_path):
         return head
 
 
+def ensure_writable_cache_dir():
+    """Check cache dir exists and is writeable. Create it if not."""
+    base_dir = repo_cache_base()
+    if not os.path.exists(base_dir):
+        try:
+            os.makedirs(base_dir, 0o770)
+            LOG.info("Created cache directory '%s'", base_dir)
+        except OSError as err:
+            if err.errno != errno.EEXIST:
+                raise
+    if not os.access(base_dir, os.W_OK):
+        raise OSError(errno.EACCES, "No access to write to cache directory.",
+                      base_dir)
+
+
 class BlueprintCache(object):
 
     """Blueprints cache."""
 
     def __init__(self, source_repo, github_token=None):
         """Initialize the blueprint repo cache with git location."""
+        ensure_writable_cache_dir()
         self.source_repo = source_repo
         self.github_token = github_token
         self.cache_path = get_repo_cache_path(
@@ -235,15 +251,6 @@ class BlueprintCache(object):
     def _create_new_cache(self, remote, ref):
         """Create cache directory, init & clone the repository."""
         LOG.info("(cache) Cloning repo to %s", self.cache_path)
-
-        # Make sure base exists
-        base_dir = repo_cache_base()
-        if not os.path.exists(base_dir):
-            try:
-                os.makedirs(base_dir, 0o770)
-            except OSError as err:
-                if err.errno != errno.EEXIST:
-                    raise
 
         # Make sure path is clear for creation
         if os.path.exists(self.cache_path):
