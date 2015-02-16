@@ -95,6 +95,19 @@ class TestGitHubManager(unittest.TestCase):
         }
         self.assertFalse(self.manager._same_source({'blueprint': {}}, trusted))
 
+    def test_pagination(self):
+        self.manager._blueprints = {
+            '1234': {
+                'id': '1234',
+            },
+            '4567': {
+                'id': '4567',
+            },
+        }
+        bps = self.manager.get_all_blueprints(limit=1)
+        self.assertEqual(len(bps['results']), 1)
+        self.assertEqual(bps['collection-count'], 2)
+
 
 if __name__ == '__main__':
     from checkmate import test
