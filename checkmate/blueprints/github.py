@@ -150,6 +150,50 @@ class GitHubManager(object):
     #
     # blueprint calls
     #
+    def _paginate(self, results, offset, limit, details):
+        """ Paginate a set of results.
+
+        :param results: Result dict that need to be paginated
+        :param offset: pagination offset
+        :param limit: pagination limit
+        :param details: amount of detail to return about a blueprint
+        :return: A dict of the results paginated if needed.
+        """
+        # Skip filtering for most common use case (details=1 and no pagination)
+        only_basic_info = details is 0
+        paginate = offset > 0 or len(results) > limit
+        collection_count = len(results)
+        if results and (only_basic_info or paginate):
+            LOG.debug("Paginating blueprints for %s/%s with offset:%d, "
+                      "limit:%d, details:%d" %
+                      (self._github_api_base, self._repo_org,
+                       offset, limit, details))
+
+            blueprint_ids = results.keys()
+            blueprint_ids.sort()
+            if only_basic_info:
+                results = {
+                    k: v for k, v in results.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
+            else:
+                results = {
+                    k: {
+                        "name": v.get("blueprint", {}).get("name"),
+                        "description": v.get("blueprint", {})
+                                        .get("description")
+                    } for k, v in self._blueprints.iteritems()
+                    if k in blueprint_ids[offset:offset + limit]
+                }
+
+        self.check_cache_freshess()
+
+        return {
+            'collection-count': collection_count,
+            '_links': {},
+            'results': results,
+        }
+
     def get_blueprints(self, tenant_id=None, offset=0, limit=100, details=0,
                        roles=None):
         """Return an abbreviated list of known deployment blueprints.
@@ -168,36 +212,7 @@ class GitHubManager(object):
         preview = self._preview_tenants and tenant_id in self._preview_tenants
         results = self._get_blueprint_list_by_tag(tag, include_preview=preview)
 
-        # Skip filtering for most common use case (details=1 and no pagination)
-        only_basic_info = details is 0
-        paginate = offset > 0 or len(results) > limit
-        collection_count = len(results)
-        if results and (only_basic_info or paginate):
-            LOG.debug("Paginating blueprints")
-            blueprint_ids = results.keys()
-            blueprint_ids.sort()
-            if only_basic_info:
-                results = {
-                    k: v for k, v in results.iteritems()
-                    if k in blueprint_ids[offset:offset + limit]
-                }
-            else:
-                results = {
-                    k: {
-                        "name": v.get("blueprint", {}).get("name"),
-                        "description": v.get("blueprint", {})
-                                        .get("description")
-                    } for k, v in self._blueprints.iteritems()
-                    if k in blueprint_ids[offset:offset + limit]
-                }
-
-        self.check_cache_freshess()
-
-        return {
-            'collection-count': collection_count,
-            '_links': {},
-            'results': results,
-        }
+        return self._paginate(results, offset, limit, details)
 
     def get_all_blueprints(self, offset=None, limit=100, details=0):
         """Return a full list of known blueprints.
@@ -210,36 +225,7 @@ class GitHubManager(object):
         limit = limit or 100
         results = self._get_full_blueprint_list()
 
-        # Skip filtering for most common use case (details=1 and no pagination)
-        only_basic_info = details is 0
-        paginate = offset > 0 or len(results) > limit
-        collection_count = len(results)
-        if results and (only_basic_info or paginate):
-            LOG.debug("Paginating blueprints")
-            blueprint_ids = results.keys()
-            blueprint_ids.sort()
-            if only_basic_info:
-                results = {
-                    k: v for k, v in results.iteritems()
-                    if k in blueprint_ids[offset:offset + limit]
-                }
-            else:
-                results = {
-                    k: {
-                        "name": v.get("blueprint", {}).get("name"),
-                        "description": v.get("blueprint", {})
-                                        .get("description")
-                    } for k, v in self._blueprints.iteritems()
-                    if k in blueprint_ids[offset:offset + limit]
-                }
-
-        self.check_cache_freshess()
-
-        return {
-            'collection-count': collection_count,
-            '_links': {},
-            'results': results,
-        }
+        return self._paginate(results, offset, limit, details)
 
     def list_cache(self):
         """List cached blueprints."""
