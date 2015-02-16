@@ -54,7 +54,7 @@ class TransactionalDirCreation(object):  # pylint: disable=R0903
                 try:
                     shutil.move(self.working_dir, self.path)
                 except OSError as exc:
-                    if exc_type.errno != errno.EEXIST:
+                    if exc.errno != errno.EEXIST:
                         raise
                     # Otherwise exist is fine! We should be OK
         finally:
