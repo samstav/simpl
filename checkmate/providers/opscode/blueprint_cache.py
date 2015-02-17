@@ -21,20 +21,71 @@ import os
 import shutil
 import sys
 import time
+import urlparse
 
-from checkmate import exceptions as cmexc
-from checkmate import utils
-
+from checkmate.common import backports
 from checkmate.common import config
 from checkmate.common import git as common_git
+from checkmate import exceptions as cmexc
+from checkmate import utils
 
 CONFIG = config.current()
 LOG = logging.getLogger(__name__)
 
 
+class CommitableTemporaryDirectory(backports.TemporaryDirectory):
+
+    """Create temp directory, persist it only if creation code succeeds.
+
+    We use this context manager to avoid the race condition where a git repo is
+    being cached by a number of processes or threads. Only the one that gets to
+    write the directory name (using os.rename) gets to write to the directory.
+    Others can only read and if they detect the race condition but find the
+    directory already matches what they expect, then they pass quietly.
+    Otherwise, they fail.
+    Note that this returns the instance, not the path (in order to provide a
+    commit() call.
+    """
+
+    def __enter__(self):
+        """Context manager entrace."""
+        return self
+
+    def commit(self, path):
+        """Commit temp dir to final destination."""
+        try:
+            os.rename(self.name, path)  # atomic by posix mandate
+        except OSError as exc:
+            if exc.errno == errno.ENOTEMPTY:
+                # Assuming concurrency error, check for equality
+                if utils.are_dir_trees_equal(self.name, path):
+                    self._closed = True
+                else:
+                    raise
+
+        self._closed = True
+
+
+def hide_git_url_password(url):
+    """Detect a password part of a URL and replaces it with *****.
+
+    Also handles GitHub URL where username has OAuth token.
+    """
+    try:
+        parsed = urlparse.urlsplit(url)
+        if parsed.password:
+            if parsed.password.lower() == 'x-auth-basic' and parsed.username:
+                return url.replace('//%s:' % parsed.username, '//*****:')
+            else:
+                return url.replace(':%s@' % parsed.password, ':*****@')
+    except StandardError:
+        pass
+    return url
+
+
 def repo_cache_base():
     """Return the current config's base path to repo caches."""
-    return os.path.join(CONFIG.deployments_path, "cache", "blueprints")
+    return os.path.join(CONFIG.cache_dir, "blueprint-repos")
 
 
 def delete_cache(path):
@@ -102,33 +153,44 @@ def good_cache_exists(cache_path):
         return head
 
 
+def ensure_writable_cache_dir():
+    """Check cache dir exists and is writeable. Create it if not."""
+    base_dir = repo_cache_base()
+    if not os.path.exists(base_dir):
+        try:
+            os.makedirs(base_dir, 0o770)
+            LOG.info("Created cache directory '%s'", base_dir)
+        except OSError as err:
+            if err.errno != errno.EEXIST:
+                raise
+    if not os.access(base_dir, os.W_OK):
+        raise OSError(errno.EACCES, "No access to write to cache directory.",
+                      base_dir)
+
+
 class BlueprintCache(object):
 
     """Blueprints cache."""
 
     def __init__(self, source_repo, github_token=None):
         """Initialize the blueprint repo cache with git location."""
+        ensure_writable_cache_dir()
         self.source_repo = source_repo
         self.github_token = github_token
-        self._cache_path = get_repo_cache_path(
+        self.cache_path = get_repo_cache_path(
             source_repo, github_token=github_token)
         self._repo = None
-
-    @property
-    def cache_path(self):
-        """Cache path for blueprint."""
-        return self._cache_path
 
     @property
     def repo(self):
         """Pointer to this cache's GitRepo instance."""
         if not self._repo:
-            self._repo = common_git.GitRepo(self._cache_path)
+            self._repo = common_git.GitRepo(self.cache_path)
         return self._repo
 
     def delete(self):
         """Delete this cache from disk."""
-        return delete_cache(self._cache_path)
+        return delete_cache(self.cache_path)
 
     def update(self):
         """Cache a blueprint repo or update an existing cache, if necessary."""
@@ -137,14 +199,14 @@ class BlueprintCache(object):
         else:
             url = self.source_repo
             ref = "master"
-        token_remote = None
+        remote = url
         if self.github_token:
-            token_remote = utils.set_url_creds(url, username=self.github_token,
-                                               password='x-oauth-basic')
+            remote = utils.set_url_creds(url, username=self.github_token,
+                                         password='x-oauth-basic')
         head_file = good_cache_exists(self.cache_path)
         if head_file:
             return self._update_existing(
-                head_file, url, ref, token_remote=token_remote)
+                head_file, url, ref)
         else:
             # if a good cache does not exist, blow away the broken cache
             try:
@@ -152,92 +214,67 @@ class BlueprintCache(object):
             except OSError as err:
                 if err.errno != errno.ENOENT:
                     raise
-            return self._create_new_cache(
-                url, ref, token_remote=token_remote)
+            return self._create_new_cache(remote, ref)
 
-    def _update_existing(self, head_file, url, ref, token_remote=None):
+    def _update_existing(self, head_file, remote, ref):
         """Cache exists, fetch latest (if stale) and perform checkout."""
         last_update = time.time() - os.path.getmtime(head_file)
         cache_expire_time = CONFIG.blueprint_cache_expiration
-        LOG.warning("(cache) cache_expire_time: %s", cache_expire_time)
-        LOG.warning("(cache) last_update: %s", last_update)
+        LOG.debug("(cache) cache_expire_time: %s", cache_expire_time)
+        LOG.debug("(cache) last_update: %s", last_update)
 
         if last_update > cache_expire_time:  # Cache miss
-            LOG.warning("(cache) Updating repo: %s", self.cache_path)
+            LOG.info("(cache) Updating repo: %s", self.cache_path)
             tags = self.repo.list_tags()
             if ref in tags:
                 refspec = "refs/tags/" + ref + ":refs/tags/" + ref
                 try:
-                    if token_remote:
-                        self.repo.fetch(remote=token_remote, refspec=refspec)
-                    else:
-                        self.repo.fetch(refspec=refspec)
+                    self.repo.fetch(remote=remote, refspec=refspec)
                     self.repo.checkout('FETCH_HEAD')
                 except cmexc.CheckmateCalledProcessError as exc:
                     LOG.error("Unable to fetch tag '%s' from the git "
                               "repository at %s. Using the cached repo."
                               "The output during error was '%s'",
-                              ref, url, exc.output)
+                              ref, hide_git_url_password(remote), exc.output)
             else:
                 try:
-                    if token_remote:
-                        self.repo.fetch(remote=token_remote, refspec=ref)
-                    else:
-                        self.repo.fetch(refspec=ref)
+                    self.repo.fetch(remote=remote, refspec=ref)
                     self.repo.checkout('FETCH_HEAD')
                 except cmexc.CheckmateCalledProcessError as exc:
                     LOG.error("Unable to fetch ref '%s' from the git "
                               "repository at %s. Using the cached "
                               "repository. The output during error was %s",
-                              ref, url, exc.output)
+                              ref, hide_git_url_password(remote), exc.output)
         else:  # Cache hit
-            LOG.warning("(cache) Using cached repo: %s", self.cache_path)
+            LOG.info("(cache) Using cached repo: %s", self.cache_path)
 
-        LOG.warning("(cache) Checking out ref '%s' in %s",
-                    ref, self.cache_path)
-
-    def _create_new_cache(self, url, ref, token_remote=None):
+    def _create_new_cache(self, remote, ref):
         """Create cache directory, init & clone the repository."""
         LOG.info("(cache) Cloning repo to %s", self.cache_path)
 
-        dirsmade = None
-        try:
-            os.makedirs(self.cache_path)
-            dirsmade = self.cache_path
-        except OSError as err:
-            if err.errno != errno.EEXIST:
+        with CommitableTemporaryDirectory(dir=repo_cache_base()) as tempdir:
+            repo = common_git.GitRepo(tempdir.name)
+            try:
+                repo.clone(remote, branch_or_tag=ref)
+            except cmexc.CheckmateCalledProcessError as exc:
+                LOG.error("Git repository could not be cloned from '%s'. The "
+                          "output during error was '%s'",
+                          hide_git_url_password(remote), exc.output,
+                          exc_info=exc)
                 raise
 
-        if os.listdir(self.cache_path):
-            raise cmexc.CheckmateException(
-                "Target dir %s for clone is non-empty" % self.cache_path,
-                options=cmexc.CAN_RETRY)
+            try:
+                tags = repo.list_tags()
+                if ref in tags:
+                    repo.checkout(ref)
+                # the ref *should* already be checked out
+            except cmexc.CheckmateCalledProcessError as exc:
+                LOG.error("Failed to checkout '%s' for git repository %s "
+                          "located at %s. The output during error was '%s'.",
+                          ref, hide_git_url_password(remote),
+                          tempdir.name, exc.output)
+                raise
+            tempdir.commit(self.cache_path)
 
-        try:
-            if token_remote:
-                self.repo.clone(token_remote, branch_or_tag=ref)
-            else:
-                self.repo.clone(url, branch_or_tag=ref)
-        except cmexc.CheckmateCalledProcessError as exc:
-            if dirsmade:
-                # only remove if this same fn call was the creator
-                shutil.rmtree(dirsmade)
-            LOG.error("Git repository could not be cloned from "
-                      "'%s'. The output during error was '%s'"
-                      % (url, exc.output))
-            raise
-
-        try:
-            tags = self.repo.list_tags()
-            if ref in tags:
-                self.repo.checkout(ref)
-            # the ref *should* already be checked out
-        except cmexc.CheckmateCalledProcessError as exc:
-            if dirsmade:
-                # only remove if this same fn call was the creator
-                shutil.rmtree(dirsmade)
-            LOG.error("Failed to checkout '%s' for git "
-                      "repository %s located at %s. The "
-                      "output during error was '%s'."
-                      % (ref, url, self.cache_path, exc.output))
-            raise
+        LOG.info("(cache) Repo %s cloned to cache.",
+                 hide_git_url_password(remote))

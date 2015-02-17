@@ -21,6 +21,7 @@
 import base64
 import collections
 import copy
+import filecmp
 import inspect
 import json
 import logging.config
@@ -1326,3 +1327,40 @@ class MutatingIterator(object):  # pylint: disable=R0903
     def __iter__(self):
         """Run the iterator."""
         return MutatingIterator.Iterator(self.data)
+
+
+def are_dir_trees_equal(dir1, dir2):
+    """Compare two directories recursively.
+
+    Files in each directory are assumed to be equal if their names and contents
+    are equal.
+
+    @param dir1: First directory path
+    @param dir2: Second directory path
+
+    @return: True if the directory trees are the same and
+        there were no errors while accessing the directories or files,
+        False otherwise.
+
+    Original Author: http://stackoverflow.com/users/817499/mateusz-kobos
+    """
+    if not os.path.exists(dir1):
+        return False
+    if not os.path.exists(dir2):
+        return False
+
+    def check_dircmp(dircmp):
+        """Check dircmp deeply."""
+        if dircmp.left_only or dircmp.right_only or dircmp.funny_files:
+            return False
+        _, mismatch, errors = filecmp.cmpfiles(
+            dir1, dir2, dircmp.common_files, shallow=False)
+        if mismatch or errors:
+            return False
+        for subdir_cmp in dircmp.subdirs.values():
+            if not check_dircmp(subdir_cmp):
+                return False
+        return True
+
+    dirs_cmp = filecmp.dircmp(dir1, dir2)
+    return check_dircmp(dirs_cmp)

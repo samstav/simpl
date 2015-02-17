@@ -18,17 +18,19 @@
 import errno
 import json
 import subprocess
+import unittest
 
 from Crypto.PublicKey import RSA
 from Crypto import Random
 import mock
-import unittest
 
-from checkmate import exceptions, utils
+from checkmate import exceptions
 from checkmate.providers.opscode.kitchen import ChefKitchen
+from checkmate.providers.opscode import blueprint_cache
 from checkmate.providers.opscode.blueprint_cache import BlueprintCache
 from checkmate.providers.opscode.solo.kitchen_solo import KitchenSolo
 from checkmate.providers.opscode.solo.knife_solo import KnifeSolo
+from checkmate import utils
 
 
 class TestKitchenSolo(unittest.TestCase):
@@ -89,7 +91,7 @@ class TestCreateEnvironmentKeys(TestKitchenSolo):
             'private_key_path': self.private_key_path
         }
         result = self.env.create_kitchen_keys(private_key="private_key",
-                                                  public_key_ssh="public_key")
+                                              public_key_ssh="public_key")
 
         self.assertDictEqual(result, expected)
         mock_chmod.assert_called_once_with(self.private_key_path, 0o600)
@@ -114,7 +116,7 @@ class TestCreateEnvironmentKeys(TestKitchenSolo):
             'private_key_path': self.private_key_path
         }
         result = self.env.create_kitchen_keys(private_key="private_key",
-                                                  public_key_ssh="public_key")
+                                              public_key_ssh="public_key")
 
         self.assertDictEqual(result, expected)
         mock_chmod.assert_called_once_with(self.private_key_path, 0o600)
@@ -155,10 +157,12 @@ class TestCreateKitchen(TestKitchenSolo):
     @mock.patch.object(RSA, 'generate')
     @mock.patch.object(Random, 'atfork')
     @mock.patch('os.mkdir')
+    @mock.patch('os.makedirs')
+    @mock.patch('os.access')
     @mock.patch('os.path.exists')
-    @mock.patch.object(BlueprintCache, 'cache_path')
     @mock.patch.object(utils, 'copy_contents')
     @mock.patch.object(BlueprintCache, 'update')
+    @mock.patch.object(blueprint_cache, 'repo_cache_base')
     @mock.patch.object(KnifeSolo, 'config_path')
     @mock.patch.object(json, 'dump')
     @mock.patch('__builtin__.file')
@@ -166,9 +170,9 @@ class TestCreateKitchen(TestKitchenSolo):
     @mock.patch.object(KnifeSolo, 'init')
     def test_success(self, mock_init_solo, mock_write_solo_config,
                      mock_file, mock_dump, mock_solo_config,
-                     mock_cache_update, mock_copy_contents, mock_cache_path,
-                     mock_path_exists, mock_mkdir, mock_fork,
-                     mock_rsa_generate):
+                     mock_repo_cache_base, mock_cache_update,
+                     mock_copy_contents, mock_path_exists, mock_access,
+                     mock_makedirs, mock_mkdir, mock_fork, mock_rsa_generate):
         nodes_path = "%s/nodes" % self.kitchen_path
         bootstrap_path = "%s/bootstrap.json" % self.kitchen_path
         certs_path = "%s/certificates" % self.kitchen_path
@@ -176,10 +180,12 @@ class TestCreateKitchen(TestKitchenSolo):
         source_repo = "http://foo.git"
 
         mock_path_exists.side_effect = [False, False, False, False, False,
-                                        False]
+                                        False, False]
         file_handle = mock_file.return_value.__enter__.return_value
         mock_write_solo_config.return_value = secret_key_path
         mock_rsa_generate.return_value.exportKey.return_value = "secret_key"
+        mock_repo_cache_base.return_value = '/var'
+        mock_access.return_value = True
         expected = {"kitchen": self.kitchen_path}
 
         result = self.env.create_kitchen(source_repo=source_repo)
@@ -189,13 +195,14 @@ class TestCreateKitchen(TestKitchenSolo):
         self.assertTrue(mock_write_solo_config.called)
         mkdir_calls = [
             mock.call(self.kitchen_path, 0o770),
-            mock.call(certs_path, 0o770),
+            mock.call(certs_path, 0o770)
         ]
         path_exists_calls = [
             mock.call(self.kitchen_path),
             mock.call(bootstrap_path),
             mock.call(certs_path),
             mock.call(secret_key_path),
+            mock.call('/var'),
             mock.call(nodes_path),
         ]
         mock_mkdir.assert_has_calls(mkdir_calls)
@@ -210,7 +217,7 @@ class TestCreateKitchen(TestKitchenSolo):
         mock_rsa_generate.return_value.exportKey.assert_called_once_with('PEM')
         file_handle.write.assert_called_once_with("secret_key")
         self.assertTrue(mock_cache_update.called)
-        mock_copy_contents.assert_called_once_with(mock_cache_path,
+        mock_copy_contents.assert_called_once_with(mock.ANY,
                                                    self.kitchen_path,
                                                    with_overwrite=True,
                                                    create_path=True)
@@ -525,6 +532,7 @@ class TestWriteDataBag(TestKitchenSolo):
 
 
 class TestCook(TestKitchenSolo):
+
     @mock.patch.object(KnifeSolo, 'cook')
     def test_success(self, mock_cook):
         self.env.cook("1.1.1.1", username="foo", password="password",

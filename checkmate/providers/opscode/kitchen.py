@@ -327,8 +327,9 @@ class ChefKitchen(object):
         """Checks the Berkshelf kitchen and sets it up if necessary."""
         berkshelf_path = CONFIG.berkshelf_path
         if not berkshelf_path:
-            local_path = CONFIG.deployments_path
-            berkshelf_path = os.path.join(os.path.dirname(local_path), "cache")
+            local_path = CONFIG.cache_path
+            berkshelf_path = os.path.join(os.path.dirname(local_path),
+                                          "berkshelf")
             LOG.warning("BERKSHELF_PATH variable not set. Defaulting "
                         "to %s", berkshelf_path)
         if 'BERKSHELF_PATH' not in os.environ:

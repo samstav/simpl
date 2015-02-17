@@ -86,7 +86,7 @@ class GitHubManager(object):
             self._api_host = urlparse.urlparse(self._github_api_base).netloc
         self._repo_org = git_config.organization
         self._ref = git_config.ref
-        self._cache_root = git_config.cache_dir or os.path.dirname(__file__)
+        self._cache_root = git_config.cache_dir
         self._cache_file = os.path.join(self._cache_root, ".blueprint_cache")
         self._blueprints = {}
         self._preview_ref = git_config.preview_ref
@@ -366,7 +366,7 @@ class GitHubManager(object):
 
         if not os.path.exists(self._cache_root):
             try:
-                os.makedirs(self._cache_root, 0o766)
+                os.makedirs(self._cache_root, 0o770)
             except (OSError, IOError):
                 LOG.warn("Could not create cache directory", exc_info=True)
                 return
@@ -802,7 +802,7 @@ class AnonymousGitHubManager(object):
             self._api_host = urlparse.urlparse(self._github_api_base).netloc
         self._repo_org = git_config.anonymous_github_org
         self._ref = git_config.anonymous_github_ref
-        self._cache_root = git_config.cache_dir or os.path.dirname(__file__)
+        self._cache_root = git_config.cache_dir
         self._cache_file = os.path.join(self._cache_root,
                                         ".anon_blueprint_cache")
         self._blueprints = {}
@@ -997,7 +997,8 @@ class AnonymousGitHubManager(object):
 
         if not os.path.exists(self._cache_root):
             try:
-                os.makedirs(self._cache_root, 0o766)
+                os.makedirs(self._cache_root, 0o770)
+                LOG.info("Created cache directory: %s", self._cache_root)
             except (OSError, IOError):
                 LOG.warn("Could not create cache directory", exc_info=True)
                 return
