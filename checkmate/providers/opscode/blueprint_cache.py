@@ -15,7 +15,6 @@
 """Blueprints cache."""
 
 import errno
-import filecmp
 import hashlib
 import logging
 import os
