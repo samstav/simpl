@@ -1348,16 +1348,19 @@ def are_dir_trees_equal(dir1, dir2):
         return False
     if not os.path.exists(dir2):
         return False
-    dirs_cmp = filecmp.dircmp(dir1, dir2)
-    if dirs_cmp.left_only or dirs_cmp.right_only or dirs_cmp.funny_files:
-        return False
-    _, mismatch, errors = filecmp.cmpfiles(
-        dir1, dir2, dirs_cmp.common_files, shallow=False)
-    if len(mismatch) > 0 or len(errors) > 0:
-        return False
-    for common_dir in dirs_cmp.common_dirs:
-        new_dir1 = os.path.join(dir1, common_dir)
-        new_dir2 = os.path.join(dir2, common_dir)
-        if not are_dir_trees_equal(new_dir1, new_dir2):
+
+    def check_dircmp(dircmp):
+        """Check dircmp deeply."""
+        if dircmp.left_only or dircmp.right_only or dircmp.funny_files:
             return False
-    return True
+        _, mismatch, errors = filecmp.cmpfiles(
+            dir1, dir2, dircmp.common_files, shallow=False)
+        if mismatch or errors:
+            return False
+        for subdir_cmp in dircmp.subdirs.values():
+            if not check_dircmp(subdir_cmp):
+                return False
+        return True
+
+    dirs_cmp = filecmp.dircmp(dir1, dir2)
+    return check_dircmp(dirs_cmp)
