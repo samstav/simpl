@@ -38,6 +38,12 @@ class CommitableTemporaryDirectory(backports.TemporaryDirectory):
 
     """Create temp directory, persist it only if creation code succeeds.
 
+    We use this context manager to avoid the race condition where a git repo is
+    being cached by a number of processes or threads. Only the one that gets to
+    write the directory name (using os.rename) gets to write to the directory.
+    Others can only read and if they detect the race condition but find the
+    directory already matches what they expect, then they pass quietly.
+    Otherwise, they fail.
     Note that this returns the instance, not the path (in order to provide a
     commit() call.
     """
@@ -49,7 +55,7 @@ class CommitableTemporaryDirectory(backports.TemporaryDirectory):
     def commit(self, path):
         """Commit temp dir to final destination."""
         try:
-            os.rename(self.name, path)
+            os.rename(self.name, path)  # atomic by posix mandate
         except OSError as exc:
             if exc.errno == errno.ENOTEMPTY:
                 # Assuming concurrency error, check for equality
