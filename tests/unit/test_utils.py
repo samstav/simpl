@@ -17,8 +17,11 @@
 """Tests for utils module."""
 
 import copy
+import os
 import re
+import shutil
 import time
+import tempfile
 import unittest
 import uuid
 
@@ -805,6 +808,77 @@ class TestMutatingIterator(unittest.TestCase):
             data[count + 1] = str(count)
         self.assertEqual(count, 4)
         self.assertEqual(data, {1: 1, 2: '1', 3: '2', 4: '3', 5: '4'})
+
+
+class TestDirComparison(unittest.TestCase):
+
+    def setUp(self):
+        dir1 = tempfile.mkdtemp()
+        subdir1 = os.path.join(dir1, 'subdir')
+        os.mkdir(subdir1)
+        file1 = os.path.join(dir1, 'foo.txt')
+        with open(file1, 'w') as fh1:
+            fh1.write('Hi!')
+
+        dir2 = tempfile.mkdtemp()
+        subdir2 = os.path.join(dir2, 'subdir')
+        os.mkdir(subdir2)
+        file2 = os.path.join(dir2, 'foo.txt')
+        with open(file2, 'w') as fh2:
+            fh2.write('Hi!')
+
+        self.dir1 = dir1
+        self.subdir1 = subdir1
+        self.file1 = file1
+        self.dir2 = dir2
+        self.subdir2 = subdir2
+        self.file2 = file2
+
+    def tearDown(self):
+        try:
+            shutil.rmtree(self.dir1)
+        except OSError:
+            assert not os.path.exists(self.dir1)
+        try:
+            shutil.rmtree(self.dir2)
+        except OSError:
+            assert not os.path.exists(self.dir2)
+
+    def test_positive(self):
+        self.assertTrue(utils.are_dir_trees_equal(self.dir1, self.dir2))
+
+    def test_missing_dir1_fails(self):
+        shutil.rmtree(self.dir1)
+        self.assertFalse(utils.are_dir_trees_equal(self.dir1, self.dir2))
+
+    def test_missing_dir2_fails(self):
+        shutil.rmtree(self.dir2)
+        self.assertFalse(utils.are_dir_trees_equal(self.dir1, self.dir2))
+
+    def test_extra_dir_left_fails(self):
+        os.mkdir(os.path.join(self.dir1, 'extra'))
+        self.assertFalse(utils.are_dir_trees_equal(self.dir1, self.dir2))
+
+    def test_extra_dir_right_fails(self):
+        os.mkdir(os.path.join(self.dir2, 'extra'))
+        self.assertFalse(utils.are_dir_trees_equal(self.dir1, self.dir2))
+
+    def test_extra_file_left_fails(self):
+        with open(os.path.join(self.dir1, 'extra.txt'), 'w') as extra:
+            extra.write("Irrelevant")
+        self.assertFalse(utils.are_dir_trees_equal(self.dir1, self.dir2))
+
+    def test_extra_file_right_fails(self):
+        with open(os.path.join(self.dir2, 'extra.txt'), 'w') as extra:
+            extra.write("Irrelevant")
+        self.assertFalse(utils.are_dir_trees_equal(self.dir1, self.dir2))
+
+    def test_file_content_fails(self):
+        with open(os.path.join(self.dir1, 'readme.txt'), 'w') as extra:
+            extra.write("pip install")
+        with open(os.path.join(self.dir2, 'readme.txt'), 'w') as extra:
+            extra.write("pip uninstall")
+        self.assertFalse(utils.are_dir_trees_equal(self.dir1, self.dir2))
 
 
 if __name__ == '__main__':
