@@ -16,7 +16,6 @@
 
 import errno
 import os
-import shutil
 import tempfile
 import time
 
@@ -25,8 +24,9 @@ import unittest
 
 from checkmate import exceptions as cmexc
 from checkmate.common import git as common_git
-from checkmate.providers.opscode import blueprint_cache
 from checkmate.providers.opscode.blueprint_cache import BlueprintCache
+from checkmate.providers.opscode.blueprint_cache import \
+    CommitableTemporaryDirectory
 
 
 class TestUpdate(unittest.TestCase):
@@ -173,24 +173,47 @@ class TestUpdate(unittest.TestCase):
         mock_checkout.assert_called_once_with(self.cache.cache_path,
                                               'FETCH_HEAD')
 
-    def test_cache_creation(self):
-        tempdir = tempfile.gettempdir()
-        tempfile_name = next(tempfile._get_candidate_names())
-        test_path = os.path.join(tempdir, tempfile_name)
-        with blueprint_cache.TransactionalDirCreation(test_path) as tdc:
-            with open(os.path.join(tdc, 'foo.txt'), 'w') as handle:
+    def test_cache_creation_succeeds(self):
+        temp_base_dir = tempfile.gettempdir()
+        target_dir_name = next(tempfile._get_candidate_names())
+        target_dir_path = os.path.join(temp_base_dir, target_dir_name)
+        with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
+            with open(os.path.join(tdc.name, 'foo.txt'), 'w') as handle:
                 handle.write("Hi!")
+            tdc.commit(target_dir_path)
 
-        assert not os.path.exists(tdc)
-        assert os.path.exists(test_path)
-        assert os.path.exists(os.path.join(test_path, 'foo.txt'))
+        assert not os.path.exists(tdc.name)
+        assert os.path.exists(target_dir_path)
+        assert os.path.exists(os.path.join(target_dir_path, 'foo.txt'))
+        return temp_base_dir, target_dir_path
 
-        try:
-            with blueprint_cache.TransactionalDirCreation(test_path) as tdc:
-                pass
-        except OSError as exc:
-            assert exc.errno == errno.EEXIST
-            shutil.rmtree(test_path)
+    def test_cache_concurrent_content_failure(self):
+        """Check that concurrent write with differences fails."""
+        temp_base_dir = tempfile.gettempdir()
+        target_dir_name = next(tempfile._get_candidate_names())
+        target_dir_path = os.path.join(temp_base_dir, target_dir_name)
+        with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
+            with open(os.path.join(tdc.name, 'foo.txt'), 'w') as handle:
+                handle.write("Hi!")
+            with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc2:
+                with open(os.path.join(tdc2.name, 'foo.txt'), 'w') as handle2:
+                    handle2.write("Not Hi!!!!")
+                tdc2.commit(target_dir_path)
+            with self.assertRaises(OSError):
+                tdc.commit(target_dir_path)
+
+    def test_cache_concurrent_succeeds(self):
+        temp_base_dir = tempfile.gettempdir()
+        target_dir_name = next(tempfile._get_candidate_names())
+        target_dir_path = os.path.join(temp_base_dir, target_dir_name)
+        with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
+            with open(os.path.join(tdc.name, 'foo.txt'), 'w') as handle:
+                handle.write("Hi!")
+            with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc2:
+                with open(os.path.join(tdc2.name, 'foo.txt'), 'w') as handle2:
+                    handle2.write("Hi!")
+                tdc2.commit(target_dir_path)
+            tdc.commit(target_dir_path)  # Should not fail
 
 
 if __name__ == '__main__':

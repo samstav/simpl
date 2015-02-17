@@ -15,15 +15,16 @@
 """Blueprints cache."""
 
 import errno
+import filecmp
 import hashlib
 import logging
 import os
 import shutil
 import sys
-import tempfile
 import time
 import urlparse
 
+from checkmate.common import backports
 from checkmate.common import config
 from checkmate.common import git as common_git
 from checkmate import exceptions as cmexc
@@ -33,37 +34,31 @@ CONFIG = config.current()
 LOG = logging.getLogger(__name__)
 
 
-class TransactionalDirCreation(object):  # pylint: disable=R0903
+class CommitableTemporaryDirectory(backports.TemporaryDirectory):
 
-    """Create directory if all post-creation jobs succeed."""
+    """Create temp directory, persist it only if creation code succeeds.
 
-    def __init__(self, path):
-        self.path = path
-        self.working_dir = None
+    Note that this returns the instance, not the path (in order to provide a
+    commit() call.
+    """
 
     def __enter__(self):
-        if os.path.exists(self.path):
-            raise OSError(errno.EEXIST, os.strerror(errno.EEXIST), self.path)
-        self.working_dir = tempfile.mkdtemp()
-        return self.working_dir
+        """Context manager entrace."""
+        return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def commit(self, path):
+        """Commit temp dir to final destination."""
         try:
-            if not exc_type:
-                # Move temp dir to final location
-                try:
-                    shutil.move(self.working_dir, self.path)
-                except OSError as exc:
-                    if exc.errno != errno.EEXIST:
-                        raise
-                    # Otherwise exist is fine! We should be OK
-        finally:
-            try:
-                shutil.rmtree(self.working_dir)
-            except OSError as exc:
-                if exc.errno != errno.ENOENT:
-                    LOG.error("Unable to clean up '%s'", self.working_dir,
-                              exc_info=exc)
+            os.rename(self.name, path)
+        except OSError as exc:
+            if exc.errno == errno.ENOTEMPTY:
+                # Assuming concurrency error, check for equality
+                if utils.are_dir_trees_equal(self.name, path):
+                    self._closed = True
+                else:
+                    raise
+
+        self._closed = True
 
 
 def hide_git_url_password(url):
@@ -252,16 +247,8 @@ class BlueprintCache(object):
         """Create cache directory, init & clone the repository."""
         LOG.info("(cache) Cloning repo to %s", self.cache_path)
 
-        # Make sure path is clear for creation
-        if os.path.exists(self.cache_path):
-            LOG.warning("Cache directory already exists: %s", self.cache_path)
-            if os.listdir(self.cache_path):
-                raise cmexc.CheckmateException(
-                    "Target dir %s for clone is non-empty" % self.cache_path,
-                    options=cmexc.CAN_RETRY)
-
-        with TransactionalDirCreation(self.cache_path) as temp_path:
-            repo = common_git.GitRepo(temp_path)
+        with CommitableTemporaryDirectory(dir=repo_cache_base()) as tempdir:
+            repo = common_git.GitRepo(tempdir.name)
             try:
                 repo.clone(remote, branch_or_tag=ref)
             except cmexc.CheckmateCalledProcessError as exc:
@@ -280,7 +267,9 @@ class BlueprintCache(object):
                 LOG.error("Failed to checkout '%s' for git repository %s "
                           "located at %s. The output during error was '%s'.",
                           ref, hide_git_url_password(remote),
-                          temp_path, exc.output)
+                          tempdir.name, exc.output)
                 raise
+            tempdir.commit(self.cache_path)
+
         LOG.info("(cache) Repo %s cloned to cache.",
                  hide_git_url_password(remote))
