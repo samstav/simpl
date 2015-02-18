@@ -38,6 +38,7 @@ import traceback as traceback_module
 import urlparse
 import uuid
 
+import arrow
 import bottle
 from Crypto.Random import random
 import errno
@@ -64,6 +65,12 @@ DEFAULT_SENSITIVE_KEYS = [
     re.compile('password$'),
     re.compile('^password'),
 ]
+
+
+def parse_iso_time_string(time_string):
+    """Convert an ISO date/time to Waldo format."""
+    parser = arrow.parser.DateTimeParser()
+    return get_time_string(parser.parse_iso(time_string).timetuple())
 
 
 def match_celery_logging(logger):
@@ -1364,3 +1371,39 @@ def are_dir_trees_equal(dir1, dir2):
 
     dirs_cmp = filecmp.dircmp(dir1, dir2)
     return check_dircmp(dirs_cmp)
+
+
+def create_hashable(obj, hash_all=False):
+    """Try to create a hashable from combinations of lists, sets, and dicts.
+
+    Does not necessarily work on all objects. In this case it will return the
+    TypeError (unhashable) exception generated.
+
+    To recursively hash every observed object, element, item, key, and value,
+    use hash_all=True.
+    """
+    chsh = lambda arg: create_hashable(arg, hash_all=hash_all)
+    try:
+        hashed = hash(obj)
+    except TypeError:
+        if isinstance(obj, (tuple, list, set, frozenset)):
+            try:
+                obj = sorted(obj)
+            except TypeError:
+                pass
+            return frozenset(chsh(o) for o in obj)
+        elif isinstance(obj, (dict, collections.Mapping)):
+            obj_items = obj.items()
+            try:
+                obj_items = sorted(obj_items)
+            except TypeError:
+                pass
+            return frozenset((chsh(key), chsh(value))
+                             for key, value in obj_items)
+        else:
+            raise
+    else:
+        if hash_all:
+            return hashed
+        else:
+            return obj

@@ -9,22 +9,23 @@ import base64
 import json
 import logging
 import os
-import sys
+import re
 import time
 from urlparse import urlparse
 
 import bottle
 import requests
-
-from checkmate.common import config
-from checkmate.middleware import TokenAuthMiddleware, RequestContext
 from Crypto.Hash import MD5
-import eventlet
 from eventlet.green import httplib
 from eventlet.green import socket
 from eventlet.green import urllib2
+import webob
 from webob.exc import HTTPUnauthorized, HTTPNotFound
 
+from checkmate.common import auth
+from checkmate.common import config
+from checkmate.middleware import TokenAuthMiddleware
+from checkmate import utils
 import rook
 
 LOG = logging.getLogger(__name__)
@@ -505,23 +506,30 @@ def get_admin():
 
 
 class RackspaceSSOAuthMiddleware(object):
-    def __init__(self, app, endpoint, anonymous_paths=None):
-        self.app = app
 
-        # Parse endpiont URL
+    """Handle authentication for Rackers.
+
+    Send X-Auth-token header or auth_token cookie to authenticate.
+    Send X-Set-Auth-Cookie to return the token in the response as a cookie.
+    Returns X-AuthZ-Admin if token belongs to an user in the admin role.
+    Bypasses authentication if path matches one of regexes for anonymous_paths.
+    """
+
+    def __init__(self, app, endpoint, anonymous_paths=None, authenticator=None):
+        """Require/check auth tokens to accompany requests."""
+        # TODO(zns): port middleware interface to include authenticator & conf
+        # BEGIN FAKE ARGUMENTS
+        conf = CONFIG
         self.endpoint = endpoint
-        self.endpoint_uri = endpoint.get('uri')
-        url = urlparse(self.endpoint_uri)
-        self.use_https = url.scheme == 'https'
-        self.host = url.hostname
-        self.base_path = url.path
-        if self.use_https:
-            self.port = url.port or 443
-        else:
-            self.port = url.port or 80
-
-        self.anonymous_paths = anonymous_paths or []
-        self.auth_header = 'GlobalAuth uri="%s"' % endpoint['uri']
+        endpoint_uri = endpoint['uri']
+        kwargs = endpoint.get('kwargs') or {}
+        conf['auth_endpoint'] = endpoint_uri
+        conf['service_username'] = kwargs.get('username')
+        conf['service_password'] = kwargs.get('password')
+        conf['admin_role'] = kwargs.get('admin_role')
+        authenticator = auth.SSOAuthenticator(conf)
+        self.auth_header = authenticator.auth_header
+        self.endpoint_uri = endpoint_uri
         if ('kwargs' in endpoint and 'realm' in endpoint['kwargs'] and
                 'priority' in endpoint['kwargs']):
             self.auth_header = str('GlobalAuth uri="%s" realm="%s" '
@@ -531,187 +539,81 @@ class RackspaceSSOAuthMiddleware(object):
                                     endpoint['kwargs'].get('priority')))
         elif 'kwargs' in endpoint and 'realm' in endpoint['kwargs']:
             self.auth_header = str('GlobalAuth uri="%s" realm="%s"' % (
-                                   endpoint['uri'],
-                                   endpoint['kwargs'].get('realm')))
-        self.service_token = None
-        if 'kwargs' in endpoint:
-            self.service_username = endpoint['kwargs'].get('username')
-            self.service_password = endpoint['kwargs'].get('password')
-            self.admin_role = {"name": endpoint['kwargs'].get('admin_role')}
+                endpoint['uri'], endpoint['kwargs'].get('realm')))
+
+        # END FAKE ARGUMENTS
+
+        self.app = app
+        self.authenticator = authenticator
+        if anonymous_paths:
+            self.anonymous_paths = [re.compile(p) for p in anonymous_paths]
         else:
-            self.service_username = None
-            self.service_password = None
-            self.admin_role = None
-
-        if self.service_username:
-            if '--eventlet' in sys.argv:
-                eventlet.spawn_n(self._get_service_token)
-            else:
-                self._get_service_token()
-        LOG.info("Listening for SSO auth for %s", self.endpoint_uri)
-
-    def _get_service_token(self):
-        """Retrieve service token from auth to use for validation."""
-        LOG.info("Obtaining new service token from %s", self.endpoint_uri)
-        try:
-            result = self._auth_keystone(RequestContext(),
-                                         username=self.service_username,
-                                         password=self.service_password)
-            self.service_token = result['access']['token']['id']
-            LOG.info("Service token obtained. %s enabled", self.endpoint_uri)
-        except Exception as exc:
-            self.service_token = None
-            LOG.debug("Error obtaining service token: %s", exc)
-            LOG.error("Unable to authenticate to Global Auth. Endpoint "
-                      "'%s' will be disabled", self.endpoint.get('kwargs', {}).
-                      get('realm'))
+            self.anonymous_paths = []
+        LOG.info("Listening for SSO auth for %s", authenticator.endpoint_uri)
 
     def __call__(self, environ, start_response):
         """Authenticate calls with X-Auth-Token to the source auth service."""
-        path_parts = environ['PATH_INFO'].split('/')
-        root = path_parts[1] if len(path_parts) > 1 else None
-        if root in self.anonymous_paths:
-            # Allow anything marked as anonymous
+        # Always add a WWW-Authenticate header
+        extra_headers = [('WWW-Authenticate', self.authenticator.auth_header)]
+        start_response = self.start_response_callback(
+            start_response, add_headers=extra_headers)
+
+        # Skip authentication for anonymous paths
+        request = webob.Request(environ)
+        if any(path.match(request.path) for path in self.anonymous_paths):
+            LOG.debug("Allow anonymous path: %s", request.path)
             return self.app(environ, start_response)
 
-        start_response = self.start_response_callback(start_response)
-
-        if 'HTTP_X_AUTH_TOKEN' in environ and self.service_token:
-            context = environ['context']
-            try:
-                content = self._validate_keystone(
-                    context, token=environ['HTTP_X_AUTH_TOKEN'])
-                environ['HTTP_X_AUTHORIZED'] = "Confirmed"
-                if (self.admin_role and
-                        any(r for r in content['access']['user'].get('roles')
-                            if r['name'] == self.admin_role['name'])):
-                    environ['context'].is_admin = True
-            except HTTPUnauthorized as exc:
+        # Fail authentication if we don't have a service_token
+        if not self.authenticator.service_token:
+            if not self.authenticator.service_username:
+                exc = HTTPUnauthorized(
+                    "Authentication misconfigured on server.")
                 return exc(environ, start_response)
-            context.set_context(content)
+            self.authenticator._get_service_token()
 
-        return self.app(environ, start_response)
+        # Fail authentication if an auth token was not supplied
+        token = (request.headers.get('X-Auth-Token') or
+                 request.cookies.get("auth_token"))
+        if not token:
+            exc = HTTPUnauthorized("Token required for authentication.")
+            return exc(environ, start_response)
 
-    def _validate_keystone(self, context, token=None, username=None,
-                           apikey=None, password=None):
-        """Validates a Keystone Auth Token."""
-        if self.use_https:
-            http_class = httplib.HTTPSConnection
-        else:
-            http_class = httplib.HTTPConnection
-        http = http_class(self.host, self.port, timeout=10)
-        path = os.path.join(self.base_path, token)
-        if context.tenant:
-            path = "%s?belongsTo=%s" % (path, context.tenant)
-            LOG.debug("Validating token for tenant '%s'", context.tenant)
-        if self.service_username and self.service_token is None:
-            self._get_service_token()
-        headers = {
-            'Accept': 'application/json',
-        }
-        if self.service_token:
-            headers['X-Auth-Token'] = self.service_token
-        # TODO: implement some caching to not overload auth
+        # Validate an auth token
+        context = environ['context']
         try:
-            LOG.debug('Validating token with %s', self.endpoint_uri)
-            http.request('GET', path, headers=headers)
-            resp = http.getresponse()
-            body = resp.read()
-        except Exception as exc:
-            LOG.error('Error validating token: %s', exc)
-            raise HTTPUnauthorized('Unable to communicate with %s' %
-                                   self.endpoint_uri)
-        finally:
-            http.close()
+            content = self.authenticator.validate(token,
+                                                  tenant=context.get('tenant'))
+            # Let downstream WSGI apps know we authenticated
+            environ['HTTP_X_AUTHORIZED'] = "Confirmed"
+            # Return the token as a cookie if asked to do so
+            if 'X-Set-Auth-Cookie' in request.headers:
+                extra_headers.append(('Set-Cookie', 'auth_token=%s' % token))
+            context['username'] = content['access']['user']['id']
+            context['roles'] = content['access']['user'].get('roles')
+            context['auth_token'] = token
+            context['token_expiration'] = utils.parse_iso_time_string(
+                content['access']['token']['expires'])
+            # Let the client know the token belongs to an admin
+            if (self.authenticator.admin_role and
+                    any(r for r in context['roles']
+                        if r['name'] == self.authenticator.admin_role)):
+                environ['context']['is_admin'] = True
+                LOG.debug("Admin authenticated: %s", context['username'])
+                extra_headers.append(('X-AuthZ-Admin', 'True'))
+            context.update_local_context()
+            return self.app(environ, start_response)
+        except HTTPUnauthorized as exc:
+            return exc(environ, start_response)
 
-        if resp.status == 200:
-            LOG.debug('Token validated against %s', self.endpoint_uri)
-            try:
-                content = json.loads(body)
-                return content
-            except ValueError:
-                msg = 'Keystone did not return json-encoded body'
-                LOG.debug(msg)
-                raise HTTPUnauthorized(msg)
-        elif resp.status == 404:
-            LOG.debug('Invalid token for tenant: %s', resp.reason)
-            raise HTTPUnauthorized("Token invalid or not valid for this "
-                                   "tenant (%s)" % resp.reason,
-                                   [('WWW-Authenticate', self.auth_header)])
-        elif resp.status == 401:
-            LOG.info('Service token expired')
-            self._get_service_token()
-            if self.service_token:
-                return self._validate_keystone(context, token=token,
-                                               username=username,
-                                               apikey=apikey,
-                                               password=password)
-        LOG.debug("Unexpected response validating token: %s", resp.reason)
-        raise HTTPUnauthorized(resp.reason)
-
-    def _auth_keystone(self, context, token=None, username=None, apikey=None,
-                       password=None):
-        """Authenticates to keystone."""
-        if self.use_https:
-            http_class = httplib.HTTPSConnection
-        else:
-            http_class = httplib.HTTPConnection
-        http = http_class(self.host, self.port, timeout=10)
-        if token:
-            body = {"auth": {"token": {"id": token}}}
-        elif password:
-            body = {"auth": {"passwordCredentials": {
-                    "username": username, 'password': password}}}
-        elif apikey:
-            body = {"auth": {"RAX-KSKEY:apiKeyCredentials": {
-                    "username": username, 'apiKey': apikey}}}
-        else:
-            raise HTTPUnauthorized('No credentials supplied or detected')
-
-        if context.tenant:
-            auth = body['auth']
-            auth['tenantId'] = context.tenant
-            LOG.debug("Authenticating to tenant '%s'", context.tenant)
-        headers = {
-            'Content-type': 'application/json',
-            'Accept': 'application/json',
-        }
-        # TODO: implement some caching to not overload auth
-        try:
-            LOG.debug('Authenticating to %s', self.endpoint_uri)
-            http.request('POST', self.base_path, body=json.dumps(body),
-                         headers=headers)
-            resp = http.getresponse()
-            body = resp.read()
-        except Exception as exc:
-            LOG.error('HTTP connection exception: %s', exc)
-            raise HTTPUnauthorized('Unable to communicate with %s' %
-                                   self.endpoint_uri)
-        finally:
-            http.close()
-
-        if resp.status != 200:
-            LOG.debug('Invalid token for tenant: %s', resp.reason)
-            raise HTTPUnauthorized("Token invalid or not valid for this "
-                                   "tenant (%s)" % resp.reason,
-                                   [('WWW-Authenticate', self.auth_header)])
-
-        try:
-            content = json.loads(body)
-        except ValueError:
-            msg = 'Keystone did not return json-encoded body'
-            LOG.debug(msg)
-            raise HTTPUnauthorized(msg)
-        return content
-
-    def start_response_callback(self, start_response):
-        """Intercepts upstream start_response and adds our headers."""
+    def start_response_callback(self, start_response, add_headers=None):
+        """Intercept upstream start_response and adds headers."""
         def callback(status, headers, exc_info=None):
-            """Intercepts upstream start_response and adds our headers."""
-            # Add our headers to response
-            header = ('WWW-Authenticate', self.auth_header)
-            if header not in headers:
-                headers.append(header)
+            """Intercept upstream start_response and adds headers."""
+            # Add our header to response
+            for header in add_headers:
+                if header not in headers:
+                    headers.append(header)
             # Call upstream start_response
             start_response(status, headers, exc_info)
         return callback
