@@ -258,6 +258,8 @@ class Manager(object):
     def update_databag(deployment_id, bag_name, item_name, contents,
                        kitchen_name='kitchen'):
         """Write/Update data bag."""
+        if contents is None:
+            return
         kitchen = ChefKitchen(deployment_id)
         knife = kitchen._knife
         data = {}
