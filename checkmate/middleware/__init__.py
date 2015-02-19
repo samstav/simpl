@@ -1064,8 +1064,10 @@ class CORSMiddleware(object):
                 response.headerlist = [
                     ('Access-Control-Allow-Methods', self.allowed_methods),
                     ('Access-Control-Allow-Headers', self.allowed_headers),
+                    ('Access-Control-Allow-Credentials', 'true'),
                 ]
                 return response(environ, start_response)
+            environ['CORS_TRUSTED_ORIGIN'] = True
         elif origin != 'http://noaccess':
             LOG.info("Unknown origin '%s'. Responding without CORS headers",
                      origin)

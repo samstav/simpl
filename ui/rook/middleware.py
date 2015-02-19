@@ -39,6 +39,7 @@ from checkmate.utils import (
     get_time_string,
     import_class,
 )
+COOKIE_EXPIRES_FORMAT = "%a, %d-%b-%Y %T GMT"
 
 __version_string__ = None
 
@@ -234,6 +235,33 @@ def get_rook_version():
         __version_string__ = rook.version()
     return write_body({"version": __version_string__},
                       bottle.request, bottle.response)
+
+
+@ROOK_API.post('/accept-cookies')
+@support_only(['application/json'])
+def accept_cookies():
+    """Accept client-side cookies from authenticated users on trusted systems.
+
+    This call, used by a trusted system using `withCredentials` set to true,
+    allows a trusted domain to set cookies on this server's domain.
+    """
+    if bottle.request.environ.get('CORS_TRUSTED_ORIGIN') is not True:
+        return HTTPUnauthorized("Not a trusted CORS Origin")
+    cookies = read_body(bottle.request)
+    if cookies:
+        one_day_away = time.gmtime(time.time() + (24 * 60 * 60))
+        for key, params in cookies.items():
+            params.setdefault('expires', one_day_away)
+            params.setdefault('domain', bottle.request.urlparts.hostname)
+            params.setdefault('path', '/')
+            cookie_value = params.pop('value', None)
+            if cookie_value is not None:
+                LOG.info("Cookie '%s' set from trusted CORS partner", key,
+                         extra={'data': {key: params}})
+                bottle.response.set_cookie(str(key), cookie_value, **params)
+
+    bottle.response.set_header('Access-Control-Allow-Credentials', 'true')
+    return bottle.response
 
 
 @ROOK_API.post('/authproxy')

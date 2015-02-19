@@ -21,7 +21,62 @@ var checkmate = angular.module('checkmate', [
 
 
 //Load Angular Routes
-checkmate.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', 'BlueprintDocsProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider, BlueprintDocsProvider) {
+checkmate
+  .run([
+    'auth', '$location', '$rootScope', '$window', '$cookies',
+    function(auth, $location, $rootScope, $window, $cookies) {
+      // Default the state of the app to embedded for login template
+      $rootScope.embedded = $location.search().embedded ? true : false;
+
+      // Redirect if not logged in
+      if (!auth.is_logged_in()) {
+        // Force users to login screen and save previous url
+        if($location.path() !== '/' && $location.path() !== '/') {
+          var next = angular.copy($location.url());
+        }
+      }
+
+      $rootScope.$on('$routeChangeSuccess', function (event, current) {
+        $rootScope.title = current.$$route.title;
+      });
+
+      /* To set auth token from parent frame (ex EncoreUI or Waldo)
+
+      myIframe.contentWindow.postMessage({authToken: 'dfgsdfgsdgfdgf', url: 'http....'}, '*');
+
+      */
+      if ($cookies.auth_token) {
+        console.log('Found auth_token cookie');
+        if (typeof $cookies.auth_token === 'string' && $cookies.auth_token.length > 0) {
+          // Hand-off a stubbed auth context to the auth service
+          var data = {
+            auth: {
+              identity: {
+                expiration: new Date((new Date()).getTime() + (60 * 60 * 1000)),
+                token: {
+                  id: $cookies.auth_token,
+                },
+                auth_host: decodeURIComponent($cookies.auth_host),
+                username: $cookies.auth_username
+              },
+              context: {
+                token: {
+                  id: $cookies.auth_token,
+                  expires: new Date((new Date()).getTime() + (60 * 60 * 1000))
+                },
+                username: $cookies.auth_username,
+                auth_url: decodeURIComponent($cookies.auth_host)
+              }
+            }
+          };
+          if (!auth.is_logged_in()) {
+            $window.sessionStorage.setItem('auth', JSON.stringify(data));
+          }
+        }
+      }
+    }
+  ])
+.config(['$routeProvider', '$locationProvider', '$httpProvider', '$compileProvider', 'BlueprintDocsProvider', function($routeProvider, $locationProvider, $httpProvider, $compileProvider, BlueprintDocsProvider) {
 
   BlueprintDocsProvider.docs("/partials/blueprint_help.yaml.js");
 
