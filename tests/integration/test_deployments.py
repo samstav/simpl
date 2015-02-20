@@ -408,7 +408,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
             'type': 'widget',
             'desired-state': {},
         }
-        self.assertDictEqual(resources['myResource'], expected)
+        self.assertDictEqual(expected, resources['myResource'])
 
     def test_providerless_static_resource_generator(self):
         private, _ = keys.generate_key_pair()
@@ -445,7 +445,7 @@ class TestDeploymentResourceGenerator(unittest.TestCase):
                 'password': 'secret',
             }
         }
-        self.assertDictEqual(resources['myUser'], expected)
+        self.assertDictEqual(expected, resources['myUser'])
 
         # Key pair
         self.assertIn("myKey", resources)
@@ -523,7 +523,7 @@ class TestDeploymentRelationParser(unittest.TestCase):
                 continue
             for connection in resource['relations'].values():
                 connections.add((connection['name'], connection['interface']))
-        self.assertEqual(connections, expected_connections)
+        self.assertEqual(expected_connections, connections)
 
 
 class TestComponentSearch(unittest.TestCase):
@@ -903,7 +903,7 @@ class TestDeploymentSettings(unittest.TestCase):
                                        provider_key=case.get('provider'),
                                        resource_type=case.get('type'),
                                        relation=case.get('relation'))
-            self.assertEqual(value, case['expected'], msg=case['case'])
+            self.assertEqual(case['expected'], value, msg=case['case'])
             LOG.debug("Test '%s' success=%s", case['case'],
                       value == case['expected'])
 
@@ -1042,7 +1042,7 @@ class TestDeploymentSettings(unittest.TestCase):
                                        provider_key=case.get('provider'),
                                        resource_type=case.get('type'),
                                        relation=case.get('relation'))
-            self.assertEqual(value, case['expected'], msg=case['case'])
+            self.assertEqual(case['expected'], value, msg=case['case'])
             LOG.debug("Test '%s' success=%s", case['case'],
                       value == case['expected'])
 
@@ -1789,7 +1789,7 @@ class TestDeploymentDisplayOutputs(unittest.TestCase):
             'query': '',
             'fragment': '',
         }
-        self.assertDictEqual(result, expected)
+        self.assertDictEqual(expected, result)
 
     def test_parse_source_uri_python24(self):
         """This seems to fail in python 2.7.1, but not 2.7.4
@@ -1805,7 +1805,7 @@ class TestDeploymentDisplayOutputs(unittest.TestCase):
             'query': 'type=compute',
             'fragment': '',
         }
-        self.assertDictEqual(result, expected)
+        self.assertDictEqual(expected, result)
 
     def test_generation(self):
         deployment = cmdep.Deployment(utils.yaml_to_dict("""
@@ -1945,7 +1945,7 @@ class TestDeploymentMigrate(unittest.TestCase):
             manager.mark_as_migrated('test')
 
         expected_message = "Deployment is already Migrated!"
-        self.assertEqual(context.exception.message, expected_message)
+        self.assertEqual(expected_message, context.exception.message)
 
         self.mox.VerifyAll()
 
@@ -1971,7 +1971,7 @@ class TestDeploymentMigrate(unittest.TestCase):
             manager.mark_as_migrated('test')
 
         expected_message = "Cannot change deployment (test) status to MIGRATED"
-        self.assertEqual(context.exception.message, expected_message)
+        self.assertEqual(expected_message, context.exception.message)
 
         self.mox.VerifyAll()
 
