@@ -27,7 +27,6 @@ import logging
 import os
 import re
 import traceback
-import urlparse
 import uuid
 
 # some distros install as PAM (Ubuntu, SuSE)
@@ -43,6 +42,7 @@ import webob.exc as webexc
 
 from checkmate.common import caching
 from checkmate.common import threadlocal
+from checkmate.contrib import urlparse
 from checkmate.db import any_tenant_id_problems
 from checkmate.exceptions import BLUEPRINT_ERROR
 from checkmate.exceptions import CheckmateException

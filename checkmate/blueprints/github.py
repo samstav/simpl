@@ -29,7 +29,6 @@ import json
 import logging
 import os
 import time
-import urlparse
 
 import bottle
 import eventlet
@@ -43,6 +42,7 @@ from redis import exceptions as redisexc
 import yaml
 
 from checkmate.common import caching
+from checkmate.contrib import urlparse
 from checkmate import exceptions
 
 LOG = logging.getLogger(__name__)

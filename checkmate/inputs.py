@@ -15,7 +15,7 @@
 
 """Deployment Inputs parser"""
 
-import urlparse
+from checkmate.contrib import urlparse
 
 
 def register_scheme(scheme):

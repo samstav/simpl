@@ -19,7 +19,6 @@ import collections
 import copy
 import logging
 import os
-import urlparse
 
 import bottle
 import simplefsm as fsm
@@ -27,6 +26,7 @@ from simplefsm import exceptions as fsmexc
 
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
+from checkmate.contrib import urlparse
 from checkmate import constraints as cm_constraints
 from checkmate import db
 from checkmate import environment as cm_env

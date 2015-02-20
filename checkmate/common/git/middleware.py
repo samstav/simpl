@@ -112,13 +112,13 @@ import json
 import logging
 import os
 import re
-import urlparse
 
 import bottle
 from eventlet.green import httplib
 
 from checkmate.common import caching
 from checkmate.common.git import manager
+from checkmate.contrib import urlparse
 from checkmate.contrib import wsgi_git_http_backend
 
 GIT_SERVER_APP = bottle.Bottle()

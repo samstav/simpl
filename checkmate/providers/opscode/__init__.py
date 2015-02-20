@@ -28,8 +28,7 @@ environment:
       vendor: opscode
 """
 
-import urlparse
-
+from checkmate.contrib import urlparse
 from checkmate.providers import base as cmbase
 
 

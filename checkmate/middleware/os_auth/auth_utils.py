@@ -18,8 +18,8 @@
 import httplib
 import logging
 import traceback
-import urlparse
 
+from checkmate.contrib import urlparse
 from checkmate.middleware.os_auth import exceptions
 from webob.exc import HTTPUnauthorized
 
