@@ -308,14 +308,14 @@ class TokenAuthMiddleware(object):
             return self.app(environ, start_response)
 
         start_response = self.start_response_callback(start_response)
-
-        if 'HTTP_X_AUTH_TOKEN' in environ:
+        token = (request.headers.get('X-Auth-Token') or
+                 request.cookies.get("auth_token"))
+        if token:
             context = environ['context']
             if context.authenticated is True:
                 # Auth has been handled by some other middleware
                 pass
             else:
-                token = environ['HTTP_X_AUTH_TOKEN']
                 try:
                     if self.service_token:
                         cnt = self._validate_keystone(token,
@@ -1064,8 +1064,10 @@ class CORSMiddleware(object):
                 response.headerlist = [
                     ('Access-Control-Allow-Methods', self.allowed_methods),
                     ('Access-Control-Allow-Headers', self.allowed_headers),
+                    ('Access-Control-Allow-Credentials', 'true'),
                 ]
                 return response(environ, start_response)
+            environ['CORS_TRUSTED_ORIGIN'] = True
         elif origin != 'http://noaccess':
             LOG.info("Unknown origin '%s'. Responding without CORS headers",
                      origin)

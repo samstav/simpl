@@ -980,7 +980,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
  * - contextChanged (always called: log on/off, impersonating/un-impersonating)
  *
 **/
-services.factory('auth', ['$http', '$resource', '$rootScope', '$q', '$cookieStore', function($http, $resource, $rootScope, $q, $cookieStore) {
+services.factory('auth', ['$http', '$resource', '$rootScope', '$q', '$cookieStore', '$window', function($http, $resource, $rootScope, $q, $cookieStore, $window) {
   var auth = {};
 
   // Stores the user's identity and necessary credential info
@@ -1504,10 +1504,14 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', '$cookieStor
 
   //Restore from local storage
   auth.restore = function() {
-    var data = localStorage.getItem('auth');
-    if (data !== undefined && data !== null)
+    var data = $window.sessionStorage.getItem('auth');
+    if (_.isEmpty(data) || !data) {
+      data = localStorage.getItem('auth');
+    }
+    if (!_.isEmpty(data) && data) {
       data = JSON.parse(data);
-    if (data !== undefined && data !== null && data != {} && 'auth' in data && 'identity' in data.auth && 'context' in data.auth) {
+    }
+    if (!_.isEmpty(data) && 'auth' in data && 'identity' in data.auth && 'context' in data.auth) {
       // Check if stored data is in older format
       if (data.auth.identity.auth_host === undefined) {
         auth.clear();
