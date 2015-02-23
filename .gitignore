@@ -26,6 +26,7 @@ checkmate/blueprints/.blueprint_cache
 .testrepository/
 profiling/
 .vagrant.*
+checkmate/blueprints/.anon_blueprint_cache
 
 # possible locations of chef-stockton repo
 chef/

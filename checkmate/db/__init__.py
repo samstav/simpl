@@ -15,4 +15,5 @@
 
 """Backend Database Modules."""
 
+# flake8: noqa
 from checkmate.db.common import *

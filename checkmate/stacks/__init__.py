@@ -14,5 +14,6 @@
 
 """Heat compatibility and pass-through."""
 
+# flake8: noqa
 from .manager import Manager
 from .router import Router

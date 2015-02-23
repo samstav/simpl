@@ -32,7 +32,7 @@ environment:
       vendor: rackspace
 """
 
-from checkmate.providers.rackspace.database import tasks
+# flake8: noqa
 from checkmate.providers.rackspace.block import tasks
 
 

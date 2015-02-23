@@ -15,5 +15,6 @@
 
 """Modules for manageing and exposing Resources as a REST resources."""
 
+# flake8: noqa
 from checkmate.resources.router import Router
 from checkmate.resources.manager import Manager
