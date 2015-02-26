@@ -357,6 +357,8 @@ class Manager(object):
             params.extend(['-E', environment])
         if bootstrap_version:
             params.extend(['--bootstrap-version', bootstrap_version])
+        if kitchen.secret_key_path:
+            params.extend(['--secret-file', kitchen.secret_key_path])
 
         if simulation:
             results = {'status': 'ACTIVE'}

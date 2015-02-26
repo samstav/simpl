@@ -66,18 +66,19 @@ class TestKnife(unittest.TestCase):
     @mock.patch.object(Knife, 'ensure_config_path_exists')
     def test_write_solo_config(self, mock_ensure, mock_file):
         file_handle = mock_file.return_value.__enter__.return_value
+        secret_file = "%s/.chef/encrypted_data_bag_secret" % self.kitchen_path
         expected_config = """# knife -c knife.rb
     knife[:provisioning_path] = "%s"
+    knife[:secret_file] = "%s"
 
     cookbook_path    ["cookbooks", "site-cookbooks"]
     role_path  "roles"
     data_bag_path  "data_bags"
-    encrypted_data_bag_secret "%s/certificates/chef.pem"
-    """ % (self.kitchen_path, self.kitchen_path)
+    """ % (self.kitchen_path, secret_file)
         result = self.knife.write_config()
 
         self.assertEqual(result,
-                         "%s/certificates/chef.pem" % self.kitchen_path)
+                         "%s/.chef/encrypted_data_bag_secret" % self.kitchen_path)
         file_handle.write.assert_called_once_with(expected_config)
 
     @mock.patch('os.path.exists')

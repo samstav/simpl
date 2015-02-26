@@ -59,6 +59,7 @@ class ChefKitchen(object):
         self._public_key_path = os.path.join(self._env_path, PUBLIC_KEY_NAME)
         self.github_token = github_token
         self._knife = Knife(self._kitchen_path)
+        self.secret_key_path = None
 
     @property
     def kitchen_path(self):
@@ -218,7 +219,7 @@ class ChefKitchen(object):
         - `secret_key`: PEM-formatted private key for data bag encryption
         """
         self.ensure_kitchen_path_exists()
-        secret_key_path = self._knife.write_config()
+        self.secret_key_path = self._knife.write_config()
 
         # Create bootstrap.json in the kitchen
         bootstrap_path = os.path.join(self._kitchen_path, 'bootstrap.json')
@@ -235,16 +236,16 @@ class ChefKitchen(object):
             LOG.debug("Created certs directory: %s", certs_path)
 
         # Store (generate if necessary) the secrets file
-        if os.path.exists(secret_key_path):
+        if os.path.exists(self.secret_key_path):
             if secret_key:
-                with file(secret_key_path, 'r') as secret_key_file_r:
+                with file(self.secret_key_path, 'r') as secret_key_file_r:
                     data = secret_key_file_r.read(secret_key)
                 if data != secret_key:
                     msg = ("Kitchen secrets key file '%s' already exists and "
                            "does not match the provided value" %
-                           secret_key_path)
+                           self.secret_key_path)
                     raise exceptions.CheckmateException(msg)
-            LOG.debug("Stored secrets file exists: %s", secret_key_path)
+            LOG.debug("Stored secrets file exists: %s", self.secret_key_path)
         else:
             if not secret_key:
                 # celery runs os.fork(). We need to reset the random number
@@ -253,9 +254,9 @@ class ChefKitchen(object):
                 key = RSA.generate(2048)
                 secret_key = key.exportKey('PEM')
                 LOG.debug("Generated secrets private key")
-            with file(secret_key_path, 'w') as secret_key_file_w:
+            with file(self.secret_key_path, 'w') as secret_key_file_w:
                 secret_key_file_w.write(secret_key)
-            LOG.debug("Stored secrets file: %s", secret_key_path)
+            LOG.debug("Stored secrets file: %s", self.secret_key_path)
 
         # Copy blueprint files to kitchen
         if source_repo:
