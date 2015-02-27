@@ -9,5 +9,4 @@ no-docstring-rgx=(__.*__|[tT]est.*|setUp|tearDown)
 
 [MASTER]
 # We try to keep contrib files unmodified
-ignore=checkmate/contrib
-ignore=checkmate/common/patterns.yaml
+ignore=contrib,common/patterns.yaml
