@@ -21,11 +21,11 @@ import os
 import shutil
 import sys
 import time
-import urlparse
 
 from checkmate.common import backports
 from checkmate.common import config
 from checkmate.common import git as common_git
+from checkmate.contrib import urlparse
 from checkmate import exceptions as cmexc
 from checkmate import utils
 

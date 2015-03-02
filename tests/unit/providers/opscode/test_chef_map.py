@@ -21,11 +21,11 @@ import logging
 import os
 import shutil
 import unittest
-import urlparse
 
 import mox
 
 from checkmate.common import git as common_git
+from checkmate.contrib import urlparse
 from checkmate.providers.opscode import blueprint_cache
 from checkmate.providers.opscode import chef_map
 from checkmate import test

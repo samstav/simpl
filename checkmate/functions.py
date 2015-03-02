@@ -23,10 +23,10 @@ Functions that can be used in blueprints:
 
 import copy
 import os
-import urlparse
 
 import yaml
 
+from checkmate.contrib import urlparse
 from checkmate import exceptions
 from checkmate import utils
 

@@ -53,7 +53,6 @@ import copy
 import functools
 import logging
 import os
-import urlparse
 
 import yaml
 from yaml.composer import ComposerError
@@ -61,6 +60,7 @@ from yaml.parser import ParserError
 from yaml.scanner import ScannerError
 
 from checkmate.common import templating
+from checkmate.contrib import urlparse
 from checkmate import exceptions
 from checkmate.providers.opscode.blueprint_cache import BlueprintCache
 from checkmate import utils

@@ -35,7 +35,6 @@ import subprocess as subprc
 import sys
 import time
 import traceback as traceback_module
-import urlparse
 import uuid
 
 import arrow
@@ -51,6 +50,7 @@ from yaml import parser
 from yaml import scanner
 
 from checkmate.common import codegen
+from checkmate.contrib import urlparse
 from checkmate import exceptions as cmexc
 
 

@@ -32,11 +32,11 @@ import logging
 import os
 import subprocess
 import sys
-import urlparse
 
 import bottle
 
 from checkmate.common import setup
+from checkmate.contrib import urlparse
 from checkmate import exceptions
 from checkmate.providers.opscode import blueprint_cache
 from checkmate import utils
