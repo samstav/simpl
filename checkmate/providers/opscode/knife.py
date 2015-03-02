@@ -31,6 +31,7 @@ class Knife(object):
         self._config_path = config_path or os.path.join(
             self.kitchen_path, '.chef', 'knife.rb')
         self._data_bags_path = os.path.join(self.kitchen_path, 'data_bags')
+        self.secret_key_path = None
 
     @property
     def config_path(self):
@@ -92,21 +93,21 @@ class Knife(object):
     def write_config(self):
         """Writes a knife.rb config file."""
         self.ensure_config_path_exists()
-        secret_key_path = os.path.join(self.kitchen_path, 'certificates',
-                                       'chef.pem')
+        self.secret_key_path = os.path.join(self.kitchen_path, '.chef',
+                                       'encrypted_data_bag_secret')
         knife_config = """# knife -c knife.rb
     knife[:provisioning_path] = "%s"
+    knife[:secret_file] = "%s"
 
     cookbook_path    ["cookbooks", "site-cookbooks"]
     role_path  "roles"
     data_bag_path  "data_bags"
-    encrypted_data_bag_secret "%s"
-    """ % (self.kitchen_path, secret_key_path)
+    """ % (self.kitchen_path, self.secret_key_path)
         # knife kitchen creates a default knife.rb, so the file already exists
         with file(self.config_path, 'w') as handle:
             handle.write(knife_config)
         LOG.debug("Created config file: %s", self.config_path)
-        return secret_key_path
+        return self.secret_key_path
 
     def update_config(self, **kwargs):
         """Update a knife.rb file with new config values.
