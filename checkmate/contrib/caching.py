@@ -105,7 +105,6 @@ import time
 import urlparse
 
 from eventlet.green import threading
-import fakeredis
 import redis
 from redis.exceptions import ConnectionError  # noqa
 
@@ -540,6 +539,7 @@ def get_redis_client(connection_string, verify=False):
                 LOG.warn("No redis instance found at [%s], ERROR: %s | "
                          "Using fakeredis. Limitations apply.",
                          utils.hide_url_password(connection_string), exc)
+                import fakeredis
                 result = fakeredis.FakeStrictRedis()
         else:
             result = redis.from_url(connection_string)
