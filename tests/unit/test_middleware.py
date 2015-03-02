@@ -21,6 +21,7 @@ import unittest
 import webob
 
 from checkmate import middleware
+from checkmate.middleware import tenant
 
 
 def _start_response(environ, handler):
@@ -83,7 +84,7 @@ class TestStripPathMiddleware(unittest.TestCase):
 class TestTenantMiddleware(unittest.TestCase):
     def setUp(self):
         self.filter = middleware.ContextMiddleware(
-            middleware.TenantMiddleware(MockWsgiApp()))
+           tenant.TenantMiddleware(MockWsgiApp()))
 
     def test_no_tenant(self):
         env = {'PATH_INFO': '/',
