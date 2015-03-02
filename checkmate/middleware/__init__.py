@@ -34,6 +34,8 @@ import webob.exc as webexc
 
 from checkmate.common import threadlocal
 from checkmate.exceptions import CheckmateException
+# Temporarily import this to not break existing deployments
+from checkmate.middleware.keystone import TokenAuthMiddleware  # noqa
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)

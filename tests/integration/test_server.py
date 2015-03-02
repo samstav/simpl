@@ -28,6 +28,7 @@ from checkmate import deployments
 from checkmate import environments
 from checkmate import exceptions
 from checkmate import middleware as cmmid
+from checkmate.middleware import tenant as tenant_middleware
 from checkmate import server
 from checkmate import workflows
 
@@ -91,7 +92,7 @@ class TestServer(unittest.TestCase):
                                                 workflows_manager,
                                                 deployments_manager)
 
-        tenant = cmmid.TenantMiddleware(self.root_app)
+        tenant = tenant_middleware.TenantMiddleware(self.root_app)
         context = cmmid.ContextMiddleware(tenant)
         extension = cmmid.ExtensionsMiddleware(context)
         self.app = webtest.TestApp(extension)

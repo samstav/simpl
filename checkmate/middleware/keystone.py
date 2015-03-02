@@ -24,7 +24,6 @@ import webob.exc as webexc
 from checkmate.common import caching
 from checkmate.exceptions import BLUEPRINT_ERROR
 from checkmate.exceptions import CheckmateException
-from checkmate.middleware import RequestContext
 from checkmate.middleware.os_auth import identity
 from checkmate import utils
 
@@ -70,9 +69,7 @@ class TokenAuthMiddleware(object):
         # FIXME: temporary logic. Make this get a new token when needed
         if self.service_username:
             try:
-                _rqc = RequestContext()
-                LOG.debug('REQUESTED CONTEXT INFORMATION %s', _rqc)
-                result = self.auth_keystone(tenant=_rqc.tenant,
+                result = self.auth_keystone(tenant=None,
                                             auth_url=self.endpoint['uri'],
                                             username=self.service_username,
                                             password=self.service_password)
