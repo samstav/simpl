@@ -11,6 +11,9 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
 """Opscode chef server provider and specs.Celery tasks."""
+
+# flake8: noqa
 from checkmate.providers.opscode.server.provider import Provider
 from checkmate.providers.opscode.server import tasks

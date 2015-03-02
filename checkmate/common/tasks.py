@@ -28,7 +28,6 @@ from celery import task
 from checkmate import celeryglobal as celery  # module to be renamed
 from checkmate.common import statsd
 from checkmate import db
-from checkmate import deployment
 from checkmate import operations
 
 

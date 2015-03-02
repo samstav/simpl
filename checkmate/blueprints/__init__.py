@@ -15,6 +15,7 @@
 
 """All the Blueprints things."""
 
+# flake8: noqa
 from .blueprint import Blueprint
 from .github import AnonymousGitHubManager
 from .github import GitHubManager

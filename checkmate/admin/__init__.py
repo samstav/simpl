@@ -15,5 +15,6 @@
 
 """Admin API."""
 
+# flake8: noqa
 from .router import Router
 from .tenants import Manager as TenantManager

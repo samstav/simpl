@@ -14,5 +14,6 @@
 
 """Rackspace Cloud Load Balancer provider and specs.Celery tasks."""
 
+# flake8: noqa
 from checkmate.providers.rackspace.loadbalancer.provider import Provider
 from checkmate.providers.rackspace.loadbalancer import tasks

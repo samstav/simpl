@@ -16,5 +16,6 @@
 
 """Workflows."""
 
+# flake8: noqa
 from checkmate.workflows.manager import Manager
 from checkmate.workflows.router import Router

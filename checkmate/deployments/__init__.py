@@ -14,6 +14,7 @@
 
 """All the Deployments things."""
 
+# flake8: noqa
 from checkmate.deployments.manager import Manager
 from checkmate.deployments.planner import Planner
 from checkmate.deployments.router import Router
