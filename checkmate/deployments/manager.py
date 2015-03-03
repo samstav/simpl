@@ -124,11 +124,8 @@ class Manager(object):
             assert tenant_id, "Tenant ID must be specified in deployment"
             deployment['tenantId'] = tenant_id
         body, secrets = utils.extract_sensitive_data(deployment)
-        return db.get_driver(api_id=api_id).save_deployment(api_id, body,
-                                                            secrets,
-                                                            tenant_id=
-                                                            tenant_id,
-                                                            partial=partial)
+        return db.get_driver(api_id=api_id).save_deployment(
+            api_id, body, secrets, tenant_id=tenant_id, partial=partial)
 
     def deploy(self, deployment, context):
         """Save a new deployment and creates a deployment operation.
@@ -148,9 +145,8 @@ class Manager(object):
 
     def get_deployment(self, api_id, tenant_id=None, with_secrets=False):
         """Get a single deployment by id."""
-        entity = db.get_driver(api_id=api_id).get_deployment(api_id,
-                                                             with_secrets=
-                                                             with_secrets)
+        entity = db.get_driver(api_id=api_id).get_deployment(
+            api_id, with_secrets=with_secrets)
         if not entity or (tenant_id and tenant_id != entity.get("tenantId")):
             raise CheckmateDoesNotExist('No deployment with id %s' % api_id)
 

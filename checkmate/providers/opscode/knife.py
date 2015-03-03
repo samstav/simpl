@@ -94,7 +94,7 @@ class Knife(object):
         """Writes a knife.rb config file."""
         self.ensure_config_path_exists()
         self.secret_key_path = os.path.join(self.kitchen_path, '.chef',
-                                       'encrypted_data_bag_secret')
+                                            'encrypted_data_bag_secret')
         knife_config = """# knife -c knife.rb
     knife[:provisioning_path] = "%s"
     knife[:secret_file] = "%s"

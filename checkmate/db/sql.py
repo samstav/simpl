@@ -291,7 +291,7 @@ class Driver(DbBase):
             else:
                 del current.tags[0:len(current.tags)]
                 current.tags = ([TenantTag(tag=tag)
-                                for tag in tenant.get('tags', [])]
+                                 for tag in tenant.get('tags', [])]
                                 or None)
             self.session.commit()
         else:
@@ -559,9 +559,8 @@ class Driver(DbBase):
 
             if updated > 0:
                 # get the object that we just locked
-                results = self.session.query(klass).filter_by(id=api_id,
-                                                              locked=
-                                                              lock_timestamp)
+                results = self.session.query(klass).filter_by(
+                    id=api_id, locked=lock_timestamp)
                 assert results.count() > 0, ("There was a fatal error. The "
                                              "object %s with id %s could not "
                                              "be locked!" % (klass, api_id))

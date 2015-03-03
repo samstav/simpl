@@ -24,7 +24,7 @@ from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 
-#This is the IP address we use for the dummy node.
+# This is the IP address we use for the dummy node.
 PLACEHOLDER_IP = '1.2.3.4'
 
 
@@ -315,7 +315,7 @@ class Manager(object):
                 # Possible because we need to refresh nodes
                 lb_fresh = api.get(lb_id)
                 if [n for n in lb_fresh.nodes if n.address == ip_addr]:
-                    #OK!
+                    # OK!
                     LOG.info("Added node %s:%s to load balancer %s", ip_addr,
                              port, lb_id)
                     results = {

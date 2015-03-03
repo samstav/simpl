@@ -685,7 +685,7 @@ class Router(object):
             bottle.abort(404, 'No task with id %s' % task_id)
 
         try:
-            #Synchronous call
+            # Synchronous call
             run_one_task(bottle.request.environ['context'], api_id, task_id,
                          timeout=10)
         except db.ObjectLockedError:

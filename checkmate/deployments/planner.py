@@ -602,7 +602,8 @@ class Planner(classes.ExtensibleDict):
                 error_message = (
                     "Resource '%s' is already set to be hosted on '%s'. "
                     "Cannot change host to '%s'" % (resource['index'],
-                    resource['hosted_on'], target['index'])
+                                                    resource['hosted_on'],
+                                                    target['index'])
                 )
                 raise CheckmateException(error_message,
                                          friendly_message=BLUEPRINT_ERROR)

@@ -196,8 +196,8 @@ def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
                          kwargs={
                              'wait': wait,
                              'apply_callbacks': apply_callbacks
-                         },
-                         countdown=wait)
+    },
+        countdown=wait)
 
 
 @celtask.task(base=celeryglobal.SingleTask, lock_db=LOCK_DB,
@@ -239,8 +239,8 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
     wf_task = d_wf.get_task(task_id)
     original = serializer._serialize_task(wf_task, skip_children=True)
     if not wf_task:
-        raise IndexError("Task '%s' not found in Workflow '%s'" % (task_id,
-                          workflow_id))
+        raise IndexError("Task '%s' not found in Workflow '%s'" % (
+            task_id, workflow_id))
     if wf_task._is_finished():
         raise ValueError("Task '%s' is in state '%s' which cannot be "
                          "executed" % (wf_task.get_name(),

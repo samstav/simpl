@@ -30,7 +30,7 @@ from checkmate import utils
 LOG = logging.getLogger(__name__)
 
 
-### Celery tasks
+# Celery tasks
 @task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def get_domains(context, limit=None, offset=None):
@@ -130,7 +130,7 @@ def create_record(context, domain, name, dnstype, data,
             msg = (
                 'Cannot create %s record (%s->%s) because domain "%s" '
                 'does not exist.' % (
-                dnstype, name, data, domain)
+                    dnstype, name, data, domain)
             )
             LOG.error(msg)
             raise exceptions.CheckmateException(msg)

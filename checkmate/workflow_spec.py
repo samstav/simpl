@@ -466,7 +466,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                             provider, wf_spec, target, key, relation, name,
                             deployment, context)
 
-           # Process client side of hosting relationship
+            # Process client side of hosting relationship
             for name, relation, hosted_resource in WorkflowSpec.\
                     host_relations_iter(resource, deployment):
                 # Call connection target to respond with tasks

@@ -28,7 +28,7 @@ class Manager(object):
 
     """Block Storage provider model and logic for interaction."""
 
-    #pylint: disable=R0913
+    # pylint: disable=R0913
     @staticmethod
     def create_volume(size, context, api, callback, region=None,
                       tags=None, simulate=False):
