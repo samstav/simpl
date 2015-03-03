@@ -190,7 +190,7 @@ class Provider(rsbase.RackspaceProviderBase):
         return dict(root=create_dns_task, final=create_dns_task)
 
     def get_catalog(self, context, type_filter=None, **kwargs):
-        #TODO(any): add more than just regions
+        # TODO(any): add more than just regions
         results = {}
 
         if type_filter is None or type_filter == 'regions':

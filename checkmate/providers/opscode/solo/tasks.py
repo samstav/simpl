@@ -199,7 +199,8 @@ def manage_role(context, name, environment, path=None, desc=None,
                                simulate=context.simulation)
 
 
-@ctask.task(base=base.ProviderTask, provider=Provider, countdown=20, max_retries=3)
+@ctask.task(base=base.ProviderTask, provider=Provider, countdown=20,
+            max_retries=3)
 @statsd.collect
 def delete_resource(context):
     """Marks the resource as deleted."""

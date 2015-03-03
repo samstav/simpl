@@ -229,7 +229,8 @@ class Provider(rsbase.RackspaceProviderBase):
         return messages
 
     def verify_access(self, context):
-        roles = ['identity:user-admin', 'admin', 'LBaaS:admin', 'LBaaS:creator']
+        roles = ['identity:user-admin', 'admin',
+                 'LBaaS:admin', 'LBaaS:creator']
         if base.user_has_access(context, roles):
             return {
                 'type': "ACCESS-OK",

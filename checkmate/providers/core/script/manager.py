@@ -60,7 +60,7 @@ class Manager(object):
             script = Script(install_script)
             try:
                 if host_os == 'windows':
-                    #TODO(zns): replace this username hack with a real design
+                    # TODO(zns): replace this username hack with a real design
                     if username == 'root':
                         username = 'Administrator'
 
