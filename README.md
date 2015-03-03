@@ -2,9 +2,12 @@
 ![Checkmate](docs/img/checkmate.png)
 
 ## Overview
-Checkmate stores and controls your cloud configurations. Use it to deploy and manage complete application stacks.
+Checkmate stores and controls your cloud configurations. Use it to deploy and
+manage complete application stacks.
 
-It exposes a REST API for manipulating configurations. It uses celery for task queuing and SpiffWorkflow to orchestrate deploying them. It support JSON and YAML interchangeably. It has optional built-in browser support with a UI.
+It exposes a REST API for manipulating configurations. It uses celery for task
+queuing and SpiffWorkflow to orchestrate deploying them. It support JSON and
+YAML interchangeably. It has optional built-in browser support with a UI.
 
 Checkmatefile examples are available on [Rackspace github](https://github.rackspace.com/Blueprints).
 
