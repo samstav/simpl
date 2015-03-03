@@ -8,7 +8,7 @@ manage complete application stacks.
 It exposes a REST API for manipulating configurations. It uses
 [Celery](http://www.celeryproject.org/) for task queuing and
 [SpiffWorkflow](https://github.com/knipknap/SpiffWorkflow) to orchestrate
-deploying them. It support JSON and YAML interchangeably. It has optional
+deploying them. It supports JSON and YAML interchangeably. It has optional
 built-in browser support with a UI.
 
 Checkmatefile examples are available on [Rackspace github](https://github.rackspace.com/Blueprints).
@@ -92,10 +92,10 @@ the development branch from this fork:
     $ sudo python setup.py install
 
 #### python-novacalient
-Necessary patches to python-novacalient are not yet in the source repo, so
+Necessary patches to python-novaclient are not yet in the source repo, so
 install the development branch from this fork:
 
-    $ git clone -b master https://github.rackspace.com/checkmate/python-novacalient
+    $ git clone -b master https://github.rackspace.com/checkmate/python-novaclient
     $ cd python-novacalient
     $ sudo python setup.py install
 
