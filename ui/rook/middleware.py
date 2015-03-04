@@ -24,7 +24,7 @@ from webob.exc import HTTPUnauthorized, HTTPNotFound
 
 from checkmate.common import auth
 from checkmate.common import config
-from checkmate.middleware import TokenAuthMiddleware
+from checkmate.middleware import keystone
 from checkmate import utils
 import rook
 
@@ -688,7 +688,7 @@ class BasicAuthMultiCloudMiddleware(object):
         # token auth calls. We'll route to it when appropriate
         for _, value in domains.iteritems():
             if value['protocol'] in ['keystone', 'keystone-rax']:
-                value['middleware'] = (TokenAuthMiddleware(app,
+                value['middleware'] = (keystone.TokenAuthMiddleware(app,
                                        endpoint=value['endpoint']))
 
     def __call__(self, environ, start_response):

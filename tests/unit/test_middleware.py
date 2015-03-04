@@ -21,6 +21,7 @@ import unittest
 import webob
 
 from checkmate import middleware
+from checkmate.middleware import tenant
 
 
 def _start_response(environ, handler):
@@ -29,7 +30,9 @@ def _start_response(environ, handler):
 
 
 class MockWsgiApp(object):
+
     """Mock class for the WsgiApp."""
+
     def __init__(self):
         pass
 
@@ -38,7 +41,9 @@ class MockWsgiApp(object):
 
 
 class TestGenerateResponse(unittest.TestCase):
+
     """Test the webob patch."""
+
     def setUp(self):
         self.http_exception = webob.exc.WSGIHTTPException()
         self.environ = {'REQUEST_METHOD': 'GET'}
@@ -83,7 +88,7 @@ class TestStripPathMiddleware(unittest.TestCase):
 class TestTenantMiddleware(unittest.TestCase):
     def setUp(self):
         self.filter = middleware.ContextMiddleware(
-            middleware.TenantMiddleware(MockWsgiApp()))
+           tenant.TenantMiddleware(MockWsgiApp()))
 
     def test_no_tenant(self):
         env = {'PATH_INFO': '/',
@@ -139,7 +144,9 @@ class TestExtensionsMiddleware(unittest.TestCase):
 
 
 class RequestContextTests(unittest.TestCase):
+
     """RequestContextTests"""
+
     def test_dict_conversion(self):
         context = middleware.RequestContext(simulation='True',
                                             param1='value1', param2='value2')

@@ -58,6 +58,9 @@ from checkmate import db
 from checkmate import deployments
 from checkmate import exceptions as cmexc
 from checkmate import middleware
+from checkmate.middleware import cors
+from checkmate.middleware import keystone
+from checkmate.middleware import tenant
 from checkmate import resources as deployment_resources
 from checkmate import stacks
 from checkmate import utils
@@ -371,14 +374,14 @@ def main():
         endpoints = json.loads(endpoints)
     else:
         endpoints = DEFAULT_AUTH_ENDPOINTS
-    next_app = middleware.AuthTokenRouterMiddleware(
+    next_app = keystone.AuthTokenRouterMiddleware(
         next_app,
         endpoints,
         anonymous_paths=anonymous_paths
     )
 
     next_app = middleware.GitHubTokenMiddleware(next_app)
-    next_app = middleware.TenantMiddleware(next_app, resources=resources)
+    next_app = tenant.TenantMiddleware(next_app, resources=resources)
     next_app = middleware.StripPathMiddleware(next_app)
     next_app = middleware.ExtensionsMiddleware(next_app)
 
@@ -497,9 +500,9 @@ def main():
         'X-Proxy',
         'WWW-Authenticate')
 
-    next_app = middleware.CORSMiddleware(
+    next_app = cors.CORSMiddleware(
         next_app,
-        allowed_headers=(middleware.CORSMiddleware.default_headers +
+        allowed_headers=(cors.CORSMiddleware.default_headers +
                          etc_headers),
         allowed_hostnames=CONFIG.cors_hosts or ['localhost', '127.0.0.1'],
         allowed_netlocs=CONFIG.cors_netlocs or [
