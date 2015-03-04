@@ -65,6 +65,7 @@ impacket==0.9.12
 Jinja2==2.7.3
 kombu==3.0.24
 morpheus==0.0.4
+oslo.config==1.6.0
 pam==0.1.4
 paramiko==1.15.1
 passlib==1.6.2
