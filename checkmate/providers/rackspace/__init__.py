@@ -33,7 +33,9 @@ environment:
 """
 
 # flake8: noqa
+# Must load these to register them in celery
 from checkmate.providers.rackspace.block import tasks
+from checkmate.providers.rackspace.database import tasks
 
 
 def register():
