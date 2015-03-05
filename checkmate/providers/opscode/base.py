@@ -179,7 +179,7 @@ class BaseOpscodeProvider(base.ProviderBase):
                                           (bag_name, items))
             item_name = items[0]
             if databags[bag_name]['encrypted'] is True:
-                secret_file = 'certificates/chef.pem'
+                secret_file = '.chef/encrypted_data_bag_secret'
                 path = 'chef_options/encrypted-databags/%s/%s' % (bag_name,
                                                                   item_name)
             else:

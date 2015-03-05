@@ -256,7 +256,7 @@ class Manager(object):
 
     @staticmethod
     def update_databag(deployment_id, bag_name, item_name, contents,
-                       kitchen_name='kitchen'):
+                       kitchen_name='kitchen', secret_file=None):
         """Write/Update data bag."""
         if contents is None:
             return
@@ -288,8 +288,14 @@ class Manager(object):
         bag_full_path = os.path.join(kitchen._kitchen_path, bag_rel_path)
         kitchen.write_kitchen_file(bag_full_path, json.dumps(data))
         try:
-            knife.run_command(['knife', 'data', 'bag', 'from', 'file',
-                               bag_name, bag_full_path, '--disable-editing'])
+            knife_command = ['knife', 'data', 'bag', 'from', 'file',
+                             bag_name, bag_full_path, '--disable-editing']
+            if secret_file:
+                secret_file_path = os.path.join(kitchen._kitchen_path,
+                                                secret_file)
+                knife_command = knife_command + ['--secret-file',
+                                                 secret_file_path]
+            knife.run_command(knife_command)
         finally:
             os.unlink(bag_full_path)
         LOG.info("Updated data bag %s item %s", bag_name, item_name)
