@@ -102,3 +102,5 @@ tests/coverage.xml
 Berksfile.lock
 
 .ropeproject
+
+contrib/.checkmate_env
