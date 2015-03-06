@@ -1,9 +1,9 @@
 # Installing Checkmate
 
-Development: [Docker](#Using-Checkmate-in-Docker) or
+Development: [Docker](#using-checkmate-in-docker) or
              [Vagrant](#running-checkmate-in-vagrant)
 
-Production: [Installation](#Manual-Installation)
+Production: [Installation](#manual-installation)
 
 ## Using Checkmate in Docker
 
