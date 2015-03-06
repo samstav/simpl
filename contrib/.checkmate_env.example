@@ -1,0 +1,35 @@
+export CHECKMATE_BROKER_URL=redis://127.0.0.1:6379/0
+export CHECKMATE_CACHE_CONNECTION_STRING=redis://127.0.0.1:6379/0
+export CHECKMATE_CONNECTION_STRING=mongodb://127.0.0.1:27017/checkmate
+export CHECKMATE_SIMULATOR_CONNECTION_STRING=mongodb://127.0.0.1:27017/checkmate
+
+export CHECKMATE_RESULT_BACKEND="amqp"
+export CHECKMATE_CHEF_LOCAL_PATH="/tmp/checkmate-chef"
+export CELERY_CONFIG_MODULE=checkmate.celeryconfig
+export CHECKMATE_AUTH_ENDPOINTS='[
+    {"default": true,
+     "middleware": "checkmate.middleware.TokenAuthMiddleware",
+      "uri": "https://identity.api.rackspacecloud.com/v2.0/tokens",
+      "kwargs": {"protocol": "Keystone",
+                 "realm": "US Cloud",
+                 "priority": "100"}
+    },
+    {"middleware": "checkmate.middleware.TokenAuthMiddleware",
+     "uri": "https://lon.identity.api.rackspacecloud.com/v2.0/tokens",
+     "kwargs": {"protocol": "Keystone",
+                "realm": "UK Cloud"}
+    },
+    {"middleware": "rook.middleware.RackspaceSSOAuthMiddleware",
+     "uri": "https://identity-internal.api.rackspacecloud.com/v2.0/tokens",
+     "kwargs": {"realm": "Rackspace SSO",
+                "protocol": "GlobalAuth",
+                "priority": "1",
+                "admin_role": "Racker",
+                "username": "<BLANK>",
+                "password": "<BLANK>"}
+    }
+]'
+export CHECKMATE_GITHUB_ENDPOINT=https://api.github.com
+export CHECKMATE_GITHUB_TOKEN="<BLANK>"
+export CHECKMATE_GITHUB_CLIENT_ID='<BLANK>'
+export CHECKMATE_GITHUB_CLIENT_SECRET='<BLANK>'

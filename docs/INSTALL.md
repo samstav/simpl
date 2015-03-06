@@ -1,6 +1,7 @@
 # Installing Checkmate
 
-Development: [Docker](#Using-Checkmate-in-Docker)
+Development: [Docker](#Using-Checkmate-in-Docker) or
+             [Vagrant](#running-checkmate-in-vagrant)
 
 Production: [Installation](#Manual-Installation)
 
@@ -85,6 +86,40 @@ deployments.
 $ docker kill checkredis checkmongo checkmate-api checkmate-worker
 $ docker rm checkredis checkmongo checkmate-api checkmate-worker
 ```
+
+## Running Checkmate in Vagrant
+
+### Create a developer application in Github
+
+1. Go to your [GitHub profile settings](https://github.com/settings/profile).
+2. Click `Applications`.
+3. Under the `Developer applications` heading, click `Register new application`.
+4. For `Application name`, enter "Checkmate".
+5. For `Homepage URL`, enter `http://127.0.0.1:8080`.
+6. Click `Register application`.
+
+### vagrant up
+
+1. Install [VirtualBox](https://www.virtualbox.org/wiki/Downloads)
+2. Install [Vagrant](https://www.vagrantup.com/downloads)
+3. Clone this source repo.
+4. Change into the `contrib` directory: `cd contrib`
+5. Copy `.checkmate_env.example` to `.checkmate_env` and fill in the `<BLANK>`
+   information.
+6. Start the vagrant box: `vagrant up`
+7. Login to the vagrant box: `vagrant ssh`
+8. Activate the Checkmate virtual environment: `workon checkmate`
+9. Change into the `/workspace` directory: `cd /workspace`
+10. Start the Checkmate server:
+    `bin/checkmate-server START --with-admin --worker --eventlet --with-ui --with-simulator 0.0.0.0:8080`
+
+The Checkmate homepage should now be accessible in your browser at
+http://127.0.0.1:8080.
+
+The root of this source repo will be synchronized with the vagrant box, so you
+can make code changes in the git clone in your host environment and the changes
+will be reflected inside the vagrant box. Note: You will restart
+`checkmate-server` for changes to take effect.
 
 ## Manual Installation
 

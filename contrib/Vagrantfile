@@ -1,0 +1,55 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+
+$script = <<SCRIPT
+#!/bin/bash
+set -x
+
+sudo apt-get update
+sudo apt-get install -y \
+    git \
+    python-virtualenv \
+    virtualenvwrapper \
+    python-dev \
+    redis-server \
+    mongodb \
+    libssl-dev
+
+git config --global url."https://github".insteadOf "git://github"
+
+source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
+echo "source /usr/share/virtualenvwrapper/virtualenvwrapper.sh" >> $HOME/.bashrc
+mkvirtualenv checkmate
+
+sudo mkdir /var/local/checkmate
+sudo chown vagrant /var/local/checkmate
+sudo chgrp vagrant /var/local/checkmate
+
+cd /workspace/ui
+python setup.py develop
+
+cd /workspace
+pip install -r requirements.txt
+python setup.py develop
+
+echo "source /vagrant/.checkmate_env" >> $HOME/.bashrc
+
+SCRIPT
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "ubuntu/trusty64"
+
+  config.vm.provision "shell", privileged: false, inline: $script
+
+  config.vm.network "forwarded_port", guest: 8080, host: 8080
+
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 2048
+    v.cpus = 2
+  end
+
+  config.vm.synced_folder "..", "/workspace"
+
+end
