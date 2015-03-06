@@ -34,8 +34,8 @@ The folder structure is:
      ├── checkmate.pub
      └── /kitchen/
          ├── bootstrap.json
-         ├── certificates
-         │    └── chef.pem
+         ├── .chef
+         │    └── encrypted_data_bag_secret
          ├── cookbooks
          ├── data_bags
          ├── nodes
@@ -219,7 +219,3 @@ If a map file named 'Chefmap' is located in the kitchen, it is used. The name ma
 If a Chefmap is not defined in the kitchen, then a 'checkmate.map' file is searched for for each cookbook.
 
 The files are expected to be in YAML syntax. Note that since YAML is a superset of JSON, entering all data as JSON will also work.
-
-
-
-

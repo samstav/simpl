@@ -1331,7 +1331,7 @@ interfaces/mysql/database_name
                             {'db_name': 'foo-db'}
                         ],
                         'kwargs': {
-                            'secret_file': 'certificates/chef.pem'
+                            'secret_file': '.chef/encrypted_data_bag_secret'
                         },
                         'result': None
                     },

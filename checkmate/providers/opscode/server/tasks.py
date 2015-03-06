@@ -135,7 +135,8 @@ def write_databag(context, deployment, bagname, itemname, contents,
                 item[key] = value
             item.save()
         else:
-            Manager.update_databag(deployment, bagname, itemname, contents)
+            Manager.update_databag(deployment, bagname, itemname, contents,
+                                   secret_file=secret_file)
         LOG.debug('Databag %s item %s updated.', bagname, itemname)
     except chef.ChefError, exc:
         LOG.debug('Databag management failed. Chef Error: %s. Retrying.', exc)

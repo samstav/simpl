@@ -384,7 +384,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                 ],
                 'kwargs': mox.And(
                     mox.ContainsKeyValue('secret_file',
-                                         'certificates/chef.pem'),
+                                         '.chef/encrypted_data_bag_secret'),
                     mox.ContainsKeyValue('merge', True)
                 ),
                 'result': None
@@ -627,7 +627,9 @@ class StubbedWorkflowBase(unittest.TestCase):
                         ],
                         'kwargs': mox.And(
                             mox.ContainsKeyValue(
-                                'secret_file', 'certificates/chef.pem'),
+                                'secret_file',
+                                '.chef/encrypted_data_bag_secret'
+                                ),
                             mox.ContainsKeyValue('merge', True)),
                         'result': None,
                         'resource': key,
@@ -927,7 +929,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     ],
                     'kwargs': mox.And(
                         mox.ContainsKeyValue(
-                            'secret_file', 'certificates/chef.pem'),
+                            'secret_file', '.chef/encrypted_data_bag_secret'),
                         mox.ContainsKeyValue('merge', True)),
                     'result': None,
                     'resource': key,
