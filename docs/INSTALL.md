@@ -118,7 +118,7 @@ http://127.0.0.1:8080.
 
 The root of this source repo will be synchronized with the vagrant box, so you
 can make code changes in the git clone in your host environment and the changes
-will be reflected inside the vagrant box. Note: You will restart
+will be reflected inside the vagrant box. Note: You will need to restart
 `checkmate-server` for changes to take effect.
 
 ## Manual Installation
