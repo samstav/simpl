@@ -27,9 +27,9 @@ import time
 import uuid
 
 import bson
-from SpiffWorkflow import util as swutil
 import pymongo
 from pymongo.son_manipulator import SONManipulator
+from SpiffWorkflow import util as swutil
 
 from checkmate import classes
 from checkmate.db import common
@@ -64,7 +64,7 @@ def _build_filter(value):
 
 
 def _validate_no_operators(fields):
-    """Filtering on more than one field means no operators allowed!"""
+    """Filtering on more than one field means no operators allowed."""
     for field in fields:
         if re.search(OP_MATCH, field):
             raise cmexc.CheckmateInvalidParameterError(
@@ -85,7 +85,7 @@ def _parse_comparison(fields):
 
 class Driver(common.DbBase):
 
-    """MongoDB Database Driver"""
+    """MongoDB Database Driver."""
 
     _workflow_collection_name = "workflows"
     _blueprint_collection_name = "blueprints"
@@ -113,7 +113,7 @@ class Driver(common.DbBase):
     _workflow_projection['task_tree'] = 0
 
     def __init__(self, connection_string, driver=None, *args, **kwargs):
-        """Initializes globals for this driver"""
+        """Initialize globals for this driver."""
         common.DbBase.__init__(
             self, connection_string, driver=driver, *args, **kwargs)
 
@@ -191,7 +191,7 @@ class Driver(common.DbBase):
         return self._client
 
     def database(self):
-        """Connects to and returns mongodb database object."""
+        """Connect to and returns mongodb database object."""
         if self._database is None:
             self._database = self._get_client()[self.db_name]
 
@@ -215,6 +215,7 @@ class Driver(common.DbBase):
         return self._database
 
     def dump(self):
+        """Build and return a deployment dict."""
         response = {}
         response['environments'] = self.get_environments()
         response['deployments'] = self.get_deployments()
@@ -227,6 +228,7 @@ class Driver(common.DbBase):
         return self.database()['locks'].find_one({'_id': key})
 
     def acquire_lock(self, key, timeout):
+        """Attempt to acquire a lock for the given database key."""
         existing_lock = self._find_existing_lock(key)
         if not existing_lock:
             try:
@@ -248,6 +250,7 @@ class Driver(common.DbBase):
                                                "already locked!" % key)
 
     def release_lock(self, key):
+        """Release the database lock on the given key."""
         result = self.database()['locks'].remove({'_id': key}, True)
         if result['n'] != 1:
             raise common.InvalidKeyError("Cannot unlock %s, as key does not "
@@ -255,6 +258,7 @@ class Driver(common.DbBase):
 
     def get_resources(self, tenant_id=None, limit=None, offset=None,
                       query=None):
+        """Get Resources for the given tenant_id."""
         return self._get_objects(self._resource_collection_name,
                                  tenant_id=tenant_id,
                                  limit=limit,
@@ -263,6 +267,7 @@ class Driver(common.DbBase):
 
     # TENANTS
     def save_tenant(self, tenant):
+        """Save tenant information provided in tenant arg."""
         if tenant and tenant.get('id'):
             tenant_id = tenant.get("id")
             ten = {"id": tenant_id}
@@ -280,6 +285,7 @@ class Driver(common.DbBase):
             raise cmexc.CheckmateException("Must provide a tenant id")
 
     def list_tenants(self, *args):
+        """List all tenants meeting criteria provided in *args."""
         ret = {}
         find = {}
         if args:
@@ -293,11 +299,13 @@ class Driver(common.DbBase):
         return ret
 
     def get_tenant(self, tenant_id):
+        """Return tenant information for the given tenant_id."""
         LOG.debug("Looking for tenant %s", tenant_id)
         return self.database()[self._tenant_collection_name].find_one(
             {"id": tenant_id}, {"_id": 0})
 
     def add_tenant_tags(self, tenant_id, *args):
+        """Add tenant tags identified in *args to the given tenant_id."""
         if tenant_id:
             tenant = (self.database()[self._tenant_collection_name]
                       .find_one({"id": tenant_id}))
@@ -315,10 +323,12 @@ class Driver(common.DbBase):
 
     # ENVIRONMENTS
     def get_environment(self, oid, with_secrets=None):
+        """Return the environment identified by oid."""
         return self._get_object(self._environment_collection_name, oid,
                                 with_secrets=with_secrets)
 
     def get_environments(self, tenant_id=None, with_secrets=None):
+        """Return a lis of environments for the given tenant_id."""
         return self._get_objects(
             self._environment_collection_name,
             tenant_id,
@@ -326,12 +336,13 @@ class Driver(common.DbBase):
         )
 
     def save_environment(self, api_id, body, secrets=None, tenant_id=None):
+        """Save the environment given in body, associated with api_id."""
         return self._save_object(self._environment_collection_name, api_id,
                                  body, secrets, tenant_id)
 
     # DEPLOYMENTS
     def _dereferenced_resources(self, deployment, with_secrets=False):
-        """Replaces referenced resources with actual resource data.
+        """Replace referenced resources with actual resource data.
 
         :param deployment: Deployment with resource_id references
         :param with_secrets: defines whether to get the resources with secrets
@@ -344,6 +355,7 @@ class Driver(common.DbBase):
         return cmutils.flatten(resources)
 
     def get_deployment(self, api_id, with_secrets=None):
+        """Return the deployment identified by the given api_id."""
         deployment = self._get_object(self._deployment_collection_name, api_id,
                                       with_secrets=with_secrets)
         if (deployment and 'resources' in deployment and
@@ -357,6 +369,7 @@ class Driver(common.DbBase):
     def get_deployments(self, tenant_id=None, with_secrets=None, limit=None,
                         offset=None, with_count=True, with_deleted=False,
                         status=None, query=None):
+        """Return a list of deployments for the given tenant_id(s)."""
         deployments = self._get_objects(self._deployment_collection_name,
                                         tenant_id, with_secrets=with_secrets,
                                         offset=offset,
@@ -473,7 +486,7 @@ class Driver(common.DbBase):
 
     @staticmethod
     def _has_legacy_resources(deployment):
-        """Checks whether or not resources are just references
+        """Check whether or not resources are just references.
 
         :param deployment: deployment to check
         :return: (True of False)
@@ -560,31 +573,37 @@ class Driver(common.DbBase):
 
     # BLUEPRINTS
     def get_blueprint(self, api_id, with_secrets=None):
+        """Return the blueprint identified by the given api_id."""
         return self._get_object(self._blueprint_collection_name, api_id,
                                 with_secrets=with_secrets)
 
     def get_blueprints(self, tenant_id=None, with_secrets=None, limit=None,
                        offset=None, with_count=True):
+        """Get a list of blueprints for the given tenant ID."""
         return self._get_objects(self._blueprint_collection_name, tenant_id,
                                  with_secrets=with_secrets, limit=limit,
                                  offset=offset, with_count=with_count)
 
     def save_blueprint(self, api_id, body, secrets=None, tenant_id=None):
+        """Save the blueprint provided in body."""
         return self._save_object(self._blueprint_collection_name, api_id, body,
                                  secrets, tenant_id)
 
     # WORKFLOWS
     def get_workflow(self, api_id, with_secrets=None):
+        """Return the workflow identified by the given api_id."""
         return self._get_object(self._workflow_collection_name, api_id,
                                 with_secrets=with_secrets)
 
     def get_workflows(self, tenant_id=None, with_secrets=None,
                       limit=0, offset=0):
+        """Return a list of workflows for the given tenant."""
         return self._get_objects(self._workflow_collection_name, tenant_id,
                                  with_secrets=with_secrets,
                                  offset=offset, limit=limit)
 
     def save_workflow(self, api_id, body, secrets=None, tenant_id=None):
+        """Save the workflow provided in body."""
         return self._save_object(self._workflow_collection_name, api_id, body,
                                  secrets, tenant_id)
 
@@ -620,7 +639,8 @@ class Driver(common.DbBase):
             cmutils.merge_dictionary(body, secrets)
         return body
 
-    def _sanitize_resource_secrets(self, secrets, body):
+    @staticmethod
+    def _sanitize_resource_secrets(secrets, body):
         """Remove secret keys from secrets if not in body."""
         for key in secrets.keys():
             if key not in body:
@@ -629,7 +649,7 @@ class Driver(common.DbBase):
     def _get_objects(self, klass, tenant_id=None, with_secrets=None, offset=0,
                      limit=0, with_count=True, with_deleted=False,
                      status=None, query=None):
-        """Returns a list of objects for the given Tenant ID.
+        """Return a list of objects for the given Tenant ID.
 
         :param klass: The klass to query from
         :param tenant_id: Tenant ID
@@ -668,7 +688,14 @@ class Driver(common.DbBase):
             response['results'] = {}
 
             for entry in results:
-                if tenant_id and entry.get('tenantId') != tenant_id:
+                # TODO(pablo): the `not isinstance...`  section was added to
+                #              enable multi-tenant selection from admin API
+                #              calls, but it is disabling Cross-Tenant
+                #              checking when tenant_id is a list to do so. This
+                #              check should only be disabled for admin calls,
+                #              which will require significant refactoring.
+                if (tenant_id and not isinstance(tenant_id, list) and
+                        entry.get('tenantId') != tenant_id):
                     LOG.warn(
                         'Cross-Tenant Violation in _get_objects: requested '
                         'tenant %s does not match tenant %s in response.'
@@ -691,7 +718,7 @@ class Driver(common.DbBase):
 
     def _get_count(self, klass, tenant_id, with_deleted, status=None,
                    query=None):
-        """Returns a record count for the given tenant.
+        """Return a record count for the given tenant.
 
         :param klass: the collection to query
         :param tenant_id: The requested Tenant ID
@@ -722,6 +749,8 @@ class Driver(common.DbBase):
         """
         filters = {}
         if tenant_id:
+            if isinstance(tenant_id, list):
+                tenant_id = {'$in': tenant_id}
             filters['tenantId'] = tenant_id
         if klass == Driver._deployment_collection_name:
             if not with_deleted and not status:
@@ -794,7 +823,7 @@ class Driver(common.DbBase):
 
     def _save_object(self, klass, api_id, body, secrets=None, tenant_id=None,
                      merge_existing=False):
-        """Don't overwrite secrets
+        """Don't overwrite secrets.
 
         Clients that wish to save the body but do/did not have access to
         secrets will by default send in None for secrets. We must not have that
@@ -906,9 +935,10 @@ class KeyTransform(SONManipulator):
                     son[key] = self._transform_incoming(value, collection,
                                                         skip=skip-1)
                 elif isinstance(value, (list, tuple)):
-                    son[key] = [self._transform_incoming(
-                                k, collection, skip=skip-1)
-                                for k in value]
+                    son[key] = [
+                        self._transform_incoming(k, collection, skip=skip-1)
+                        for k in value
+                    ]
             return son
         elif isinstance(son, (list, tuple)):
             return [self._transform_incoming(item, collection, skip=skip-1)
