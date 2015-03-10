@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+# pylint: disable=E1101
+
 """Module to initialize the Checkmate REST Admin API.
 
 This module load the /admin/* routes. It validates that all calls are performed
@@ -97,6 +99,8 @@ class Router(object):
 
     @utils.only_admins
     def migrate_deployment(self, deployment_id):
+        """Mark the given deployment as migrated."""
+        # TODO(pablo): this should be removed, as it is no longer necessary
         self.deployments_manager.mark_as_migrated(deployment_id)
 
     @staticmethod
@@ -230,7 +234,7 @@ class Router(object):
         limit = utils.cap_limit(limit, tenant_id)  # Avoid DoS from huge limit
         show_deleted = bottle.request.query.get('show_deleted')
         statuses = bottle.request.query.get('status')
-        tenant_id = bottle.request.query.get('tenant_id')
+        tenant_ids = bottle.request.query.getall('tenant_id')
         params = copy.deepcopy(bottle.request.query.dict)
 
         if 'tenant_tag' in params:
@@ -248,7 +252,7 @@ class Router(object):
         query = utils.QueryParams.parse(params, self.param_whitelist)
 
         return self.deployments_manager.get_deployments(
-            tenant_id=tenant_id,
+            tenant_id=tenant_ids,
             offset=offset,
             limit=limit,
             with_deleted=show_deleted == '1',
@@ -336,6 +340,7 @@ class Router(object):
     @utils.only_admins
     @utils.formatted_response('admin/blueprints/local', with_pagination=True)
     def list_all_local_blueprints(self, limit=None, offset=None):
+        """Return a list of all local blueprints."""
         limit = utils.cap_limit(limit, None)
         res = self.blueprints_local_manager.get_all_blueprints(limit=limit,
                                                                offset=offset)
@@ -344,6 +349,7 @@ class Router(object):
     @utils.only_admins
     @utils.formatted_response('admin/blueprints/github', with_pagination=True)
     def list_all_github_blueprints(self, limit=None, offset=None):
+        """Return a list of all github blueprints."""
         limit = utils.cap_limit(limit, None)
         res = self.blueprints_manager.get_all_blueprints(limit=limit,
                                                          offset=offset)
@@ -352,7 +358,8 @@ class Router(object):
     #
     # Repositories
     #
-    def _delete_all_caches(self):
+    @staticmethod
+    def _delete_all_caches():
         """Delete *all* repo caches, requires force param."""
         force = bottle.request.query.get('force')
         if force:
