@@ -1,0 +1,21 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.servers.api.rackspacecloud.com:443/v2/redacted/os-keypairs
+  response:
+    body: {string: !!python/unicode '{"keypairs": []}'}
+    headers:
+      content-length: ['16']
+      content-type: [application/json]
+      date: ['Fri, 06 Mar 2015 13:11:13 GMT', 'Fri, 06 Mar 2015 13:11:14 GMT']
+      server: [Jetty(9.2.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/6.2.1.2)]
+      x-compute-request-id: [req-30d91dd6-3b75-41a8-b6f5-19b1b6cf3da7]
+    status: {code: 200, message: OK}
+version: 1
