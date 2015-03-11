@@ -30,14 +30,14 @@ class RackspaceProviderBase(base.ProviderBase):
 
     def __init__(self, provider, key=None):
         """Init for Rackspace provider base."""
-        base.ProviderBase.__init__(self, provider, key=key)
+        super(RackspaceProviderBase, self).__init__(provider, key=key)
         self._catalog_cache = {}
 
-    # pylint: disable=W0613
     def get_catalog(self, context, type_filter=None):
         """Overrides base catalog and handles multiple regions."""
-        result = base.ProviderBase.get_catalog(self, context,
-                                               type_filter=type_filter)
+        result = super(RackspaceProviderBase, self).get_catalog(
+            context, type_filter=type_filter)
+
         if result:
             return result
         region = context.get('region')

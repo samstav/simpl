@@ -146,7 +146,7 @@ class Cache:
             except Exception as exc:
                 if self.cache_exceptions:
                     self.cache(exc, self.get_hash(*args, **kwargs))
-                raise exc
+                raise
             self.cache(result, self.get_hash(*args, **kwargs))
             return result
 
