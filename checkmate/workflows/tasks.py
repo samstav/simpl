@@ -59,6 +59,7 @@ class WorkflowEventHandlerTask(celeryglobal.SingleTask):
     abstract = True
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
+        """Run by the worker when the task fails."""
         w_id = args[0]
 
         if isinstance(exc, celexc.MaxRetriesExceededError):
@@ -72,9 +73,11 @@ class WorkflowEventHandlerTask(celeryglobal.SingleTask):
             update_deployment.delay(args[0], error=error)
 
     def on_retry(self, exc, task_id, args, kwargs, einfo):
+        """Run by the worker when the task is to be retried."""
         self.on_success(None, task_id, args, kwargs)
 
     def on_success(self, retval, task_id, args, kwargs):
+        """Run by the worker if the task executes successfully."""
         if (kwargs.get('apply_callbacks') is None or kwargs.get(
                 'apply_callbacks')):
             update_deployment.delay(args[0])
@@ -84,8 +87,7 @@ class WorkflowEventHandlerTask(celeryglobal.SingleTask):
 @celtask.task(default_retry_delay=10, max_retries=10, ignore_result=True)
 @statsd.collect
 def update_deployment(w_id, error=None):
-    """Update the deployment progress and status depending on the status of
-    the workflow.
+    """Update deployment progress and status based on workflow.
 
     :param w_id: Workflow to update the deployment from
     :param error: Additional error that need to be updated
@@ -137,7 +139,9 @@ def update_deployment(w_id, error=None):
               lock_timeout=2)
 @statsd.collect
 def cycle_workflow(w_id, context, wait=1, apply_callbacks=True):
-    """Loop through trying to complete the workflow and periodically log
+    """Try to complete worflow.
+
+    Loop through trying to complete the workflow and periodically log
     status updates. Each time we cycle through, if nothing happens we
     extend the wait time between cycles so we don't load the system.
 
@@ -285,8 +289,7 @@ def run_one_task(context, workflow_id, task_id, timeout=60):
               lock_key="async_wf_writer:{args[0]}")
 @statsd.collect
 def pause_workflow(w_id, driver=DB, retry_counter=0):
-    """Wait for all the waiting celery tasks to move to ready and then marks
-    the operation as paused.
+    """Mark operation paused after waiting celery tasks move to ready.
 
     :param w_id: Workflow id
     :param driver: DB driver
