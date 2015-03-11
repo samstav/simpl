@@ -33,6 +33,7 @@ class TestEnvironment(unittest.TestCase):
         base.PROVIDER_CLASSES = {}
         base.register_providers([loadbalancer.Provider, test.TestProvider])
         self.context = cmmid.RequestContext()
+        self.context.tenant = '1'
         envpath = '/../data/environment_test.yaml'
         with open(os.path.dirname(__file__) + envpath) as data:
             self.env_data = utils.yaml_to_dict(data)

@@ -230,7 +230,9 @@ class TestPlanningAspects(unittest.TestCase):
               blueprint:
                 region: North
         """))
-        self.context = {'region': 'North'}
+        self.context = mock.Mock()
+        self.context.region = 'North'
+        self.context.tenant = '1'
 
     def test_component_resolution_initial(self):
         """Test that main components are identified."""
