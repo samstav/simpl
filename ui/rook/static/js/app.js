@@ -3678,7 +3678,9 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
   $scope.deployment = {
     "blueprint": {"name": "your blueprint name"},
     "inputs": {},
-    "environment": {},
+    "environment": {
+        "providers": {}
+    },
     "name": {}
   };
   $scope.deployment_string = jsyaml.safeDump($scope.deployment, null, 2);
