@@ -973,27 +973,58 @@ class Provider(RackspaceComputeProviderBase):
 
     @staticmethod
     def find_url(catalog, region):
-        """Get the Public URL of a service."""
-        fall_back = None
-        openstack_compatible = None
-        for service in catalog:
+        """Get the Public URL of a compute service from a serivce catalog.
+
+        :param list catalog:
+            Service catalog, as a list of dicts containing the following keys:
+
+            * name
+            * type
+            * endpoints
+
+        :param str region:
+            Datacenter region, like IAD, SYD, LON, DFW, etc.
+        :returns:
+            An API endpoint URL for the user for the given ``region``. For
+            example: "https://iad.servers.api.rackspacecloud.com/v2/12345"
+            (where "12345" is user account/tenant ID).
+
+            If no service matching the region is found, return `None`.
+        """
+        # cloudServersOpenStack (gen2 cloud servers)
+        cs_openstack = None
+        # generic openstack
+        openstack = None
+        # gen1 cloud servers (slicehost)
+        cs_gen1 = None
+
+        compute_services = [service for service in catalog
+                            if service['type'] == 'compute']
+
+        # Get the first suitable `compute` endpoint that we find.
+        # In order of preference, look for endpoints by name:
+        #   1. "cloudServersOpenStack"
+        #   2. OpenStack-generic
+        #   3. "cloudServers" (1st Gen, Slicehost)
+        for service in compute_services:
+            # Filter endpoints by the given ``region``:
+            endpoints = [ep for ep in service['endpoints']
+                         if ep.get('region') == region]
+            if not endpoints:
+                # No endpoints for this service match the region
+                continue
+            url = endpoints[0]['publicURL']
+
             if service['name'] == 'cloudServersOpenStack':
-                endpoints = service['endpoints']
-                for endpoint in endpoints:
-                    if endpoint.get('region') == region:
-                        return endpoint['publicURL']
-            elif (service['type'] == 'compute' and
-                  service['name'] != 'cloudServers'):
-                endpoints = service['endpoints']
-                for endpoint in endpoints:
-                    if endpoint.get('region') == region:
-                        fall_back = endpoint['publicURL']
-            elif service['type'] == 'compute':
-                endpoints = service['endpoints']
-                for endpoint in endpoints:
-                    if endpoint.get('region') == region:
-                        openstack_compatible = endpoint['publicURL']
-        return fall_back or openstack_compatible
+                cs_openstack = url
+            elif not service['name'] == 'cloudServers':
+                # Generic OpenStack
+                openstack = url
+            elif service['name'] == 'cloudServers':
+                # Gen1 cloud servers (Slicehost)
+                cs_gen1 = url
+
+        return cs_openstack or openstack or cs_gen1
 
     @staticmethod
     def find_a_region(catalog):
