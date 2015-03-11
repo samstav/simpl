@@ -190,6 +190,13 @@ class Planner(classes.ExtensibleDict):
             region = self.deployment.get_setting('region')
             if region:
                 context.region = region
+        if self.parse_only:
+            parse_keys = {
+                'public_key': PARSE_PUBLIC_KEY,
+                'public_key_ssh': PARSE_PUBLIC_SHA,
+                'private_key': PARSE_PRIVATE_KEY
+            }
+            self.deployment.set_keypair(cm_dep.DEFAULT_KEYPAIR, parse_keys)
         self.resolve_components(context)
         # Run resolve_relations before resolving requirements because
         # we use explicitely specified relations to satisfy some requirements

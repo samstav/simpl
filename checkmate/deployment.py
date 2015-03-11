@@ -40,6 +40,7 @@ from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
+DEFAULT_KEYPAIR = 'deployment-keys'
 SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_SIMULATOR_CONNECTION_STRING',
     os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
@@ -213,47 +214,6 @@ def get_client_keys(inputs):
     # pylint: enable=E1101
     return results
 
-
-def generate_keys(deployment):
-    """Generate keys for the deployment and stores them as a resource.
-
-    Generates:
-        private_key
-        public_key
-        public_key_ssh
-
-    If a private_key exists, it will be used to generate the public keys
-    """
-    if 'resources' not in deployment:
-        deployment['resources'] = {}
-    if 'deployment-keys' not in deployment['resources']:
-        deployment['resources']['deployment-keys'] = dict(type='key-pair')
-    elif 'type' not in deployment['resources']['deployment-keys']:
-        deployment['resources']['deployment-keys']['type'] = 'key-pair'
-    if 'instance' not in deployment['resources']['deployment-keys']:
-        deployment['resources']['deployment-keys']['instance'] = {}
-
-    dep_keys = deployment['resources']['deployment-keys']['instance']
-    private_key = dep_keys.get('private_key')
-    if private_key is None:
-        # Generate and store all key types
-        private, public = keys.generate_key_pair()
-        dep_keys['public_key'] = public['PEM']
-        dep_keys['public_key_ssh'] = public['ssh']
-        dep_keys['private_key'] = private['PEM']
-    else:
-        # Private key was supplied, make sure we have or can get a public key
-        if 'public_key' not in dep_keys:
-            dep_keys['public_key'] = keys.get_public_key(private_key)
-        if 'public_key_ssh' not in dep_keys:
-            public_key = keys.get_ssh_public_key(private_key)
-            dep_keys['public_key_ssh'] = public_key
-
-    # Make sure next call to settings() will get a fresh copy of the keys
-    if hasattr(deployment, '_settings'):
-        delattr(deployment, '_settings')
-
-    return copy.copy(dep_keys)
 
 DEPLOYMENT_SCHEMA = schema.get_schema(__name__)
 
@@ -431,6 +391,66 @@ class Deployment(ExtensibleDict):
         """Return inputs of deployment."""
         return self.get('inputs', {})
 
+    def set_keypair(self, key, value):
+        """Set deployment keypair.
+
+        :param key: the name of the keypair
+        :param value: a dict with public, private, and ssh key values.
+        """
+        self.setdefault('key-pairs', {})[key] = value
+
+        # Save it in resources for compatibility
+        resources = self.setdefault('resources', {})
+        keypair = resources.setdefault(key, {})
+        keypair.setdefault('type', 'key-pair')
+        keypair['instance'] = value
+
+    def get_keypair(self, key):
+        """Return a deployment keypair.
+
+        Returns the instance value which has the key values.
+        """
+        result = utils.read_path(self, 'key-pairs/%s/instance' % key)
+        # For compatibility, try finding the key in resources
+        if not result:
+            result = utils.read_path(self, 'resources/%s/instance' % key)
+        return result
+
+    def generate_keys(self):
+        """Generate keys for the deployment and stores them as a resource.
+
+        Generates:
+            private_key
+            public_key
+            public_key_ssh
+
+        If a private_key exists, it will be used to generate the public keys,
+        """
+        resources = self.setdefault('resources', {})
+        key_res = resources.setdefault(DEFAULT_KEYPAIR, {})
+        key_res.setdefault('type', 'key-pair')
+        dep_keys = key_res.setdefault('instance', {})
+        private_key = dep_keys.get('private_key')
+        if private_key is None:
+            # Generate and store all key types
+            private, public = keys.generate_key_pair()
+            dep_keys['public_key'] = public['PEM']
+            dep_keys['public_key_ssh'] = public['ssh']
+            dep_keys['private_key'] = private['PEM']
+        else:
+            # Private key was supplied, ensure we have or can get a public key
+            if 'public_key' not in dep_keys:
+                dep_keys['public_key'] = keys.get_public_key(private_key)
+            if 'public_key_ssh' not in dep_keys:
+                public_key = keys.get_ssh_public_key(private_key)
+                dep_keys['public_key_ssh'] = public_key
+
+        # Make sure next call to settings() will get a fresh copy of the keys
+        if hasattr(self, '_settings'):
+            delattr(self, '_settings')
+
+        return dep_keys.copy()
+
     def settings(self):
         """Return/init a reference to the deployment settings.
 
@@ -473,8 +493,7 @@ class Deployment(ExtensibleDict):
         all_keys = get_client_keys(inputs)
         if os_keys:
             all_keys.update(os_keys)
-        deployment_keys = self.get('resources', {}).get(
-            'deployment-keys', {}).get('instance')
+        deployment_keys = self.get_keypair(DEFAULT_KEYPAIR)
         if deployment_keys:
             all_keys['deployment'] = deployment_keys
 

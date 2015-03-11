@@ -52,6 +52,7 @@ RESOURCE_TYPES = [
     'dns',
     'object-store',
     'host',
+    'key-pair',
     'logging',
     'load-balancer',
     'mail-relay',
@@ -582,6 +583,7 @@ DEPLOYMENT_SCHEMA_DICT = {
     'resources': object,
     'inputs': object,
     'environment': object,
+    'key-pairs': object,
     'operation': object,
 
     'display-outputs': object,
