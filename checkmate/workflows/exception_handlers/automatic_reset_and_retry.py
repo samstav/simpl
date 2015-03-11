@@ -14,9 +14,8 @@
 
 """Automatic Reset and Retry Handler.
 
-Used to reset task tree for failed
-tasks in the workflow, so that they can be automatically retried in a
-subsequent workflow run
+Used to reset task tree for failed tasks in the workflow, so that they can be
+automatically retried in a subsequent workflow run.
 """
 
 import logging
@@ -50,6 +49,7 @@ class AutomaticResetAndRetryHandler(base.ExceptionHandlerBase):
         return False
 
     def friendly_message(self, exception):
+        """User friendly string for the exception."""
         retry_count = self._get_retry_count(self.task) or "No"
         return "Retrying a failed task (%s attempts remaining)" % retry_count
 

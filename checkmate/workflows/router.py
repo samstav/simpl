@@ -12,7 +12,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Workflows Router"""
+"""Workflows Router."""
 
 # pylint: disable=W0110,W0141,W0212,W0613,R0914
 import logging
@@ -269,7 +269,7 @@ class Router(object):
 
     @utils.with_tenant
     def resume_workflow(self, api_id, tenant_id=None):
-        """Process a checkmate deployment workflow,
+        """Process a checkmate deployment workflow.
 
         Executes the workflow again
 
@@ -548,8 +548,7 @@ class Router(object):
 
     @utils.with_tenant
     def reset_task_tree(self, api_id, task_id, tenant_id=None):
-        """Reset all the tasks starting from the passed in task_id and going
-        up the chain till the root task is reset.
+        """Reset task_id and all parent tasks until root task is reset.
 
         :param api_id: checkmate workflow id
         :param task_id: checkmate workflow task id
