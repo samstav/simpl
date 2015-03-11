@@ -119,7 +119,7 @@ class Provider(base.ProviderBase):
                 volumes_needed += 1
                 total_size_needed += resource['desired-state']['size']
 
-        instances = cbs.list_volumes(context['access'], context['region'])
+        instances = cbs.list_volumes(context, context['region'])
         instances_used = len(instances)
         volume_size_used = 0
         for instance in instances:
