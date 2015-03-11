@@ -52,6 +52,7 @@ RESOURCE_TYPES = [
     'dns',
     'object-store',
     'host',
+    'key-pair',
     'logging',
     'load-balancer',
     'mail-relay',
