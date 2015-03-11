@@ -103,7 +103,7 @@ class TestDeploymentKeyGeneration(unittest.TestCase):
             'id': 'test',
             'name': 'test',
         })
-        cmdep.generate_keys(deployment)
+        deployment.generate_keys()
         self.assertIn('resources', deployment)
         self.assertIn('deployment-keys', deployment['resources'])
         keys_resource = deployment['resources']['deployment-keys']
@@ -125,7 +125,7 @@ class TestDeploymentKeyGeneration(unittest.TestCase):
                 }
             }
         })
-        cmdep.generate_keys(deployment)
+        deployment.generate_keys()
         keys_resource = deployment['resources']['deployment-keys']
         self.assertItemsEqual(['instance', 'type'], keys_resource.keys())
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
@@ -149,7 +149,7 @@ class TestDeploymentKeyGeneration(unittest.TestCase):
         settings = deployment.settings()
         self.assertDictEqual(settings.get('keys', {}).get('deployment', {}),
                              {'private_key': private['PEM']})
-        cmdep.generate_keys(deployment)
+        deployment.generate_keys()
         settings = deployment.settings()
         self.assertItemsEqual(['private_key', 'public_key', 'public_key_ssh'],
                               settings['keys']['deployment'].keys())

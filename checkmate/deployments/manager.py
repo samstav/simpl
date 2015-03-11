@@ -26,7 +26,6 @@ import eventlet
 from .planner import Planner
 from checkmate import db
 from checkmate.deployment import Deployment
-from checkmate.deployment import generate_keys
 from checkmate.exceptions import CheckmateBadState
 from checkmate.exceptions import CheckmateDoesNotExist
 from checkmate.exceptions import CheckmateValidationException
@@ -137,7 +136,7 @@ class Manager(object):
                                     "must be in 'PLANNED' status to be "
                                     "deployed" % (deployment['id'],
                                                   deployment.get('status')))
-        generate_keys(deployment)
+        deployment.generate_keys()
         deployment['display-outputs'] = deployment.calculate_outputs()
         return self.deploy_workflow(context, deployment,
                                     deployment['tenantId'], "BUILD",
