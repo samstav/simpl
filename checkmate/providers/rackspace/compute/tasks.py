@@ -22,6 +22,7 @@ from checkmate.common import statsd
 from checkmate import exceptions as cmexc
 from checkmate.providers import base
 from checkmate.providers.rackspace.compute import manager
+from checkmate.providers.rackspace.compute import nova
 from checkmate.providers.rackspace.compute import provider
 LOG = logging.getLogger(__name__)
 
@@ -205,3 +206,11 @@ def delete_server_task(context, api=None):
 def _on_failure(action="", method="", callback=lambda *_, **__: None):
     """Gets a on_failure method from the Manager."""
     return manager.Manager.get_on_failure(action, method, callback)
+
+
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=10,
+            max_retries=2, provider=provider.Provider)
+@statsd.collect
+def upload_keypair(context, region, name, public_key):
+    """Upload a public key to a Nova keypair."""
+    return nova.upload_keypair(context, region, name, public_key)
