@@ -200,6 +200,7 @@ class TestNovaCompute(test.ProviderTester):
                 'RAX-CHECKMATE':
                 'http://MOCK/TMOCK/deployments/DEP/resources/1'
             },
+            key_name=None,
         )
 
         postback.assert_called_once_with('DEP', expected)

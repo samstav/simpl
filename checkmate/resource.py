@@ -125,5 +125,5 @@ class Resource(dict):
             'port', 'status', 'databases', 'os-type', 'os', 'userdata',
             'config_drive', 'dns-A-name', 'networks', 'datastore-version',
             'datastore-type', 'config-params', 'size', 'disk',
-            'boot_from_image', 'image-info', 'flavor-info',
+            'boot_from_image', 'image-info', 'flavor-info', 'key_name'
         ]

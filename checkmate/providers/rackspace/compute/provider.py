@@ -284,6 +284,12 @@ class Provider(RackspaceComputeProviderBase):
                                                resource_type=resource_type,
                                                service_name=service,
                                                provider_key=self.key)
+
+        key_name = deployment.get_setting('key_name',
+                                          resource_type=resource_type,
+                                          service_name=service,
+                                          provider_key=self.key)
+
         # Find all matching flavors
         flavors = catalog['lists']['sizes']
         if flavor_setting:
@@ -430,6 +436,9 @@ class Provider(RackspaceComputeProviderBase):
                 template['desired-state']['config_drive'] = True
             if networks:
                 template['desired-state']['networks'] = networks
+            if key_name:
+                template['desired-state']['key_name'] = key_name
+
         if vol_dedicated:
             # Add a CBS volume requirement and have the planner parse it
             definition['requires']['cbs-attach'] = {
@@ -567,6 +576,7 @@ class Provider(RackspaceComputeProviderBase):
             userdata=userdata,
             config_drive=desired.get('config_drive'),
             networks=desired.get('networks'),
+            key_name=desired.get('key_name'),
             tags=self.generate_resource_tag(
                 context.base_url, context.tenant, deployment['id'],
                 resource['index']

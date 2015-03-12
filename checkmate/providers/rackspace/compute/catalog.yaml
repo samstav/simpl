@@ -67,6 +67,12 @@ options:
   'userdata':
     type: string
     required: false
+  'key_name':
+    type: string
+    required: false
+    help: |
+      Do not set the key_name for OnMetal servers. Checkmate needs to set that
+      value to it's own key so it can access the server.
 ---
 id: windows_instance
 is: compute
@@ -119,3 +125,9 @@ options:
   'userdata':
     type: string
     required: false
+  'key_name':
+    type: string
+    required: false
+    help: |
+      Do not set the key_name for OnMetal servers. Checkmate needs to set that
+      value to it's own key so it can access the server.

@@ -32,7 +32,7 @@ LOG = logging.getLogger(__name__)
 def create_server(context, name, region=None, api=None, flavor="2",
                   files=None, image=None, tags=None, userdata=None,
                   config_drive=None, networks=None, boot_from_image=False,
-                  disk=None):
+                  disk=None, key_name=None):
     # pylint: disable=W0613
     """Create a Rackspace Cloud server using novaclient.
 
@@ -50,6 +50,7 @@ def create_server(context, name, region=None, api=None, flavor="2",
     :param files: a list of files to inject
     :type files: dict
     :param tags: used for adding metadata to created server
+    :param key_name: name of keypair to inject into server
     :Example:
 
     {
@@ -80,7 +81,8 @@ def create_server(context, name, region=None, api=None, flavor="2",
                                          config_drive=config_drive,
                                          networks=networks,
                                          boot_from_image=boot_from_image,
-                                         disk=disk)
+                                         disk=disk,
+                                         key_name=key_name)
     return data
 
 
