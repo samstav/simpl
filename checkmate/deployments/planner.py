@@ -499,8 +499,12 @@ class Planner(classes.ExtensibleDict):
 
     def add_resource(self, resource, definition, service_name=None):
         """Add a resource to the list of resources to be created."""
-        index = self._get_next_resource_index()
-        resource['index'] = index
+        # Check if provider wrote and index
+        index = resource.get('index')
+        if not index:
+            # Generate a unique one
+            index = self._get_next_resource_index()
+            resource['index'] = index
 
         LOG.debug("  Adding a '%s' resource with resource key '%s'",
                   resource.get('type'), index)
