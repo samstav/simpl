@@ -459,7 +459,7 @@ class Planner(classes.ExtensibleDict):
                             }
                             public = {
                                 'PEM': PARSE_PUBLIC_KEY,
-                                "ssh": PARSE_PRIVATE_KEY,
+                                "ssh": PARSE_PUBLIC_SHA,
                             }
                         else:
                             private, public = keys.generate_key_pair()
