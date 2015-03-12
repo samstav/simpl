@@ -23,6 +23,7 @@ import eventlet
 
 from checkmate import classes
 from checkmate.common import schema
+from checkmate import consts
 from checkmate import deployment as cm_dep
 from checkmate.exceptions import BLUEPRINT_ERROR
 from checkmate.exceptions import CheckmateException
@@ -196,7 +197,7 @@ class Planner(classes.ExtensibleDict):
                 'public_key_ssh': PARSE_PUBLIC_SHA,
                 'private_key': PARSE_PRIVATE_KEY
             }
-            self.deployment.set_keypair(cm_dep.DEFAULT_KEYPAIR, parse_keys)
+            self.deployment.set_keypair(consts.DEFAULT_KEYPAIR, parse_keys)
         self.resolve_components(context)
         # Run resolve_relations before resolving requirements because
         # we use explicitely specified relations to satisfy some requirements
