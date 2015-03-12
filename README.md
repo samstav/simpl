@@ -27,6 +27,7 @@ Checkmatefile examples are available on [Rackspace github](https://github.racksp
     * [Celery](#celery)
     * [Mox](#mox)
 * [Testing](#testing)
+* [Glossary of terms](docs/Glossary.md)
 * [How to Contribute](#hacking--contributing)
 
 ## Logic: the pieces
