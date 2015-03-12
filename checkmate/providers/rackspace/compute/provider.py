@@ -372,7 +372,7 @@ class Provider(RackspaceComputeProviderBase):
         # - onmetal as last resort
         if not flavor_id:
             general = filter_flavors(flavor_matches, class_rules='general1')
-            metal = filter_flavors(flavor_matches, class_rules='onmetal1')
+            metal = filter_flavors(flavor_matches, class_rules='onmetal')
             other = filter_flavors(flavor_matches,
                                    class_rules='*,!general1,!onmetal')
             if general:
