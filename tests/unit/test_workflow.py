@@ -378,6 +378,7 @@ class TestWorkflow(unittest.TestCase):
     def test_init_spiff_workflow_puts_created_and_updated_timestamps(
             self, mock_get_time_string):
         context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
+                                       tenant='1',
                                        username='MOCK_USER')
         mock_get_time_string.return_value = '2013-03-31 17:49:51 +0000'
         deployment_with_lb_provider = cmdep.Deployment(utils.yaml_to_dict("""
@@ -441,6 +442,7 @@ class TestWorkflow(unittest.TestCase):
 
     def test_create_delete_workflow_with_incomplete_operation(self):
         context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
+                                       tenant='1',
                                        username='MOCK_USER')
         deployment_with_lb_provider = cmdep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
@@ -511,6 +513,7 @@ class TestWorkflow(unittest.TestCase):
 
     def test_create_delete_workflow_with_complete_operation(self):
         context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
+                                       tenant='1',
                                        username='MOCK_USER')
         deployment_with_lb_provider = cmdep.Deployment(utils.yaml_to_dict("""
                 id: 'DEP-ID-1000'
@@ -722,6 +725,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
             """))
 
         self.context = cmmid.RequestContext(auth_token='MOCK_TOKEN',
+                                            tenant='1',
                                             username='MOCK_USER')
         self.deployment['tenantId'] = "tenantId"
         deployments.Manager.plan(self.deployment, self.context)
@@ -1058,7 +1062,7 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                         'port': None,
                         'tags': {
                             'RAX-CHECKMATE':
-                            'http://MOCK/TMOCK/deployments/'
+                            'http://MOCK/1/deployments/'
                             'DEP-ID-1000/resources/0'
                         },
                         'parent_lb': None,
@@ -1113,7 +1117,13 @@ class TestBasicWorkflow(test.StubbedWorkflowBase):
                     'resource': key,
                 })
 
-        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected)
+        context = cmmid.RequestContext(auth_token="MOCK_TOKEN",
+                                       tenant='1',
+                                       username="MOCK_USER",
+                                       catalog=test.CATALOG,
+                                       base_url='http://MOCK')
+        self.workflow = self._get_stubbed_out_workflow(expected_calls=expected,
+                                                       context=context)
 
         self.mox.ReplayAll()
 

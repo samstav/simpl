@@ -4,7 +4,10 @@ import unittest
 import mock
 import pyrax
 
+from checkmate import deployment as cmdep
+from checkmate.deployments import planner
 from checkmate import exceptions
+from checkmate import middleware
 from checkmate.providers.rackspace import base
 from checkmate import server
 
@@ -110,6 +113,10 @@ class TestConnect(unittest.TestCase):
             'tenant': 12345,
             'username': 'test'
         }
+        pyrax.regions = ['DFW', 'ORD', 'IAD', 'SYD', 'HKG']
+
+    def tearDown(self):
+        pyrax.regions = []
 
     def test_invalid_context(self):
         context = 'invalid'
@@ -144,11 +151,26 @@ class TestConnect(unittest.TestCase):
         base.RackspaceProviderBase._connect(self.context)
         pyrax.auth_with_token.assert_called_with('token', 12345, 'test', 'DFW')
 
+    def test_region_mismatch(self):
+        self.context['region'] = 'LON'
+        pyrax.get_setting = mock.Mock(return_value=True)
+        pyrax.auth_with_token = mock.Mock()
+
+        with self.assertRaises(exceptions.CheckmateValidationException) as exc:
+            base.RackspaceProviderBase._connect(self.context)
+
+        self.assertEqual(
+            ("Specified region 'LON' not available. Available regions: %s" %
+             ['DFW', 'ORD', 'IAD', 'SYD', 'HKG']),
+            exc.exception.friendly_message
+        )
+
     @mock.patch.object(base, 'pyrax')
     def test_default_auth_source(self, mock_pyrax):
         """Tests connect with rackspace auth_source."""
         self.context['auth_source'] = server.DEFAULT_AUTH_ENDPOINTS[0]
         mock_pyrax.get_setting.return_value = False
+        mock_pyrax.regions = ['DFW', 'ORD', 'IAD', 'SYD', 'HKG']
         base.RackspaceProviderBase._connect(self.context)
         mock_pyrax.get_setting.assert_called_with('identity_type')
         mock_pyrax.set_setting.assert_called_with('identity_type', 'rackspace')
@@ -158,6 +180,7 @@ class TestConnect(unittest.TestCase):
         """Tests connect with keystone auth_source."""
         self.context['auth_source'] = 'localhost:8080'
         mock_pyrax.get_setting.return_value = False
+        mock_pyrax.regions = ['DFW', 'ORD', 'IAD', 'SYD', 'HKG']
         expected = [
             mock.call('identity_type', 'keystone'),
             mock.call('verify_ssl', False),
@@ -165,6 +188,63 @@ class TestConnect(unittest.TestCase):
         ]
         base.RackspaceProviderBase._connect(self.context)
         self.assertItemsEqual(mock_pyrax.set_setting.mock_calls, expected)
+
+
+class TestValidateRegion(unittest.TestCase):
+
+    def setUp(self):
+        blueprint = {
+            'id': 'fakeid',
+            'blueprint': {'name': 'test blueprint'},
+            'inputs': {},
+            'environment': {'providers': {}},
+            'name': {},
+        }
+        deployment = cmdep.Deployment(blueprint)
+        self.depl_planner = planner.Planner(deployment)
+
+        self.context = middleware.RequestContext()
+
+        self.provider = base.RackspaceProviderBase(dict(vendor='rackspace'))
+        self.uk_account_ids = (10**7, 10**7 + 1)
+        self.non_uk_account_ids = (0, 1, 10**7 - 1)
+
+    def test_plan_region_mismatch_uk_user(self):
+        # Test the case where a blueprint specifies non-UK resources,
+        # but the current user is a UK user.
+        self.context.region = 'IAD'
+        # UK account numbers begin at 10 million
+        for account_id in self.uk_account_ids:
+            self.context.tenant = account_id
+            with self.assertRaises(
+                    exceptions.CheckmateValidationException) as exc:
+                self.provider._validate_region(self.context)
+            self.assertEqual('UK account cannot access non-UK resources',
+                             exc.exception.message)
+
+    def test_plan_region_mismatch_non_uk_user(self):
+        # Test the case where a blueprint sepcifies UK resources,
+        # but the current user is a non-UK user.
+        self.context.region = 'LON'
+        for account_id in self.non_uk_account_ids:
+            self.context.tenant = account_id
+            with self.assertRaises(
+                    exceptions.CheckmateValidationException) as exc:
+                self.provider._validate_region(self.context)
+            self.assertEqual('Non-UK account cannot access UK resources',
+                             exc.exception.message)
+
+    def test_plan_no_region_mismatch_uk_user(self):
+        self.context.region = 'LON'
+        for account_id in self.uk_account_ids:
+            self.context.tenant = account_id
+            self.provider._validate_region(self.context)
+
+    def test_plan_no_region_mismatch_non_uk_user(self):
+        self.context.region = 'DFW'
+        for account_id in self.non_uk_account_ids:
+            self.context.tenant = account_id
+            self.provider._validate_region(self.context)
 
 
 if __name__ == '__main__':
