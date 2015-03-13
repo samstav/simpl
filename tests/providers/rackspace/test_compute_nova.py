@@ -1125,6 +1125,11 @@ class TestNovaGenerateTemplate(unittest.TestCase):
         ).AndReturn(None)
 
         self.deployment.get_setting(
+            'key_name', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
             'userdata', resource_type='compute', service_name='master',
             provider_key=provider.key
         ).AndReturn(None)
@@ -1249,6 +1254,11 @@ class TestNovaGenerateTemplate(unittest.TestCase):
 
         self.deployment.get_setting(
             'image', resource_type='compute', service_name='master',
+            provider_key=provider.key
+        ).AndReturn(None)
+
+        self.deployment.get_setting(
+            'key_name', resource_type='compute', service_name='master',
             provider_key=provider.key
         ).AndReturn(None)
 
