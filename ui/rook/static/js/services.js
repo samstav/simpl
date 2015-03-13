@@ -1,6 +1,7 @@
 var services = angular.module('checkmate.services', [
   'ngResource',
-  'checkmate.Flavors'
+  'checkmate.Flavors',
+  'checkmate.redirectUri'
 ]);
 
 /*

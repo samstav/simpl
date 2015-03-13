@@ -163,6 +163,7 @@ angular.module('checkmate.applications-configure')
           } else {
             var deploymentId = getHeaders('location').split('/')[3];
             console.log("Posted deployment", deploymentId);
+            if(!action) redirectUri();
             $location.path(getHeaders('location'));
           }
         },
