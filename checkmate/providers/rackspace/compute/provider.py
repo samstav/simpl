@@ -826,6 +826,9 @@ class Provider(RackspaceComputeProviderBase):
     def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):
         self._verify_existing_resource(resource, key)
+        if resource['type'] == 'key-pair':
+            return self.delete_keypair_tasks(wf_spec, context, deployment_id,
+                                             resource, key)
         inst_id = resource.get("instance", {}).get("id")
         region = (resource.get("region") or
                   resource.get("instance", {}).get("region"))
@@ -906,6 +909,29 @@ class Provider(RackspaceComputeProviderBase):
             )
             wf_spec.start.connect(task)
         return task
+
+    def delete_keypair_tasks(self, wf_spec, context, deployment_id, resource,
+                             key):
+        instance = resource.get("instance", {})
+        name = instance.get("name")
+        region = instance.get("region")
+        if isinstance(context, cmmid.RequestContext):
+            context = context.get_queued_task_dict(deployment_id=deployment_id,
+                                                   resource_key=key)
+        else:
+            context['deployment_id'] = deployment_id
+            context['resource_key'] = key
+
+        delete_keypair = specs.Celery(
+            wf_spec,
+            'Delete KeyPair in %s' % region,
+            'checkmate.providers.rackspace.compute.tasks.delete_keypair',
+            call_args=[context, region, name],
+            properties={
+                'estimated_duration': 5,
+            }
+        )
+        return {'root': delete_keypair, 'final': delete_keypair}
 
     @staticmethod
     def _get_api_info(context, **kwargs):

@@ -216,3 +216,14 @@ def upload_keypair(context, region, name, public_key):
     results = nova.upload_keypair(context, region, name, public_key)
     results['status'] = 'ACTIVE'
     return results
+
+
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=10,
+            max_retries=2, provider=provider.Provider)
+@statsd.collect
+def delete_keypair(context, region, name):
+    """Delete a Nova keypair."""
+    if nova.delete_keypair(context, region, name) == u'200, OK':
+        return {
+            'status': 'DELETED'
+        }
