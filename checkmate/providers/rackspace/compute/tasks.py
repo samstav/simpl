@@ -213,4 +213,6 @@ def _on_failure(action="", method="", callback=lambda *_, **__: None):
 @statsd.collect
 def upload_keypair(context, region, name, public_key):
     """Upload a public key to a Nova keypair."""
-    return nova.upload_keypair(context, region, name, public_key)
+    results = nova.upload_keypair(context, region, name, public_key)
+    results['status'] = 'ACTIVE'
+    return results

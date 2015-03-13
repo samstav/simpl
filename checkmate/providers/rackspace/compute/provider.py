@@ -868,11 +868,13 @@ class Provider(RackspaceComputeProviderBase):
         """Add workflow tasks to upload nova keypair."""
         desired = resource['desired-state']
         task = self.ensure_keypair(context, deployment, wfspec,
-                                   desired['region'], desired['name'],
+                                   resource['index'],
+                                   desired['region'],
+                                   desired['name'],
                                    desired['public_key_ssh'])
         return {'root': task, 'final': task}
 
-    def ensure_keypair(self, context, deployment, wf_spec, region, name,
+    def ensure_keypair(self, context, deployment, wf_spec, key, region, name,
                        public_key_ssh):
         """Create (or find if exist) tasks to upload a keypair to nova.
 
@@ -884,7 +886,8 @@ class Provider(RackspaceComputeProviderBase):
             task = tasks[0]
         else:
             queued_task_dict = context.get_queued_task_dict(
-                deployment_id=deployment['id'], region=region)
+                deployment_id=deployment['id'], region=region,
+                resource_key=key)
             task = specs.Celery(
                 wf_spec, 'Upload Keypair to %s' % region,
                 'checkmate.providers.rackspace.tasks.upload_keypair',
@@ -897,6 +900,7 @@ class Provider(RackspaceComputeProviderBase):
                 properties={'estimated_duration': 10},
                 defines={
                     'provider': self.key,
+                    'resource': key,
                     'task_tags': [tag]
                 }
             )
