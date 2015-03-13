@@ -893,7 +893,7 @@ class Provider(RackspaceComputeProviderBase):
                 resource_key=key)
             task = specs.Celery(
                 wf_spec, 'Upload Keypair to %s' % region,
-                'checkmate.providers.rackspace.tasks.upload_keypair',
+                'checkmate.providers.rackspace.compute.tasks.upload_keypair',
                 call_args=[
                     queued_task_dict,
                     region,
