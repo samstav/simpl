@@ -344,6 +344,12 @@ class Planner(classes.ExtensibleDict):
                                                              context, self)
         for resource in resources:
             resource['status'] = 'PLANNED'
+            if resource['component'] != definition['id']:
+                # This is an extra resource supplied by the provider, don't
+                # list it in the component definition
+                self.add_resource(resource, {})
+                continue
+
             # Add it to resources
             self.add_resource(resource, definition, service_name)
 
@@ -361,6 +367,11 @@ class Planner(classes.ExtensibleDict):
                     context,
                     self)
                 for extra_resource in extra_resources:
+                    if extra_resource['component'] != extra_def['id']:
+                        # This is an extra resource supplied by the provider,
+                        # don't list it in the component definition
+                        self.add_resource(extra_resource, {})
+                        continue
                     self.add_resource(extra_resource, extra_def)
 
                     # Connnect extra components
