@@ -457,10 +457,12 @@ class Provider(RackspaceComputeProviderBase):
             # creation. This is not a great way to handle this.
             # TODO(zns): implement a better way for providers to mark their
             # resources as dependent on others.
+            relation_key = 'wait-on-%s' % keypair_index
             relations = {
-                'wait-on-%s' % keypair_index: {
-                    'target': keypair_index,
+                relation_key: {
+                    'key': relation_key,
                     'type': 'reference',
+                    'target': keypair_index,
                 }
             }
             for template in templates:
