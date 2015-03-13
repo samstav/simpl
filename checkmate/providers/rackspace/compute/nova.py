@@ -155,7 +155,7 @@ def create_keypair(context, region, name):
         }
     else:
         response = requests.post(url, headers=_build_headers(token), data=data)
-        result = _handle_response(response)['keypair']
+        result = _handle_response(response)
     keypair = result['keypair']
     keypair['region'] = region
     return keypair
@@ -184,7 +184,7 @@ def upload_keypair(context, region, name, public_key):
         }
     else:
         response = requests.post(url, headers=_build_headers(token), data=data)
-        result = _handle_response(response)['keypair']
+        result = _handle_response(response)
     keypair = result['keypair']
     keypair['region'] = region
     return keypair

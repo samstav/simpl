@@ -107,7 +107,7 @@ class TestNovaKeyPairsAPI(unittest.TestCase):
         with self.vcr.use_cassette('vcr-nova-keypair-full.yaml'):
             create_response = nova.create_keypair(self.context, self.region,
                                                   name)
-            #import ipdb;ipdb.set_trace()
+            del create_response['region']  # we add this
             validated = nova.validate_keypair(create_response)
             self.assertEqual(validated, create_response)
 
