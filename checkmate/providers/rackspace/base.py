@@ -127,7 +127,8 @@ class RackspaceProviderBase(base.ProviderBase):
         If either case is true, raise a
         :class:`checkmate.exceptions.CheckmateValidationException`.
         """
-        if int(context.tenant) >= UK_ACCOUNT_MIN_ID:
+        if (context.tenant.isdigit() and
+                int(context.tenant) >= UK_ACCOUNT_MIN_ID):
             # This is a UK account
             if not context.region == 'LON':
                 raise exceptions.CheckmateValidationException(

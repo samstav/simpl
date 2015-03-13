@@ -206,8 +206,8 @@ class TestValidateRegion(unittest.TestCase):
         self.context = middleware.RequestContext()
 
         self.provider = base.RackspaceProviderBase(dict(vendor='rackspace'))
-        self.uk_account_ids = (10**7, 10**7 + 1)
-        self.non_uk_account_ids = (0, 1, 10**7 - 1)
+        self.uk_account_ids = (str(10**7), str(10**7 + 1))
+        self.non_uk_account_ids = (str(0), str(1), str(10**7 - 1))
 
     def test_plan_region_mismatch_uk_user(self):
         # Test the case where a blueprint specifies non-UK resources,
