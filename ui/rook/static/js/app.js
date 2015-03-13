@@ -2935,6 +2935,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
         } else {
           var deploymentId = getHeaders('location').split('/')[3];
           console.log("Posted deployment", deploymentId);
+          redirectUri();
           $location.path(getHeaders('location'));
         }
       }, function(error) {
@@ -3491,7 +3492,7 @@ function EnvironmentListController($scope, $location, $resource, items, scroll) 
   };
 }
 
-function ResourcesController($scope, $resource, $location, Deployment, $http, $q){
+function ResourcesController($scope, $resource, $location, Deployment, $http, $q, redirectUri){
   $scope.deployment = {};
   $scope.selected_resources = [];
   $scope.resources_by_provider = {};
@@ -3665,7 +3666,8 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
     deployment.name = $scope.deployment.name;
     deployment.$save(function(result, getHeaders){
       console.log("Posted deployment");
-      Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure)
+      Deployment.sync(deployment, $scope.sync_success, $scope.sync_failure);
+      redirectUri();
       $location.path('/' + tenant_id + '/deployments/' + result['id']);
     }, function(error){
       console.log("Error " + error.data + "(" + error.status + ") creating new deployment.");
@@ -3674,7 +3676,7 @@ function ResourcesController($scope, $resource, $location, Deployment, $http, $q
   };
 }
 
-function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github, options, $location, $resource, workflow) {
+function BlueprintNewController($scope, $location, BlueprintHint, Deployment, DeploymentTree, BlueprintDocs, DelayedRefresh, github, options, $location, $resource, workflow, redirectUri) {
   $scope.deployment = {
     "blueprint": {"name": "your blueprint name"},
     "inputs": {},
@@ -3802,6 +3804,7 @@ function BlueprintNewController($scope, $location, BlueprintHint, Deployment, De
         } else {
           var deploymentId = getHeaders('location').split('/')[3];
           console.log("Posted deployment", deploymentId);
+          if(!action) redirectUri();
           $location.path(getHeaders('location'));
         }
       },
