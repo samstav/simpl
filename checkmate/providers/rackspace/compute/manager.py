@@ -152,7 +152,6 @@ class Manager(object):
 
         result = {
             'id': server.id,
-            'password': server.adminPass,
             'region': api.client.region_name,
             'status': 'NEW',
             'flavor': flavor,
@@ -160,6 +159,9 @@ class Manager(object):
             'error-message': '',
             'status-message': '',
         }
+        # OnMetal doesn't have adminPass
+        if hasattr(server, 'adminPass'):
+            result['password'] = server.adminPass
         return result
 
     @staticmethod
