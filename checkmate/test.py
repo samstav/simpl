@@ -568,7 +568,7 @@ class StubbedWorkflowBase(unittest.TestCase):
                     })
                 # Bootstrap Server with Chef
                 expected_calls.append({
-                    'call': 'checkmate.providers.opscode.solo.tasks'
+                    'call': 'checkmate.providers.opscode.solo.tasks.'
                             'register_node_v2',
                     'args': [mox.IgnoreArg(), "4.4.4.%s" % fake_ip,
                              self.deployment['id']],
