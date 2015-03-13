@@ -372,7 +372,7 @@ def delete_node(context, deployment, name, api=None):
 
     if context.simulation:
         LOG.info("Would delete node: %s", name)
-        return True
+        return {'status': 'DELETED'}
 
     try:
         if api:
@@ -381,7 +381,7 @@ def delete_node(context, deployment, name, api=None):
         else:
             Manager.delete_node(name, deployment)
         LOG.info("Chef Node %s deleted.", name)
-        return True
+        return {'status': 'DELETED'}
     except chef.ChefError, exc:
         LOG.debug('Node deletion failed. Chef Error: %s. Retrying.',
                   exc)
