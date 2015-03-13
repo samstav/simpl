@@ -1206,7 +1206,7 @@ class Deployment(ExtensibleDict):
 
         # Populate services key in deployment
         service_definitions = utils.read_path(self, 'blueprint/services') or {}
-        for key, _ in service_definitions.iteritems():
+        for key in service_definitions.iterkeys():
             services[key] = {}
             # Write resource list for each service
             resources = self.get('resources') or {}

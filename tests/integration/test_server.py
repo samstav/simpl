@@ -44,7 +44,9 @@ except ImportError as exc:
 
 @unittest.skipIf(SKIP, REASON)
 class TestServer(unittest.TestCase):
+
     """Test Basic Server code."""
+
     #pylint: disable=W0603
     @classmethod
     def setUpClass(cls):

@@ -72,7 +72,7 @@ def register_node(context, deployment, name, recipes=None, roles=None,
     except chef.ChefError, exc:
         LOG.debug('Node registration failed. Chef Error: %s. Retrying.', exc)
         register_node.retry(exc=exc)
-    except Exception, exc:
+    except Exception as exc:
         LOG.debug('Node registration failed. Error: %s. Retrying.', exc)
         register_node.retry(exc=exc)
 
@@ -141,7 +141,7 @@ def write_databag(context, deployment, bagname, itemname, contents,
     except chef.ChefError, exc:
         LOG.debug('Databag management failed. Chef Error: %s. Retrying.', exc)
         write_databag.retry(exc=exc)
-    except Exception, exc:
+    except Exception as exc:
         LOG.debug('Databag management failed. Error: %s. Retrying.', exc)
         write_databag.retry(exc=exc)
     return True
@@ -193,7 +193,7 @@ def manage_role(context, deployment, name, desc=None, run_list=None,
     except chef.ChefError, exc:
         LOG.debug('Role management failed. Chef Error: %s. Retrying.', exc)
         manage_role.retry(exc=exc)
-    except Exception, exc:
+    except Exception as exc:
         LOG.debug('Role management failed. Error: %s. Retrying.', exc)
         manage_role.retry(exc=exc)
     return True
@@ -352,7 +352,7 @@ def delete_environment(context, deployment, name, api=None):
         LOG.debug('Environment deletion failed. Chef Error: %s. Retrying.',
                   exc)
         delete_environment.retry(exc=exc)
-    except Exception, exc:
+    except Exception as exc:
         LOG.debug('Environment deletion failed. Error: %s. Retrying.', exc)
         delete_environment.retry(exc=exc)
 
@@ -386,7 +386,7 @@ def delete_node(context, deployment, name, api=None):
         LOG.debug('Node deletion failed. Chef Error: %s. Retrying.',
                   exc)
         delete_node.retry(exc=exc)
-    except Exception, exc:
+    except Exception as exc:
         LOG.debug('Node deletion failed. Error: %s. Retrying.', exc)
         delete_node.retry(exc=exc)
 
@@ -420,7 +420,7 @@ def delete_client(context, deployment, name, api=None):
         LOG.debug('Client deletion failed. Chef Error: %s. Retrying.',
                   exc)
         delete_client.retry(exc=exc)
-    except Exception, exc:
+    except Exception as exc:
         LOG.debug('Client deletion failed. Error: %s. Retrying.', exc)
         delete_client.retry(exc=exc)
 

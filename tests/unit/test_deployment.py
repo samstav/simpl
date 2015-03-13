@@ -497,6 +497,7 @@ class TestGenerateServices(unittest.TestCase):
 class TestCalculateOutputs(unittest.TestCase):
     def setUp(self):
         self.deployment = cmdep.Deployment(utils.yaml_to_dict("""
+            id: DEP-1000
             blueprint:
               services:
                 lb:

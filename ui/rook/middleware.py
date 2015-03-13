@@ -26,11 +26,6 @@ from checkmate.common import auth
 from checkmate.common import config
 from checkmate.middleware import keystone
 from checkmate import utils
-import rook
-
-LOG = logging.getLogger(__name__)
-CONFIG = config.current()
-
 from checkmate.utils import (
     HANDLERS,
     write_body,
@@ -39,6 +34,11 @@ from checkmate.utils import (
     get_time_string,
     import_class,
 )
+import rook
+
+
+LOG = logging.getLogger(__name__)
+CONFIG = config.current()
 COOKIE_EXPIRES_FORMAT = "%a, %d-%b-%Y %T GMT"
 
 __version_string__ = None
@@ -65,6 +65,7 @@ CATALOG_CACHE = {}  # mainly for iNova
 
 
 class BrowserMiddleware(object):
+
     """Adds support for browser interaction and HTML content.
 
     Adds these paths:

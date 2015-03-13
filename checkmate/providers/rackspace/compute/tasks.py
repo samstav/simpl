@@ -18,12 +18,14 @@
 import logging
 
 from celery import task as ctask
+
 from checkmate.common import statsd
 from checkmate import exceptions as cmexc
 from checkmate.providers import base
 from checkmate.providers.rackspace.compute import manager
 from checkmate.providers.rackspace.compute import nova
 from checkmate.providers.rackspace.compute import provider
+
 LOG = logging.getLogger(__name__)
 
 
@@ -204,7 +206,7 @@ def delete_server_task(context, api=None):
 
 
 def _on_failure(action="", method="", callback=lambda *_, **__: None):
-    """Gets a on_failure method from the Manager."""
+    """Get an on_failure method from the Manager."""
     return manager.Manager.get_on_failure(action, method, callback)
 
 

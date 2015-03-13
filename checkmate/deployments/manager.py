@@ -14,7 +14,7 @@
 
 """Deployments Manager.
 
-Handles deployment logic
+Handles deployment logic.
 """
 
 import copy
@@ -23,12 +23,14 @@ import uuid
 
 import eventlet
 
-from .planner import Planner
 from checkmate import db
 from checkmate.deployment import Deployment
-from checkmate.exceptions import CheckmateBadState
-from checkmate.exceptions import CheckmateDoesNotExist
-from checkmate.exceptions import CheckmateValidationException
+from checkmate.deployments.planner import Planner
+from checkmate.exceptions import (
+    CheckmateBadState,
+    CheckmateDoesNotExist,
+    CheckmateValidationException,
+)
 from checkmate import operations
 from checkmate import utils
 from checkmate import workflow

@@ -351,11 +351,10 @@ class Planner(classes.ExtensibleDict):
                 continue
 
             # Add it to resources
-            self.add_resource(resource, definition, service_name)
+            self.add_resource(resource, definition, service_name=service_name)
 
             # Add host and other requirements that exist in the service
-            extra_components = service_analysis.get(
-                'extra-components', {})
+            extra_components = service_analysis.get('extra-components', {})
             for key in utils.MutatingIterator(extra_components):
                 extra_def = extra_components[key]
                 LOG.debug("    Processing extra component '%s' for "
@@ -510,7 +509,7 @@ class Planner(classes.ExtensibleDict):
 
     def add_resource(self, resource, definition, service_name=None):
         """Add a resource to the list of resources to be created."""
-        # Check if provider wrote and index
+        # Check if provider wrote an index
         index = resource.get('index')
         if not index:
             # Generate a unique one
@@ -520,9 +519,7 @@ class Planner(classes.ExtensibleDict):
         LOG.debug("  Adding a '%s' resource with resource key '%s'",
                   resource.get('type'), index)
         self.resources[index] = resource
-        if 'instances' not in definition:
-            definition['instances'] = []
-        definition['instances'].append(index)
+        definition.setdefault('instances', []).append(index)
 
         if service_name:
             service = self.blueprint["services"][service_name]
@@ -555,7 +552,7 @@ class Planner(classes.ExtensibleDict):
                 target_def = target_service['component']
             if (target_def['connections'].get(resource['service']) and
                     target_def['connections'][resource['service']].get(
-                    "outbound-from")):
+                        "outbound-from")):
                 instances = target_def['connections'][
                     resource['service']]["outbound-from"]
             elif connection.get('relation') == 'host':
@@ -616,10 +613,7 @@ class Planner(classes.ExtensibleDict):
                     "'%s'." % (write_key, target['service']))
 
         # Write relation
-
-        if 'relations' not in resource:
-            resource['relations'] = {}
-        relations = resource['relations']
+        relations = resource.setdefault('relations', {})
         if relation_type == 'host':
             if resource.get('hosted_on') not in [None, target['index']]:
                 error_message = (

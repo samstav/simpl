@@ -15,7 +15,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Provider for OpenStack Compute API.
+"""Provider for Rackspace NextGen Compute (a.k.a. OpenStack or Nova).
 
 - Supports Rackspace Open Cloud Compute Extensions and Auth
 
@@ -148,7 +148,7 @@ pyrax.set_setting('identity_type', 'rackspace')
 
 class RackspaceComputeProviderBase(base.RackspaceProviderBase):
 
-    """Generic functions for rackspace Compute providers."""
+    """Generic functions for Rackspace Compute providers."""
 
     def __init__(self, provider, key=None):
         base.RackspaceProviderBase.__init__(self, provider, key=key)
@@ -163,6 +163,7 @@ class RackspaceComputeProviderBase(base.RackspaceProviderBase):
         base.RackspaceProviderBase.prep_environment(self, wfspec, deployment,
                                                     context)
         keys = set()
+        # Build file injection data for all keys with public ssh entries
         for name, key_pair in deployment.settings()['keys'].iteritems():
             if 'public_key_ssh' in key_pair:
                 LOG.debug("Injecting a '%s' public key", name)
@@ -178,10 +179,8 @@ class RackspaceComputeProviderBase(base.RackspaceProviderBase):
         # Inject managed cloud file to prevent RBA conflicts
         if 'rax_managed' in context.roles:
             path = '/etc/rackspace/pre.chef.d/delay.sh'
-            if 'files' not in self._kwargs:
-                self._kwargs['files'] = {path: self.managed_cloud_script}
-            else:
-                self._kwargs['files'][path] = self.managed_cloud_script
+            files = self._kwargs.setdefault('files', {})
+            files[path] = self.managed_cloud_script
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -642,13 +641,13 @@ class Provider(RackspaceComputeProviderBase):
             key_name=desired.get('key_name'),
             tags=self.generate_resource_tag(
                 context.base_url, context.tenant, deployment['id'],
-                resource['index']
+                resource['index'],
             ),
-            defines=dict(
-                resource=key,
-                provider=self.key,
-                task_tags=['create', 'root']
-            ),
+            defines={
+                'resource': key,
+                'provider': self.key,
+                'task_tags': ['create', 'root'],
+            },
             properties={'estimated_duration': 20}
         )
 
@@ -660,11 +659,11 @@ class Provider(RackspaceComputeProviderBase):
             desired_state=desired,
             properties={'estimated_duration': 150,
                         'auto_retry_count': 3},
-            defines=dict(
-                resource=key,
-                provider=self.key,
-                task_tags=['build']
-            )
+            defines={
+                'resource': key,
+                'provider': self.key,
+                'task_tags': ['build'],
+            }
         )
 
         task_name = 'Wait for Server %s (%s) build' % (key,
@@ -748,11 +747,11 @@ class Provider(RackspaceComputeProviderBase):
             wait_on,
             name="Server Wait on:%s (%s)" % (key, resource['service'])
         )
-        return dict(
-            root=join,
-            final=build_wait_task,
-            create=create_server_task
-        )
+        return {
+            'root': join,
+            'final': build_wait_task,
+            'create': create_server_task
+        }
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
@@ -1229,7 +1228,9 @@ class Provider(RackspaceComputeProviderBase):
 
 
 class AuthPlugin(object):
-    """Handles auth."""
+
+    """Auth handler for pyrax & novaclient when we have the auth token."""
+
     def __init__(self, auth_token, nova_url, auth_source=None):
         self.token = auth_token
         self.nova_url = nova_url

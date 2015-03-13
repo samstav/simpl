@@ -91,7 +91,7 @@ class TestComputeWithBlock(test.StubbedWorkflowBase):
         pass
 
     def test_workflow_resource_generation(self):
-        """Test esources Added"""
+        """Test Resources Added"""
         context = RequestContext(auth_token='MOCK_TOKEN', username='MOCK_USER',
                                  region="North")
         planner = Planner(self.deployment, parse_only=True)
