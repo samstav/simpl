@@ -443,7 +443,7 @@ class Provider(RackspaceComputeProviderBase):
                     deployment.generate_keys()
                 dep_key = deployment.get_keypair(consts.DEFAULT_KEYPAIR)
                 # Set it in region
-                keypair = cmbase.ProviderBase.generate_template(
+                keypair = super(Provider, self).generate_template(
                     self, deployment, 'key-pair', None, context, keypair_index,
                     self.key, {}, planner)[0]
                 keypair['index'] = keypair_index
