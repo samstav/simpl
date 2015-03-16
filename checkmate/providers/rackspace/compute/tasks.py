@@ -18,11 +18,14 @@
 import logging
 
 from celery import task as ctask
+
 from checkmate.common import statsd
 from checkmate import exceptions as cmexc
 from checkmate.providers import base
 from checkmate.providers.rackspace.compute import manager
+from checkmate.providers.rackspace.compute import nova
 from checkmate.providers.rackspace.compute import provider
+
 LOG = logging.getLogger(__name__)
 
 
@@ -32,7 +35,7 @@ LOG = logging.getLogger(__name__)
 def create_server(context, name, region=None, api=None, flavor="2",
                   files=None, image=None, tags=None, userdata=None,
                   config_drive=None, networks=None, boot_from_image=False,
-                  disk=None):
+                  disk=None, key_name=None):
     # pylint: disable=W0613
     """Create a Rackspace Cloud server using novaclient.
 
@@ -50,6 +53,7 @@ def create_server(context, name, region=None, api=None, flavor="2",
     :param files: a list of files to inject
     :type files: dict
     :param tags: used for adding metadata to created server
+    :param key_name: name of keypair to inject into server
     :Example:
 
     {
@@ -80,7 +84,8 @@ def create_server(context, name, region=None, api=None, flavor="2",
                                          config_drive=config_drive,
                                          networks=networks,
                                          boot_from_image=boot_from_image,
-                                         disk=disk)
+                                         disk=disk,
+                                         key_name=key_name)
     return data
 
 
@@ -201,5 +206,26 @@ def delete_server_task(context, api=None):
 
 
 def _on_failure(action="", method="", callback=lambda *_, **__: None):
-    """Gets a on_failure method from the Manager."""
+    """Get an on_failure method from the Manager."""
     return manager.Manager.get_on_failure(action, method, callback)
+
+
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=10,
+            max_retries=2, provider=provider.Provider)
+@statsd.collect
+def upload_keypair(context, region, name, public_key):
+    """Upload a public key to a Nova keypair."""
+    results = nova.upload_keypair(context, region, name, public_key)
+    results['status'] = 'ACTIVE'
+    return results
+
+
+@ctask.task(base=base.RackspaceProviderTask, default_retry_delay=10,
+            max_retries=2, provider=provider.Provider)
+@statsd.collect
+def delete_keypair(context, region, name):
+    """Delete a Nova keypair."""
+    if nova.delete_keypair(context, region, name) == u'200, OK':
+        return {
+            'status': 'DELETED'
+        }

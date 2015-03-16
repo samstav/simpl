@@ -34,7 +34,7 @@ from SpiffWorkflow import util as swutil
 from checkmate import classes
 from checkmate.db import common
 from checkmate import exceptions as cmexc
-from checkmate import utils as cmutils
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 OP_MATCH = '(%|!|(>|<)[=]*)'
@@ -210,7 +210,7 @@ class Driver(common.DbBase):
 
             self._database.add_son_manipulator(KeyTransform(".", "_dot_"))
             LOG.info("Connected to mongodb on %s (database=%s)",
-                     cmutils.hide_url_password(self.connection_string),
+                     utils.hide_url_password(self.connection_string),
                      self.db_name)
         return self._database
 
@@ -352,7 +352,7 @@ class Driver(common.DbBase):
         resources = self._get_resources(deployment.get("resources", None),
                                         with_ids=False,
                                         with_secrets=with_secrets)
-        return cmutils.flatten(resources)
+        return utils.flatten(resources)
 
     def get_deployment(self, api_id, with_secrets=None):
         """Return the deployment identified by the given api_id."""
@@ -548,9 +548,9 @@ class Driver(common.DbBase):
             for resource in resources_cursor:
                 if with_secrets:
                     self.merge_secrets(self._resource_collection_name,
-                                       resource["id"], resource)
+                                       resource['id'], resource)
                 if not with_ids:
-                    resource.pop("id")
+                    resource.pop('id')
                 resources.append(resource)
         return resources
 
@@ -636,7 +636,7 @@ class Driver(common.DbBase):
         if secrets:
             if klass == self._resource_collection_name:
                 self._sanitize_resource_secrets(secrets, body)
-            cmutils.merge_dictionary(body, secrets)
+            utils.merge_dictionary(body, secrets)
         return body
 
     @staticmethod
@@ -797,7 +797,7 @@ class Driver(common.DbBase):
                         "resource_type == %s" %
                         json.encoder.encode_basestring(query['resource_type']))
                 if query.get('resource_ids'):
-                    resource_ids = map(cmutils.try_int, query['resource_ids'])
+                    resource_ids = map(utils.try_int, query['resource_ids'])
                     query_condition.append(
                         "%s.indexOf(instance_id) > -1" %
                         json.JSONEncoder().encode(resource_ids)
@@ -840,7 +840,7 @@ class Driver(common.DbBase):
                 current = self._get_object(klass, api_id)
 
                 if current:
-                    cmutils.merge_dictionary(current, body)
+                    utils.merge_dictionary(current, body)
                     body = current
                 else:
                     merge_existing = False  # so we can create a new one

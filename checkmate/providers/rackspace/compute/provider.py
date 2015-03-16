@@ -15,7 +15,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Provider for OpenStack Compute API.
+"""Provider for Rackspace NextGen Compute (a.k.a. OpenStack or Nova).
 
 - Supports Rackspace Open Cloud Compute Extensions and Auth
 
@@ -53,6 +53,11 @@ Flavors and Images:
 - io, memory, and cpu optimized flavors require PVHVM images. PV/HVM doesn't
   apply to Windows images.
 - onmetal needs onmetal images
+- onmetal requires the use of Nova keypairs. If an onmetal flavor is selected,
+  the default deployment key is loaded in the appropriate region(s) and a
+  key-pair resource is added to the deployment to track each key-pair in a
+  region (i.e. one resource per region where we are launching onmetal servers).
+  When a deployment is deleted, the nova key-pairs are also removed.
 
 Automatic disk configuration can be used with PV images but fails with PVHVM
 images
@@ -78,6 +83,7 @@ from checkmate.common import caching
 from checkmate.common import config
 from checkmate.common import schema
 from checkmate.common import templating
+from checkmate import consts
 from checkmate import deployments as cmdeps
 from checkmate import exceptions as cmexc
 from checkmate import middleware as cmmid
@@ -142,7 +148,7 @@ pyrax.set_setting('identity_type', 'rackspace')
 
 class RackspaceComputeProviderBase(base.RackspaceProviderBase):
 
-    """Generic functions for rackspace Compute providers."""
+    """Generic functions for Rackspace Compute providers."""
 
     def __init__(self, provider, key=None):
         base.RackspaceProviderBase.__init__(self, provider, key=key)
@@ -157,6 +163,7 @@ class RackspaceComputeProviderBase(base.RackspaceProviderBase):
         base.RackspaceProviderBase.prep_environment(self, wfspec, deployment,
                                                     context)
         keys = set()
+        # Build file injection data for all keys with public ssh entries
         for name, key_pair in deployment.settings()['keys'].iteritems():
             if 'public_key_ssh' in key_pair:
                 LOG.debug("Injecting a '%s' public key", name)
@@ -172,10 +179,8 @@ class RackspaceComputeProviderBase(base.RackspaceProviderBase):
         # Inject managed cloud file to prevent RBA conflicts
         if 'rax_managed' in context.roles:
             path = '/etc/rackspace/pre.chef.d/delay.sh'
-            if 'files' not in self._kwargs:
-                self._kwargs['files'] = {path: self.managed_cloud_script}
-            else:
-                self._kwargs['files'][path] = self.managed_cloud_script
+            files = self._kwargs.setdefault('files', {})
+            files[path] = self.managed_cloud_script
 
 
 class Provider(RackspaceComputeProviderBase):
@@ -284,6 +289,12 @@ class Provider(RackspaceComputeProviderBase):
                                                resource_type=resource_type,
                                                service_name=service,
                                                provider_key=self.key)
+
+        key_name = deployment.get_setting('key_name',
+                                          resource_type=resource_type,
+                                          service_name=service,
+                                          provider_key=self.key)
+
         # Find all matching flavors
         flavors = catalog['lists']['sizes']
         if flavor_setting:
@@ -360,7 +371,7 @@ class Provider(RackspaceComputeProviderBase):
         # - onmetal as last resort
         if not flavor_id:
             general = filter_flavors(flavor_matches, class_rules='general1')
-            metal = filter_flavors(flavor_matches, class_rules='onmetal1')
+            metal = filter_flavors(flavor_matches, class_rules='onmetal')
             other = filter_flavors(flavor_matches,
                                    class_rules='*,!general1,!onmetal')
             if general:
@@ -412,7 +423,55 @@ class Provider(RackspaceComputeProviderBase):
             if planner.operation.get('initial-status'):
                 initial_status = planner.operation['initial-status']
 
+        if flavor['extra']['class'] == 'onmetal':
+            # Ensure copy of keys is stored in Nova as keypair. We choose a
+            # unique, repeatable index per region so that we don't load more
+            # than one key-pair per region per deployment (most will have only
+            # one region) since key-pairs are limited to 100.
+            if key_name:
+                raise cmexc.CheckmateValidationException(
+                    "Setting a key_name for an OnMetal server is not allowed. "
+                    "Checkmate needs to add it's own key to be able to access "
+                    "the OnMetal server.")
+            key_name = "Public Key for Deployment %s" % deployment['id']
+            keypair_index = 'rax:key-pair:%s' % region
+            keypair = planner.resources.get(keypair_index)
+            if not keypair:
+                # Get default key
+                dep_key = deployment.get_keypair(consts.DEFAULT_KEYPAIR)
+                if not dep_key:
+                    deployment.generate_keys()
+                dep_key = deployment.get_keypair(consts.DEFAULT_KEYPAIR)
+                # Set it in region
+                keypair = super(Provider, self).generate_template(
+                    self, deployment, 'key-pair', None, context, keypair_index,
+                    self.key, {}, planner)[0]
+                keypair['index'] = keypair_index
+                keypair['component'] = 'rax:key-pair'
+                desired = keypair['desired-state']
+                desired['name'] = key_name
+                desired['region'] = region
+                desired['public_key_ssh'] = dep_key['public_key_ssh']
+                templates.append(keypair)
+            # Add a dependency so the key-pair is uploaded before server
+            # creation. This is not a great way to handle this.
+            # TODO(zns): implement a better way for providers to mark their
+            # resources as dependent on others.
+            relation_key = 'wait-on-%s' % keypair_index
+            relations = {
+                relation_key: {
+                    'key': relation_key,
+                    'type': 'reference',
+                    'target': keypair_index,
+                }
+            }
+            for template in templates:
+                if template['type'] == 'compute':
+                    template['relations'] = relations
+
         for template in templates:
+            if template['type'] != 'compute':
+                continue
             template['desired-state']['status'] = initial_status
             template['desired-state']['region'] = region
             template['desired-state']['flavor'] = flavor_id
@@ -430,6 +489,9 @@ class Provider(RackspaceComputeProviderBase):
                 template['desired-state']['config_drive'] = True
             if networks:
                 template['desired-state']['networks'] = networks
+            if key_name:
+                template['desired-state']['key_name'] = key_name
+
         if vol_dedicated:
             # Add a CBS volume requirement and have the planner parse it
             definition['requires']['cbs-attach'] = {
@@ -512,11 +574,22 @@ class Provider(RackspaceComputeProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
-        """Add resource creation tasks to workflow.
+        """Add appropriate resource creation tasks to workflow."""
+        if resource['type'] == 'compute':
+            return self.add_compute_tasks(resource, key, wfspec, deployment,
+                                          context, wait_on=wait_on)
+        if resource['type'] == 'key-pair':
+            return self.add_keypair_tasks(resource, wfspec, deployment,
+                                          context)
+
+    def add_compute_tasks(self, resource, key, wfspec, deployment, context,
+                          wait_on=None):
+        """Add compute resource creation tasks to workflow.
 
         :param resource: the dict of the resource generated by
                 generate_template earlier
-        :returns: returns the root task in the chain of tasks
+        :returns: returns a dict of tagged tasks
+
         TODO(any): use environment keys instead of private key
         """
         wait_on, _, component = self._add_resource_tasks_helper(
@@ -567,15 +640,16 @@ class Provider(RackspaceComputeProviderBase):
             userdata=userdata,
             config_drive=desired.get('config_drive'),
             networks=desired.get('networks'),
+            key_name=desired.get('key_name'),
             tags=self.generate_resource_tag(
                 context.base_url, context.tenant, deployment['id'],
-                resource['index']
+                resource['index'],
             ),
-            defines=dict(
-                resource=key,
-                provider=self.key,
-                task_tags=['create', 'root']
-            ),
+            defines={
+                'resource': key,
+                'provider': self.key,
+                'task_tags': ['create', 'root'],
+            },
             properties={'estimated_duration': 20}
         )
 
@@ -587,11 +661,11 @@ class Provider(RackspaceComputeProviderBase):
             desired_state=desired,
             properties={'estimated_duration': 150,
                         'auto_retry_count': 3},
-            defines=dict(
-                resource=key,
-                provider=self.key,
-                task_tags=['build']
-            )
+            defines={
+                'resource': key,
+                'provider': self.key,
+                'task_tags': ['build'],
+            }
         )
 
         task_name = 'Wait for Server %s (%s) build' % (key,
@@ -662,16 +736,24 @@ class Provider(RackspaceComputeProviderBase):
         if preps:
             wait_on.append(preps)
 
+        # If we're uploading a key-pair, let's wait to make sure that happens
+        # before we create the server.
+        if desired.get('key_name'):
+            tag = 'upload_keypair_%s' % desired['region'].lower()
+            tasks = wfspec.find_task_specs(provider=self.key, tag=tag)
+            if tasks:
+                wait_on.extend(tasks)
+
         join = wfspec.wait_for(
             create_server_task,
             wait_on,
             name="Server Wait on:%s (%s)" % (key, resource['service'])
         )
-        return dict(
-            root=join,
-            final=build_wait_task,
-            create=create_server_task
-        )
+        return {
+            'root': join,
+            'final': build_wait_task,
+            'create': create_server_task
+        }
 
     def add_connection_tasks(self, resource, key, relation, relation_key,
                              wfspec, deployment, context):
@@ -745,6 +827,9 @@ class Provider(RackspaceComputeProviderBase):
     def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):
         self._verify_existing_resource(resource, key)
+        if resource['type'] == 'key-pair':
+            return self.delete_keypair_tasks(wf_spec, context, deployment_id,
+                                             resource, key)
         inst_id = resource.get("instance", {}).get("id")
         region = (resource.get("region") or
                   resource.get("instance", {}).get("region"))
@@ -782,6 +867,72 @@ class Provider(RackspaceComputeProviderBase):
         )
         delete_server.connect(wait_on_delete)
         return {'root': delete_server, 'final': wait_on_delete}
+
+    def add_keypair_tasks(self, resource, wfspec, deployment, context):
+        """Add workflow tasks to upload nova keypair."""
+        desired = resource['desired-state']
+        task = self.ensure_keypair(context, deployment, wfspec,
+                                   resource['index'],
+                                   desired['region'],
+                                   desired['name'],
+                                   desired['public_key_ssh'])
+        return {'root': task, 'final': task}
+
+    def ensure_keypair(self, context, deployment, wf_spec, key, region, name,
+                       public_key_ssh):
+        """Create (or find if exist) tasks to upload a keypair to nova.
+
+        :returns: the task for uploading the keypair to the region.
+        """
+        tag = 'upload_keypair_%s' % region.lower()
+        tasks = wf_spec.find_task_specs(provider=self.key, tag=tag)
+        if tasks:
+            task = tasks[0]
+        else:
+            queued_task_dict = context.get_queued_task_dict(
+                deployment_id=deployment['id'], region=region,
+                resource_key=key)
+            task = specs.Celery(
+                wf_spec, 'Upload Keypair to %s' % region,
+                'checkmate.providers.rackspace.compute.tasks.upload_keypair',
+                call_args=[
+                    queued_task_dict,
+                    region,
+                    name,
+                    public_key_ssh,
+                ],
+                properties={'estimated_duration': 10},
+                defines={
+                    'provider': self.key,
+                    'resource': key,
+                    'task_tags': [tag]
+                }
+            )
+            wf_spec.start.connect(task)
+        return task
+
+    def delete_keypair_tasks(self, wf_spec, context, deployment_id, resource,
+                             key):
+        instance = resource.get("instance", {})
+        name = instance.get("name")
+        region = instance.get("region")
+        if isinstance(context, cmmid.RequestContext):
+            context = context.get_queued_task_dict(deployment_id=deployment_id,
+                                                   resource_key=key)
+        else:
+            context['deployment_id'] = deployment_id
+            context['resource_key'] = key
+
+        delete_keypair = specs.Celery(
+            wf_spec,
+            'Delete KeyPair in %s' % region,
+            'checkmate.providers.rackspace.compute.tasks.delete_keypair',
+            call_args=[context, region, name],
+            properties={
+                'estimated_duration': 5,
+            }
+        )
+        return {'root': delete_keypair, 'final': delete_keypair}
 
     @staticmethod
     def _get_api_info(context, **kwargs):
@@ -1079,7 +1230,9 @@ class Provider(RackspaceComputeProviderBase):
 
 
 class AuthPlugin(object):
-    """Handles auth."""
+
+    """Auth handler for pyrax & novaclient when we have the auth token."""
+
     def __init__(self, auth_token, nova_url, auth_source=None):
         self.token = auth_token
         self.nova_url = nova_url

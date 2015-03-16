@@ -87,7 +87,8 @@ class TestCreateServer(unittest.TestCase):
                                                         files=None,
                                                         userdata=None,
                                                         config_drive=None,
-                                                        nics=None)
+                                                        nics=None,
+                                                        key_name=None)
 
     def test_create_server_overlimit_error(self):
         context = {
@@ -131,7 +132,8 @@ class TestCreateServer(unittest.TestCase):
                                                         files=None,
                                                         userdata=None,
                                                         config_drive=None,
-                                                        nics=None)
+                                                        nics=None,
+                                                        key_name=None)
 
     def test_create_server_connection_error(self):
         context = {
@@ -173,7 +175,8 @@ class TestCreateServer(unittest.TestCase):
                                                         files=None,
                                                         userdata=None,
                                                         config_drive=None,
-                                                        nics=None)
+                                                        nics=None,
+                                                        key_name=None)
 
 
 class TestWaitOnBuild(unittest.TestCase):

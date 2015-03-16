@@ -26,6 +26,7 @@ from simplefsm import exceptions as fsmexc
 
 from checkmate.classes import ExtensibleDict
 from checkmate.common import schema
+from checkmate import consts
 from checkmate.contrib import urlparse
 from checkmate import constraints as cm_constraints
 from checkmate import db
@@ -40,7 +41,6 @@ from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
-DEFAULT_KEYPAIR = 'deployment-keys'
 SIMULATOR_DB = db.get_driver(connection_string=os.environ.get(
     'CHECKMATE_SIMULATOR_CONNECTION_STRING',
     os.environ.get('CHECKMATE_CONNECTION_STRING', 'sqlite://')))
@@ -427,7 +427,7 @@ class Deployment(ExtensibleDict):
         If a private_key exists, it will be used to generate the public keys,
         """
         resources = self.setdefault('resources', {})
-        key_res = resources.setdefault(DEFAULT_KEYPAIR, {})
+        key_res = resources.setdefault(consts.DEFAULT_KEYPAIR, {})
         key_res.setdefault('type', 'key-pair')
         dep_keys = key_res.setdefault('instance', {})
         private_key = dep_keys.get('private_key')
@@ -493,7 +493,7 @@ class Deployment(ExtensibleDict):
         all_keys = get_client_keys(inputs)
         if os_keys:
             all_keys.update(os_keys)
-        deployment_keys = self.get_keypair(DEFAULT_KEYPAIR)
+        deployment_keys = self.get_keypair(consts.DEFAULT_KEYPAIR)
         if deployment_keys:
             all_keys['deployment'] = deployment_keys
 
@@ -1206,7 +1206,7 @@ class Deployment(ExtensibleDict):
 
         # Populate services key in deployment
         service_definitions = utils.read_path(self, 'blueprint/services') or {}
-        for key, _ in service_definitions.iteritems():
+        for key in service_definitions.iterkeys():
             services[key] = {}
             # Write resource list for each service
             resources = self.get('resources') or {}

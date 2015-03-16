@@ -186,6 +186,7 @@ class TestBlueprints(unittest.TestCase):
 
 
 class TestAnonymousGitHubManager(unittest.TestCase):
+
     """Test anonymous github manager."""
 
     def setUp(self):

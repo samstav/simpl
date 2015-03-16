@@ -23,6 +23,7 @@ import eventlet
 
 from checkmate import classes
 from checkmate.common import schema
+from checkmate import consts
 from checkmate import deployment as cm_dep
 from checkmate.exceptions import BLUEPRINT_ERROR
 from checkmate.exceptions import CheckmateException
@@ -32,51 +33,6 @@ from checkmate import resource as cm_res
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
-
-# Used when parsing so keys don't have to be generated
-PARSE_PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
-MIIEpAIBAAKCAQEAoJ/A7ofO0KlB2KVvyhfFDuadBwCUrUYgB5ROSCYSsMVxNmQr
-hiFcoMsj34k6MkihL/TUyGJTu0tGbLdgXaPZFZDNkb9odPomDOImcrHSAiYLBN04
-Svoz/wldjYP5p8rdLqQYmOpSq4RiSJ2BCLSTJrrBJN+UQvisfB0cbLN8fqbvYHtc
-Z9VN8W2raDhDXTSAIlTQphQwkJB/xXOqZfJsj/Zk3R9osJu9RzM30vFA+2xcahtj
-gZBiUiP4dOKQkIGPOj+J+n10iU1Pn1PoQmWMIfzfx++J9oCWBOJc4yR9PC+xwco5
-3LnqNVjqsldaYn09xwvzCq8lepnwjbie9Yc0twIDAQABAoIBAFwmqwpuMdH2eQdx
-CmyYLH77AXXF+IZcZ/3RMQQli62M6QG6gFnog/rf8InLce7tSkR4Iyd/eehHLHUs
-04WFfgLoW3fVp3kNFo1npYVBzWlcKBA3Vpd1aiVUWy7YW3/PXAvpKw93x8wNHFHq
-wt+asZ2ToUGlX6r4fgSKswcOBkumUpZckwV6zpmz5mHdXfE1dh5LYm+tODSaGoqK
-O9Q1pqGlC8JvIjtwwglCsqk3ZrXc3hwgyYdifpwx8BMb2rZa8dYON1SEH8PAjZyZ
-6k0paUemF7YT78/o9AXbSMnfLud0js+hO6p/lIqXCMXERdbspLq8bcOI3kn/uTt0
-g1PkDkECgYEAuKNp8tjtyC6zHE6ZlK4mHFT1Wlir4eufM/BLpABvqSDrz9tRQRZC
-xc/qCuWpfdzSzRKDQZascNC4ly+bDtFXSH1m/pttCkTrgXocimozQPElfrugCtzL
-xkbfOsn5ADQ+HFbL0JTiPMqp3Sc7hq18KVJ0a82/SoGukB4lU6KY1FcCgYEA3rRN
-23eerP7kzK3y67oD9OrkV6Yzsn63aiB+/WmwJPkadseuIrzTqbCtmPDHkZIlblql
-L+UFajnLi0ln518xMVFJ4tZuVs8INsl/5nXcSIc2vvkLWVqkc1649jOdcm6vBuIt
-/QY2OrydnQY5IKFbnFH+8Sy6WpargLbyII5JZqECgYEAmfR4hWvoaUC3TGUlnlnP
-oVQd+SVyvMBxUSeOisNqV8YBmqGvEOx05OhGqKtzNmWIyEIle+0dADypjja9vg9E
-DkeyN551v1hUXvPpFGkVL5NjxlbATg5pQ30Y6bY7j7YADDU7YUKjmjkKhkMOWXAS
-1YnRVYqLdJ7JZZYdXa14baUCgYEA0odcerZQOHYV0TA3zoPgra1IA1vIz1pfBWKG
-6gT5UVpznAoUIh6jcWzmDwi/gGvKGtJyCh7UyaCtPJU+NkmU9WxFDr1rPYEl4LUH
-xdNxVNcN9+byxZucjrvi2kvc8YqUx0sV8nXm2gvoa8KwSpp/Qf15poCEApMgueM4
-bXJVDUECgYAn+ZU4aNdKW1eVKB8cRX13Y3oaP9k4XSKci/XjCc+KqPvnVkcbt+J1
-OxK9cb/HUIOOJwaLKymrlxCddZjrrFwSGYdpHn19KM+nUlbgTSKOYEs32vuNbd/a
-0tfYsyBZitpdG5/WkQnRrWeCiGFMbFbDfcS3t1+Pb5xial8A5EbySQ==
------END RSA PRIVATE KEY-----"""
-
-PARSE_PUBLIC_KEY = """"-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoJ/A7ofO0KlB2KVvyhfF
-DuadBwCUrUYgB5ROSCYSsMVxNmQrhiFcoMsj34k6MkihL/TUyGJTu0tGbLdgXaPZ
-FZDNkb9odPomDOImcrHSAiYLBN04Svoz/wldjYP5p8rdLqQYmOpSq4RiSJ2BCLST
-JrrBJN+UQvisfB0cbLN8fqbvYHtcZ9VN8W2raDhDXTSAIlTQphQwkJB/xXOqZfJs
-j/Zk3R9osJu9RzM30vFA+2xcahtjgZBiUiP4dOKQkIGPOj+J+n10iU1Pn1PoQmWM
-Ifzfx++J9oCWBOJc4yR9PC+xwco53LnqNVjqsldaYn09xwvzCq8lepnwjbie9Yc0
-twIDAQAB\n-----END PUBLIC KEY-----"""
-
-PARSE_PUBLIC_SHA = """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCgn8Duh87QqUHYpW/K\
-F8UO5p0HAJStRiAHlE5IJhKwxXE2ZCuGIVygyyPfiToySKEv9NTIYlO7S0Zst2Bdo9kVkM2Rv2h0+i\
-YM4iZysdICJgsE3ThK+jP/CV2Ng/mnyt0upBiY6lKrhGJInYEItJMmusEk35RC+Kx8HRxss3x+pu9g\
-e1xn1U3xbatoOENdNIAiVNCmFDCQkH/Fc6pl8myP9mTdH2iwm71HMzfS8UD7bFxqG2OBkGJSI/h04p\
-CQgY86P4n6fXSJTU+fU+hCZYwh/N/H74n2gJYE4lzjJH08L7HByjncueo1WOqyV1pifT3HC/MKryV6\
-mfCNuJ71hzS3"""
 
 
 class Planner(classes.ExtensibleDict):
@@ -192,11 +148,11 @@ class Planner(classes.ExtensibleDict):
                 context.region = region
         if self.parse_only:
             parse_keys = {
-                'public_key': PARSE_PUBLIC_KEY,
-                'public_key_ssh': PARSE_PUBLIC_SHA,
-                'private_key': PARSE_PRIVATE_KEY
+                'public_key': consts.DUMMY_PUBLIC_KEY,
+                'public_key_ssh': consts.DUMMY_PUBLIC_KEY_SSH,
+                'private_key': consts.DUMMY_PRIVATE_KEY
             }
-            self.deployment.set_keypair(cm_dep.DEFAULT_KEYPAIR, parse_keys)
+            self.deployment.set_keypair(consts.DEFAULT_KEYPAIR, parse_keys)
         self.resolve_components(context)
         # Run resolve_relations before resolving requirements because
         # we use explicitely specified relations to satisfy some requirements
@@ -343,12 +299,17 @@ class Planner(classes.ExtensibleDict):
                                                              context, self)
         for resource in resources:
             resource['status'] = 'PLANNED'
+            if resource['component'] != definition['id']:
+                # This is an extra resource supplied by the provider, don't
+                # list it in the component definition
+                self.add_resource(resource, {})
+                continue
+
             # Add it to resources
-            self.add_resource(resource, definition, service_name)
+            self.add_resource(resource, definition, service_name=service_name)
 
             # Add host and other requirements that exist in the service
-            extra_components = service_analysis.get(
-                'extra-components', {})
+            extra_components = service_analysis.get('extra-components', {})
             for key in utils.MutatingIterator(extra_components):
                 extra_def = extra_components[key]
                 LOG.debug("    Processing extra component '%s' for "
@@ -360,6 +321,11 @@ class Planner(classes.ExtensibleDict):
                     context,
                     self)
                 for extra_resource in extra_resources:
+                    if extra_resource['component'] != extra_def['id']:
+                        # This is an extra resource supplied by the provider,
+                        # don't list it in the component definition
+                        self.add_resource(extra_resource, {})
+                        continue
                     self.add_resource(extra_resource, extra_def)
 
                     # Connnect extra components
@@ -454,11 +420,11 @@ class Planner(classes.ExtensibleDict):
                         # Generate and store all key types
                         if self.parse_only:
                             private = {
-                                'PEM': PARSE_PRIVATE_KEY
+                                'PEM': consts.DUMMY_PRIVATE_KEY
                             }
                             public = {
-                                'PEM': PARSE_PUBLIC_KEY,
-                                "ssh": PARSE_PRIVATE_KEY,
+                                'PEM': consts.DUMMY_PUBLIC_KEY,
+                                "ssh": consts.DUMMY_PUBLIC_KEY_SSH,
                             }
                         else:
                             private, public = keys.generate_key_pair()
@@ -498,15 +464,17 @@ class Planner(classes.ExtensibleDict):
 
     def add_resource(self, resource, definition, service_name=None):
         """Add a resource to the list of resources to be created."""
-        index = self._get_next_resource_index()
-        resource['index'] = index
+        # Check if provider wrote an index
+        index = resource.get('index')
+        if not index:
+            # Generate a unique one
+            index = self._get_next_resource_index()
+            resource['index'] = index
 
         LOG.debug("  Adding a '%s' resource with resource key '%s'",
                   resource.get('type'), index)
         self.resources[index] = resource
-        if 'instances' not in definition:
-            definition['instances'] = []
-        definition['instances'].append(index)
+        definition.setdefault('instances', []).append(index)
 
         if service_name:
             service = self.blueprint["services"][service_name]
@@ -539,7 +507,7 @@ class Planner(classes.ExtensibleDict):
                 target_def = target_service['component']
             if (target_def['connections'].get(resource['service']) and
                     target_def['connections'][resource['service']].get(
-                    "outbound-from")):
+                        "outbound-from")):
                 instances = target_def['connections'][
                     resource['service']]["outbound-from"]
             elif connection.get('relation') == 'host':
@@ -600,10 +568,7 @@ class Planner(classes.ExtensibleDict):
                     "'%s'." % (write_key, target['service']))
 
         # Write relation
-
-        if 'relations' not in resource:
-            resource['relations'] = {}
-        relations = resource['relations']
+        relations = resource.setdefault('relations', {})
         if relation_type == 'host':
             if resource.get('hosted_on') not in [None, target['index']]:
                 error_message = (

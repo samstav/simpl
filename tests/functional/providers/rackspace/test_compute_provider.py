@@ -14,42 +14,42 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Module for testing Rackspace interactions."""
+"""Module for testing Rackspace compute provider interactions."""
 
+from checkmate import consts
 from checkmate import deployment
 from checkmate.deployments import Planner, Manager
 from checkmate.middleware import RequestContext
 from checkmate.providers import base
 from checkmate.providers.rackspace.compute import provider as compute
-from checkmate.providers.rackspace.block import provider as block
 from checkmate import test
 from checkmate import utils
 from checkmate import workflow as cm_wf
 from checkmate import workflow_spec
 
 
-class TestComputeWithBlock(test.StubbedWorkflowBase):
+class TestOnMetalKeyPairs(test.StubbedWorkflowBase):
 
-    """A compute node gets attached to block."""
+    """An OnMetal compute node gets a nova key-pair."""
 
     def setUp(self):
         test.StubbedWorkflowBase.setUp(self)
         base.PROVIDER_CLASSES = {}
-        base.register_providers([compute.Provider, block.Provider])
+        base.register_providers([compute.Provider])
         self.deployment = deployment.Deployment(utils.yaml_to_dict('''
                 id: 'DEP-ID-1000'
                 tenantId: T1000
                 blueprint:
                   name: Test
                   services:
-                    with_block:
+                    screaming:
                       component:
                         resource_type: compute
                         interface: ssh
                       constraints:
-                      - resource_type: volume
-                        setting: dedicated
-                        value: true
+                      - virtualization-mode: metal
+                      - os: Ubuntu 14.04
+                      - count: 2
                 environment:
                   name: test
                   providers:
@@ -61,28 +61,28 @@ class TestComputeWithBlock(test.StubbedWorkflowBase):
                             is: compute
                             provides:
                             - compute: ssh
-                            supports:
-                            - volume: iscsi
                         lists:
                           regions:
                             North: https://north.servers./v2/T1000
                           sizes:
-                            'compute1-15':
-                              cores: 4
-                              disk: 0
-                              memory: 512
-                              name: 512MB Compute Instance
+                            onmetal-compute1:
+                              cores: 20
+                              disk: 32
                               extra:
-                                class: compute1
+                                class: onmetal
+                                policy_class: onmetal_flavor
+                              memory: 32768
+                              name: OnMetal Compute v1
+                              network: 10000.0
                           types:
-                            06f917b0-9c0f-4634-8190-e43630bb0000:
-                              name: 'Ubuntu 14.04'
-                              os: 'Ubuntu 14.04'
-                              type: linux
+                            1f097471-f0f4-4c3b-ac24-fdb1d897b8c0:
                               constraints:
-                                flavor_classes: '*'
-                    block:
-                      vendor: rackspace
+                                auto_disk_config: disabled
+                                flavor_classes: onmetal
+                                vm_mode: metal
+                              name: OnMetal - Ubuntu 14.04 LTS (Trusty Tahr)
+                              os: Ubuntu 14.04
+                              type: linux
                 inputs:
                   region: North
             '''))
@@ -93,30 +93,40 @@ class TestComputeWithBlock(test.StubbedWorkflowBase):
     def test_workflow_resource_generation(self):
         """Test Resources Added"""
         context = RequestContext(auth_token='MOCK_TOKEN', username='MOCK_USER',
-                                 region="North")
+                                 region="North", tenant="T1000")
         planner = Planner(self.deployment, parse_only=True)
         resources = planner.plan(context)
         types = []
         server = None
-        volume = None
+        keypair = None
+        expected_name = 'Public Key for Deployment DEP-ID-1000'
         for resource in resources.values():
             if resource['type'] == 'compute':
                 server = resource
-            if resource['type'] == 'volume':
-                volume = resource
+            if resource['type'] == 'key-pair':
+                keypair = resource
             types.append(resource['type'])
-        self.assertItemsEqual(types, ['volume', 'compute'])
-        self.assertIn('cbs-attach-1', server['relations'])
-        self.assertTrue(server['desired-state']['boot_from_image'])
+        self.assertItemsEqual(types, ['key-pair', 'compute', 'compute'])
+        self.assertEqual(server['desired-state']['key_name'], expected_name)
         self.assertEqual(server['component'], 'linux_instance')
         self.assertEqual(server['provider'], 'nova')
-        self.assertEqual(volume['component'], 'rax:block_volume')
-        self.assertEqual(volume['provider'], 'block')
+        self.assertEqual(keypair['component'], 'rax:key-pair')
+        self.assertEqual(keypair['provider'], 'nova')
+        self.assertEqual(keypair['desired-state']['region'], 'North')
+        dep_key = self.deployment.get_keypair(
+            consts.DEFAULT_KEYPAIR)
+        self.assertEqual(keypair['desired-state']['public_key_ssh'],
+                         dep_key['public_key_ssh'])
 
     def test_workflow_resource_task_generation(self):
-        """Test Add Task"""
+        """Test Task Addition and Dependencies.
+
+        - Ensure all tasks are there for key and server creation.
+        - Ensure only one key-pair upload tasks exists.
+        - Ensure all servers will wait for key-pair to be loaded.
+        """
         context = RequestContext(auth_token='MOCK_TOKEN', username='MOCK_USER',
-                                 region="North")
+                                 region="North", tenant="T1000")
         Manager.plan(self.deployment, context)
         wf_spec = workflow_spec.WorkflowSpec.create_build_spec(
             context, self.deployment)
@@ -128,19 +138,24 @@ class TestComputeWithBlock(test.StubbedWorkflowBase):
             'Root',
             'Start',
 
-            'Create Volume 1',
-            'Wait for Volume 1 (with_block) build',
+            'Upload Keypair to North',
 
-            'Create Server 0 (with_block)',
-            'Wait for Server 0 (with_block) build',
+            'Create Server 0 (screaming)',
+            'Wait for Server 0 (screaming) build',
+            'Verify server 0 (screaming) ssh connection',
 
-            'Attach (with_block) Wait on 0 and 1',
-            'Attach Server 0 to Volume 1',
-
-            'Server Wait on Attach:0 (with_block)',
-            'Verify server 0 (with_block) ssh connection',
+            'Create Server 1 (screaming)',
+            'Wait for Server 1 (screaming) build',
+            'Verify server 1 (screaming) ssh connection',
         ]
         self.assertItemsEqual(task_list, expected, msg=task_list)
+        upload_spec = workflow.spec.task_specs['Upload Keypair to North']
+        self.assertIn(
+            upload_spec,
+            workflow.spec.task_specs['Create Server 0 (screaming)'].inputs)
+        self.assertIn(
+            upload_spec,
+            workflow.spec.task_specs['Create Server 1 (screaming)'].inputs)
 
 
 if __name__ == '__main__':

@@ -37,7 +37,7 @@ class Manager(object):
     def create_server(context, name, update_state, api=None, flavor="2",
                       files=None, image=None, tags=None, config_drive=None,
                       userdata=None, networks=None, boot_from_image=False,
-                      disk=None):
+                      disk=None, key_name=None):
         # pylint: disable=R0914
         """Create a Rackspace Cloud server using novaclient.
 
@@ -55,6 +55,7 @@ class Manager(object):
         :param config_drive: If True, enable config drive on the server.
         :param files: a list of files to inject
         :type files: dict
+        :param key_name: name of keypair to inject into server
         :Example:
 
         {
@@ -124,6 +125,7 @@ class Manager(object):
                                         config_drive=config_drive,
                                         userdata=userdata,
                                         nics=networks,
+                                        key_name=key_name,
                                         **kwargs)
         except ncexc.OverLimit as exc:
             raise cmexec.CheckmateException(
@@ -150,7 +152,6 @@ class Manager(object):
 
         result = {
             'id': server.id,
-            'password': server.adminPass,
             'region': api.client.region_name,
             'status': 'NEW',
             'flavor': flavor,
@@ -158,6 +159,9 @@ class Manager(object):
             'error-message': '',
             'status-message': '',
         }
+        # OnMetal doesn't have adminPass
+        if hasattr(server, 'adminPass'):
+            result['password'] = server.adminPass
         return result
 
     @staticmethod

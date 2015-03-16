@@ -1,0 +1,46 @@
+interactions:
+- request:
+    body: '{"keypair": {"name": "Public Key for Deployment 663c870503714534bc40d4d010b9a0f4"}}'
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['83']
+      Content-Type: [application/json]
+    method: POST
+    uri: https://iad.servers.api.rackspacecloud.com:443/v2/redacted/os-keypairs
+  response:
+    body: {string: !!python/unicode '{"keypair": {"public_key": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDWaWqWXQRFwfd06/UwRVDEmSNbjTfkmoBMF9i4UqHcmtUK33cy9zt5PF8AXJa1qQqPJ94Ydsp+qQFXeViZiMGKxYUAESDpm4ONG1nMbKfuVhjv98W7JK/09SR18uZtivCnHyym6KR51gEJfvd0Lj3svG42esB9frh44jbqyt1Mr8kJnXTsZb6qFA3Qf5ntUqwiDJMlA4lISsNFLgR20eRtJTEhuvmENglbDAkiGpH4UYpNegbLzMaBOb6Sa86uf2Zs/1MngdWQ9UMpeXz7wEB5mTODq0x+8igaUw7A6E5LXizU5RGiomitBmihOQOywcFgMv+/dooKWZmqDWfgQnfV
+        Generated-by-Nova\n", "private_key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1mlqll0ERcH3dOv1MEVQxJkjW4035JqATBfYuFKh3JrVCt93\nMvc7eTxfAFyWtakKjyfeGHbKfqkBV3lYmYjBisWFABEg6ZuDjRtZzGyn7lYY7/fF\nuySv9PUkdfLmbYrwpx8spuikedYBCX73dC497LxuNnrAfX64eOI26srdTK/JCZ10\n7GW+qhQN0H+Z7VKsIgyTJQOJSErDRS4EdtHkbSUxIbr5hDYJWwwJIhqR+FGKTXoG\ny8zGgTm+kmvOrn9mbP9TJ4HVkPVDKXl8+8BAeZkzg6tMfvIoGlMOwOhOS14s1OUR\noqJorQZooTkDssHBYDL/v3aKClmZqg1n4EJ31QIDAQABAoIBAQDKRisC7X+xW5rb\nGBt4zXuz7RC5NxGqvcMZhkmzImmHGB6yIj1uvGTELBsn2TFo8a9/fEn/ZFoGgeQ9\nJMJcHfMQuuSNOpuFJ2xEu6/Mthj7NQhTorlMowDIpFggWeXfI/uCflt+nu1D74uM\n7NYAKfvLkbyb8tQT0G+xwx+yA24g/97FpIj+L8fEX4+BCFt5bEc5kAb8LOmpAYhT\nCWh/rGeg5+jXJHlUq2TBB7WigJ39XOYdZ7wIy4H2DuXcakL+yoeKnBRlaxjJ3vFo\nUMlV8LXUUzt2g6eXIR2O5EnCRcombr9qT2s1z3Hm1/GNjFtSjGzi7sRE11xglWkH\nQLEVA2llAoGBAPRO3LBHN/FHPXMECwtjYxWVZIVGo0rXQPUYjItJ5/kZ2Nmf3t6f\npJFBkfBHz07i0Wq9fAG9Wyo8+/Uc7oiryUda6KaEwM/GuNnpcXKYxFE2ZR0aEHES\nGPfxRIDgNJ0RUe1fr0MP5jRzfeWbpMMsYTNsTtY+5xeAQ/2N2BYe9MQzAoGBAOCs\nR8cQggruXcypSSYgZtN0N7nhUxCq73DeNptTn94lBVLUBBfGPmUSX7kSYZ6CGaiL\nUXNjb3M110qNhmKdEO5rDxSbomCVuvZ9E0RjnQEd17uPktcsd7dEhaFwj2cGyr2E\niyAsxlEGhIoSOH9Ivt8A0MIs7Ro4jqHojS5jLovXAoGACeS/ryvTKiQ2atf5Eob9\n1jvsjDEmH7vD16kc1+8wQ7g2Penpfp58bZ14KYDe9lTdIjN2OCPQ807w7SY0yrga\nOJeH4GZz4HYtujVn8LobCSboxVru24VeGXxdx9JMjyfKZ5B+anrUWb9rk8bPz0+W\nyBxUvPxjI2KAXl5GJ+8s/l0CgYAlbAy4l4NRlsqA4GGSvCrkZaMyjtlrGU2wmxK1\nZIRoV/o/BZl47EhQRXM0PF+OK1ViwXHbqmBR7FHj1RbhLhA35hUo9ZNiSw5NKCAh\ncAYivXnFf/CRbpKyL/OiJEF+g58ZWg5iWZLexBsndEl8yf0g393lud30VB9N0JJT\ne6mxGQKBgQDXkW98luR/RBmNhFWKdU3ufuWZdJiADFUXMnICsItNkIb01XnzPfzd\nk4j33H7qpBGBQPtPW50/fSphcmUmmqpPvAFoG94xbb3ossm4wF1cuaovduYU49EB\nTsX8CbqySO36GG2q1CiRrRStOjZJm2SKNxYQxZN8S836Q3j7hUXJTQ==\n-----END
+        RSA PRIVATE KEY-----\n", "user_id": "f75b5a4bbd1f4821944ff0ae2468fa32", "name":
+        "Public Key for Deployment 663c870503714534bc40d4d010b9a0f4", "fingerprint":
+        "53:30:be:dd:a4:00:11:1f:94:e8:f3:d8:62:68:9b:76"}}'}
+    headers:
+      content-length: ['2339']
+      content-type: [application/json]
+      date: ['Mon, 09 Mar 2015 10:53:27 GMT', 'Mon, 09 Mar 2015 10:53:28 GMT']
+      server: [Jetty(9.2.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/6.2.1.2)]
+      x-compute-request-id: [req-f34e0fb6-ea74-4b88-9ee5-92f1d588eb37]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['0']
+      Content-Type: [application/json]
+    method: DELETE
+    uri: https://iad.servers.api.rackspacecloud.com:443/v2/redacted/os-keypairs/Public%20Key%20for%20Deployment%20663c870503714534bc40d4d010b9a0f4
+  response:
+    body: {string: !!python/unicode ''}
+    headers:
+      content-length: ['0']
+      content-type: [text/html; charset=UTF-8]
+      date: ['Mon, 09 Mar 2015 10:53:32 GMT', 'Mon, 09 Mar 2015 10:53:32 GMT']
+      server: [Jetty(9.2.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/6.2.1.2)]
+      x-compute-request-id: [req-776a110c-3f02-4b1a-a7a3-184ba3290da6]
+    status: {code: 202, message: Accepted}
+version: 1
