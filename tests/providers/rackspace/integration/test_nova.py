@@ -120,13 +120,6 @@ class TestNovaKeyPairsAPI(unittest.TestCase):
         with self.assertRaises(exceptions.CheckmateException):
             nova.list_keypairs(self.context, u'YYZ')
 
-    def test_bad_tenant(self):
-        """Invalid tenant results in an HTTP error."""
-        context = self.context.copy()
-        context['tenant'] = 'invalid'
-        with self.vcr.use_cassette('vcr-nova-keypair-tenant-invalid.yaml'):
-            nova.list_keypairs(context, self.region)
-
     def test_bad_token(self):
         """Invalid token results in an HTTP error."""
         context = self.context.copy()
