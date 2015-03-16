@@ -23,6 +23,7 @@ import os
 import requests
 from voluptuous import Schema
 
+from checkmate import consts
 from checkmate import exceptions
 
 LOG = logging.getLogger(__name__)
@@ -107,46 +108,8 @@ def create_keypair(context, region, name):
     if context.get('simulation') is True:
         result = {
             "keypair": {
-                "public_key": (
-                    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDWaWqWXQRFwfd06/UwR"
-                    "VDEmSNbjTfkmoBMF9i4UqHcmtUK33cy9zt5PF8AXJa1qQqPJ94Ydsp+qQ"
-                    "FXeViZiMGKxYUAESDpm4ONG1nMbKfuVhjv98W7JK/09SR18uZtivCnHyy"
-                    "m6KR51gEJfvd0Lj3svG42esB9frh44jbqyt1Mr8kJnXTsZb6qFA3Qf5nt"
-                    "UqwiDJMlA4lISsNFLgR20eRtJTEhuvmENglbDAkiGpH4UYpNegbLzMaBO"
-                    "b6Sa86uf2Zs/1MngdWQ9UMpeXz7wEB5mTODq0x+8igaUw7A6E5LXizU5R"
-                    "GiomitBmihOQOywcFgMv+/dooKWZmqDWfgQnfV Generated-by-Nova"
-                ),
-                "private_key": (
-                    "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA1mlqll0E"
-                    "RcH3dOv1MEVQxJkjW4035JqATBfYuFKh3JrVCt93\nMvc7eTxfAFyWtak"
-                    "KjyfeGHbKfqkBV3lYmYjBisWFABEg6ZuDjRtZzGyn7lYY7/fF\nuySv9P"
-                    "UkdfLmbYrwpx8spuikedYBCX73dC497LxuNnrAfX64eOI26srdTK/JCZ1"
-                    "0\n7GW+qhQN0H+Z7VKsIgyTJQOJSErDRS4EdtHkbSUxIbr5hDYJWwwJIh"
-                    "qR+FGKTXoG\ny8zGgTm+kmvOrn9mbP9TJ4HVkPVDKXl8+8BAeZkzg6tMf"
-                    "vIoGlMOwOhOS14s1OUR\noqJorQZooTkDssHBYDL/v3aKClmZqg1n4EJ3"
-                    "1QIDAQABAoIBAQDKRisC7X+xW5rb\nGBt4zXuz7RC5NxGqvcMZhkmzImm"
-                    "HGB6yIj1uvGTELBsn2TFo8a9/fEn/ZFoGgeQ9\nJMJcHfMQuuSNOpuFJ2"
-                    "xEu6/Mthj7NQhTorlMowDIpFggWeXfI/uCflt+nu1D74uM\n7NYAKfvLk"
-                    "byb8tQT0G+xwx+yA24g/97FpIj+L8fEX4+BCFt5bEc5kAb8LOmpAYhT\n"
-                    "CWh/rGeg5+jXJHlUq2TBB7WigJ39XOYdZ7wIy4H2DuXcakL+yoeKnBRla"
-                    "xjJ3vFo\nUMlV8LXUUzt2g6eXIR2O5EnCRcombr9qT2s1z3Hm1/GNjFtS"
-                    "jGzi7sRE11xglWkH\nQLEVA2llAoGBAPRO3LBHN/FHPXMECwtjYxWVZIV"
-                    "Go0rXQPUYjItJ5/kZ2Nmf3t6f\npJFBkfBHz07i0Wq9fAG9Wyo8+/Uc7o"
-                    "iryUda6KaEwM/GuNnpcXKYxFE2ZR0aEHES\nGPfxRIDgNJ0RUe1fr0MP5"
-                    "jRzfeWbpMMsYTNsTtY+5xeAQ/2N2BYe9MQzAoGBAOCs\nR8cQggruXcyp"
-                    "SSYgZtN0N7nhUxCq73DeNptTn94lBVLUBBfGPmUSX7kSYZ6CGaiL\nUXN"
-                    "jb3M110qNhmKdEO5rDxSbomCVuvZ9E0RjnQEd17uPktcsd7dEhaFwj2cG"
-                    "yr2E\niyAsxlEGhIoSOH9Ivt8A0MIs7Ro4jqHojS5jLovXAoGACeS/ryv"
-                    "TKiQ2atf5Eob9\n1jvsjDEmH7vD16kc1+8wQ7g2Penpfp58bZ14KYDe9l"
-                    "TdIjN2OCPQ807w7SY0yrga\nOJeH4GZz4HYtujVn8LobCSboxVru24VeG"
-                    "Xxdx9JMjyfKZ5B+anrUWb9rk8bPz0+W\nyBxUvPxjI2KAXl5GJ+8s/l0C"
-                    "gYAlbAy4l4NRlsqA4GGSvCrkZaMyjtlrGU2wmxK1\nZIRoV/o/BZl47Eh"
-                    "QRXM0PF+OK1ViwXHbqmBR7FHj1RbhLhA35hUo9ZNiSw5NKCAh\ncAYivX"
-                    "nFf/CRbpKyL/OiJEF+g58ZWg5iWZLexBsndEl8yf0g393lud30VB9N0JJ"
-                    "T\ne6mxGQKBgQDXkW98luR/RBmNhFWKdU3ufuWZdJiADFUXMnICsItNkI"
-                    "b01XnzPfzd\nk4j33H7qpBGBQPtPW50/fSphcmUmmqpPvAFoG94xbb3os"
-                    "sm4wF1cuaovduYU49EB\nTsX8CbqySO36GG2q1CiRrRStOjZJm2SKNxYQ"
-                    "xZN8S836Q3j7hUXJTQ==\n-----END RSA PRIVATE KEY-----\n"),
+                "public_key": consts.DUMMY_PUBLIC_KEY_SSH,
+                "private_key": consts.DUMMY_PRIVATE_KEY,
                 "user_id": "f75b5a4bbd1f4821944ff0ae2468fa32",
                 "name": name,
                 "fingerprint":
