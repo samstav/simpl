@@ -1779,10 +1779,10 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 }
 
 //Blueprint controllers
-function BlueprintsController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, DeploymentData) {
-  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null, DeploymentData);
+function BlueprintsController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, DeploymentData, redirectUri) {
+  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null, DeploymentData, redirectUri);
 }
-function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, blueprints, initial_blueprint, environments, initial_environment, DeploymentData) {
+function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, blueprints, initial_blueprint, environments, initial_environment, DeploymentData, redirectUri) {
   //Model: UI
   $scope.showSummaries = true;
   $scope.showStatus = true;
@@ -1815,7 +1815,7 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   }
 
   //Inherit from Deployment Initializer
-  DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, $scope.selected, $scope.environment, DeploymentData);
+  DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, $scope.selected, $scope.environment, DeploymentData, redirectUri);
 
   //Wire Blueprints to Deployment
   $scope.$watch('selected', function(newVal, oldVal, scope) {
@@ -1825,9 +1825,9 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   });
 }
 
-function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors) {
+function BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors, redirectUri) {
   //Inherit from Blueprint List Controller
-  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null, DeploymentData);
+  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null, DeploymentData, redirectUri);
   //Model: UI
   $scope.loading_remote_blueprints = false;
 
@@ -2600,7 +2600,7 @@ function DeploymentManagedCloudController($scope, $location, $routeParams, $reso
 }
 
 //Select one remote blueprint
-function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors) {
+function DeploymentNewRemoteController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors, redirectUri) {
   var blueprint = $location.search().blueprint;
   var u;
   var owner = $routeParams.owner;
@@ -2626,7 +2626,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
     $location.path('/deployments/new/' + default_blueprint);
   }
 
-  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors);
+  BlueprintRemoteListController($scope, $location, $routeParams, $resource, $http, items, navbar, options, workflow, github, DeploymentData, Flavors, redirectUri);
 
   // Override it with a one repo load
   $scope.load = function() {
@@ -2653,7 +2653,7 @@ function DeploymentNewRemoteController($scope, $location, $routeParams, $resourc
 }
 
 // Handles the option option and deployment launching
-function DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, blueprint, environment, DeploymentData) {
+function DeploymentNewController($scope, $location, $routeParams, $resource, options, workflow, blueprint, environment, DeploymentData, redirectUri) {
   $scope.environment = environment;
   $scope.options = [];
   $scope.inputs = {};
