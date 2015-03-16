@@ -62,8 +62,8 @@ class TestNovaKeyPairsAPI(unittest.TestCase):
     credentials. If you have OpenStack configured in your environment, you can
     use the environmnet variables like this:
 
-        python test_nova.py --record $OS_TENANT_ID $OS_USERNAME $OS_PASSWORD \
-        $OS_REGION_NAME
+        python tests/providers/rackspace/integration/test_nova.py --record \
+        $OS_TENANT_ID $OS_USERNAME $OS_PASSWORD $OS_REGION_NAME
 
     Otherwise, the pre-recorded responses will be used.
 
