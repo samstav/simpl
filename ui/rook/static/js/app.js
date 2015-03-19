@@ -69,8 +69,30 @@ checkmate
               }
             }
           };
+
+          if($cookies.auth_host) {
+            auth.identity.auth_host = $cookies.auth_host
+          }
+
+          if($cookies.auth_url) {
+            auth.identity.auth_url = $cookies.auth_url
+          }
+
+          if($cookies.cm_admin) {
+            auth.identity.is_admin = true;
+          }
+
+          if($cookies.auth_endpoint_type) {
+            auth.identity.endpoint_type = $cookies.auth_endpoint_type;
+          }
+
           if (!auth.is_logged_in()) {
             $window.sessionStorage.setItem('auth', JSON.stringify(data));
+            auth.restore();
+          }
+
+          if($cookies.cm_impersonate) {
+            auth.impersonate($cookies.cm_impersonate);
           }
         }
       }
