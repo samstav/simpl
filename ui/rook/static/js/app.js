@@ -161,7 +161,7 @@ checkmate
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: 'DeploymentManagedCloudController'
   })
-  .when('/deployments/new/:owner?/:repo?', {
+  .when('/:tenantId?/deployments/new/:owner?/:repo?', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: 'DeploymentNewRemoteController',
     reloadOnSearch: false
@@ -183,11 +183,6 @@ checkmate
         return github.get_public_blueprint(owner, repo, flavor);
       }
     }
-  })
-  .when('/:tenantId/deployments/new', {
-    templateUrl: '/partials/deployment-new-remote.html',
-    controller: 'DeploymentNewRemoteController',
-    reloadOnSearch: false
   })
   .when('/deployments/stacks/wordpress', {
     templateUrl: '/partials/wordpress-stacks.html',
