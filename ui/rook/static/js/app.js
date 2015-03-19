@@ -77,7 +77,10 @@ checkmate
             token: {
               id: auth_token
             },
-            username: auth_username
+            username: auth_username,
+            user: {
+              roles: []
+            }
           };
 
           /**
@@ -118,10 +121,14 @@ checkmate
 
            /**
            * When a user is not logged in, set the session and restore the auth.
+           * Otherwise, temporarily set the data.
            */
           if (!auth.is_logged_in()) {
             $window.sessionStorage.setItem('auth', JSON.stringify(data));
             auth.restore();
+          } else {
+            auth.identity = data.auth.identity;
+            auth.context = data.auth.context;
           }
 
            /**
