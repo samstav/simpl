@@ -137,6 +137,19 @@ checkmate
           if(cm_impersonate) {
             auth.impersonate(cm_impersonate);
           }
+
+          /**
+          * Let's remove the cookies. Our auth is saved in sessionStorage and should
+          * be able to be cleared like normal. If the cookies remained, the app
+          * would continue to re-auth them unintentionally.
+          */
+          delete $cookies.auth_endpoint_type;
+          delete $cookies.auth_token;
+          delete $cookies.auth_host;
+          delete $cookies.auth_url;
+          delete $cookies.auth_username;
+          delete $cookies.cm_admin;
+          delete $cookies.cm_impersonate;
         }
       }
     }
