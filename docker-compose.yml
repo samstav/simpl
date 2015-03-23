@@ -1,0 +1,44 @@
+redis:
+  image: dockerfile/redis
+  ports:
+    - 6379:6379
+mongo:
+  image: dockerfile/mongodb
+  ports:
+    - 27017:27017
+api:
+  build: .
+  ports:
+    - 8080:8080
+  links:
+   - redis:redis
+   - mongo:mongo
+  volumes:
+    - .:/home/checkmate
+  environment:
+    - CHECKMATE_BROKER_URL=redis://redis/0
+    - CELERY_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_CELERY_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_CACHE_CONNECTION_STRING=redis://redis/2
+    - CHECKMATE_CONNECTION_STRING=mongodb://mongo/checkmate
+    - CHECKMATE_SIMULATOR_CONNECTION_STRING=mongodb://mongo/checkmate
+    - CHECKMATE_LOCK_CONNECTION_STRING=mongodb://mongo/checkmate
+  command: "/app/bin/checkmate-server START --with-ui --with-simulator --with-admin --eventlet 0.0.0.0:8080"
+worker:
+  build: .
+  links:
+   - redis:redis
+   - mongo:mongo
+  volumes:
+    - .:/home/checkmate
+  environment:
+    - CHECKMATE_BROKER_URL=redis://redis/0
+    - CELERY_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_CELERY_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_CACHE_CONNECTION_STRING=redis://redis/2
+    - CHECKMATE_CONNECTION_STRING=mongodb://mongo/checkmate
+    - CHECKMATE_SIMULATOR_CONNECTION_STRING=mongodb://mongo/checkmate
+    - CHECKMATE_LOCK_CONNECTION_STRING=mongodb://mongo/checkmate
+  command: "/app/bin/checkmate-queue START -P eventlet"
