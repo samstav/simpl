@@ -45,55 +45,111 @@ checkmate
       myIframe.contentWindow.postMessage({authToken: 'dfgsdfgsdgfdgf', url: 'http....'}, '*');
 
       */
-      if ($cookies.auth_token) {
-        console.log('Found auth_token cookie');
-        if (typeof $cookies.auth_token === 'string' && $cookies.auth_token.length > 0) {
-          // Hand-off a stubbed auth context to the auth service
+      var auth_token = $cookies.auth_token;
+
+      if (auth_token) {
+        console.log('Found auth_token cookie.');
+        if (typeof auth_token === 'string' && auth_token.length > 0) {
+          /**
+           * Cache some cookie values if we got 'em.
+           */
+          var auth_endpoint_type = $cookies.auth_endpoint_type;
+          var auth_host = $cookies.auth_host;
+          var auth_url = $cookies.auth_url;
+          var auth_username = $cookies.auth_username;
+          var cm_admin = $cookies.cm_admin ? true : false;
+          var cm_impersonate = $cookies.cm_impersonate;
+
+          /**
+           * Setup the data object to be saved in session storage.
+           */
           var data = {
             auth: {
-              identity: {
-                expiration: new Date((new Date()).getTime() + (60 * 60 * 1000)),
-                token: {
-                  id: $cookies.auth_token,
-                },
-                auth_host: decodeURIComponent($cookies.auth_host),
-                username: $cookies.auth_username
-              },
-              context: {
-                token: {
-                  id: $cookies.auth_token,
-                  expires: new Date((new Date()).getTime() + (60 * 60 * 1000))
-                },
-                username: $cookies.auth_username,
-                auth_url: decodeURIComponent($cookies.auth_host)
-              }
+              identity: {},
+              context: {}
             }
           };
 
-          if($cookies.auth_host) {
-            auth.identity.auth_host = $cookies.auth_host
+          /**
+           * Setup a reusable identity context object.
+           */
+          var identity = {
+            token: {
+              id: auth_token
+            },
+            username: auth_username,
+            user: {
+              roles: []
+            }
+          };
+
+          /**
+           * Set a one hour expiration date for this token.
+           */
+          var expiration = new Date((new Date()).getTime() + (60 * 60 * 1000));
+
+          if(auth_host) {
+            identity.auth_host = decodeURIComponent(auth_host);
           }
 
-          if($cookies.auth_url) {
-            auth.identity.auth_url = $cookies.auth_url
+          if(auth_url) {
+            identity.auth_url = decodeURIComponent(auth_url);
           }
 
-          if($cookies.cm_admin) {
-            auth.identity.is_admin = true;
+          if(cm_admin) {
+            identity.is_admin = cm_admin;
           }
 
-          if($cookies.auth_endpoint_type) {
-            auth.identity.endpoint_type = $cookies.auth_endpoint_type;
+          if(auth_endpoint_type) {
+            identity.endpoint_type = auth_endpoint_type;
           }
 
+          /**
+           * We want to extend our auth object consistently to build a useable
+           * auth object that mimics the native schema.
+           */
+          angular.extend(data.auth.identity, identity);
+          angular.extend(data.auth.context, identity);
+
+          /**
+           * Additionally, some of the properties may require specific properties
+           * so we'll set them and then inject the context back into identity.
+           */
+          data.auth.identity.expiration = expiration;
+          data.auth.context.token.expires = expiration;
+          data.auth.identity.context = angular.copy(data.auth.context);
+
+           /**
+           * When a user is not logged in, set the session and restore the auth.
+           * Otherwise, temporarily set the data.
+           */
           if (!auth.is_logged_in()) {
             $window.sessionStorage.setItem('auth', JSON.stringify(data));
             auth.restore();
+          } else {
+            auth.identity = data.auth.identity;
+            auth.context = data.auth.context;
           }
 
-          if($cookies.cm_impersonate) {
-            auth.impersonate($cookies.cm_impersonate);
+           /**
+           * This executes a user impersonation if a cookie is present for it.
+           */
+          if(cm_impersonate) {
+            auth.impersonate(cm_impersonate);
           }
+
+          /**
+          * Let's remove the cookies. Our auth is saved in sessionStorage and should
+          * be able to be cleared like normal. If the cookies remained, the app
+          * would continue to re-auth them unintentionally.
+          */
+          delete $cookies.auth_endpoint_type;
+          delete $cookies.auth_token;
+          delete $cookies.auth_host;
+          delete $cookies.auth_url;
+          delete $cookies.auth_username;
+          delete $cookies.cm_admin;
+          delete $cookies.cm_impersonate;
         }
       }
     }
@@ -125,7 +181,7 @@ checkmate
     templateUrl: '/partials/managed-cloud-wordpress.html',
     controller: 'DeploymentManagedCloudController'
   })
-  .when('/deployments/new/:owner?/:repo?', {
+  .when('/:tenantId?/deployments/new/:owner?/:repo?', {
     templateUrl: '/partials/deployment-new-remote.html',
     controller: 'DeploymentNewRemoteController',
     reloadOnSearch: false
@@ -147,11 +203,6 @@ checkmate
         return github.get_public_blueprint(owner, repo, flavor);
       }
     }
-  })
-  .when('/:tenantId/deployments/new', {
-    templateUrl: '/partials/deployment-new-remote.html',
-    controller: 'DeploymentNewRemoteController',
-    reloadOnSearch: false
   })
   .when('/deployments/stacks/wordpress', {
     templateUrl: '/partials/wordpress-stacks.html',
