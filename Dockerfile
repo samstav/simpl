@@ -12,7 +12,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
     git \
     libssl-dev \
     wget \
-    libreadline-dev
+    libreadline-dev \
+    locales
+
+RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+ENV LANG en_US.UTF-8
 
 # Install pip from get-pip in order to avoid issues with the Ubuntu pip
 # package and issues with using easy_install to install pip. This is
