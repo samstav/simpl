@@ -13,7 +13,6 @@
 #    under the License.
 
 # encoding: utf-8
-# pylint: disable=C0103
 
 """Provider module for interfacing with Redis via Cloud Databases."""
 
@@ -39,7 +38,7 @@ URL = 'https://%s.databases.api.rackspacecloud.com/v1.0/%s'  # region, t_id
 _config_params_cache = {}
 _version_id_cache = {'expires': None}
 # TODO(pablo): statuses should become Checkmate's (not Cloud Databases')
-validate_instance_details = Schema(
+_validate_instance_details = Schema(
     {
         'id': basestring,
         'name': basestring,
@@ -59,7 +58,7 @@ validate_instance_details = Schema(
     },
     required=True
 )
-validate_db_config = Schema(
+_validate_db_config = Schema(
     {
         'configuration': {
             'created': basestring,
@@ -76,6 +75,16 @@ validate_db_config = Schema(
     },
     required=True
 )
+
+
+def validate_instance_details(data):
+    """Run data through instance validator."""
+    return _validate_instance_details(data)
+
+
+def validate_db_config(data):
+    """Run data through database validator."""
+    return _validate_db_config(data)
 
 
 class CDBException(Exception):
