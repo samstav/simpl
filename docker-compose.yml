@@ -1,9 +1,9 @@
 redis:
-  image: dockerfile/redis
+  image: redis
   ports:
     - 6379:6379
 mongo:
-  image: dockerfile/mongodb
+  image: mongo
   ports:
     - 27017:27017
 api:
@@ -15,7 +15,11 @@ api:
    - mongo:mongo
   volumes:
     - .:/home/checkmate
+    - contrib/secring:/etc/configs/secring.gpg
   environment:
+    - PREFIX=staging
+    - ETCDCTL_PEERS=http://192.168.59.103:4001
+    - LOAD_ENV_FROM_ETCD=True
     - CHECKMATE_BROKER_URL=redis://redis/0
     - CELERY_RESULT_BACKEND=redis://redis/1
     - CHECKMATE_RESULT_BACKEND=redis://redis/1
@@ -32,7 +36,11 @@ worker:
    - mongo:mongo
   volumes:
     - .:/home/checkmate
+    - contrib/secring:/etc/configs/secring.gpg
   environment:
+    - PREFIX=staging
+    - ETCDCTL_PEERS=http://192.168.59.103:4001
+    - LOAD_ENV_FROM_ETCD=True
     - CHECKMATE_BROKER_URL=redis://redis/0
     - CELERY_RESULT_BACKEND=redis://redis/1
     - CHECKMATE_RESULT_BACKEND=redis://redis/1
