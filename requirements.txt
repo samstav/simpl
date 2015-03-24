@@ -1,3 +1,11 @@
+# This file contains a pip-frozen set of a known, working, tested dependencies
+#
+# This file includes all dependencies and dependencies of dependencies to
+# guarantee that upstream changes won't cause a conflict during setup.
+#
+# For a list of imported dependencies in the code see the REQUIRES list in
+# setup.py
+
 # Use pip to install these requirements before installing checkmate:
 # pip install -r requirements.txt
 #
@@ -19,7 +27,7 @@
 #   Notes:    Some of our changes have been pushed upstream but not in a
 #             while. There have been other changes to upstream that aren't
 #             compatible with our changes.
--e git://github.com/checkmate/SpiffWorkflow.git@fea9482e545d851954de6b128f8d92f2edeb6f15#egg=SpiffWorkflow
+-e git://github.com/checkmate/SpiffWorkflow.git@fea9482e545d851954de6b128f8d92f2edeb6f15#egg=SpiffWorkflow-0.3.2_rackspace
 
 ##### Rackspace client packages that have been abandoned because of pyrax. We
 #     have forked and modified these in some way.
@@ -51,38 +59,72 @@
 -e git://github.com/samstav/satori.git@bug/1389034#egg=satori
 
 # Includes SSL support for eventlet for use in simpler debugging for Encore UI
--e git+https://github.com/ziadsawalha/bottle.git@ssl#egg=bottle
+-e git://github.com/ziadsawalha/bottle.git@ssl#egg=bottle
 
-#### Checkmate packages
+#### Checkmate direct dependencies (alphabetical)
 airbrake==1.1.4
-amqp==1.4.6
-anyjson==0.3.3
 arrow==0.4.4
-billiard==3.3.0.19
 celery==3.1.17
 eventlet==0.15.2
-impacket==0.9.12
+futures==2.2.0
+httplib2==0.9
+ipaddress==1.0.7
 Jinja2==2.7.3
-kombu==3.0.24
+keyring==5.3
 morpheus==0.0.4
-oslo.config==1.6.0
+netaddr==0.7.13
+netifaces==0.10.4
 pam==0.1.4
 paramiko==1.15.1
 passlib==1.6.2
 prettytable==0.7.2
-pycrypto==2.6.1
-pymongo==2.7.2
-python-novaclient==2.20.0
-#pyrax==1.4.11
-python-keystoneclient==0.11.2
-python-statsd==1.7.2
 PyChef==0.2.3
+pycrypto==2.6.1
 PyGithub==1.25.2
+pymongo==2.7.2
+python-dateutil==2.4.1
+python-keystoneclient==0.11.2
+python-novaclient==2.20.0
+python-statsd==1.7.2
+pytz==2015.2
 PyYAML==3.11
 redis==2.10.3
 requests==2.5.0
 simplefsm==0.1.3
-SQLAlchemy==0.9.8
+SQLAlchemy==0.9.8  # pending deprecation
 tldextract==1.5.1
 voluptuous==0.8.7
 WebOb==1.4
+
+# Locked dependencies of dependencies
+amqp==1.4.6
+anyjson==0.3.3
+Babel==1.3
+billiard==3.3.0.19
+ecdsa==0.13
+gitdb==0.6.4
+greenlet==0.4.5
+impacket==0.9.12
+iso8601==0.1.10
+kombu==3.0.24
+MarkupSafe==0.23
+msgpack-python==0.4.6
+os-diskconfig-python-novaclient-ext==0.1.2
+os-networksv2-python-novaclient-ext==0.25
+os-virtual-interfacesv2-python-novaclient-ext==0.19
+oslo.config==1.6.0
+oslo.i18n==1.5.0
+oslo.serialization==1.4.0
+oslo.utils==1.4.0
+Paste==1.7.5.1
+pbr==0.10.8
+python-swiftclient==2.3.1
+pythonwhois==2.4.3
+rackspace-auth-openstack==1.3
+rackspace-novaclient==1.4
+rax-default-network-flags-python-novaclient-ext==0.3.1
+rax-scheduled-images-python-novaclient-ext==0.3.1
+simplejson==3.6.5
+six==1.9.0
+smmap==0.9.0
+stevedore==1.3.0
