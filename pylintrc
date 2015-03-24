@@ -10,3 +10,11 @@ no-docstring-rgx=(__.*__|[tT]est.*|setUp|tearDown)
 [MASTER]
 # We try to keep contrib files unmodified
 ignore=contrib,common/patterns.yaml
+
+
+# Regular expression which should only match correct module level names
+# CONSTS, __hidden__, and _module_variables
+# The use of the _module_variables convention is not a common standard, but we
+# use it for module level variables which are used as mutables (i.e. not
+# constants)
+const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__)|(_[a-z][a-z0-9_]*))$
