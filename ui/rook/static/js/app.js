@@ -131,6 +131,11 @@ checkmate
             auth.context = data.auth.context;
           }
 
+          /**
+           * Checking the state sets some auth variables correctly.
+           */
+           auth.check_state();
+
            /**
            * This executes a user impersonation if a cookie is present for it.
            */
