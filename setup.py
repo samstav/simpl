@@ -33,12 +33,23 @@ from checkmate.common import setup as setup_tools
 TestCommand = test.test
 
 REQUIRES = setup_tools.parse_requirements()
+
+
 if 'develop' in sys.argv:
-    print ("We are assuming that since you're developing you have the\n"
-           "dependency repos set up for development as well. If not,\n"
-           "run 'pip install -r requirements.txt' to install them")
+    # For a developer install, do not lock dependency versions or overwrite
+    # the virtual environment that the developer has set up, since that might
+    # include updated forks and dependencies as part of the development process
+    # ... but do warn about that
+    _forked = setup_tools.parse_dependency_links()
+    print (
+        "**************       DEPENDENCY WARNING          ****************\n"
+        "We are assuming that since you're running 'develop' that you know\n"
+        "to install the forked dependencies from the correct forks. If not,\n"
+        "you might want to run 'pip install -r requirements.txt' to install\n"
+        "the following forks:\n\n  %s\n" % '\n  '.join(_forked))
     DEPENDENCYLINKS = []
 else:
+    # A non-developer install, so use the tested versions from requirements.txt
     DEPENDENCYLINKS = setup_tools.parse_dependency_links()
 
 
