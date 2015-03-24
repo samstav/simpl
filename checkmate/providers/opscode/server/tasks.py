@@ -353,6 +353,9 @@ def delete_environment(context, deployment, name, api=None):
                   exc)
         delete_environment.retry(exc=exc)
     except Exception as exc:
+        if "could not be found" in repr(exc):
+            LOG.info("Chef Environment %s already deleted.", name)
+            return True
         LOG.debug('Environment deletion failed. Error: %s. Retrying.', exc)
         delete_environment.retry(exc=exc)
 
@@ -387,6 +390,9 @@ def delete_node(context, deployment, name, api=None):
                   exc)
         delete_node.retry(exc=exc)
     except Exception as exc:
+        if "could not be found" in repr(exc):
+            LOG.info("Chef Node %s already deleted.", name)
+            return True
         LOG.debug('Node deletion failed. Error: %s. Retrying.', exc)
         delete_node.retry(exc=exc)
 
@@ -421,6 +427,9 @@ def delete_client(context, deployment, name, api=None):
                   exc)
         delete_client.retry(exc=exc)
     except Exception as exc:
+        if "could not be found" in repr(exc):
+            LOG.info("Chef Client %s already deleted.", name)
+            return True
         LOG.debug('Client deletion failed. Error: %s. Retrying.', exc)
         delete_client.retry(exc=exc)
 

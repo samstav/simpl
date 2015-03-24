@@ -1257,13 +1257,15 @@ def run_ruby_command(path, command, params, env=None, lock=True):
         try:
             if path:
                 os.chdir(path)
-            result = subprc.check_output(params, cwd=path, env=env)
+            result = subprc.check_output(params, cwd=path, env=env,
+                                         stderr=subprc.STDOUT)
         except OSError as exc:
             if exc.errno == errno.ENOENT:
                 # Check if command is installed
                 output = None
                 try:
-                    output = subprc.check_output(['which', command])
+                    output = subprc.check_output(['which', command],
+                                                 stderr=subprc.STDOUT)
                 except subprc.CalledProcessError:
                     pass
                 if not output:
@@ -1284,7 +1286,8 @@ def run_ruby_command(path, command, params, env=None, lock=True):
     else:
         if path:
             os.chdir(path)
-        result = subprc.check_output(params, cwd=path, env=env)
+        result = subprc.check_output(params, cwd=path, env=env,
+                                     stderr=subprc.STDOUT)
     LOG.debug(result)
     return result
 
