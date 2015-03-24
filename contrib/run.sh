@@ -2,7 +2,7 @@
 
 echo "Fetching environment..."
 
-/usr/bin/python /app/bootstrap.py
+python /app/bootstrap.py
 
 echo "Setting environment in etcd..."
 
