@@ -98,10 +98,16 @@ class PasswordSafeWrapper(object):
         else:
             return results[0][ps_field]
 
-    def _get_project_credentials(self):
+    def _get_project_credentials(self, retry=True):
         output('retrieving credentials')
-        resp = self.sess.get(
-            self.passwordsafe_url + '/projects/%s/credentials' % self.project_id)
+        resp = self.sess.get(self.passwordsafe_url +
+                             '/projects/%s/credentials' %
+                             self.project_id)
+
+        # PS has a tendency to occasionally return 403's
+        # adding in a single retry to alleviate this.
+        if retry and resp.status_code == 403:
+            self._get_project_credentials(retry=False)
         resp.raise_for_status()
         credentials = [result['credential'] for result in resp.json()]
         output('found %d credentials', len(credentials))
