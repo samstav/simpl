@@ -164,7 +164,7 @@ class Manager(object):
         except StandardError as exc:
             LOG.error("Knife prepare failed with an unhandled error '%s' for "
                       "%s.", exc, host)
-            raise exc
+            raise
 
         try:
             results = ssh.remote_execute(host, "knife -v", 'root',

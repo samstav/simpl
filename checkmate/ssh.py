@@ -226,14 +226,14 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
                       "password succeeded", username, ip, port)
         LOG.debug("Connected to ssh://%s@%s:%d.", username, ip, port)
         return client
-    except paramiko.PasswordRequiredException as exc:
+    except paramiko.PasswordRequiredException:
         # Looks like we have cert issues, so try password auth if we can
         if password:
             LOG.debug("Retrying with password credentials")
             return connect(ip, username=username, timeout=timeout,
                            password=password, port=port)
         else:
-            raise exc
+            raise
     except paramiko.BadHostKeyException as exc:
         msg = ("ssh://%s@%s:%d failed:  %s. You might have a bad key "
                "entry on your server, but this is a security issue and won't "
@@ -241,10 +241,10 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
                "host entry for this host from the /.ssh/known_hosts file" %
                (username, ip, port, exc))
         LOG.info(msg)
-        raise exc
+        raise
     except Exception as exc:
         LOG.info('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
-        raise exc
+        raise
 
 
 def ps_execute(host, script, filename, username, password, port=445,

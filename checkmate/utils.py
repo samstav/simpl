@@ -1272,7 +1272,7 @@ def run_ruby_command(path, command, params, env=None, lock=True):
                     msg = ("'%s' is not installed or not accessible on "
                            "the server" % command)
                     raise cmexc.CheckmateException(msg)
-            raise exc
+            raise
         except subprc.CalledProcessError as exc:
             # retry and pass ex
             # CalledProcessError cannot be serialized using Pickle,

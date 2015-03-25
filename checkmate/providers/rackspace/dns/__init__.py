@@ -64,9 +64,9 @@ def create_domain(context, domain, email=None,
         if "connection" in ser_dom:
             del ser_dom["connection"]
         return ser_dom
-    except pyrax.exceptions.DomainRecordAdditionFailed as exc:
+    except pyrax.exceptions.DomainRecordAdditionFailed:
         LOG.debug('Domain %s is invalid.  Refusing to retry.', domain)
-        raise exc
+        raise
     except pyrax.exceptions.ClientException as resp_error:
         LOG.debug('Error creating domain %s.(%s) %s. Retrying.', domain,
                   resp_error.code, resp_error.message)

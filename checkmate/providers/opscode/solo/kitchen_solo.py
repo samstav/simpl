@@ -90,8 +90,8 @@ class KitchenSolo(kitchen.ChefKitchen):
                 LOG.info("Node %s written in %s", node,
                          node_path, extra=dict(data=node))
                 return node
-            except StandardError as exc:
-                raise exc
+            except StandardError:
+                raise
             finally:
                 lock.release()
 

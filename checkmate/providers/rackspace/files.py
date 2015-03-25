@@ -46,15 +46,15 @@ def connect(context):
         api = cloudfiles.get_connection(
             context.username, context.apikey, timeout=15
         )
-    except cloudfiles.errors.AuthenticationFailed as exc:
+    except cloudfiles.errors.AuthenticationFailed:
         LOG.error('Cloud Files authentication failed.')
-        raise exc
-    except cloudfiles.errors.AuthenticationError as exc:
+        raise
+    except cloudfiles.errors.AuthenticationError:
         LOG.error('Cloud Files authentication error.')
-        raise exc
+        raise
     except StandardError as exc:
         LOG.error('Error connecting to Cloud Files: %s', exc)
-        raise exc
+        raise
 
     return api
 
@@ -79,12 +79,12 @@ def create_container(context, deployment, name, api=None):
         else:
             api.create_container(name)
         LOG.debug('Created container %s.', name)
-    except cloudfiles.errors.InvalidContainerName as exc:
+    except cloudfiles.errors.InvalidContainerName:
         LOG.error('Invalid container name: %s', name)
-        raise exc
-    except cloudfiles.errors.ContainerExists as exc:
+        raise
+    except cloudfiles.errors.ContainerExists:
         LOG.error('Container %s already exists.', name)
-        raise exc
+        raise
 
 
 @task.task
@@ -98,9 +98,9 @@ def delete_container(deployment, name, api=None):
     try:
         api.delete_container(name)
         LOG.debug('Deleted container %s.', name)
-    except cloudfiles.errors.ContainerNotEmpty as exc:
+    except cloudfiles.errors.ContainerNotEmpty:
         LOG.error('Cannot delete container %s because it is not empty.', name)
-        raise exc
-    except cloudfiles.errors.NoSuchContainer as exc:
+        raise
+    except cloudfiles.errors.NoSuchContainer:
         LOG.error('Canot delete container %s because it does not exist.', name)
-        raise exc
+        raise

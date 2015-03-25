@@ -865,9 +865,9 @@ class Driver(common.DbBase):
                 self.database()[klass].update(
                     {'_id': api_id}, body, not merge_existing,  # Upsert new
                     manipulate=True, check_keys=False)
-            except Exception as exc:
+            except Exception:
                 LOG.exception("MongoDB error")
-                raise exc
+                raise
             if secrets:
                 secrets['_id'] = api_id
                 self.database()['%s_secrets' % klass].update({'_id': api_id},

@@ -56,7 +56,7 @@ class Manager(object):
             data['status-message'] = 'Error waiting on resource to build'
             data['error-message'] = exc.message
             callback(data)
-            raise exc
+            raise
 
         if data['status'] == 'ERROR':
             data['status-message'] = 'Instance went into status ERROR'
