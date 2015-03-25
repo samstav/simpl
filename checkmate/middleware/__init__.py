@@ -247,7 +247,7 @@ class ExceptionMiddleware(object):
         except Exception as exc:
             print("*** %s ***" % exc)
             LOG.exception(exc)
-            raise exc
+            raise
 
 
 #

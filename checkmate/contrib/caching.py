@@ -181,7 +181,7 @@ class Cache(object):
             except Exception as exc:
                 if self.cache_exceptions:
                     self.cache(exc, self.get_hash(*args, **kwargs))
-                raise exc
+                raise
             LOG.debug("Caching result from function: %s:%s",
                       *funstr(func))
             self.cache(result, self.get_hash(*args, **kwargs))
@@ -392,7 +392,7 @@ class CacheMethod(Cache):
             except Exception as exc:
                 if self.cache_exceptions:
                     self.cache(exc, self.get_hash(*args, **kwargs))
-                raise exc
+                raise
             LOG.debug("Caching result from function: %s:%s",
                       *funstr(func))
             self.cache(result, self.get_hash(*args, **kwargs))

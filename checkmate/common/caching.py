@@ -290,7 +290,7 @@ class Cache:
                 self.reaper.start()
             except StandardError as exc:
                 print("Exception: %s" % exc)
-                raise exc
+                raise
 
     @staticmethod
     def _encode(data):

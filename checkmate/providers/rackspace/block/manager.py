@@ -107,7 +107,7 @@ class Manager(object):
                     'status-message': ''
                 }
             else:
-                raise exc
+                raise
 
         if volume:
             status = volume['status']

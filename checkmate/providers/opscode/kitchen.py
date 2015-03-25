@@ -171,8 +171,7 @@ class ChefKitchen(object):
             LOG.info("Created directory for %s", full_path)
         except OSError as exc:
             if exc.errno != errno.EEXIST:
-                raise exc
-            pass
+                raise
         with file(full_path, 'w') as handle:
             LOG.info("Writing to %s", full_path)
             handle.write(content)

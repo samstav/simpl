@@ -743,7 +743,7 @@ class ProviderTask(celery.Task):
             if exc.resumable:
                 return self.retry(exc=exc)
             else:
-                raise exc
+                raise
         if data:
             return self.callback(context, data)
 
