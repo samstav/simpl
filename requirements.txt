@@ -27,7 +27,7 @@
 #   Notes:    Some of our changes have been pushed upstream but not in a
 #             while. There have been other changes to upstream that aren't
 #             compatible with our changes.
--e git://github.com/checkmate/SpiffWorkflow.git@fea9482e545d851954de6b128f8d92f2edeb6f15#egg=SpiffWorkflow-0.3.2_rackspace
+-e git://github.com/checkmate/SpiffWorkflow.git@fea9482e545d851954de6b128f8d92f2edeb6f15#egg=SpiffWorkflow-0.3.2-rackspace
 
 ##### Rackspace client packages that have been abandoned because of pyrax. We
 #     have forked and modified these in some way.
