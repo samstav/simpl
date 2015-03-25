@@ -63,7 +63,7 @@ setup(
     test_suite='tests',
     install_requires=DEPENDENCIES,
     packages=find_packages(exclude=['tests']),
-    maintainer='Sam Stavinoha',
+    author='Rackers',
     maintainer_email='samuel.stavinoha@rackspace.com',
     classifiers=[
         "Programming Language :: Python",
