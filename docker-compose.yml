@@ -11,14 +11,16 @@ api:
   ports:
     - 8080:8080
   links:
-   - redis:redis
-   - mongo:mongo
+    - redis:redis
+    - mongo:mongo
+  external_links:
+    - etcd:etcd
   volumes:
     - .:/home/checkmate
     - contrib/secring:/etc/configs/secring.gpg
   environment:
     - PREFIX=staging
-    - ETCDCTL_PEERS=http://192.168.59.103:4001
+    - ETCDCTL_PEERS=http://etcd:4001
     - LOAD_ENV_FROM_ETCD=True
     - CHECKMATE_BROKER_URL=redis://redis/0
     - CELERY_RESULT_BACKEND=redis://redis/1
@@ -32,14 +34,16 @@ api:
 worker:
   build: .
   links:
-   - redis:redis
-   - mongo:mongo
+    - redis:redis
+    - mongo:mongo
+  external_links:
+    - etcd:etcd
   volumes:
     - .:/home/checkmate
     - contrib/secring:/etc/configs/secring.gpg
   environment:
     - PREFIX=staging
-    - ETCDCTL_PEERS=http://192.168.59.103:4001
+    - ETCDCTL_PEERS=http://etcd:4001
     - LOAD_ENV_FROM_ETCD=True
     - CHECKMATE_BROKER_URL=redis://redis/0
     - CELERY_RESULT_BACKEND=redis://redis/1

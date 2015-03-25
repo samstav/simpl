@@ -43,7 +43,7 @@ Checkmate.
 ```
 $ cd contrib
 $ docker build -t boostrap .
-$ docker run -ti bootstrap
+$ docker run -ti --link etcd:etcd bootstrap
 ```
 
 Now you're ready to run Checkmate in containers using docker-compose.
