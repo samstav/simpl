@@ -21,6 +21,14 @@ from simpl import config
 PROJECT_NAME = 'checkmate'
 
 
+class UnauthorizedException(Exception):
+    """Unable to auth with identity."""
+
+
+class UnexpectedResponse(Exception):
+    """Return from has unexpected body."""
+
+
 class PasswordSafeWrapper(object):
     """ Class to allow for the pulling of secrets out of passwordsafe.
     """
@@ -154,7 +162,6 @@ def _get_auth_token(identity_url,
                     apikey=None,
                     rsa_token=None):
     """Retrieve auth token using a variety of possible auth combinations."""
-    payload = {}
     if rsa_token:
         payload = {'auth': {'RAX-AUTH:domain': {'name': 'Rackspace'},
                             'RAX-AUTH:rsaCredentials': {'tokenKey': rsa_token,
@@ -168,7 +175,7 @@ def _get_auth_token(identity_url,
                             'RAX-KSKEY:apiKeyCredentials':
                                 {'apikey': apikey, 'username': username}}}
     else:
-        fatal('rsa_token, password or apikey must be set')
+        raise TypeError('rsa_token, password or apikey must be set')
 
     output('retrieving auth token')
     sess = requests.Session()
@@ -179,14 +186,14 @@ def _get_auth_token(identity_url,
 
     err = data.get('badRequest', data.get('unauthorized'))
     if err is not None:
-        fatal('%s (%d)', err['message'], err['code'])
+        raise UnauthorizedException('%s (%d)', err['message'], err['code'])
 
     try:
         token = data['access']['token']['id']
         output('got token')
         return token
     except KeyError:
-        fatal('unexpected response structure:\n%s', pprint.pformat(data))
+        raise UnexpectedResponse('unexpected response structure:\n%s', pprint.pformat(data))
 
 
 def get_auth_token(identity_url,
@@ -222,13 +229,16 @@ def main(parsed_args):
         password = parsed_args.get('password')
         username = parsed_args.get('username')
         apikey = parsed_args.get('apikey')
-        auth_token = get_auth_token(
-            identity_url=parsed_args.get('identity_url'),
-            sso_username=username,
-            sso_password=password,
-            apikey=apikey,
-            silent=parsed_args.get('silent')
-        )
+        try:
+            auth_token = get_auth_token(
+                identity_url=parsed_args.get('identity_url'),
+                sso_username=username,
+                sso_password=password,
+                apikey=apikey,
+                silent=parsed_args.get('silent')
+            )
+        except (TypeError, UnauthorizedException, UnexpectedResponse) as exc:
+            fatal(exc.message)
 
         env_vars = set()
         if parsed_args.get('from_passwordsafe'):
