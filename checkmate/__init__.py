@@ -24,7 +24,7 @@ all as that breaks reloading.
 from __future__ import print_function
 
 __title__ = 'checkmate'
-__version__ = '2.0.0'
+__version__ = '2.0.1'
 __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright Rackspace US, Inc. (c) 2011-2015'
 __url__ = 'https://github.com/checkmate/checkmate'
