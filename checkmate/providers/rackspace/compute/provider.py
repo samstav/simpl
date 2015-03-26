@@ -444,7 +444,7 @@ class Provider(RackspaceComputeProviderBase):
                 dep_key = deployment.get_keypair(consts.DEFAULT_KEYPAIR)
                 # Set it in region
                 keypair = super(Provider, self).generate_template(
-                    self, deployment, 'key-pair', None, context, keypair_index,
+                    deployment, 'key-pair', None, context, keypair_index,
                     self.key, {}, planner)[0]
                 keypair['index'] = keypair_index
                 keypair['component'] = 'rax:key-pair'
