@@ -184,17 +184,16 @@ def _get_auth_token(identity_url,
     """Retrieve auth token using a variety of possible auth combinations."""
     payload = _build_auth_payload(username, password, apikey, rsa_token)
     output('retrieving auth token')
-    sess = requests.Session()
-    sess.headers = {'content-type': 'application/json',
+    headers = {'content-type': 'application/json',
                     'accept': 'application/json'}
-    resp = sess.post(identity_url + '/v2.0/tokens', data=json.dumps(payload))
+    url = identity_url + '/v2.0/tokens'
+    resp = requests.post(url, headers=headers, data=json.dumps(payload))
     data = resp.json()
-
-    err = data.get('badRequest', data.get('unauthorized'))
-    if err is not None:
-        raise UnauthorizedException('%s (%d)', err['message'], err['code'])
-
     try:
+        err = data.get('badRequest', data.get('unauthorized'))
+        if err is not None:
+            raise UnauthorizedException('%s (%d)', err['message'], err['code'])
+
         token = data['access']['token']['id']
         output('got token')
         return token
