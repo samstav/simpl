@@ -156,12 +156,8 @@ def fatal(msg, *args):
     sys.exit(1)
 
 
-def _get_auth_token(identity_url,
-                    username,
-                    password=None,
-                    apikey=None,
-                    rsa_token=None):
-    """Retrieve auth token using a variety of possible auth combinations."""
+def _build_auth_payload(username, password=None, apikey=None, rsa_token=None):
+    """Build headers needed for authing with identity."""
     if rsa_token:
         payload = {'auth': {'RAX-AUTH:domain': {'name': 'Rackspace'},
                             'RAX-AUTH:rsaCredentials': {'tokenKey': rsa_token,
@@ -177,6 +173,16 @@ def _get_auth_token(identity_url,
     else:
         raise TypeError('rsa_token, password or apikey must be set')
 
+    return payload
+
+
+def _get_auth_token(identity_url,
+                    username,
+                    password=None,
+                    apikey=None,
+                    rsa_token=None):
+    """Retrieve auth token using a variety of possible auth combinations."""
+    payload = _build_auth_payload(username, password, apikey, rsa_token)
     output('retrieving auth token')
     sess = requests.Session()
     sess.headers = {'content-type': 'application/json',
