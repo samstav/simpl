@@ -218,7 +218,8 @@ def main(parsed_args):
             identity_url=parsed_args.get('identity_url'),
             sso_username=username,
             sso_password=password,
-            apikey=apikey
+            apikey=apikey,
+            silent=parsed_args.get('silent')
         )
 
         env_vars = set()
@@ -304,7 +305,7 @@ if __name__ == '__main__':
         print
         output('interrupted')
     except StandardError:
-        if not parsed.get('silent'):
+        if parsed.get('silent'):
             import traceback
             import pdb
 
