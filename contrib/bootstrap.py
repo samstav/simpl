@@ -323,7 +323,7 @@ if __name__ == '__main__':
         config.Option('--silent', default=False, action='store_true')
     ]
 
-    conf = config.Config(options=options)
+    conf = config.Config(prog='checkmate_bootstrap', options=options)
     parsed = conf.parse()
 
     try:
