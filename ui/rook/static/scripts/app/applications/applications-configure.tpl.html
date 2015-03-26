@@ -123,7 +123,7 @@
             You must have Rackspace credentials to Launch or Simulate.
             <a href="#" ng-click="loginPrompt()">Authenticate</a>
           </span>
-          <button class="rs-btn rs-btn-primary" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit()">Launch</button>
+          <button class="rs-btn rs-btn-primary" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit()">Build</button>
           <button class="rs-btn" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit('simulate')">Simulate</button>
           <button class="rs-btn" ng-disabled="!controls.canRevert" ng-click="revert()">Revert</button>
           <button class="rs-btn" ng-disabled="!deployment.blueprint.services" ng-click="reset()">Reset</button>
