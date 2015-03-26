@@ -21,6 +21,8 @@ PROJECT_NAME = 'checkmate'
 
 
 class PasswordSafeWrapper(object):
+    """ Class to allow for the pulling of secrets out of passwordsafe.
+    """
     def __init__(self,
                  passwordsafe_url,
                  project_name,
@@ -44,6 +46,7 @@ class PasswordSafeWrapper(object):
         self.secrets = self.build_secrets()
 
     def _get_session(self):
+        """Create a requests session with appropriate auth headers."""
         sess = requests.Session()
         sess.headers = {'content-type': 'application/json',
                         'accept': 'application/json',
@@ -51,29 +54,29 @@ class PasswordSafeWrapper(object):
         return sess
 
     def username(self, config_entry_name, ps_id=None):
-        """ Convenience method for grabbing a username from passwordsafe."""
+        """Convenience method for grabbing a username from passwordsafe."""
         return self.get_matching_credentials('username', config_entry_name,
                                              ps_id)
 
     def password(self, config_entry_name, ps_id=None):
-        """ Convenience method for grabbing a password from passwordsafe."""
+        """Convenience method for grabbing a password from passwordsafe."""
         return self.get_matching_credentials('password', config_entry_name,
                                              ps_id)
 
     def hostname(self, config_entry_name, ps_id=None):
-        """ Convenience method for grabbing a hostname from passwordsafe."""
+        """Convenience method for grabbing a hostname from passwordsafe."""
         return self.get_matching_credentials('hostname', config_entry_name,
                                              ps_id)
 
     def get_matching_credentials(self, ps_field, config_entry_name,
                                  ps_id=None):
-        """
-        Retrieves a field from passwordsafe based on the prerequisites field.
+        """Retrieves a field from passwordsafe based on the prerequisites field.
+
         A passwordsafe id can be specified to force an explicit match.
 
         Example: get_matching_credentials('password', 'github_teams')
-        This will return the password for the checkmate passwordsafe project that
-        has github_teams specified in the prerequisites field.
+        This will return the password for the checkmate passwordsafe project
+        that has github_teams specified in the prerequisites field.
 
         :param ps_field: The field from passwordsafe that is to be returned
         :param config_entry_name: The name of config entry.
@@ -99,6 +102,7 @@ class PasswordSafeWrapper(object):
             return results[0][ps_field]
 
     def _get_project_credentials(self, retry=True):
+        """Retrieve credentials from passwordsafe."""
         output('retrieving credentials')
         resp = self.sess.get(self.passwordsafe_url +
                              '/projects/%s/credentials' %
@@ -114,6 +118,7 @@ class PasswordSafeWrapper(object):
         return credentials
 
     def get_project_id(self):
+        """Translate project name to a usable id."""
         output('retrieving project ID')
         resp = self.sess.get(self.passwordsafe_url + '/projects')
         resp.raise_for_status()
@@ -124,6 +129,7 @@ class PasswordSafeWrapper(object):
         return None
 
     def build_secrets(self):
+        """Create a filtered dict of secrets based on requested env_vars."""
         secrets = {}
         for var in self.env_vars:
             secrets[var] = self.password(var)
@@ -132,12 +138,12 @@ class PasswordSafeWrapper(object):
 
 def output(msg, *args):
     fmt = '> %s' % msg
-    print fmt % args
+    print(fmt % args)
 
 
 def fatal(msg, *args):
     fmt = '*** ' + msg
-    print fmt % args
+    print(fmt % args)
     sys.exit(1)
 
 
@@ -146,19 +152,20 @@ def _get_auth_token(identity_url,
                     password=None,
                     apikey=None,
                     rsa_token=None):
+    """Retrieve auth token using a variety of possible auth combinations."""
     payload = {}
     if rsa_token:
         payload = {'auth': {'RAX-AUTH:domain': {'name': 'Rackspace'},
-                    'RAX-AUTH:rsaCredentials': {'tokenKey': rsa_token,
-                                                'username': username}}}
+                            'RAX-AUTH:rsaCredentials': {'tokenKey': rsa_token,
+                                                        'username': username}}}
     elif password:
         payload = {'auth': {'RAX-AUTH:domain': {'name': 'Rackspace'},
-                    'passwordCredentials': {'password': password,
-                                            'username': username}}}
+                            'passwordCredentials': {'password': password,
+                                                    'username': username}}}
     elif apikey:
         payload = {'auth': {'RAX-AUTH:domain': {'name': 'Rackspace'},
-                    'RAX-KSKEY:apiKeyCredentials': {'apikey': apikey,
-                                                    'username': username}}}
+                            'RAX-KSKEY:apiKeyCredentials':
+                                {'apikey': apikey, 'username': username}}}
     else:
         fatal('rsa_token, password or apikey must be set')
 
@@ -187,11 +194,11 @@ def get_auth_token(identity_url,
                    token_key=None,
                    apikey=None,
                    silent=False):
-
+    """Gather required details for auth token."""
     if not silent:
         if not sso_username:
             sso_username = raw_input('SSO Username: ')
-        if not sso_password and not token_key:
+        if not sso_password and not token_key and not token_key:
             token_key = getpass.getpass('SSO PIN + token: ')
 
     return _get_auth_token(identity_url,
@@ -252,22 +259,25 @@ def main(parsed_args):
     if parsed_args.get('to_keyring'):
         for key, value in env.iteritems():
             output('setting value: %s' % key)
-            # TODO: Deal with keyring
+            # TODO(BS): Deal with keyring
             keyring.set_password(PROJECT_NAME, key, value)
     output('saved %d options' % len(env))
 
 
 def list_from_string(arg):
-    """Hack to deal with loading lists from cli and from other sources"""
+    """Hack to deal with loading lists from cli and from other sources.
 
-    # When we pull values from keychain they come back as 1 string vs multiple
-    # args. Argparse handles splitting the args from the command line for us.
-    # Here we are going to look for a length of 1 and assume it didn't end up
-    # needing to split so we aren't casting it into a a list unnecessarily.
+    When we pull values from keychain they come back as 1 string vs multiple
+    args. Argparse handles splitting the args from the command line for us.
+    Here we are going to look for a length of 1 and assume it didn't end up
+    needing to split so we aren't casting it into a a list unnecessarily.
+    """
+
     split_string = arg.split()
     if len(split_string) == 1:
         return arg
     return split_string
+
 
 if __name__ == '__main__':
     options = [
@@ -302,14 +312,12 @@ if __name__ == '__main__':
     try:
         main(parsed)
     except KeyboardInterrupt:
-        print
         output('interrupted')
     except StandardError:
         if parsed.get('silent'):
-            import traceback
             import pdb
-
+            import traceback
             traceback.print_exc()
-            print 'entering debugger'
+            print('entering debugger')
             pdb.post_mortem()
         raise
