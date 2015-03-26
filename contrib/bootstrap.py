@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-"""Bootstrap Python keyring for a development environment.
+"""Bootstrap a development environment from a a local and remote sources.
 
-This script will seed the Python keyring with the settings needed to
-run Checkmate locally. It will ask for your Rackspace SSO credentials, use
-these to extract the secrets from PasswordSafe, and finally store
-these in the keyring.
+This script will seed an environment with settings needed to run checkmate
+within a docker or local environment. It may ask for your Rackspace SSO
+credentials, use these to extract the secrets from PasswordSafe, and finally
+store them in an file for use when importing into docker or straight into
+keyring.
 """
 
 import getpass
