@@ -132,21 +132,27 @@ angular.module('checkmate.applications-configure')
       var deployment = angular.copy(newFormatDeployment);
       var blueprint = deployment.blueprint;
       var services = blueprint.services;
+
       _.each(services, function(value, key) {
         var components = value.components;
         var component;
-        if (angular.isArray(components)) {
+
+        if(angular.isArray(components)) {
           component = components[0];
         } else {
           component = components;
         }
-        delete value.components;
-        if (angular.isString(component)) {
+
+        if(angular.isString(component)) {
           component = {id: component};
         }
+
         value.component = component;
+
+        delete value.components;
         delete value.annotations;
       });
+
       return deployment;
     };
 
