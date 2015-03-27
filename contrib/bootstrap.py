@@ -110,12 +110,18 @@ class PasswordSafeWrapper(object):
         else:
             return results[0][ps_field]
 
+    def _get_credentials(self):
+        return self.sess.get(self.passwordsafe_url +
+                             '/projects/%s/credentials' %
+                             self.project_id)
+
+    def _get_projects(self):
+        return self.sess.get(self.passwordsafe_url + '/projects')
+
     def _get_project_credentials(self, retry=True):
         """Retrieve credentials from passwordsafe."""
         output('retrieving credentials')
-        resp = self.sess.get(self.passwordsafe_url +
-                             '/projects/%s/credentials' %
-                             self.project_id)
+        resp = self._get_credentials()
 
         # PS has a tendency to occasionally return 403's
         # adding in a single retry to alleviate this.
@@ -126,16 +132,19 @@ class PasswordSafeWrapper(object):
         output('found %d credentials', len(credentials))
         return credentials
 
-    def get_project_id(self):
+    def get_project_id(self, retry=True):
         """Translate project name to a usable id."""
         output('retrieving project ID')
-        resp = self.sess.get(self.passwordsafe_url + '/projects')
+        resp = self._get_projects()
+        if retry and resp.status_code == 403:
+            self.get_project_id(retry=False)
         resp.raise_for_status()
         for result in resp.json():
             if result['project']['name'] == self.project_name:
                 output('found project')
                 return result['project']['id']
-        return None
+        raise LookupError('No project found by the name of %s' %
+                          self.project_name)
 
     def build_secrets(self):
         """Create a filtered dict of secrets based on requested env_vars."""
@@ -201,6 +210,16 @@ def _get_auth_token(identity_url,
         raise UnexpectedResponse('unexpected response structure:\n%s', pprint.pformat(data))
 
 
+def _prompt_for_username():
+    user = raw_input('SSO Username: ')
+    return user
+
+
+def _prompt_for_token():
+    token = getpass.getpass('SSO PIN + token: ')
+    return token
+
+
 def get_auth_token(identity_url,
                    sso_username=None,
                    sso_password=None,
@@ -210,9 +229,9 @@ def get_auth_token(identity_url,
     """Gather required details for auth token."""
     if not silent:
         if not sso_username:
-            sso_username = raw_input('SSO Username: ')
+            sso_username = _prompt_for_username()
         if not sso_password and not token_key and not token_key:
-            token_key = getpass.getpass('SSO PIN + token: ')
+            token_key = _prompt_for_token()
 
     return _get_auth_token(identity_url,
                            username=sso_username,
