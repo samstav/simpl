@@ -204,108 +204,64 @@ angular.module('checkmate.Blueprint', [
 angular.module('checkmate.Blueprint')
   .factory('Blueprint', function($rootScope, Catalog, $timeout) {
     return {
-      data: angular.copy(window.defaultBlueprint),
-      get: function() {
-        return this.data;
-      },
-      set: function(blueprint) {
-        if(this.isValid(blueprint)) {
-          this.data = angular.copy(blueprint);
-          this.broadcast();
-        }
-      },
-      reset: function() {
-        this.set(defaultBlueprint);
-      },
       add: function(component, target) {
         // Add item to blueprint data.
         this.sort(component, target);
       },
-      remove: function(selection) {
-        var services = this.get().services;
-        var service = services[selection.service];
-        var component = service.component
-        var components = service.components;
+      addComponent: function(component, serviceName) { // Add each component allowing more than on in a service
+        if(!this.data.services) this.data.services = {};
 
-        if(component) {
-          delete this.get().services[selection.service];
-        } else if(components) {
-          // Remove component to blueprint data.
-          components.splice(selection.index, 1);
-
-          // If the service has no components, remove the service.
-          if(components.length < 1) {
-            delete service
+        if (serviceName in this.data.services) {
+          if (!this.componentInService(component, serviceName)) {
+            this.addComponentToService(component, serviceName);
+          } else {
+            return;
           }
+        } else {
+          this.addService(serviceName, component);
+        }
+      },
+      addComponentSingletons: function(component, serviceName) {  // Add each component in its own service
+        if(!this.data.services) this.data.services = {};
 
-          // Find all connections to the removed component and remove them.
-          _.each(services, function(_service, _id, _services) {
-            var i = _service.relations ? _service.relations.length : 0;
+        if (serviceName in this.data.services) {
+          // disabling this for now: this.addComponentToService(component, serviceName);
+          for(var i=2;i<25;i++) {
+            var service = serviceName + i;
+            var exists = this.data.services[service];
+            var hasComponent = this.componentInService(component, service);
 
-            while (i--) {
-              _.each(_service.relations[i], function(_componentId, _serviceId) {
-                if(_serviceId == selection.service) {
-                  delete _service.relations[i];
-                };
-              });
-
-              if(_.isEmpty(_service.relations[i])) {
-                _service.relations.splice(i, 1);
-              }
-
-              if(!_service.relations.length) {
-                delete _service.relations;
-              }
+            if (!exists && !hasComponent) {
+              this.addService(service, component);
+              break;
             }
-          });
-
-          if(!service.components.length) {
-            delete service.components;
-            delete service.relations;
           }
+        } else {
+          this.addService(serviceName, component);
         }
-
-        if(_.isEmpty(service)) {
-          delete this.get().services[selection.service];
-        }
-
-        if(_.isEmpty(services)) {
-          delete this.get().services;
-        }
-
-        this.broadcast();
       },
-      revert: function(component, target) {
-        this.broadcast();
-      },
-      sever: function(data) {
-        var relations = this.get().services[data.source].relations;
-        var updated = _.reject(relations, function(relation) {
-          var _target = _.keys(relation)[0]; // TODO: Account for long-hand relation.
-          var _interface = _.values(relation)[0]; // TODO:  Account for long-hand relation.
+      addComponentToService: function(component, serviceName) {
+        var _component = {};
 
-          return (data.target == _target) && (data.interface == _interface);
-        });
-
-        this.get().services[data.source].relations = updated;
-        this.broadcast();
-      },
-      sort: function(component, target) {
-        var serviceName = 'default';
-
-        if (component && component.is) {
-          serviceName = component.is;
+        if('id' in component) {
+          _component.id = component.id;
+        } else if('name' in component) {
+          _component.name = component.name;
+        } else {
+          throw new Error('Components require an id or name property to be added to a blueprint.');
         }
 
-        if (typeof this.data.services === 'undefined') {
-          this.data.services = {};
+        this.data.services[serviceName].components.push(_component);
+      },
+      addService: function(serviceName, firstComponent) {
+        this.data.services[serviceName] = {components: []};
+
+        if(firstComponent) {
+          this.addComponentToService(firstComponent, serviceName);
         }
-
-        // disabling this for now
-        //this.addComponent(component, serviceName);
-        this.addComponentSingletons(component, serviceName);
-
-        this.broadcast();
+      },
+      broadcast: function() {
+        $rootScope.$broadcast('blueprint:update', this.data);
       },
       canConnect: function(source, target, protocol, optionalTag) {
         if(!source || !target || (source.componentId == target.componentId)) {
@@ -461,6 +417,10 @@ angular.module('checkmate.Blueprint')
 
         return connections.length ? connections : false;
       },
+      componentInService: function(component, serviceName) {
+        var _id = component.id || component.name;
+        return this.getComponent(serviceName, _id) ? true : false;
+      },
       connect: function(fromServiceId, toServiceId, protocol, optionalTag) {
         var fromService = this.data.services[fromServiceId];
 
@@ -481,41 +441,9 @@ angular.module('checkmate.Blueprint')
           this.broadcast();
         }
       },
-      addComponentSingletons: function(component, serviceName) {  // Add each component in its own service
-        if(!this.data.services) this.data.services = {};
-
-        if (serviceName in this.data.services) {
-          // disabling this for now: this.addComponentToService(component, serviceName);
-          for(var i=2;i<25;i++) {
-            var service = serviceName + i;
-            var exists = this.data.services[service];
-            var hasComponent = this.componentInService(component, service);
-
-            if (!exists && !hasComponent) {
-              this.addService(service, component);
-              break;
-            }
-          }
-        } else {
-          this.addService(serviceName, component);
-        }
-      },
-      addComponent: function(component, serviceName) { // Add each component allowing more than on in a service
-        if(!this.data.services) this.data.services = {};
-
-        if (serviceName in this.data.services) {
-          if (!this.componentInService(component, serviceName)) {
-            this.addComponentToService(component, serviceName);
-          } else {
-            return;
-          }
-        } else {
-          this.addService(serviceName, component);
-        }
-      },
-      componentInService: function(component, serviceName) {
-        var _id = component.id || component.name;
-        return this.getComponent(serviceName, _id) ? true : false;
+      data: angular.copy(window.defaultBlueprint),
+      get: function() {
+        return this.data;
       },
       getComponent: function(serviceId, componentId) {
         var service = ((this.data.services || {})[serviceId] || {});
@@ -538,35 +466,6 @@ angular.module('checkmate.Blueprint')
       },
       getComponentConstraints: function(serviceId, componentId) {
         return this.getComponent(serviceId, componentId).constraints || [];
-      },
-      saveComponentConstraints: function(data) {
-        var _id = data.component.id || data.component.name;
-
-        this.getComponent(data.serviceId, _id).constraints = data.constraints;
-        this.broadcast();
-      },
-      addComponentToService: function(component, serviceName) {
-        var _component = {};
-
-        if('id' in component) {
-          _component.id = component.id;
-        } else if('name' in component) {
-          _component.name = component.name;
-        } else {
-          throw new Error('Components require an id or name property to be added to a blueprint.');
-        }
-
-        this.data.services[serviceName].components.push(_component);
-      },
-      addService: function(serviceName, firstComponent) {
-        this.data.services[serviceName] = {components: []};
-
-        if(firstComponent) {
-          this.addComponentToService(firstComponent, serviceName);
-        }
-      },
-      broadcast: function() {
-        $rootScope.$broadcast('blueprint:update', this.data);
       },
       isValid: function(blueprint) {
         var valid = true;
@@ -613,6 +512,107 @@ angular.module('checkmate.Blueprint')
         }
 
         return valid;
+      },
+      remove: function(selection) {
+        var services = this.get().services;
+        var service = services[selection.service];
+        var component = service.component
+        var components = service.components;
+
+        if(component) {
+          delete this.get().services[selection.service];
+        } else if(components) {
+          // Remove component to blueprint data.
+          components.splice(selection.index, 1);
+
+          // If the service has no components, remove the service.
+          if(components.length < 1) {
+            delete service
+          }
+
+          // Find all connections to the removed component and remove them.
+          _.each(services, function(_service, _id, _services) {
+            var i = _service.relations ? _service.relations.length : 0;
+
+            while (i--) {
+              _.each(_service.relations[i], function(_componentId, _serviceId) {
+                if(_serviceId == selection.service) {
+                  delete _service.relations[i];
+                };
+              });
+
+              if(_.isEmpty(_service.relations[i])) {
+                _service.relations.splice(i, 1);
+              }
+
+              if(!_service.relations.length) {
+                delete _service.relations;
+              }
+            }
+          });
+
+          if(!service.components.length) {
+            delete service.components;
+            delete service.relations;
+          }
+        }
+
+        if(_.isEmpty(service)) {
+          delete this.get().services[selection.service];
+        }
+
+        if(_.isEmpty(services)) {
+          delete this.get().services;
+        }
+
+        this.broadcast();
+      },
+      reset: function() {
+        this.set(defaultBlueprint);
+      },
+      revert: function(component, target) {
+        this.broadcast();
+      },
+      saveComponentConstraints: function(data) {
+        var _id = data.component.id || data.component.name;
+
+        this.getComponent(data.serviceId, _id).constraints = data.constraints;
+        this.broadcast();
+      },
+      set: function(blueprint) {
+        if(this.isValid(blueprint)) {
+          this.data = angular.copy(blueprint);
+          this.broadcast();
+        }
+      },
+      sever: function(data) {
+        var relations = this.get().services[data.source].relations;
+        var updated = _.reject(relations, function(relation) {
+          var _target = _.keys(relation)[0]; // TODO: Account for long-hand relation.
+          var _interface = _.values(relation)[0]; // TODO:  Account for long-hand relation.
+
+          return (data.target == _target) && (data.interface == _interface);
+        });
+
+        this.get().services[data.source].relations = updated;
+        this.broadcast();
+      },
+      sort: function(component, target) {
+        var serviceName = 'default';
+
+        if (component && component.is) {
+          serviceName = component.is;
+        }
+
+        if (typeof this.data.services === 'undefined') {
+          this.data.services = {};
+        }
+
+        // disabling this for now
+        //this.addComponent(component, serviceName);
+        this.addComponentSingletons(component, serviceName);
+
+        this.broadcast();
       }
     };
   });
