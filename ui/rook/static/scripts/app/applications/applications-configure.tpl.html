@@ -85,7 +85,8 @@
            ng-click="codemirror.isVisible = !codemirror.isVisible">
         <span class="fa-stack fa-lg">
           <i class="fa fa-ban fa-stack-2x text-danger" ng-show="codemirror.isVisible"></i>
-          <i class="fa fa-code fa-stack-1x" ng-class="{'fa-inverse': codemirror.isVisible}"></i>
+          <i class="fa fa-code fa-stack-1x"
+             ng-class="{'fa-inverse': codemirror.isVisible}"></i>
         </span>
       </div>
 
@@ -104,15 +105,19 @@
                          ng-class="{'visible': codemirror.isVisible}">
       </deployment-editor>
 
-      <div class="rs-table-overlay rs-app-launch-empty-canvas" ng-show="!deployment.blueprint.services">
+      <div class="rs-table-overlay rs-app-launch-empty-canvas"
+           ng-show="!deployment.blueprint.services">
         <div class="rs-table-overlay-content">
           <div class="rs-table-overlay-title">You don't have any services yet.</div>
           <div class="rs-table-overlay-subtitle">Add one now.</div>
-          <div class="rs-table-overlay-message">Drag a service here. We'll draw the topology, just for you.</div>
+          <div class="rs-table-overlay-message">
+            Drag a service here. We'll draw the topology, just for you.
+          </div>
         </div>
       </div>
 
-      <div class="rs-app-config-controls checkmate-flavors" ng-class="{'config-open': flavors.list.length}">
+      <div class="rs-app-config-controls checkmate-flavors"
+           ng-class="{'config-open': flavors.list.length}">
         <cm-flavor-select class="span4"></cm-flavor-select>
       </div>
 
@@ -123,10 +128,18 @@
             You must have Rackspace credentials to Launch or Simulate.
             <a href="#" ng-click="loginPrompt()">Authenticate</a>
           </span>
-          <button class="rs-btn rs-btn-primary" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit()">Build</button>
-          <button class="rs-btn" ng-disabled="!auth.identity.loggedIn || submitting" ng-click="submit('simulate')">Simulate</button>
-          <button class="rs-btn" ng-disabled="!controls.canRevert" ng-click="revert()">Revert</button>
-          <button class="rs-btn" ng-disabled="!deployment.blueprint.services" ng-click="reset()">Reset</button>
+          <button class="rs-btn rs-btn-primary"
+                  ng-disabled="!auth.identity.loggedIn || submitting"
+                  ng-click="submit()">Build</button>
+          <button class="rs-btn"
+                  ng-disabled="!auth.identity.loggedIn || submitting"
+                  ng-click="submit('simulate')">Simulate</button>
+          <button class="rs-btn"
+                  ng-disabled="!controls.canRevert"
+                  ng-click="revert()">Revert</button>
+          <button class="rs-btn"
+                  ng-disabled="!deployment.blueprint.services"
+                  ng-click="reset()">Reset</button>
         </div>
         <div class="rs-btn-group">
           <button class="rs-btn rs-btn-secondary" ng-disabled="true">Import</button>
