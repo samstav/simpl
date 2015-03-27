@@ -7,28 +7,7 @@ Production: [Installation](#manual-installation)
 
 ## Using Checkmate in Docker
 
-### Set up the environment file
-
-Using the `.checkmate_env` file in this repository, you will need to fill in the
-following values:
-
-```
-# Github.com Auth (public github)
-CHECKMATE_GITHUB_ENDPOINT=https://api.github.com
-CHECKMATE_GITHUB_CLIENT_ID='CLIENT_ID'
-CHECKMATE_GITHUB_CLIENT_SECRET='SECRET'
-
-# SSH Configs
-# Change values to use a Rackspace bastion
-CHECKMATE_BASTION_ADDRESS='BASTION.ADDRESS'
-CHECKMATE_BASTION_USERNAME='SSO.NAME'
-CHECKMATE_BASTION_PKEY_FILE='/FULL/PATH/TO/BASTION/KEY_RSA'
-```
-
-The GitHub environment variables are optional and can be commented out if you
-don't want to use them in your deployment.
-
-### Running Checkmate in Docker containers
+### Set up the environment
 
 Assuming you are using OS X, you will need to install
 [VirtualBox](https://www.virtualbox.org/wiki/Downloads) and
@@ -37,38 +16,45 @@ Assuming you are using OS X, you will need to install
 If you are using Linux, you should be able to run
 [Docker natively](https://docs.docker.com/installation/).
 
-First, start docker containers for Redis and MongoDB:
+The rest of this guide assumes you are using OS X with boot2docker. If you are
+running docker differently, you may need to alter the Docker host IP address
+(192.168.59.103).
+
+First, start an etcd container:
 
 ```
-$ docker run --name checkredis -d -p 6379:6379 dockerfile/redis
-$ docker run --name checkmongo -d -p 27017:27017 dockerfile/mongodb
+$ docker run -d -p 4001:4001 -p 2380:2380 -p 2379:2379 \
+--name etcd quay.io/coreos/etcd:v2.0.3 \
+-name etcd0 \
+-advertise-client-urls http://192.168.59.103:2379,http://192.168.59.103:4001 \
+-listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+-initial-advertise-peer-urls http://192.168.59.103:2380 \
+-listen-peer-urls http://0.0.0.0:2380 \
+-initial-cluster-token etcd-cluster-1 \
+-initial-cluster etcd0=http://192.168.59.103:2380 \
+-initial-cluster-state new
 ```
 
-Next, build the Checkmate docker container:
-
-`$ docker build -t checkmate .`
-
-Next, run two containers: one for the API and one for the worker. We will also
-pass in the environment file you set up in the previous step. Your bastion SSH
-key also needs to be mounted to the container:
+Next, alter `contrib/bootstrap.py.ini`, filling in the passwordsafe and identity
+urls. Then, build and run the bootstrap container. The container will prompt you
+for your SSO. This container populates the environment from passwordsafe for
+Checkmate.
 
 ```
-$ docker run -d --name checkmate-api \
---env-file=.checkmate_env \
---link checkredis:checkredis \
---link checkmongo:checkmongo \
--v /PATH/TO/MY/BASTION/SSHKEY:/root/.ssh/lnx-key.lnx:ro
--p 8080:8080 \
-checkmate '/app/bin/checkmate-server START --with-ui --with-simulator 0.0.0.0:8080'
+$ cd contrib
+$ docker build -t boostrap .
+$ docker run -ti --link etcd:etcd bootstrap
 ```
 
+Now you're ready to run Checkmate in containers using docker-compose.
+
+### Running Checkmate in Docker containers
+
+First, install [docker-compose](https://docs.docker.com/compose/install/). Then,
+using compose, bring up Checkmate:
+
 ```
-$ docker run -d --name checkmate-worker \
---env-file=.checkmate_env \
---link checkredis:checkredis \
---link checkmongo:checkmongo \
--v /PATH/TO/MY/BASTION/SSHKEY:/root/.ssh/lnx-key.lnx:ro
-checkmate '/app/bin/checkmate-queue START -P eventlet'
+$ docker-compose up -d
 ```
 
 You can now reach Checkmate by going to your boot2docker IP address on port
@@ -83,8 +69,8 @@ deployments.
 ### Stop Checkmate Docker containers
 
 ```
-$ docker kill checkredis checkmongo checkmate-api checkmate-worker
-$ docker rm checkredis checkmongo checkmate-api checkmate-worker
+$ docker-compose kill
+$ docker-compose rm
 ```
 
 ## Running Checkmate in Vagrant

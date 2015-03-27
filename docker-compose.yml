@@ -1,0 +1,56 @@
+redis:
+  image: redis
+  ports:
+    - 6379:6379
+mongo:
+  image: mongo
+  ports:
+    - 27017:27017
+api:
+  build: .
+  ports:
+    - 8080:8080
+  links:
+    - redis:redis
+    - mongo:mongo
+  external_links:
+    - etcd:etcd
+  volumes:
+    - .:/home/checkmate
+    - contrib/secring:/etc/configs/secring.gpg
+  environment:
+    - PREFIX=staging
+    - ETCDCTL_PEERS=http://etcd:4001
+    - LOAD_ENV_FROM_ETCD=True
+    - CHECKMATE_BROKER_URL=redis://redis/0
+    - CELERY_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_CELERY_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_CACHE_CONNECTION_STRING=redis://redis/2
+    - CHECKMATE_CONNECTION_STRING=mongodb://mongo/checkmate
+    - CHECKMATE_SIMULATOR_CONNECTION_STRING=mongodb://mongo/checkmate
+    - CHECKMATE_LOCK_CONNECTION_STRING=mongodb://mongo/checkmate
+  command: "/app/bin/checkmate-server START --with-ui --with-simulator --with-admin --eventlet 0.0.0.0:8080"
+worker:
+  build: .
+  links:
+    - redis:redis
+    - mongo:mongo
+  external_links:
+    - etcd:etcd
+  volumes:
+    - .:/home/checkmate
+    - contrib/secring:/etc/configs/secring.gpg
+  environment:
+    - PREFIX=staging
+    - ETCDCTL_PEERS=http://etcd:4001
+    - LOAD_ENV_FROM_ETCD=True
+    - CHECKMATE_BROKER_URL=redis://redis/0
+    - CELERY_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_CELERY_RESULT_BACKEND=redis://redis/1
+    - CHECKMATE_CACHE_CONNECTION_STRING=redis://redis/2
+    - CHECKMATE_CONNECTION_STRING=mongodb://mongo/checkmate
+    - CHECKMATE_SIMULATOR_CONNECTION_STRING=mongodb://mongo/checkmate
+    - CHECKMATE_LOCK_CONNECTION_STRING=mongodb://mongo/checkmate
+  command: "/app/bin/checkmate-queue START -P eventlet"

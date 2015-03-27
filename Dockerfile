@@ -63,6 +63,10 @@ ADD docker/config/checkmate-supervisor.conf /etc/supervisor.d/checkmate.conf
 ADD docker/config/supervisord.conf /etc/supervisord.conf
 ADD docker/config/run.sh /app/run.sh
 
+# Put crypt in there
+ADD https://github.com/xordataexchange/crypt/releases/download/v0.0.1/crypt-0.0.1-linux-amd64 /usr/local/bin/crypt
+RUN chmod +x /usr/local/bin/crypt
+
 # Setup Checkmate
 RUN (mkdir /var/log/supervisor; \
      useradd -m -u 8888 checkmate; \
