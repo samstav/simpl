@@ -30,8 +30,8 @@ class UnexpectedResponse(Exception):
 
 
 class PasswordSafeWrapper(object):
-    """ Class to allow for the pulling of secrets out of passwordsafe.
-    """
+    """Class to allow for the pulling of secrets out of passwordsafe."""
+
     def __init__(self,
                  passwordsafe_url,
                  project_name,
@@ -110,11 +110,13 @@ class PasswordSafeWrapper(object):
             return results[0][ps_field]
 
     def _get_credentials(self):
+        """Make remote call to retrieve credentials list."""
         return self.sess.get(self.passwordsafe_url +
                              '/projects/%s/credentials' %
                              self.project_id)
 
     def _get_projects(self):
+        """Make remote call to retrieve projects list."""
         return self.sess.get(self.passwordsafe_url + '/projects')
 
     def _get_project_credentials(self, retry=True):
@@ -154,11 +156,13 @@ class PasswordSafeWrapper(object):
 
 
 def output(msg, *args):
+    """Simple output formatter and printer."""
     fmt = '> %s' % msg
     print(fmt % args)
 
 
 def fatal(msg, *args):
+    """Simple error formatter and printer."""
     fmt = '*** ' + msg
     print(fmt % args)
     sys.exit(1)
@@ -193,7 +197,7 @@ def _get_auth_token(identity_url,
     payload = _build_auth_payload(username, password, apikey, rsa_token)
     output('retrieving auth token')
     headers = {'content-type': 'application/json',
-                    'accept': 'application/json'}
+               'accept': 'application/json'}
     url = identity_url + '/v2.0/tokens'
     resp = requests.post(url, headers=headers, data=json.dumps(payload))
     data = resp.json()
@@ -206,15 +210,18 @@ def _get_auth_token(identity_url,
         output('got token')
         return token
     except KeyError:
-        raise UnexpectedResponse('unexpected response structure:\n%s', pprint.pformat(data))
+        raise UnexpectedResponse('unexpected response structure:\n%s',
+                                 pprint.pformat(data))
 
 
 def _prompt_for_username():
+    """Prompt for input for username."""
     user = raw_input('SSO Username: ')
     return user
 
 
 def _prompt_for_token():
+    """Prompt for input for rsa token."""
     token = getpass.getpass('SSO PIN + token: ')
     return token
 
@@ -251,6 +258,7 @@ def string_to_bool(val):
 
 
 def main(parsed_args):
+    """Main script logic"""
     env = {}
 
     # Only reaching out to external APIs if we know we should
