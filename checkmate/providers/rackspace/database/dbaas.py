@@ -21,11 +21,8 @@ import logging
 import time
 
 import requests
-from voluptuous import (
-    All,
-    Any,
-    Schema
-)
+import voluptuous
+
 HEADERS = {
     'Accept': 'application/json',
     'Content-Type': 'application/json'
@@ -38,15 +35,18 @@ URL = 'https://%s.databases.api.rackspacecloud.com/v1.0/%s'  # region, t_id
 _config_params_cache = {}
 _version_id_cache = {'expires': None}
 # TODO(pablo): statuses should become Checkmate's (not Cloud Databases')
-_validate_instance_details = Schema(
+_validate_instance_details = voluptuous.Schema(
     {
         'id': basestring,
         'name': basestring,
-        'status': Any('BUILD', 'REBOOT', 'ACTIVE', 'FAILED', 'BACKUP',
-                      'BLOCKED', 'RESIZE', 'RESTART_REQUIRED', 'SHUTDOWN'),
+        'status': voluptuous.Any('BUILD', 'REBOOT', 'ACTIVE', 'FAILED',
+                                 'BACKUP', 'BLOCKED', 'RESIZE',
+                                 'RESTART_REQUIRED', 'SHUTDOWN'),
         'region': basestring,
-        'flavor': All(int, Any(1, 2, 3, 4, 5, 6, 7, 8,
-                               101, 102, 103, 104, 105, 106, 107, 108)),
+        'flavor': voluptuous.All(
+            int, voluptuous.Any(1, 2, 3, 4, 5, 6, 7, 8,
+                                101, 102, 103, 104, 105, 106, 107, 108)
+        ),
         'disk': None,
         'interfaces': {
             'redis': {
@@ -58,14 +58,14 @@ _validate_instance_details = Schema(
     },
     required=True
 )
-_validate_db_config = Schema(
+_validate_db_config = voluptuous.Schema(
     {
         'configuration': {
             'created': basestring,
             'datastore_name': basestring,
             'datastore_version_id': basestring,
             'datastore_version_name': basestring,
-            'description': Any(basestring, None),
+            'description': voluptuous.Any(basestring, None),
             'id': basestring,
             'instance_count': int,
             'name': basestring,
@@ -100,7 +100,7 @@ class CDBException(Exception):
 
 
 def create_configuration(context, db_type, db_version, values):
-    """Create a configuration to be used by database instances
+    """Create a configuration to be used by database instances.
 
     values is a dict containing valid keys as per `get_config_params`
     """
@@ -147,7 +147,7 @@ def get_configurations(context):
 
 
 def get_config_params(context, db_type, db_version):
-    """Return the list of config params available for the given db/version
+    """Return the list of config params available for the given db/version.
 
     Refresh _config_params_cache if needed (may also trigger a
     _version_id_cache refresh)
@@ -167,7 +167,7 @@ def get_config_params(context, db_type, db_version):
 
 
 def get_datastores(context):
-    """List all available datastores/details for the given region and tenant
+    """List all available datastores/details for the given region and tenant.
 
     Returns a list containing details for each datastore type (e.g. MySQL,
     Percona, MariaDB) and support details such as: versions supported,
@@ -223,7 +223,7 @@ def get_flavor_ref(context, flavor_id):
 
 
 def create_instance(context, name, flavor, **kwargs):
-    """Calls _create_instance then formats the response for Checkmate.
+    """Call _create_instance then format the response for Checkmate.
 
     :param context: must have attributes 'region', 'tenant', 'auth_token'.
                     'resource_key' is used in simulation mode.
@@ -417,13 +417,21 @@ def _refresh_config_params_cache(context, db_type, db_version):
 
 def _handle_response(response):
     """Helper function to return response content as json or error info."""
-    if not response.ok:
-        raise CDBException('%d: %s' % (response.status_code, response.reason))
-
-    try:
-        return response.json()
-    except (TypeError, ValueError):  # There is no content
-        return u'%d, %s' % (response.status_code, response.reason)
+    if response.ok:
+        try:
+            return response.json()
+        except (TypeError, ValueError):  # There is no content
+            return u'%d, %s' % (response.status_code, response.reason)
+    else:
+        try:
+            # Check for custom error message and return that in error message
+            # if found. Otherwise falls back to raise_for_status()
+            data = response.json()
+            error = data.itervalues().next()
+            message = error.get('message') or error.get('description')
+            raise CDBException(message)
+        except (KeyError, AttributeError, ValueError):
+            response.raise_for_status()
 
 
 def _refresh_version_id_cache(context):

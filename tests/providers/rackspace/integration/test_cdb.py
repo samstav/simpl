@@ -65,6 +65,7 @@ class TestCloudDatabases(unittest.TestCase):
     vcr_mode = 'none'  # Playback only
 
     def setUp(self):
+        """Test setup."""
         self.vcr = vcr.VCR(
             cassette_library_dir=os.path.dirname(__file__) + '/fixtures',
             record_mode=self.vcr_mode,
@@ -139,16 +140,14 @@ class TestCloudDatabases(unittest.TestCase):
         """Invalid tenant results in an HTTP error."""
         context = test.MockAttribContext(self.region, 'invalid', self.token)
         with self.vcr.use_cassette('vcr-cdb-tenant-invalid.yaml'):
-            with self.assertRaisesRegexp(dbaas.CDBException,
-                                         "401: Unauthorized"):
+            with self.assertRaises(dbaas.CDBException):
                 dbaas.get_instances(context)
 
     def test_bad_token(self):
         """Invalid token results in an HTTP error."""
         context = test.MockAttribContext(self.region, self.tenant, 'invalid')
         with self.vcr.use_cassette('vcr-cdb-token-invalid.yaml'):
-            with self.assertRaisesRegexp(dbaas.CDBException,
-                                         "401: Unauthorized"):
+            with self.assertRaises(requests.HTTPError):
                 dbaas.get_instances(context)
 
 
