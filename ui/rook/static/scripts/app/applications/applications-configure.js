@@ -156,7 +156,7 @@ angular.module('checkmate.applications-configure')
       return deployment;
     };
 
-    $scope.submit = function(action){
+    $scope.submit = function(action) {
       if ($scope.submitting === true)
         return;
       $scope.submitting = true;
