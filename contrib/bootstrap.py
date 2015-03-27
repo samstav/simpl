@@ -37,7 +37,6 @@ class PasswordSafeWrapper(object):
                  project_name,
                  auth_token,
                  env_vars):
-
         # We are not retrying on failed auth token as it is once and done.
         self.auth_token = auth_token
         self.env_vars = env_vars
@@ -240,6 +239,17 @@ def get_auth_token(identity_url,
                            apikey=apikey)
 
 
+def string_to_bool(val):
+    """Convert string to boolean. Return original value if not string."""
+    if isinstance(val, basestring):
+        if val.lower() == 'true' or val.lower() == '1':
+            return True
+        if val.lower() == 'false' or val.lower() == '0':
+            return False
+        raise ValueError('Unable to cast %s as a boolean' % val)
+    return val
+
+
 def main(parsed_args):
     env = {}
 
@@ -253,13 +263,14 @@ def main(parsed_args):
         password = parsed_args.get('password')
         username = parsed_args.get('username')
         apikey = parsed_args.get('apikey')
+        silent = string_to_bool(parsed_args.get('silent'))
         try:
             auth_token = get_auth_token(
                 identity_url=parsed_args.get('identity_url'),
                 sso_username=username,
                 sso_password=password,
                 apikey=apikey,
-                silent=parsed_args.get('silent')
+                silent=silent
             )
         except (TypeError, UnauthorizedException, UnexpectedResponse) as exc:
             fatal(exc.message)
@@ -349,7 +360,7 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         output('interrupted')
     except StandardError:
-        if parsed.get('silent'):
+        if not parsed.get('silent'):
             import pdb
             import traceback
             traceback.print_exc()
