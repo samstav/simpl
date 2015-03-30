@@ -8,6 +8,7 @@ mongo:
     - 27017:27017
 api:
   build: .
+  dns: 8.8.8.8
   ports:
     - 8080:8080
   links:
@@ -33,6 +34,7 @@ api:
   command: "/app/bin/checkmate-server START --with-ui --with-simulator --with-admin --eventlet 0.0.0.0:8080"
 worker:
   build: .
+  dns: 8.8.8.8
   links:
     - redis:redis
     - mongo:mongo
