@@ -140,10 +140,10 @@
             <a href="#" ng-click="loginPrompt()">Authenticate</a>
           </span>
           <button class="rs-btn rs-btn-primary"
-                  ng-disabled="!auth.identity.loggedIn || submitting"
+                  ng-disabled="!auth.identity.loggedIn || submitting || !deployment.blueprint.services"
                   ng-click="submit()">Build</button>
           <button class="rs-btn"
-                  ng-disabled="!auth.identity.loggedIn || submitting"
+                  ng-disabled="!auth.identity.loggedIn || submitting || !deployment.blueprint.services"
                   ng-click="submit('simulate')">Simulate</button>
           <button class="rs-btn"
                   ng-disabled="!controls.canRevert"
