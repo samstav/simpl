@@ -13,16 +13,16 @@ interactions:
     uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations
   response:
     body: {string: !!python/unicode '{"configuration": {"datastore_name": "mysql",
-        "updated": "2015-01-23T05:33:24", "values": {"connect_timeout": 60, "expire_logs_days":
-        90}, "name": "checkmate:IAD:mysql:5.6", "created": "2015-01-23T05:33:24",
-        "datastore_version_name": "5.6", "instance_count": 0, "id": "94857165-a439-4b88-834e-dab67454ccf9",
+        "updated": "2015-03-30T22:04:33", "values": {"connect_timeout": 60, "expire_logs_days":
+        90}, "name": "checkmate:IAD:mysql:5.6", "created": "2015-03-30T22:04:33",
+        "datastore_version_name": "5.6", "instance_count": 0, "id": "8c6717d4-c7f2-4179-8312-e3f76eaea4e6",
         "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "description":
         null}}'}
     headers:
       connection: [close]
       content-length: ['393']
       content-type: [application/json]
-      date: ['Fri, 23 Jan 2015 05:33:24 GMT']
+      date: ['Mon, 30 Mar 2015 22:04:33 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}
@@ -34,19 +34,19 @@ interactions:
       Connection: [keep-alive]
       Content-Type: [application/json]
     method: GET
-    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations/94857165-a439-4b88-834e-dab67454ccf9
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations/8c6717d4-c7f2-4179-8312-e3f76eaea4e6
   response:
     body: {string: !!python/unicode '{"configuration": {"datastore_name": "mysql",
-        "updated": "2015-01-23T05:33:24", "values": {"connect_timeout": 60, "expire_logs_days":
-        90}, "name": "checkmate:IAD:mysql:5.6", "created": "2015-01-23T05:33:24",
-        "datastore_version_name": "5.6", "instance_count": 0, "id": "94857165-a439-4b88-834e-dab67454ccf9",
+        "updated": "2015-03-30T22:04:33", "values": {"connect_timeout": 60, "expire_logs_days":
+        90}, "name": "checkmate:IAD:mysql:5.6", "created": "2015-03-30T22:04:33",
+        "datastore_version_name": "5.6", "instance_count": 0, "id": "8c6717d4-c7f2-4179-8312-e3f76eaea4e6",
         "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4", "description":
         null}}'}
     headers:
       connection: [close]
       content-length: ['393']
       content-type: [application/json]
-      date: ['Fri, 23 Jan 2015 05:33:24 GMT']
+      date: ['Mon, 30 Mar 2015 22:04:33 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}
@@ -59,14 +59,14 @@ interactions:
       Content-Length: ['0']
       Content-Type: [application/json]
     method: DELETE
-    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations/94857165-a439-4b88-834e-dab67454ccf9
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/configurations/8c6717d4-c7f2-4179-8312-e3f76eaea4e6
   response:
     body: {string: !!python/unicode ''}
     headers:
       connection: [close]
       content-length: ['0']
       content-type: [application/json]
-      date: ['Fri, 23 Jan 2015 05:33:24 GMT']
+      date: ['Mon, 30 Mar 2015 22:04:33 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 202, message: Accepted}

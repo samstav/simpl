@@ -74,43 +74,97 @@ class TestCloudDatabases(unittest.TestCase):
             before_record_response=before_record_response_cb
         )
 
+    def _wait_for_active(self, context, instance_id):
+        """Wait for instance status of 'ACTIVE'."""
+        timeout = time.time() + 60 * 5  # 5 minutes
+        status = None
+        while status != u'ACTIVE' and time.time() < timeout:
+            time.sleep(self.delay)
+            get_response = dbaas.get_instance(context, instance_id)
+            if 'instance' in get_response:
+                status = get_response['instance'].get('status')
+        self.assertEqual(u'ACTIVE', status)
+
     def test_successful_instance_create_retrieve_delete(self):
         """Successfully create/retrieve/delete a database instance."""
         context = test.MockAttribContext(self.region, self.tenant, self.token)
         with self.vcr.use_cassette('vcr-cdb-full.yaml'):
-            create_resp = dbaas.create_instance(context, 'test-delete-me', 101)
-            validated = dbaas.validate_instance_details(create_resp)
-            self.assertEqual(validated, create_resp)
+            create_resp = dbaas.create_instance(context,
+                                                name='test-delete-me',
+                                                flavor=101,
+                                                dstore_type='redis',
+                                                dstore_ver='2.8')
+            self.assertEqual(create_resp,
+                             dbaas.validate_instance_details(create_resp))
 
-            status = create_resp.get('status')
+            self._wait_for_active(context, create_resp['id'])
+
+            self.assertEqual(u'202, Accepted',
+                             dbaas.delete_instance(context,
+                                                   create_resp.get('id')))
+
+    def test_successful_instance_create_with_replica(self):
+        """Successfully create/retrieve/delete a database/replica instance."""
+        context = test.MockAttribContext(self.region, self.tenant, self.token)
+        with self.vcr.use_cassette('vcr-cdb-replica.yaml'):
+            master = dbaas.create_instance(context,
+                                           name='test-delete-me-master',
+                                           flavor=2,
+                                           size=1)
+            self.assertEqual(master, dbaas.validate_instance_details(master))
+
+            self._wait_for_active(context, master['id'])
+
+            replica = dbaas.create_instance(
+                context,
+                name='test-delete-me-replica-1',
+                flavor=2,
+                size=1,
+                replica_of=master['id']
+            )
+            self.assertEqual(replica, dbaas.validate_instance_details(replica))
+            self.assertEqual(master['id'], replica['replica_of'])
+
+            self._wait_for_active(context, replica['id'])
+
+            self.assertEqual(u'202, Accepted',
+                             dbaas.detach_replica(context,
+                                                  replica_id=replica['id'],
+                                                  replica_of=master['id']))
+
+            self.assertEqual(u'202, Accepted',
+                             dbaas.delete_instance(context, replica['id']))
+            # Both detach_replica and delete_instance can take some time so
+            # wait until we can't find the replica instance anymore
             timeout = time.time() + 60 * 5  # 5 minutes
-            while status != u'ACTIVE' and time.time() < timeout:
+            while time.time() < timeout:
                 time.sleep(self.delay)
-                get_response = dbaas.get_instance(context,
-                                                  create_resp.get('id'))
-                if 'instance' in get_response:
-                    status = get_response['instance'].get('status')
+                try:
+                    dbaas.get_instance(context, replica['id'])
+                except dbaas.CDBException:
+                    break  # Not found, which means 'Deleted' in CDB-speak
 
-            del_response = dbaas.delete_instance(context,
-                                                 create_resp.get('id'))
-            self.assertEqual(u'202, Accepted', del_response)
+            self.assertEqual(u'202, Accepted',
+                             dbaas.delete_instance(context, master['id']))
 
     def test_successful_configuration_create_retrieve_delete(self):
         """Successfully create/retrieve/delete a database configuration."""
         context = test.MockAttribContext(self.region, self.tenant, self.token)
         values = {'connect_timeout': 60, 'expire_logs_days': 90}
         with self.vcr.use_cassette('vcr-cdb-db-config.yaml'):
-            create_response = dbaas.create_configuration(context, 'mysql',
-                                                         '5.6', values)
-            validated = dbaas.validate_db_config(create_response)
-            self.assertEqual(validated, create_response)
-            config_id = create_response['configuration']['id']
+            create_response = dbaas.create_configuration(context,
+                                                         db_type='mysql',
+                                                         db_version='5.6',
+                                                         values=values)
+            self.assertEqual(create_response,
+                             dbaas.validate_db_config(create_response))
 
+            config_id = create_response['configuration']['id']
             get_response = dbaas.get_configuration(context, config_id)
             self.assertEqual(create_response, get_response)
 
-            delete_response = dbaas.delete_configuration(context, config_id)
-            self.assertEqual(u'202, Accepted', delete_response)
+            self.assertEqual(u'202, Accepted',
+                             dbaas.delete_configuration(context, config_id))
 
     def test_get_config_params(self):
         """Retrieve config params for MySQL version 5.6."""
