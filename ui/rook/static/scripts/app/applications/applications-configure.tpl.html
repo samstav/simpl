@@ -88,7 +88,8 @@
       <div class="ui-block"></div>
 
       <!-- Topology -->
-      <blueprint-topology></blueprint-topology>
+      <blueprint-topology ng-hide="!deployment.blueprint.services">
+      </blueprint-topology>
 
       <!-- Code Mirror -->
       <div class="codemirror-toggle-button"
