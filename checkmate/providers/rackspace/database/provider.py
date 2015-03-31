@@ -70,6 +70,7 @@ class Provider(cmbase.ProviderBase):
 
     def generate_template(self, deployment, resource_type, service, context,
                           index, key, definition, planner):
+        """Generate templates incl. `desired-state` based on passed in args."""
         templates = cmbase.ProviderBase.generate_template(
             self, deployment, resource_type, service, context, index, self.key,
             definition, planner
@@ -182,7 +183,6 @@ class Provider(cmbase.ProviderBase):
 
     def verify_limits(self, context, resources):
         """Verify that deployment stays within absolute resource limits."""
-
         # Cloud databases absolute limits are currently hard-coded
         # The limits are per customer per region.
         volume_size_limit = 150
@@ -247,6 +247,7 @@ class Provider(cmbase.ProviderBase):
 
     def add_resource_tasks(self, resource, key, wfspec, deployment, context,
                            wait_on=None):
+        """Set up Celery task flow based on resource type."""
         wait_on, service_name, component = self._add_resource_tasks_helper(
             resource, key, wfspec, deployment, context, wait_on)
 
@@ -439,6 +440,7 @@ class Provider(cmbase.ProviderBase):
 
     def get_resource_status(self, context, deployment_id, resource, key,
                             sync_callable=None, api=None):
+        """Sync deployment's resource to actual state, and return status."""
         from checkmate.providers.rackspace.database import tasks
         if (api is None and 'instance' in resource and
                 'region' in resource['instance']):
@@ -463,6 +465,7 @@ class Provider(cmbase.ProviderBase):
 
     def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
                               key):
+        """Delete `resource` from deployment `deployment_id`."""
         self._verify_existing_resource(resource, key)
         region = (resource.get('region') or
                   resource.get('instance', {}).get('host_region'))
@@ -487,7 +490,7 @@ class Provider(cmbase.ProviderBase):
 
     @staticmethod
     def _delete_comp_res_tasks(wf_spec, context, key):
-        """Delete Computer Resource Tasks."""
+        """Delete Compute Resource Tasks."""
         delete_instance = specs.Celery(
             wf_spec, 'Delete Computer Resource Tasks (%s)' % key,
             'checkmate.providers.rackspace.database.tasks.'
@@ -536,7 +539,7 @@ class Provider(cmbase.ProviderBase):
 
     @staticmethod
     def _delete_db_res_task(context):
-        """Return a chain of delete task to remove a db resource
+        """Return a chain of delete task to remove a db resource.
 
         :param context:
         :return:

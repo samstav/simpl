@@ -44,6 +44,7 @@ class DBAASContext(object):
     """
 
     def __init__(self, context, region=None):
+        """Class initializer."""
         self.region = region or context.get('region')
         self.tenant = context.get('tenant')
         self.auth_token = context.get('auth_token')
@@ -94,7 +95,7 @@ def sync_resource_task(context, resource, api=None, callback=None):
 @statsd.collect
 def create_instance(context, instance_name, desired_state, callback=None,
                     config_id=None):
-    """Creates a Cloud Database instance with options in desired_state."""
+    """Create a Cloud Database instance with options in desired_state."""
     callback = callback or create_instance.partial
     return manager.Manager.create_instance(context,
                                            instance_name,
@@ -149,7 +150,7 @@ def add_user(context, instance_id, databases, username, password,
 @task.task(default_retry_delay=2, max_retries=60)
 @statsd.collect
 def delete_instance_task(context, api=None):
-    """Deletes a database server instance, its databases and users."""
+    """Delete a database server instance, its databases and users."""
     utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -254,7 +255,6 @@ def delete_instance_task(context, api=None):
 @statsd.collect
 def wait_on_del_instance(context, api=None):
     """Wait for the specified instance to be deleted."""
-
     utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -369,7 +369,6 @@ def wait_on_del_instance(context, api=None):
 @statsd.collect
 def delete_database(context, api=None):
     """Delete a database from an instance."""
-
     utils.match_celery_logging(LOG)
 
     def on_failure(exc, task_id, args, kwargs, einfo):
@@ -479,7 +478,7 @@ def delete_user(context, instance_id, username, region, api=None):
 @task.task(default_retry_delay=10, max_retries=10)
 @statsd.collect
 def delete_configuration(context, config_id):
-    """Delete database configuration referenced by config_id
+    """Delete database configuration referenced by config_id.
 
     Note: region is set to `None` when the database instance is deleted
     so we need to grab it from the resource. Of the two possibilies - one in
@@ -489,5 +488,11 @@ def delete_configuration(context, config_id):
     region = context.get('resource', {}).get('instance', {}).get('region')
     context = DBAASContext(context, region=region)
     utils.match_celery_logging(LOG)
-    dbaas.delete_configuration(context, config_id)
-    LOG.info('Deleted database configuration %s', config_id)
+    try:
+        dbaas.delete_configuration(context, config_id)
+        LOG.info('Deleted database configuration %s', config_id)
+    except dbaas.CDBException as exc:
+        if exc.message.startswith('404'):  # pylint: disable=E1101
+            LOG.info('Database configuration %s does not exist.', config_id)
+        else:
+            raise exc

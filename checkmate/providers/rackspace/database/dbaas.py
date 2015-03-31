@@ -429,7 +429,8 @@ def _handle_response(response):
             data = response.json()
             error = data.itervalues().next()
             message = error.get('message') or error.get('description')
-            raise CDBException(message)
+            raise CDBException(
+                '%d %s: %s' % (response.status_code, response.reason, message))
         except (KeyError, AttributeError, ValueError):
             response.raise_for_status()
 
