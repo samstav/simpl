@@ -91,6 +91,7 @@ def test_connection(context, ip, username, timeout=10, password=None,
         result = client.test_connection()
         if result:
             LOG.debug("ssh://%s@%s:%d is up.", username, ip, port)
+        client.close()
         return result
     except Exception as exc:
         LOG.info('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
