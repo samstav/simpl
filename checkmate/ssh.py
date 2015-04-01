@@ -88,9 +88,10 @@ def test_connection(context, ip, username, timeout=10, password=None,
         client = connect(ip, port=port, username=username, timeout=timeout,
                          private_key=private_key, identity_file=identity_file,
                          password=password, gateway=gateway)
-        client.close()
-        LOG.debug("ssh://%s@%s:%d is up.", username, ip, port)
-        return True
+        result = client.test_connection()
+        if result:
+            LOG.debug("ssh://%s@%s:%d is up.", username, ip, port)
+        return result
     except Exception as exc:
         LOG.info('ssh://%s@%s:%d failed.  %s', username, ip, port, exc)
         if test_connection.request.id:
@@ -206,11 +207,10 @@ def connect(ip, port=22, username="root", timeout=10, identity_file=None,
     try:
         options = {'StrictHostKeyChecking': False}
         if private_key is not None:
-            file_obj = StringIO.StringIO(private_key)
-            pkey = paramiko.RSAKey.from_private_key(file_obj)
             LOG.debug("Trying supplied private key string")
             client = bash.RemoteShell(ip, timeout=timeout, port=port,
-                                      username=username, private_key=pkey,
+                                      username=username,
+                                      private_key=private_key,
                                       gateway=gateway, options=options)
         elif identity_file is not None:
             LOG.debug("Trying key file: %s", os.path.expanduser(identity_file))
