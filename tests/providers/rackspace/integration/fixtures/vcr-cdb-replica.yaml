@@ -1,0 +1,550 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/flavors/2
+  response:
+    body: {string: !!python/unicode '{"flavor": {"ram": 1024, "id": 2, "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2", "rel":
+        "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}], "name": "1GB Instance"}}'}
+    headers:
+      connection: [close]
+      content-length: ['251']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:05:37 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: '{"instance": {"volume": {"size": 1}, "flavorRef": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+      "name": "test-delete-me-master"}}'
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['155']
+      Content-Type: [application/json]
+    method: POST
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:05:38",
+        "name": "test-delete-me-master", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}], "created": "2015-03-30T22:05:38", "hostname": "redacted",
+        "id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}}}'}
+    headers:
+      connection: [close]
+      content-length: ['813']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:05:38 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:05:42",
+        "name": "test-delete-me-master", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}], "created": "2015-03-30T22:05:38", "hostname": "redacted",
+        "id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}}}'}
+    headers:
+      connection: [close]
+      content-length: ['813']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:06:08 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:06:15",
+        "name": "test-delete-me-master", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}], "created": "2015-03-30T22:05:38", "hostname": "redacted",
+        "id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}}}'}
+    headers:
+      connection: [close]
+      content-length: ['813']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:06:38 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:06:15",
+        "name": "test-delete-me-master", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}], "created": "2015-03-30T22:05:38", "hostname": "redacted",
+        "id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}}}'}
+    headers:
+      connection: [close]
+      content-length: ['813']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:07:09 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:06:15",
+        "name": "test-delete-me-master", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}], "created": "2015-03-30T22:05:38", "hostname": "redacted",
+        "id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}}}'}
+    headers:
+      connection: [close]
+      content-length: ['813']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:07:39 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "ACTIVE", "updated":
+        "2015-03-30T22:06:15", "name": "test-delete-me-master", "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}], "created": "2015-03-30T22:05:38", "hostname": "redacted",
+        "id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "volume": {"used": 0.17999999999999999,
+        "size": 1}, "flavor": {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}}}'}
+    headers:
+      connection: [close]
+      content-length: ['843']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:08:10 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/flavors/2
+  response:
+    body: {string: !!python/unicode '{"flavor": {"ram": 1024, "id": 2, "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2", "rel":
+        "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}], "name": "1GB Instance"}}'}
+    headers:
+      connection: [close]
+      content-length: ['251']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:08:10 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: '{"instance": {"volume": {"size": 1}, "flavorRef": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+      "name": "test-delete-me-replica-1", "replica_of": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba"}}'
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['212']
+      Content-Type: [application/json]
+    method: POST
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:08:11",
+        "name": "test-delete-me-replica-1", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "bookmark"}], "created": "2015-03-30T22:08:11", "hostname": "redacted",
+        "id": "924eee37-7af1-45d2-81ed-3f676140d24d", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}, "replica_of":
+        {"id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}]}}}'}
+    headers:
+      connection: [close]
+      content-length: ['1145']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:08:11 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:08:11",
+        "name": "test-delete-me-replica-1", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "bookmark"}], "created": "2015-03-30T22:08:11", "hostname": "redacted",
+        "id": "924eee37-7af1-45d2-81ed-3f676140d24d", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}, "replica_of":
+        {"id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}]}}}'}
+    headers:
+      connection: [close]
+      content-length: ['1145']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:08:41 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:09:05",
+        "name": "test-delete-me-replica-1", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "bookmark"}], "created": "2015-03-30T22:08:11", "hostname": "redacted",
+        "id": "924eee37-7af1-45d2-81ed-3f676140d24d", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}, "replica_of":
+        {"id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}]}}}'}
+    headers:
+      connection: [close]
+      content-length: ['1145']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:09:11 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:09:37",
+        "name": "test-delete-me-replica-1", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "bookmark"}], "created": "2015-03-30T22:08:11", "hostname": "redacted",
+        "id": "924eee37-7af1-45d2-81ed-3f676140d24d", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}, "replica_of":
+        {"id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}]}}}'}
+    headers:
+      connection: [close]
+      content-length: ['1145']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:09:42 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:09:37",
+        "name": "test-delete-me-replica-1", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "bookmark"}], "created": "2015-03-30T22:08:11", "hostname": "redacted",
+        "id": "924eee37-7af1-45d2-81ed-3f676140d24d", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}, "replica_of":
+        {"id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}]}}}'}
+    headers:
+      connection: [close]
+      content-length: ['1145']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:10:13 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:09:37",
+        "name": "test-delete-me-replica-1", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "bookmark"}], "created": "2015-03-30T22:08:11", "hostname": "redacted",
+        "id": "924eee37-7af1-45d2-81ed-3f676140d24d", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}, "replica_of":
+        {"id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}]}}}'}
+    headers:
+      connection: [close]
+      content-length: ['1145']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:10:43 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "BUILD", "updated": "2015-03-30T22:09:37",
+        "name": "test-delete-me-replica-1", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "bookmark"}], "created": "2015-03-30T22:08:11", "hostname": "redacted",
+        "id": "924eee37-7af1-45d2-81ed-3f676140d24d", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}, "replica_of":
+        {"id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}]}}}'}
+    headers:
+      connection: [close]
+      content-length: ['1145']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:11:13 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "ACTIVE", "updated":
+        "2015-03-30T22:09:37", "name": "test-delete-me-replica-1", "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "bookmark"}], "created": "2015-03-30T22:08:11", "hostname": "redacted",
+        "id": "924eee37-7af1-45d2-81ed-3f676140d24d", "volume": {"used": 0.17999999999999999,
+        "size": 1}, "flavor": {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}, "replica_of":
+        {"id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}]}}}'}
+    headers:
+      connection: [close]
+      content-length: ['1175']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:11:44 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: '{"instance": {"replica_of": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba"}}'
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['68']
+      Content-Type: [application/json]
+    method: PATCH
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode ''}
+    headers:
+      connection: [close]
+      content-length: ['0']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:11:44 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 202, message: Accepted}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['0']
+      Content-Type: [application/json]
+    method: DELETE
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode ''}
+    headers:
+      connection: [close]
+      content-length: ['0']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:11:45 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 202, message: Accepted}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode '{"instance": {"status": "SHUTDOWN", "updated":
+        "2015-03-30T22:11:45", "name": "test-delete-me-replica-1", "links": [{"href":
+        "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/924eee37-7af1-45d2-81ed-3f676140d24d",
+        "rel": "bookmark"}], "created": "2015-03-30T22:08:11", "hostname": "redacted",
+        "id": "924eee37-7af1-45d2-81ed-3f676140d24d", "volume": {"size": 1}, "flavor":
+        {"id": "2", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/flavors/2",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/flavors/2",
+        "rel": "bookmark"}]}, "datastore": {"version": "5.6", "type": "mysql"}, "replica_of":
+        {"id": "7c38fdae-f6e2-48ff-a37f-db3651a2bbba", "links": [{"href": "https://iad.databases.api.rackspacecloud.com/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "self"}, {"href": "https://iad.databases.api.rackspacecloud.com/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba",
+        "rel": "bookmark"}]}}}'}
+    headers:
+      connection: [close]
+      content-length: ['1148']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:12:25 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Type: [application/json]
+    method: GET
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/924eee37-7af1-45d2-81ed-3f676140d24d
+  response:
+    body: {string: !!python/unicode '{"itemNotFound": {"message": "Resource 924eee37-7af1-45d2-81ed-3f676140d24d
+        cannot be found.", "code": 404}}'}
+    headers:
+      connection: [close]
+      content-length: ['108']
+      content-type: [application/json; charset=UTF-8]
+      date: ['Mon, 30 Mar 2015 22:12:56 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 404, message: Not Found}
+- request:
+    body: null
+    headers:
+      Accept: [application/json]
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['0']
+      Content-Type: [application/json]
+    method: DELETE
+    uri: https://iad.databases.api.rackspacecloud.com:443/v1.0/redacted/instances/7c38fdae-f6e2-48ff-a37f-db3651a2bbba
+  response:
+    body: {string: !!python/unicode ''}
+    headers:
+      connection: [close]
+      content-length: ['0']
+      content-type: [application/json]
+      date: ['Mon, 30 Mar 2015 22:12:56 GMT']
+      server: [Jetty(8.0.y.z-SNAPSHOT)]
+      via: [1.1 Repose (Repose/2.12)]
+    status: {code: 202, message: Accepted}
+version: 1

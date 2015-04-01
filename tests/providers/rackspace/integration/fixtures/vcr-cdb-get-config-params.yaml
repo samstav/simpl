@@ -225,8 +225,6 @@ interactions:
         false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
         {"name": "secure_auth", "min": 0, "max": 1, "restart_required": false, "type":
         "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
-        {"name": "server_id", "min": 1, "max": 100000, "restart_required": true, "type":
-        "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
         {"name": "slow_launch_time", "min": 0, "max": 31536000, "restart_required":
         false, "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"},
         {"name": "slow_query_log", "min": 0, "max": 1, "restart_required": false,
@@ -256,9 +254,9 @@ interactions:
         "type": "integer", "datastore_version_id": "14069833-2efd-4d3a-b7e7-d57b51fc7dc4"}]}'}
     headers:
       connection: [close]
-      content-length: ['20854']
+      content-length: ['20697']
       content-type: [application/json]
-      date: ['Fri, 23 Jan 2015 05:33:23 GMT']
+      date: ['Mon, 30 Mar 2015 22:04:32 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}

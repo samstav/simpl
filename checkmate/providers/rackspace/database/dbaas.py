@@ -47,14 +47,22 @@ _validate_instance_details = voluptuous.Schema(
             int, voluptuous.Any(1, 2, 3, 4, 5, 6, 7, 8,
                                 101, 102, 103, 104, 105, 106, 107, 108)
         ),
-        'disk': None,
-        'interfaces': {
-            'redis': {
-                'host': basestring,
-                'password': basestring,
-                'port': int
+        'disk': voluptuous.Any(None, int),
+        'interfaces': voluptuous.Any(
+            {
+                'redis': {
+                    'host': basestring,
+                    'password': basestring,
+                    'port': int
+                }
+            }, {
+                'mysql': {
+                    'host': basestring,
+                    'port': int
+                }
             }
-        }
+        ),
+        voluptuous.Optional('replica_of'): basestring
     },
     required=True
 )
@@ -223,7 +231,7 @@ def get_flavor_ref(context, flavor_id):
 
 
 def create_instance(context, name, flavor, **kwargs):
-    """Call _create_instance then format the response for Checkmate.
+    """POST to Cloud Databases, then format the response for Checkmate.
 
     :param context: must have attributes 'region', 'tenant', 'auth_token'.
                     'resource_key' is used in simulation mode.
@@ -241,6 +249,7 @@ def create_instance(context, name, flavor, **kwargs):
             ]
         - dstore_type: mysql | percona | mariadb | redis
         - dstore_ver: e.g. '5.6' for mysql or '10' for mariadb
+        - replica_of: the database ID to be used to create a replica
         - size: the disk size in gigabytes (GB). Required for non-Redis types
         - simulate: if True, skip the API call and return a simulated instance
         - users: a list of dicts following the add_users format
@@ -269,6 +278,8 @@ def create_instance(context, name, flavor, **kwargs):
         }
     if kwargs.get('databases'):
         inputs['databases'] = kwargs['databases']
+    if kwargs.get('replica_of'):
+        inputs['replica_of'] = kwargs['replica_of']
     if kwargs.get('users'):
         inputs['users'] = kwargs['users']
 
@@ -331,6 +342,33 @@ def get_instances(context):
 
 
 ###
+# Replica Functions
+#
+# NOTE: Creating a replica is achieved through the create_instance function
+###
+
+
+def detach_replica(context, replica_id, replica_of):
+    """Detach replica_id from instance replica_of."""
+    url = _build_url(context.region, context.tenant,
+                     '/instances/%s' % replica_id)
+    inputs = {'instance': {'replica_of': replica_of}}
+    return _handle_response(
+        requests.patch(url, headers=_build_headers(context.auth_token),
+                       data=json.dumps(inputs))
+    )
+
+
+def get_replicas(context, master_id):
+    """List all replicas for the given master_id."""
+    url = _build_url(context.region, context.tenant,
+                     '/instances/%s/replicas' % master_id)
+    return _handle_response(
+        requests.get(url, headers=_build_headers(context.auth_token))
+    )
+
+
+###
 # Helper Functions
 ###
 
@@ -365,6 +403,8 @@ def _build_create_response(region, instance, inputs):
 
     if 'databases' in inputs:
         response['databases'] = inputs['databases']
+    if 'replica_of' in inputs:
+        response['replica_of'] = inputs['replica_of']
     if 'users' in inputs:
         response['users'] = inputs['users']
 

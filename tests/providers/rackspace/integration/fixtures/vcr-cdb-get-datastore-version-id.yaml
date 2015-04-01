@@ -38,7 +38,7 @@ interactions:
       connection: [close]
       content-length: ['2640']
       content-type: [application/json]
-      date: ['Fri, 23 Jan 2015 05:33:23 GMT']
+      date: ['Mon, 30 Mar 2015 22:04:32 GMT']
       server: [Jetty(8.0.y.z-SNAPSHOT)]
       via: [1.1 Repose (Repose/2.12)]
     status: {code: 200, message: OK}
