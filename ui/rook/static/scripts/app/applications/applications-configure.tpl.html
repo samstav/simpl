@@ -146,6 +146,10 @@
                   ng-disabled="!auth.identity.loggedIn || submitting || !deployment.blueprint.services"
                   ng-click="submit('simulate')">Simulate</button>
           <button class="rs-btn"
+                  ng-show="auth.context.tenantId"
+                  ng-disabled="!auth.identity.loggedIn || submitting || !deployment.blueprint.services"
+                  ng-click="save()">Save</button>
+          <button class="rs-btn"
                   ng-disabled="!controls.canRevert"
                   ng-click="revert()">Revert</button>
           <button class="rs-btn"
@@ -178,3 +182,22 @@
 
   </div> <!-- /.rs-app-launch-container -->
 </div> <!-- /.rs-container -->
+
+<script type="text/ng-template" id="dialog-save-and-overwrite-blueprint">
+    <h3>Save Existing Blueprint</h3>
+
+    <p>We want to be double sure that you want to save this Blueprint. Do you want to update this blueprint or make a new copy of it?</p>
+
+    <button class="rs-btn rs-btn-primary" ng-click="confirm('UPDATE')">Update</button>
+    <button class="rs-btn rs-btn-secondary" ng-click="confirm('SAVE')">Create a New Copy</button>
+    <button class="rs-btn rs-btn-link" ng-click="closeThisDialog()">Cancel</button>
+</script>
+
+<script type="text/ng-template" id="dialog-save-blueprint">
+    <h3>Save Blueprint</h3>
+
+    <p>Are you sure you want to save this blueprint</p>
+
+    <button class="rs-btn rs-btn-primary" ng-click="confirm()">Save and Overwrite Blueprint</button>
+    <button class="rs-btn rs-btn-link" ng-click="closeThisDialog()">Cancel</button>
+</script>

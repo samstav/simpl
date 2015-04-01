@@ -5,12 +5,12 @@ angular.module('checkmate.applications-configure', [
   'checkmate.Flavors',
   'checkmate.DeploymentData',
   'checkmate.Drag',
-  'checkmate.ComponentOptions'
+  'checkmate.ComponentOptions',
+  'ngDialog'
 ]);
 
 angular.module('checkmate.applications-configure')
-  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window, Flavors) {
-
+  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window, Flavors, ngDialog) {
     $scope.deployment = DeploymentData.get();
 
     $scope.export = function() {
@@ -156,6 +156,20 @@ angular.module('checkmate.applications-configure')
       return deployment;
     };
 
+    $scope.save = function() {
+      if($scope.deployment.id) {
+        var save = ngDialog.openConfirm({
+          template: 'dialog-save-and-overwrite-blueprint'
+        });
+
+        save.then(function (data) {
+          $scope.$broadcast('blueprint:save', data);
+        });
+      } else {
+        $scope.$broadcast('blueprint:save');
+      }
+    };
+
     $scope.submit = function(action) {
       if ($scope.submitting === true)
         return;
@@ -243,6 +257,13 @@ angular.module('checkmate.applications-configure')
 
     $scope.$on('blueprint:valid', function(event, data) {
       unblockUi();
+    });
+
+    $scope.$on('blueprint:save', function(event, data) {
+      var deployment = $scope.prepDeployment($scope.deployment);
+      var overwrite = (data === 'UPDATE');
+
+      DeploymentData.save($scope.auth.context.tenantId, deployment, overwrite);
     });
 
     $scope.$on('topology:error', function(event, data) {

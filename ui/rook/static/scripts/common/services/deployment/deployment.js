@@ -26,7 +26,7 @@ angular.module('checkmate.DeploymentData', [
   'checkmate.codemirror'
 ]);
 angular.module('checkmate.DeploymentData')
-  .factory('DeploymentData', function($rootScope, Blueprint) {
+  .factory('DeploymentData', function($rootScope, Blueprint, $http) {
     window.defaultDeployment.blueprint = Blueprint.get();
 
     var service = {
@@ -70,6 +70,42 @@ angular.module('checkmate.DeploymentData')
         return this.data;
       },
       mime: null,
+      save: function(tenantId, deployment, overwrite) {
+        // If there's no blueprint, we can't save it.
+        if(!deployment.blueprint) {
+          console.error('no blueprint. :(');
+          return;
+        };
+
+        // If there's no tenantId, we can't save it.
+        if(!tenantId && isNaN(tenantId)) {
+          console.error('no tenantId. :(');
+          return;
+        };
+
+        // Remove the ID we generate a new one.
+        if(!overwrite && deployment.id) {
+          delete deployment.id;
+        }
+
+        var that = this;
+        var req = {
+          method: 'POST',
+          url: '/' + tenantId + '/blueprints',
+          data: deployment
+        };
+
+        return $http(req)
+          .success(function(data, status, headers, config) {
+            // Update the Deployment with the response (with new ID)
+            var updated = that.get();
+            updated.id = data.id;
+
+            that.set(updated);
+          }).error(function(data, status, headers, config) {
+            console.error('Setting Deployment failed: ', data);
+          });
+      },
       set: function(deployment) {
         if(this.isValid(deployment)) {
           this.data = angular.copy(deployment);
