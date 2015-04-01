@@ -17,7 +17,6 @@
 
 import logging
 import os
-import StringIO
 
 from celery.task import task
 import paramiko
