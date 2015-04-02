@@ -70,6 +70,7 @@ RUN chmod +x /usr/local/bin/crypt
 # Setup Checkmate
 RUN (mkdir /var/log/supervisor &&\
      useradd -m -u 8888 checkmate &&\
+     mkdir /home/checkmate/.ssh &&\
      mkdir -p /var/local/checkmate &&\
      chown checkmate /var/local/checkmate &&\
      pip install -e /app/ui &&\
