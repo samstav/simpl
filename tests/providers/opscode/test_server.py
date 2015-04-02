@@ -386,12 +386,19 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 self.deployment['id'],
                 'kitchen'
             ],
-            'kwargs': {'server_credentials': {
-                'server_user_key': None,
-                'server_username': None,
-                'validator_pem': None,
-                'server_url': None,
-                'validator_username': None}, 'source_repo': None},
+            'kwargs': {
+                'server_credentials': {
+                    'server_user_key': None,
+                    'server_username': None,
+                    'validator_pem': None,
+                    'server_url': None,
+                    'validator_username': None,
+                },
+                'private_key': None,
+                'public_key_ssh': None,
+                'secret_key': None,
+                'source_repo': None,
+            },
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
                 'kitchen': '/var/tmp/%s/kitchen' % self.deployment['id'],
@@ -745,6 +752,9 @@ interfaces/mysql/host
                     'server_url': None,
                     'validator_username': None
                 },
+                'private_key': None,
+                'public_key_ssh': None,
+                'secret_key': None,
                 'source_repo': 'http://mock_url'
             },
             'result': {
