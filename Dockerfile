@@ -68,12 +68,12 @@ ADD https://github.com/xordataexchange/crypt/releases/download/v0.0.1/crypt-0.0.
 RUN chmod +x /usr/local/bin/crypt
 
 # Setup Checkmate
-RUN (mkdir /var/log/supervisor; \
-     useradd -m -u 8888 checkmate; \
-     mkdir -p /var/local/checkmate; \
-     chown checkmate /var/local/checkmate; \
-     pip install -e /app/ui; \
-     pip install -e /app; \
+RUN (mkdir /var/log/supervisor &&\
+     useradd -m -u 8888 checkmate &&\
+     mkdir -p /var/local/checkmate &&\
+     chown checkmate /var/local/checkmate &&\
+     pip install -e /app/ui &&\
+     pip install -e /app &&\
      chmod +x /app/run.sh;)
 
 # Cleanup
