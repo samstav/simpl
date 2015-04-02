@@ -4,6 +4,9 @@ echo "Passing arguments to supervisor's config..."
 
 ROLE=$@
 
+cp /sshdata/* /home/checkmate/.ssh/
+chown checkmate:checkmate /home/checkmate/.ssh/*
+
 sed -i "s,REPLACEME,$ROLE,g" /etc/supervisor.d/checkmate.conf
 
 touch /var/log/checkmate-stdout.log
