@@ -65,6 +65,12 @@ class Provider(base.BaseOpscodeProvider):
         cmbase.ProviderBase.prep_environment(self, wfspec, deployment, context)
         if self.prep_task:
             return  # already prepped
+        settings = deployment.settings()
+        all_keys = settings.get('keys', {})
+        deployment_keys = all_keys.get('deployment', {})
+        public_key_ssh = deployment_keys.get('public_key_ssh')
+        private_key = deployment_keys.get('private_key')
+        secret_key = deployment.get_setting('secret_key')
 
         self.server_credentials = {
             'server_url': deployment.get_setting('server-url',
@@ -88,6 +94,9 @@ class Provider(base.BaseOpscodeProvider):
                 deployment['id'],
                 'kitchen'
             ],
+            public_key_ssh=public_key_ssh,
+            private_key=private_key,
+            secret_key=secret_key,
             source_repo=source_repo,
             server_credentials=self.server_credentials,
             defines={'resource': 'workspace', 'provider': self.key},
