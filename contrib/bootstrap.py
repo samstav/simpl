@@ -13,12 +13,15 @@ import getpass
 import json
 import pprint
 import sys
+import time
 
 import keyring
 import requests
 from simpl import config
 
 PROJECT_NAME = 'checkmate'
+PS_RETRIES = 3
+PS_RETRY_SLEEP = 1
 
 
 class UnauthorizedException(Exception):
@@ -36,19 +39,21 @@ class PasswordSafeWrapper(object):
                  passwordsafe_url,
                  project_name,
                  auth_token,
-                 env_vars):
+                 env_vars,
+                 retries=PS_RETRIES):
         # We are not retrying on failed auth token as it is once and done.
         self.auth_token = auth_token
         self.env_vars = env_vars
         self.passwordsafe_url = passwordsafe_url
         self.project_name = project_name
+        self.retries = retries
 
         # Establishing reusable session
         self.sess = self._get_session()
 
         # Retrieving needed info from PS
         self.project_id = self.get_project_id()
-        self._ps_credentials = self._get_project_credentials()
+        self._ps_credentials = self._get_project_credentials(self.retries)
 
         # Building a list of secrets
         self.secrets = self.build_secrets()
@@ -119,15 +124,17 @@ class PasswordSafeWrapper(object):
         """Make remote call to retrieve projects list."""
         return self.sess.get(self.passwordsafe_url + '/projects')
 
-    def _get_project_credentials(self, retry=True):
+    def _get_project_credentials(self, retries):
         """Retrieve credentials from passwordsafe."""
         output('retrieving credentials')
         resp = self._get_credentials()
 
         # PS has a tendency to occasionally return 403's
         # adding in a single retry to alleviate this.
-        if retry and resp.status_code == 403:
-            self._get_project_credentials(retry=False)
+        if retries and resp.status_code == 403:
+            output('Passwordsafe gave a 403, retrying %s more times' % retries)
+            time.sleep(PS_RETRY_SLEEP)
+            return self._get_project_credentials(retries=retries-1)
         resp.raise_for_status()
         credentials = [result['credential'] for result in resp.json()]
         output('found %d credentials', len(credentials))
@@ -204,7 +211,8 @@ def _get_auth_token(identity_url,
     try:
         err = data.get('badRequest', data.get('unauthorized'))
         if err is not None:
-            raise UnauthorizedException('%s (%d)', err['message'], err['code'])
+            raise UnauthorizedException('%s (%d)' %
+                                        (err['message'], err['code']))
 
         token = data['access']['token']['id']
         output('got token')
@@ -292,7 +300,9 @@ def main(parsed_args):
             passwordsafe_url=parsed_args.get('passwordsafe'),
             project_name=parsed_args.get('project'),
             auth_token=auth_token,
-            env_vars=env_vars)
+            env_vars=env_vars,
+            retries=parsed_args.get('retries')
+        )
         secrets = ps.secrets
         env = secrets.copy()
 
@@ -357,7 +367,10 @@ if __name__ == '__main__':
         config.Option('--from-passwordsafe', nargs='*', type=list_from_string,
                       help='Name of environment variable to pull from '
                            'passwordsafe'),
-        config.Option('--silent', default=False, action='store_true')
+        config.Option('--silent', default=False, action='store_true'),
+        config.Option('--retries', default=PS_RETRIES, type=int,
+                      help='Number of times to retry access to Passwordsafe in'
+                           'the event of incorrect 403s')
     ]
 
     conf = config.Config(prog='checkmate_bootstrap', options=options)
