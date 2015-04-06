@@ -84,9 +84,9 @@ class TestDependencies(unittest.TestCase):
 
     def test_bottle_version(self):
         import bottle
-        version = [str(d) for d in bottle.__version__.split('.')]
-        self.assertEqual(version, ['0', '13-dev'],
-                         "Checkmate expects bottle version 0.13-dev. Found %s" %
+        version = [int(d) for d in bottle.__version__.split('.')]
+        self.assertEqual(version, [0, 12, 8],
+                         "Checkmate expects bottle version 0.12.8. Found %s" %
                          '.'.join([str(d) for d in version]))
 
     def test_eventlet_version(self):

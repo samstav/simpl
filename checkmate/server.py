@@ -43,7 +43,6 @@ import celery  # noqa
 import eventlet
 from eventlet import debug
 from eventlet.green import threading
-from eventlet import wsgi
 
 import checkmate
 from checkmate import admin
@@ -175,7 +174,8 @@ def error_formatter(error):
             'user': threadlocal.get_context().get('username'),
             'query': bottle.request.query_string,
         }
-        LOG.critical(errmsg, exc_info=error.exc_info, extra=context)
+        exc_info = type(error.exception), error.exception, error.traceback
+        LOG.critical(errmsg, exc_info=exc_info, extra=context)
         error.status = 500
         error.output = cmexc.UNEXPECTED_ERROR
 
@@ -474,11 +474,12 @@ def main():
     if CONFIG.eventlet is True:
         if CONFIG.bottle_reloader:
             LOG.warning("Bottle reloader not available with eventlet server.")
-        kwargs['server'] = CustomEventletServer
+        kwargs['server'] = EventletSSLServer
         kwargs['reloader'] = False  # reload fails in bottle with eventlet
         kwargs['backlog'] = 100
         kwargs['log'] = EventletLogFilter
         eventlet_backdoor.initialize_if_enabled()
+        from eventlet import wsgi  # noqa
         eventlet.wsgi.MAX_HEADER_LINE = 32768  # to accept x-catalog
     else:
         if CONFIG.access_log:
@@ -526,24 +527,82 @@ def main():
             print("Unexpected error shutting down worker:", exc)
 
 
-class CustomEventletServer(bottle.ServerAdapter):
+class EventletSSLServer(bottle.ServerAdapter):
 
-    """Handles added backlog."""
+    """Eventlet SSL-Cpabale Bottle Server Adapter.
 
-    def run(self, handler):
-        """Fire up the custom Eventlet server."""
+    * `backlog` adjust the eventlet backlog parameter which is the maximum
+      number of queued connections. Should be at least 1; the maximum
+      value is system-dependent.
+    * `family`: (default is 2) socket family, optional. See socket
+      documentation for available families.
+    * `**kwargs`: directly map to python's ssl.wrap_socket arguments from
+      https://docs.python.org/2/library/ssl.html#ssl.wrap_socket and
+      wsgi.server arguments from
+      http://eventlet.net/doc/modules/wsgi.html#wsgi-wsgi-server
+
+    To create a self-signed key and start the eventlet server using SSL::
+
+      openssl genrsa -des3 -out server.orig.key 2048
+      openssl rsa -in server.orig.key -out test.key
+      openssl req -new -key test.key -out server.csr
+      openssl x509 -req -days 365 -in server.csr -signkey test.key -out \
+      test.crt
+
+      bottle.run(server='eventlet', keyfile='test.key', certfile='test.crt')
+    """
+
+    def get_socket(self):
+        from eventlet import listen, wrap_ssl
+
+        # Separate out socket.listen arguments
+        socket_args = {}
+        for arg in ('backlog', 'family'):
+            try:
+                socket_args[arg] = self.options.pop(arg)
+            except KeyError:
+                pass
+        # Separate out wrap_ssl arguments
+        ssl_args = {}
+        for arg in ('keyfile', 'certfile', 'server_side', 'cert_reqs',
+                    'ssl_version', 'ca_certs', 'do_handshake_on_connect',
+                    'suppress_ragged_eofs', 'ciphers'):
+            try:
+                ssl_args[arg] = self.options.pop(arg)
+            except KeyError:
+                pass
+        address = (self.host, self.port)
         try:
-            socket_args = {}
-            for arg in ['backlog', 'family']:
-                if arg in self.options:
-                    socket_args[arg] = self.options.pop(arg)
-            if 'log_output' not in self.options:
-                self.options['log_output'] = (not self.quiet)
-            socket = eventlet.listen((self.host, self.port), **socket_args)
-            wsgi.server(socket, handler, **self.options)
+            sock = listen(address, **socket_args)
         except TypeError:
             # Fallback, if we have old version of eventlet
-            wsgi.server(eventlet.listen((self.host, self.port)), handler)
+            sock = listen(address)
+        if ssl_args:
+            sock = wrap_ssl(sock, **ssl_args)
+        return sock
+
+    def run(self, handler):
+        from eventlet import wsgi, patcher
+        if not patcher.is_monkey_patched(os):
+            msg = "Bottle requires eventlet.monkey_patch() (before import)"
+            raise RuntimeError(msg)
+
+        # Separate out wsgi.server arguments
+        wsgi_args = {}
+        for arg in ('log', 'environ', 'max_size', 'max_http_version',
+                    'protocol', 'server_event', 'minimum_chunk_size',
+                    'log_x_forwarded_for', 'custom_pool', 'keepalive',
+                    'log_output', 'log_format', 'url_length_limit', 'debug',
+                    'socket_timeout', 'capitalize_response_headers'):
+            try:
+                wsgi_args[arg] = self.options.pop(arg)
+            except KeyError:
+                pass
+        if 'log_output' not in wsgi_args:
+            wsgi_args['log_output'] = not self.quiet
+
+        sock = self.options.pop('shared_socket', None) or self.get_socket()
+        wsgi.server(sock, handler, **wsgi_args)
 
     def __repr__(self):
         return self.__class__.__name__
