@@ -257,9 +257,13 @@ def accept_cookies():
             params.setdefault('path', '/')
             cookie_value = params.pop('value', None)
             if cookie_value is not None:
+                for name, value in params.iteritems():
+                    if isinstance(value, unicode):
+                        params[name] = str(value)
                 LOG.info("Cookie '%s' set from trusted CORS partner", key,
                          extra={'data': {key: params}})
-                bottle.response.set_cookie(str(key), cookie_value, **params)
+                bottle.response.set_cookie(str(key), str(cookie_value),
+                                           **params)
 
     bottle.response.set_header('Access-Control-Allow-Credentials', 'true')
     return bottle.response
@@ -583,7 +587,8 @@ class RackspaceSSOAuthMiddleware(object):
     def __call__(self, environ, start_response):
         """Authenticate calls with X-Auth-Token to the source auth service."""
         # Always add a WWW-Authenticate header
-        extra_headers = [('WWW-Authenticate', self.authenticator.auth_header)]
+        extra_headers = [('WWW-Authenticate',
+                          str(self.authenticator.auth_header))]
         start_response = self.start_response_callback(
             start_response, add_headers=extra_headers)
 
