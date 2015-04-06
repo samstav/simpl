@@ -7,10 +7,7 @@ ROLE=$@
 cp /sshdata/* /home/checkmate/.ssh/
 chown checkmate:checkmate /home/checkmate/.ssh/*
 
-sed -i "s,REPLACEME,$ROLE,g" /etc/supervisor.d/checkmate.conf
-
-touch /var/log/checkmate-stdout.log
-tail -f /var/log/checkmate-stdout.log&
+sed -i "s,REPLACEME,$ROLE,g" /etc/supervisord.conf
 
 echo "Starting Supervisor..."
 

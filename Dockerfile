@@ -59,8 +59,7 @@ RUN pip install -r /app/requirements.txt
 
 # Put Checkmate in there
 ADD . /app
-ADD docker/config/checkmate-supervisor.conf /etc/supervisor.d/checkmate.conf
-ADD docker/config/supervisord.conf /etc/supervisord.conf
+ADD docker/config/checkmate-supervisor.conf /etc/supervisord.conf
 ADD docker/config/run.sh /app/run.sh
 
 # Put crypt in there
