@@ -92,16 +92,18 @@ class TestDependencies(unittest.TestCase):
     def test_eventlet_version(self):
         import eventlet
         version = [int(d) for d in eventlet.__version__.split('.')]
-        self.assertEqual(version, [0, 15, 2],
-                         "Checkmate expects eventlet version 0.15.2. Found %s"
-                         % '.'.join([str(d) for d in version]))
+        self.assertGreaterEqual(version, [0, 15, 2],
+                                "Checkmate expects eventlet version 0.15.2. "
+                                "Found %s" %
+                                '.'.join([str(d) for d in version]))
 
     def test_pymongo_version(self):
         import pymongo
         version = [int(d) for d in pymongo.version.split('.')]
-        self.assertEqual(version, [2, 7, 2],
-                         "Checkmate expects pymongo version 2.7.2. Found %s"
-                         % '.'.join([str(d) for d in version]))
+        self.assertGreaterEqual(version, [2, 7, 2],
+                                "Checkmate expects pymongo version 2.7.2. "
+                                "Found %s" %
+                                '.'.join([str(d) for d in version]))
 
 if __name__ == '__main__':
     from checkmate import test
