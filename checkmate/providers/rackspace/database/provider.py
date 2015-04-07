@@ -167,6 +167,25 @@ class Provider(cmbase.ProviderBase):
                 if option:
                     config_params[param['name']] = option
 
+            # Handle replica instance
+            replica_of = None
+            relations = {}
+            for r_id, resource in planner.resources.iteritems():
+                if (resource['type'] == 'database-replica' and
+                        resource['service'] == service):
+                    master_db = resource['desired-state']['master-db-id']
+                    replica_of = planner.resources[master_db]['hosted_on']
+                    master_index = planner.resources[replica_of]['index']
+                    relation_key = 'replica-of-%s' % master_index
+                    relations = {
+                        relation_key: {
+                            'key': relation_key,
+                            'type': 'reference',
+                            'target': master_index,
+                        }
+                    }
+                    break
+
             for template in templates:
                 template['desired-state']['flavor'] = flavor
                 template['desired-state']['region'] = region
@@ -176,9 +195,25 @@ class Provider(cmbase.ProviderBase):
                     template['desired-state']['disk'] = volume
                 if config_params:
                     template['desired-state']['config-params'] = config_params
+                if replica_of:
+                    template['desired-state']['replica-of'] = replica_of
+                    template['relations'] = relations
+
+        # Handle replica database
+        elif resource_type == 'database-replica':
+            master_db = definition['requires']['database:mysql']
+            master_service = master_db['satisfied-by']['service']
+            master_db_id = None
+            for r_id, resource in planner.resources.iteritems():
+                if resource['service'] == master_service:
+                    master_db_id = r_id
+
+            for template in templates:
+                template['desired-state']['master-db-id'] = master_db_id
 
         elif resource_type == 'database':
             pass
+
         return templates
 
     def verify_limits(self, context, resources):
@@ -252,7 +287,7 @@ class Provider(cmbase.ProviderBase):
             resource, key, wfspec, deployment, context, wait_on)
 
         resource_type = resource.get('type', resource.get('resource_type'))
-        if component['is'] == 'database':
+        if component['is'] in ['database', 'database-replica']:
             # For now, ignore all of this if we're spinning up a Redis
             # instance. We definitely don't need the create_database task, but
             # we may need the add_user task.
@@ -298,10 +333,12 @@ class Provider(cmbase.ProviderBase):
                                      "of '%s'" % start_with)
                     raise CheckmateException(error_message)
 
+            is_replica = component['is'] == 'database-replica'
+
             # Create resource tasks
             create_database_task = specs.Celery(
                 wfspec,
-                'Create Database %s' % db_name,
+                'Create Database %s for resource %s' % (db_name, key),
                 'checkmate.providers.rackspace.database.tasks.create_database',
                 call_args=[
                     context.get_queued_task_dict(
@@ -317,6 +354,7 @@ class Provider(cmbase.ProviderBase):
                 instance_id=operators.PathAttrib(
                     'resources/%s/instance/id' % resource['hosted_on']
                 ),
+                replica=is_replica,
                 defines=dict(
                     resource=key,
                     provider=self.key,
@@ -326,7 +364,7 @@ class Provider(cmbase.ProviderBase):
             )
             create_db_user = specs.Celery(
                 wfspec,
-                "Add DB User: %s" % username,
+                "Add DB User %s for resource %s" % (username, key),
                 'checkmate.providers.rackspace.database.tasks.add_user',
                 call_args=[
                     context.get_queued_task_dict(
@@ -341,6 +379,7 @@ class Provider(cmbase.ProviderBase):
                     operators.PathAttrib(
                         'resources/%s/instance/host_region' % key),
                 ],
+                replica=is_replica,
                 defines=dict(
                     resource=key,
                     provider=self.key,
@@ -369,7 +408,8 @@ class Provider(cmbase.ProviderBase):
             if 'config-params' in resource.get('desired-state', {}):
                 create_config_task = specs.Celery(
                     wfspec,
-                    'Create Database Configuration',
+                    'Create Database %s %s Configuration' % (name.capitalize(),
+                                                             key),
                     'checkmate.providers.rackspace.database.tasks.'
                     'create_configuration',
                     call_args=[
@@ -377,6 +417,7 @@ class Provider(cmbase.ProviderBase):
                             deployment_id=deployment['id'],
                             resource_key=key
                         ),
+                        '%s-%s' % (name, key),
                         resource['desired-state']['datastore-type'],
                         resource['desired-state']['datastore-version'],
                         resource['desired-state']['config-params']
@@ -386,10 +427,21 @@ class Provider(cmbase.ProviderBase):
                 )
                 root = wfspec.wait_for(create_config_task, wait_on)
 
+            # Check for replica status and set needed variables
+            replica_id = resource.get('desired-state', {}).get('replica-of')
+            replica_of = None
+            wait_for_master = None
+            if replica_id:
+                replica_of = operators.PathAttrib(
+                    'resources/%s/instance/id' % replica_id)
+                wait_for_master = wfspec.find_task_specs(resource=replica_id,
+                                                         tag='final')
+
             create_instance_task = specs.Celery(
                 wfspec,
                 'Create %s Server %s' % (name.capitalize(), key),
-                'checkmate.providers.rackspace.database.tasks.create_instance',
+                'checkmate.providers.rackspace.database.tasks.'
+                'create_instance',
                 call_args=[
                     context.get_queued_task_dict(
                         deployment_id=deployment['id'],
@@ -398,6 +450,7 @@ class Provider(cmbase.ProviderBase):
                     resource.get('dns-name'),
                     resource['desired-state']
                 ],
+                replica_of=replica_of,
                 config_id=operators.PathAttrib(
                     'resources/%s/instance/configuration/id' % key),
                 defines=defines,
@@ -405,9 +458,16 @@ class Provider(cmbase.ProviderBase):
             )
 
             if root:
-                create_instance_task.follow(create_config_task)
+                create_instance_task.follow(root)
             else:
                 root = wfspec.wait_for(create_instance_task, wait_on)
+
+            # No 'final' task for the master DB means master DB creation is
+            # not a part of this workflow (it was a part of a previous
+            # workflow). i.e. we're scaling up replication on an existing
+            # deployment. Otherwise, wait for the master instance to come up.
+            if wait_for_master:
+                root.follow(wait_for_master[0])
 
             wait_task = specs.Celery(
                 wfspec,
@@ -482,7 +542,7 @@ class Provider(cmbase.ProviderBase):
 
         if resource.get('type') in ('compute', 'cache'):
             return self._delete_comp_res_tasks(wf_spec, context, key)
-        if resource.get('type') == 'database':
+        if resource.get('type') in ['database', 'database-replica']:
             return self._delete_db_res_tasks(wf_spec, context, key)
         message = ("Cannot provide delete tasks for resource %s: Invalid "
                    "resource type '%s'" % (key, resource.get('type')))
@@ -492,7 +552,7 @@ class Provider(cmbase.ProviderBase):
     def _delete_comp_res_tasks(wf_spec, context, key):
         """Delete Compute Resource Tasks."""
         delete_instance = specs.Celery(
-            wf_spec, 'Delete Computer Resource Tasks (%s)' % key,
+            wf_spec, 'Delete Compute Resource Tasks (%s)' % key,
             'checkmate.providers.rackspace.database.tasks.'
             'delete_instance_task',
             call_args=[context],
@@ -588,6 +648,37 @@ class Provider(cmbase.ProviderBase):
                         'interface': 'mysql',
                         'resource_type': 'compute'
                     }],
+                    'options': {
+                        'database/name': {
+                            'type': 'string',
+                            'default': 'db1'
+                        },
+                        'database/username': {
+                            'type': 'string',
+                            'required': True
+                        },
+                        'database/password': {
+                            'type': 'string',
+                            'required': False
+                        }
+                    }
+                },
+                'mysql_replica': {
+                    'id': 'mysql_replica',
+                    'is': 'database-replica',
+                    'provides': [{'database-replica': 'mysql'}],
+                    'requires': [
+                        {
+                            'relation': 'host',
+                            'interface': 'mysql',
+                            'resource_type': 'compute'
+                        },
+                        {
+                            'relation': 'reference',
+                            'interface': 'mysql',
+                            'resource_type': 'database'
+                        }
+                    ],
                     'options': {
                         'database/name': {
                             'type': 'string',

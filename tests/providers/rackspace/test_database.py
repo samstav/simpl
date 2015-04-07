@@ -238,6 +238,10 @@ class TestDatabase(test.ProviderTester):
         }
         dbprovider = provider.Provider({'catalog': catalog})
 
+        # Mock planner
+        planner = self.mox.CreateMockAnything()
+        planner.resources = {}
+
         # Mock Base Provider, context and deployment
         self.deployment.get_setting(
             'domain',
@@ -297,7 +301,7 @@ class TestDatabase(test.ProviderTester):
         self.mox.ReplayAll()
         results = dbprovider.generate_template(
             self.deployment, 'compute', 'master',
-            context, 1, dbprovider.key, None, None
+            context, 1, dbprovider.key, None, planner
         )
 
         self.assertItemsEqual(results, expected)
@@ -508,31 +512,60 @@ class TestCatalog(unittest.TestCase):
                     }
                 },
                 'mysql_database': {
-                    'is': 'database',
-                    'requires': [
-                        {
-                            'interface': 'mysql',
-                            'resource_type': 'compute',
-                            'relation': 'host'
-                        }
-                    ],
                     'id': 'mysql_database',
+                    'is': 'database',
                     'provides': [{'database': 'mysql'}],
+                    'requires': [{
+                        'relation': 'host',
+                        'interface': 'mysql',
+                        'resource_type': 'compute'
+                    }],
                     'options': {
-                        'database/password': {
-                            'required': False,
-                            'type': 'string'
-                        },
                         'database/name': {
-                            'default': 'db1',
-                            'type': 'string'
+                            'type': 'string',
+                            'default': 'db1'
                         },
                         'database/username': {
-                            'required': True,
-                            'type': 'string'
+                            'type': 'string',
+                            'required': True
+                        },
+                        'database/password': {
+                            'type': 'string',
+                            'required': False
                         }
                     }
-                }
+                },
+                'mysql_replica': {
+                    'id': 'mysql_replica',
+                    'is': 'database-replica',
+                    'provides': [{'database-replica': 'mysql'}],
+                    'requires': [
+                        {
+                            'relation': 'host',
+                            'interface': 'mysql',
+                            'resource_type': 'compute'
+                        },
+                        {
+                            'relation': 'reference',
+                            'interface': 'mysql',
+                            'resource_type': 'database'
+                        }
+                    ],
+                    'options': {
+                        'database/name': {
+                            'type': 'string',
+                            'default': 'db1'
+                        },
+                        'database/username': {
+                            'type': 'string',
+                            'required': True
+                        },
+                        'database/password': {
+                            'type': 'string',
+                            'required': False
+                        }
+                    }
+                },
             },
             'cache': {
                 'redis_cache': {

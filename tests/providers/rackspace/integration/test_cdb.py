@@ -153,6 +153,7 @@ class TestCloudDatabases(unittest.TestCase):
         values = {'connect_timeout': 60, 'expire_logs_days': 90}
         with self.vcr.use_cassette('vcr-cdb-db-config.yaml'):
             create_response = dbaas.create_configuration(context,
+                                                         name='uniquifier',
                                                          db_type='mysql',
                                                          db_version='5.6',
                                                          values=values)
