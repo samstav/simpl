@@ -39,6 +39,14 @@ THIS IS A TEST PAGE - NOT USED LIVE TODAY
 .custom-1-5:last-child {
   margin-right: 0%;
 }
+.custom-1-4 {
+  width: 23.125%;
+  margin-right: 2.5%;
+  float: left;
+}
+.custom-1-4:last-child {
+  margin-right: 0%;
+}
 .strikethrough {
   text-decoration: line-through;
 }
@@ -91,7 +99,7 @@ THIS IS A TEST PAGE - NOT USED LIVE TODAY
     </div>
 
     <div>
-      <div class="custom-1-5" ng-repeat="tier in tiers">
+      <div class="custom-1-{{tiers.length}}" ng-repeat="tier in tiers">
         <div class="pricing-option">
           <div class="pricing-title label">{{ tier.title }}</div>
           <div class="pricing-cost">
