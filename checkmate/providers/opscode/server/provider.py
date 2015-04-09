@@ -86,6 +86,7 @@ class Provider(base.BaseOpscodeProvider):
             private_key=private_key,
             secret_key=secret_key,
             source_repo=source_repo,
+            berksfile=self.berksfile,
             server_credentials=self.server_credentials,
             defines={'resource': 'workspace', 'provider': self.key},
             properties={'estimated_duration': 10, 'task_tags': ['root']}

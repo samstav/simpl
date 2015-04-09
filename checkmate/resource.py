@@ -128,5 +128,6 @@ class Resource(dict):
             'config_drive', 'dns-A-name', 'networks', 'datastore-version',
             'datastore-type', 'config-params', 'size', 'disk',
             'boot_from_image', 'image-info', 'flavor-info', 'key_name', 'name',
-            'public_key_ssh', 'master-db-id', 'replica-of', 'run_list'
+            'public_key_ssh', 'master-db-id', 'replica-of', 'berks_entry',
+            'run_list'
         ]

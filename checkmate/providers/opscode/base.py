@@ -16,9 +16,11 @@
 
 """OpsCode Provider Base Module."""
 
+import copy
 import logging
 import re
 
+from fastfood import book
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 import yaml
@@ -32,7 +34,40 @@ from checkmate import exceptions
 from checkmate.providers.opscode.chef_map import ChefMap
 from checkmate.providers import base
 from checkmate import utils
+
+GENERIC_TIER_ID = 'generic-chef-tier'
+CATALOG = utils.yaml_to_dict("""
+application:
+  %s:
+    is: application
+    provides:
+    - application: http
+    requires:
+    - host: linux
+    options:
+      berks_entry:
+        type: text
+      run_list:
+        type: text
+      count:
+        type: integer  # we don't really need this in the catalog
+    meta-data:
+      display-hints:
+        icon-20x20: "/images/chef-icon-20x20.png"
+        tattoo: "/images/chef-tattoo.png"
+""" % GENERIC_TIER_ID)
 LOG = logging.getLogger(__name__)
+
+
+def merge_berks_entries(berks_entries):
+    """Combine multiple Berksfie snippets into one."""
+    if not berks_entries:
+        return
+    combined = book.Berksfile.from_string('')
+    for snippet in berks_entries:
+        combined.merge(book.Berksfile.from_string(snippet))
+    combined.seek(0)
+    return combined.read()
 
 
 class BaseOpscodeProvider(base.ProviderBase):
@@ -52,11 +87,22 @@ class BaseOpscodeProvider(base.ProviderBase):
             # Create noop map file
             self.map_file = ChefMap(raw="")
 
+        self.berksfile = None
+
     def generate_template(self, deployment, resource_type, service, context,
                           index, provider_key, definition, planner):
         templates = super(BaseOpscodeProvider, self).generate_template(
             deployment, resource_type, service, context, index, provider_key,
             definition, planner)
+        if definition['id'] == GENERIC_TIER_ID:
+            # Get berks_entry option or constraints
+            berks_entry = deployment.get_setting(
+                'berks_entry', resource_type=resource_type,
+                service_name=service, provider_key=self.key)
+            if berks_entry:
+                for template in templates:
+                    template['desired-state']['berks_entry'] = berks_entry
+
         # Get run_list option or constraints
         run_list = deployment.get_setting(
             'run_list', resource_type=resource_type,
@@ -75,6 +121,25 @@ class BaseOpscodeProvider(base.ProviderBase):
             for template in templates:
                 template['desired-state']['run_list'] = run_list
         return templates
+
+    def prep_environment(self, wfspec, deployment, context):
+        super(BaseOpscodeProvider, self).prep_environment(wfspec, deployment,
+                                                          context)
+        if self.prep_task:
+            return  # already prepped
+
+        # Loop over all components with berks snippets, collect them,
+        # merge them, pass them into the task
+        snippets = []
+        for resource in deployment['resources'].itervalues():
+            if (resource.get('provider') == self.name and
+                    resource.get('component') == GENERIC_TIER_ID):
+                snippet = utils.read_path(resource,
+                                          'desired-state/berks_entry')
+                if snippet:
+                    snippets.append(snippet)
+        self.berksfile = merge_berks_entries(snippets)
+
     def get_prep_tasks(self, wfspec, deployment, resource_key, component,
                        context, collect_tag='collect',
                        ready_tag='options-ready',
@@ -392,6 +457,7 @@ class BaseOpscodeProvider(base.ProviderBase):
             if type_filter is None:
                 self._dict['catalog'] = catalog
             return catalog
+        return copy.deepcopy(CATALOG)
 
     def get_remote_catalog(self, context, source=None):
         """Get the remote catalog from a repo by obtaining a Chefmap file, if

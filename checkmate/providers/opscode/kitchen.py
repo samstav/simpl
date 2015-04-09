@@ -27,6 +27,7 @@ from Crypto import Random
 
 from checkmate.common import config
 from checkmate import exceptions
+from checkmate.providers.opscode import base
 from checkmate.providers.opscode.blueprint_cache import BlueprintCache
 from checkmate.providers.opscode.knife import Knife
 from checkmate import utils
@@ -172,7 +173,7 @@ class ChefKitchen(object):
         except OSError as exc:
             if exc.errno != errno.EEXIST:
                 raise
-        with file(full_path, 'w') as handle:
+        with open(full_path, 'w') as handle:
             LOG.info("Writing to %s", full_path)
             handle.write(content)
 
@@ -210,12 +211,15 @@ class ChefKitchen(object):
         else:
             LOG.debug("Directory exists: %s", path)
 
-    def create_kitchen(self, secret_key=None, source_repo=None):
+    def create_kitchen(self, secret_key=None, source_repo=None,
+                       berksfile=None):
         """Create a new knife kitchen in path.
 
         Arguments:
         - `source_repo`: URL of the git-hosted blueprint
         - `secret_key`: PEM-formatted private key for data bag encryption
+        - `berksfile`: berksfile content to add/merge to existing repo if
+            supplied.
         """
         self.ensure_kitchen_path_exists()
         self.secret_key_path = self._knife.write_config()
@@ -263,11 +267,18 @@ class ChefKitchen(object):
             cache.update()
             utils.copy_contents(cache.cache_path, self._kitchen_path,
                                 with_overwrite=True, create_path=True)
-            if CONFIG.git_use_https:
-                berks_file = os.path.join(self._kitchen_path, 'Berksfile')
-                if os.path.exists(berks_file):
-                    self._ensure_berks_https(berks_file)
-
+        berks_file = os.path.join(self._kitchen_path, 'Berksfile')
+        if berksfile:
+            if os.path.exists(berks_file):
+                # Merge content if existing
+                with open(berks_file, 'r') as read_handle:
+                    existing = read_handle.read()
+                berksfile = base.merge_berks_entries([berksfile, existing])
+            with open(berks_file, 'w') as write_handle:
+                write_handle.write(berksfile)
+        if CONFIG.git_use_https:
+            if os.path.exists(berks_file):
+                self._ensure_berks_https(berks_file)
         LOG.debug("Finished creating kitchen: %s", self._kitchen_path)
         return {"kitchen": self._kitchen_path}
 
