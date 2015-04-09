@@ -24,8 +24,17 @@
       </header> <!-- /.rs-app-launch-header -->
 
       <div class="rs-app-launch-list-container">
+        <div class="rs-quiet text-center" ng-show="catalog.isLoading()">
+          <i class="fa fa-spin fa-spinner"></i>
+          Loading App Catalog...
+        </div>
+        <div class="text-center rs-status-error"
+             ng-show="catalog.hasError() && !catalog.isLoading()">
+          <i class="fa fa-warning"></i>
+          App catalog load failed.
+        </div>
         <section class="rs-app-launch-list-section"
-                 ng-repeat="(type,types) in catalog.data">
+                 ng-repeat="(type,types) in catalog.get()">
           <h4>{{type}}</h4>
           <div class="rs-app-launch-list">
             <div class="rs-app-launch-list-item"
@@ -35,10 +44,11 @@
                  ng-mousedown="select(config)"
                  ng-dblclick="add(config)"
                  ng-click="viewDetails()">
-                <div class="rs-app-list-item-icon">
+                <div class="rs-app-list-item-icon"
+                     ng-hide="!config['meta-data']['display-hints']['icon-20x20']">
                   <img ng-attr-src="{{config['meta-data']['display-hints']['icon-20x20']}}"
-                  width="20"
-                  height="20">
+                       width="20"
+                       height="20">
                 </div> <!-- /.rs-app-list-item-icon -->
                 <div class="rs-app-list-item-title">
                   {{config.display_name || config.id || config.name || app | truncate: 22}}

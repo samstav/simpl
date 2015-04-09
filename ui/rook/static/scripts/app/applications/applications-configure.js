@@ -10,6 +10,7 @@ angular.module('checkmate.applications-configure', [
 
 angular.module('checkmate.applications-configure')
   .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window, Flavors) {
+
     $scope.deployment = DeploymentData.get();
 
     $scope.export = function() {
@@ -60,11 +61,13 @@ angular.module('checkmate.applications-configure')
     // This is the catalog model for the sidebar.
     $scope.catalog = {
       isVisible: true,
-      data: Catalog.get(),
+      get: Catalog.get,
       components: Catalog.getComponents(),
       component: function(component) {
         return Catalog.getComponent(component);
-      }
+      },
+      isLoading: Catalog.isLoading,
+      hasError: Catalog.hasError
     };
 
     // This is the codemirror model for the sidebar.
@@ -275,6 +278,8 @@ angular.module('checkmate.applications-configure')
     $scope.$on('topology:deselect', function(event, selection) {
       $scope.selection.close();
     });
+
+    Catalog.load();
 
     function prepareUiBlock() {
       $scope.codemirror.isOutOfSync = true;

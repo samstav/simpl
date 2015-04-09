@@ -1,13 +1,23 @@
 angular.module('checkmate.Catalog', []);
 angular.module('checkmate.Catalog')
-  .factory('Catalog', function($rootScope, $http) {
+  .factory('Catalog', function($rootScope, $http, auth) {
     var Catalog = {
       'data': {},
-      'components': {}
+      'components': {},
+      'loading': false,
+      'error': false
     };
 
     Catalog.get = function() {
       return this.data;
+    };
+
+    Catalog.hasError = function() {
+      return Catalog.error;
+    };
+
+    Catalog.isLoading = function() {
+      return Catalog.loading;
     };
 
     Catalog.set = function(data) {
@@ -38,7 +48,11 @@ angular.module('checkmate.Catalog')
       $rootScope.$broadcast('catalog:update', this.data);
     };
 
-    Catalog.fromUrl = function(url) {
+    Catalog.getDefaults = function() {
+      var url = '/scripts/common/services/catalog/catalog.yml';
+      var that = this;
+      that.loading = true;
+
       $http.get(url).
         success(function(data, status, headers, config) {
           try {
@@ -55,8 +69,10 @@ angular.module('checkmate.Catalog')
             });
 
             Catalog.set(parsed);
+            that.loading = false;
           } catch(err) {
             console.log("YAML file for Blueprint documentation could not be parsed", err);
+            that.loading = false;
           }
 
         }).
@@ -67,7 +83,43 @@ angular.module('checkmate.Catalog')
         });
     };
 
-    Catalog.fromUrl('/scripts/common/services/catalog/catalog.yml');
+    Catalog.load = function() {
+      var that = this;
+      that.loading = true;
+
+      if(auth.context.tenantId) {
+        url = url = '/' + auth.context.tenantId + '/providers.json';
+
+        $http.get(url).
+          success(function(data, status, headers, config) {
+            try {
+              var parsed = {};
+
+              _.each(data, function(item, key) {
+                if(!parsed[item.name]) parsed[item.name] = {};
+                parsed[item.name][key] = item;
+              });
+
+              Catalog.set(parsed);
+              that.error = null;
+            } catch(err) {
+              that.error = "Provider response for Blueprint documentation could not be parsed";
+              console.log(that.error, err);
+            }
+
+            that.loading = false;
+          }).
+          error(function(data, status, headers, config) {
+            // called asynchronously if an error occurs
+            // or server returns response with an error status.
+            console.error(data, status, headers(), config);
+            that.error = 'Responded with a ' + status;
+            that.loading = false;
+          });
+      } else {
+        that.getDefaults();
+      }
+    };
 
     return Catalog;
   });
