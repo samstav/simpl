@@ -31,9 +31,45 @@ angular.module('checkmate.DeploymentData')
 
     var service = {
       data: angular.copy(window.defaultDeployment),
+      export: function() {
+        var deployment = this.get();
+        var name = 'ye';
+        var filetype;
+        var filename = deployment.blueprint.name + ' - ' + (new Date()).getTime();
+        var type = 'data:text/csv';
+        var headers = [
+          'charset=utf-8'
+        ];
+        var content;
+        var href;
+        var link = document.createElement("a");
+
+        // Try to guess filetype.
+        if(this.mime.indexOf('yaml') > -1) {
+          deployment = jsyaml.safeDump(deployment);
+          filetype = 'yaml';
+        } else {
+          deployment = JSON.stringify(deployment, undefined, 2);
+          filetype = 'json';
+        }
+
+        // Set the content after we've tried to guess the type and format.
+        content = escape(deployment);
+
+        // Build a fake anchor tag to fake click later.
+        href = type+';'+headers.join(',')+','+content;
+        link.href = href;
+        link.download = filename + '.' + filetype;
+
+        // Simulate a click event on this new element to trigger download.
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      },
       get: function() {
         return this.data;
       },
+      mime: null,
       set: function(deployment) {
         if(this.isValid(deployment)) {
           this.data = angular.copy(deployment);
@@ -46,6 +82,9 @@ angular.module('checkmate.DeploymentData')
 
           this.broadcast();
         }
+      },
+      setMime: function(mime) {
+        this.mime = mime;
       },
       reset: function() {
         Blueprint.reset();

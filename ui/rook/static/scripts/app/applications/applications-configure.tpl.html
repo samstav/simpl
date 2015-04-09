@@ -143,7 +143,9 @@
         </div>
         <div class="rs-btn-group">
           <button class="rs-btn rs-btn-secondary" ng-disabled="true">Import</button>
-          <button class="rs-btn rs-btn-secondary" ng-disabled="true">Export</button>
+          <button class="rs-btn rs-btn-secondary"
+                  ng-disabled="!deployment.blueprint.services"
+                  ng-click="export()">Export</button>
         </div>
       </div> <!-- /.rs-app-launch-controls -->
 
