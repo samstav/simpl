@@ -45,6 +45,7 @@ angular.module('checkmate.DeploymentData')
                 $scope.codemirror.options.mode = 'application/json';
                 $scope.codemirror.foldFunction = CodeMirror.newFoldFunction(CodeMirror.fold.brace);
               }
+              DeploymentData.setMime($scope.codemirror.options.mode);
             } catch(e) {
               console.error(e);
             }
@@ -130,6 +131,8 @@ angular.module('checkmate.DeploymentData')
             $scope.$emit('editor:blur');
           }
         };
+
+        DeploymentData.setMime($scope.codemirror.options.mode);
 
         $scope.$on('editor:refreshed', function(event, editor, viewData) {
           $scope.codemirror.setEditorDefaultState(editor);

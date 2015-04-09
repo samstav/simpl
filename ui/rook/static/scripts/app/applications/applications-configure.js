@@ -12,6 +12,10 @@ angular.module('checkmate.applications-configure')
   .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window, Flavors) {
     $scope.deployment = DeploymentData.get();
 
+    $scope.export = function() {
+      DeploymentData.export();
+    };
+
     // This selects the object being sent to the Blueprint.
     $scope.select = function(app) {
       Drag.source.set(app);
