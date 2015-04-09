@@ -4028,7 +4028,7 @@ function MagentoStackController($scope, $location) {
       'features': [
         {'title': 'Concurrent Users', 'count': 750, 'enabled': true},
         {'title': '8GB Cloud Database', 'count': 2, 'enabled': true},
-        {'title': 'Redis SentinelCache', 'count': 3, 'enabled': true},
+        {'title': 'Redis Sentinel Cache', 'count': 3, 'enabled': true},
         {'title': 'OnMetal Compute App Server', 'count': 2, 'enabled': true}
       ]
     }
