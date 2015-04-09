@@ -103,7 +103,7 @@ class Manager(object):
 
     @staticmethod
     def create_instance(context, instance_name, desired_state, callback,
-                        config_id=None, simulate=False):
+                        config_id=None, simulate=False, replica_of=None):
         """Create a Cloud Database instance with optional initial databases."""
         try:
             instance = dbaas.create_instance(
@@ -114,6 +114,7 @@ class Manager(object):
                 dstore_ver=desired_state.get('datastore-version'),
                 databases=desired_state.get('databases'),
                 users=desired_state.get('users'),
+                replica_of=replica_of,
                 simulate=simulate
             )
         except dbaas.CDBException as exc:
@@ -134,7 +135,7 @@ class Manager(object):
     @staticmethod
     def create_database(name, instance_id, api, callback, context,
                         character_set=None, collate=None, instance_attrs=None,
-                        simulate=False):
+                        replica=False, simulate=False):
         """Create database in existing db instance.
 
         Returns instance, dbs and its interfaces. If resource goes into
@@ -152,6 +153,7 @@ class Manager(object):
 
         if simulate:
             flavor = utils.Simulation(id='1')
+            status = 'ACTIVE'
             instance = utils.Simulation(id=instance_id, name=name,
                                         hostname='srv2.rackdb.net',
                                         flavor=flavor,
@@ -188,24 +190,29 @@ class Manager(object):
                 raise cmexc.CheckmateException('Database instance is not '
                                                'active.',
                                                options=cmexc.CAN_RESUME)
-            try:
-                instance.create_database(name, character_set, collate)
-            except cdb_errors.ClientException as exc:
-                LOG.exception(exc)
-                if exc.code == '400':
-                    raise
-                else:
-                    raise cmexc.CheckmateException(str(exc),
-                                                   options=cmexc.CAN_RESUME)
-            except Exception as exc:
-                raise cmexc.CheckmateException(str(exc))
+            status = 'BUILD'
+            if replica:
+                # It was created as part of the replication process
+                status = instance.status
+            else:
+                try:
+                    instance.create_database(name, character_set, collate)
+                except cdb_errors.ClientException as exc:
+                    LOG.exception(exc)
+                    if exc.code == '400':
+                        raise
+                    else:
+                        raise cmexc.CheckmateException(
+                            str(exc), options=cmexc.CAN_RESUME)
+                except Exception as exc:
+                    raise cmexc.CheckmateException(str(exc))
 
         results = {
             'host_instance': instance.id,
             'host_region': context.region,
             'name': name,
             'id': name,
-            'status': 'BUILD',
+            'status': status,
             'flavor': instance.flavor.id,
             'interfaces': {
                 'mysql': {
@@ -220,10 +227,10 @@ class Manager(object):
 
     @staticmethod
     def add_user(instance_id, databases, username, password,
-                 api, callback, simulate=False):
-        """Add a database user to an instance for one or more databases
+                 api, callback, simulate=False, replica=False):
+        """Add a database user to an instance for one or more databases.
 
-        Returns instance data
+        Returns instance data.
         """
         assert instance_id, "Instance ID not supplied"
 
@@ -244,17 +251,18 @@ class Manager(object):
                 raise cmexc.CheckmateException('Database instance is '
                                                'not active.',
                                                options=cmexc.CAN_RESUME)
-            try:
-                instance.create_user(username, password, databases)
-            except cdb_errors.ClientException as exc:
-                raise cmexc.CheckmateException(str(exc),
-                                               options=cmexc.CAN_RESUME)
-            except Exception as exc:
-                raise cmexc.CheckmateException(str(exc),
-                                               options=cmexc.CAN_RESUME)
+            if not replica:  # No need to create user on replica db
+                try:
+                    instance.create_user(username, password, databases)
+                except cdb_errors.ClientException as exc:
+                    raise cmexc.CheckmateException(str(exc),
+                                                   options=cmexc.CAN_RESUME)
+                except Exception as exc:
+                    raise cmexc.CheckmateException(str(exc),
+                                                   options=cmexc.CAN_RESUME)
 
-        LOG.info('Added user %s to %s on instance %s', username, databases,
-                 instance_id)
+                LOG.info('Added user %s to %s on instance %s', username,
+                         databases, instance_id)
 
         results = {
             'username': username,

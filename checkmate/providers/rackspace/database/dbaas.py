@@ -107,7 +107,7 @@ class CDBException(Exception):
 ###
 
 
-def create_configuration(context, db_type, db_version, values):
+def create_configuration(context, name, db_type, db_version, values):
     """Create a configuration to be used by database instances.
 
     values is a dict containing valid keys as per `get_config_params`
@@ -120,8 +120,8 @@ def create_configuration(context, db_type, db_version, values):
                 'type': dstore_ids.get('datastore_id'),
                 'version': dstore_ids.get('version_id')
             },
-            'name': 'checkmate:%s:%s:%s' % (context.region, db_type,
-                                            db_version),
+            'name': 'checkmate:%s:%s:%s:%s' % (name, context.region, db_type,
+                                               db_version),
             'values': values
         }
     })

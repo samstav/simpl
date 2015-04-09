@@ -53,9 +53,9 @@ class DBAASContext(object):
 @task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
            max_retries=2, provider=provider.Provider)
 @statsd.collect
-def create_configuration(context, db_type, db_version, config_params):
+def create_configuration(context, name, db_type, db_version, config_params):
     """Create a database configuration entry."""
-    return dbaas.create_configuration(context, db_type, db_version,
+    return dbaas.create_configuration(context, name, db_type, db_version,
                                       config_params)
 
 
@@ -94,7 +94,7 @@ def sync_resource_task(context, resource, api=None, callback=None):
            max_retries=2, provider=provider.Provider)
 @statsd.collect
 def create_instance(context, instance_name, desired_state, callback=None,
-                    config_id=None):
+                    config_id=None, replica_of=None):
     """Create a Cloud Database instance with options in desired_state."""
     callback = callback or create_instance.partial
     return manager.Manager.create_instance(context,
@@ -102,6 +102,7 @@ def create_instance(context, instance_name, desired_state, callback=None,
                                            desired_state,
                                            callback or create_instance.partial,
                                            config_id=config_id,
+                                           replica_of=replica_of,
                                            simulate=context.simulation)
 
 
@@ -111,7 +112,7 @@ def create_instance(context, instance_name, desired_state, callback=None,
 @statsd.collect
 def create_database(context, name, region=None, character_set=None,
                     collate=None, instance_id=None, instance_attributes=None,
-                    callback=None, api=None):
+                    callback=None, api=None, replica=False):
     """Create a database resource.
 
     This call also creates a server instance if it is not supplied.
@@ -134,17 +135,18 @@ def create_database(context, name, region=None, character_set=None,
                                            character_set=character_set,
                                            collate=collate,
                                            instance_attrs=instance_attributes,
+                                           replica=replica,
                                            simulate=context.simulation)
 
 
 @task.task(base=base.RackspaceProviderTask, default_retry_delay=10,
            max_retries=2, provider=provider.Provider)
 def add_user(context, instance_id, databases, username, password,
-             api=None, callback=None):
+             api=None, callback=None, replica=False):
     """Add a database user to an instance for one or more databases."""
     return manager.Manager.add_user(instance_id, databases, username, password,
                                     add_user.api, add_user.partial,
-                                    context.simulation)
+                                    context.simulation, replica=replica)
 
 
 @task.task(default_retry_delay=2, max_retries=60)
@@ -485,7 +487,10 @@ def delete_configuration(context, config_id):
     'instance' and one in 'desired-state' - 'instance' seems the more
     appropriate choice, as indicated in the region assignment line below.
     """
-    region = context.get('resource', {}).get('instance', {}).get('region')
+    region = (
+        context.get('resource', {}).get('instance', {}).get('region') or
+        context.get('resource', {}).get('desired-state', {}).get('region')
+    )
     context = DBAASContext(context, region=region)
     utils.match_celery_logging(LOG)
     try:

@@ -119,12 +119,14 @@ class Resource(dict):
             Resource.DesiredState.validate(obj['desired-state'])
 
     class DesiredState(dict):
+
         """The Desired State section of a Resource."""
+
         __schema__ = [
             'region', 'flavor', 'image', 'disk', 'protocol',
             'port', 'status', 'databases', 'os-type', 'os', 'userdata',
             'config_drive', 'dns-A-name', 'networks', 'datastore-version',
             'datastore-type', 'config-params', 'size', 'disk',
             'boot_from_image', 'image-info', 'flavor-info', 'key_name', 'name',
-            'public_key_ssh'
+            'public_key_ssh', 'master-db-id', 'replica-of'
         ]

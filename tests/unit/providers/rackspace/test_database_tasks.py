@@ -307,10 +307,9 @@ class TestAddUser(unittest.TestCase):
                           self.context, None, self.databases, self.username,
                           self.password, api="api")
 
-    @mock.patch.object(manager.LOG, 'info')
     @mock.patch.object(tasks, 'postback')
     @mock.patch.object(dbtasks.add_user.provider, 'connect')
-    def test_add_user_sim(self, mock_connect, mock_postback, mock_LOG):
+    def test_add_user_sim(self, mock_connect, mock_postback):
         self.context['simulation'] = True
         expected = {
             'resources': {
@@ -336,8 +335,6 @@ class TestAddUser(unittest.TestCase):
                                    self.databases, self.username,
                                    self.password, self.region)
 
-        mock_LOG.assert_called_with('Added user %s to %s on instance %s',
-                                    'test_user', ['blah'], '12345')
         mock_postback.assert_called_with(
             self.context['deployment_id'], expected)
         self.assertEqual(results, expected)
@@ -1051,7 +1048,7 @@ class TestCreateDatabase(unittest.TestCase):
             'resources': {
                 '2': {
                     'instance': {
-                        'status': 'BUILD',
+                        'status': 'ACTIVE',
                         'host_instance': self.instance_id,
                         'host_region': self.region,
                         'flavor': '1',
@@ -1065,7 +1062,7 @@ class TestCreateDatabase(unittest.TestCase):
                         },
                         'name': 'test_database'
                     },
-                    'status': 'BUILD'
+                    'status': 'ACTIVE'
                 }
             }
         }
@@ -1087,7 +1084,7 @@ class TestCreateDatabase(unittest.TestCase):
                     'instance': {
                         'id': self.name,
                         'flavor': '1',
-                        'status': 'BUILD',
+                        'status': 'ACTIVE',
                         'host_instance': self.instance_id,
                         'host_region': self.region,
                         'interfaces': {
@@ -1099,7 +1096,7 @@ class TestCreateDatabase(unittest.TestCase):
                         },
                         'name': 'test_database'
                     },
-                    'status': 'BUILD',
+                    'status': 'ACTIVE',
                 }
             }
         }

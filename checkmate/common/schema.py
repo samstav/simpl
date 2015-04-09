@@ -48,6 +48,7 @@ RESOURCE_TYPES = [
     'cache',
     'compute',
     'database',
+    'database-replica',
     'directory',
     'dns',
     'object-store',
@@ -506,7 +507,7 @@ OPTION_TYPES = [
 
 
 def schema_from_list(keys_list):
-    """Generates a schema from a list of keys."""
+    """Generate a schema from a list of keys."""
     return Schema(dict((key, object) for key in keys_list))
 
 CONNECTION_POINT_SCHEMA = ConnectionPoint()
@@ -742,7 +743,7 @@ def validate_inputs(deployment):
 
 
 def validate_type_inputs(inputs):
-    """Validate deployment inputs in a type hierarchy
+    """Validate deployment inputs in a type hierarchy.
 
     This is the structure under inputs/services and inputs/providers.
     """
@@ -1016,7 +1017,7 @@ def translate_dict(data):
 
 
 def load_catalog(path):
-    """Loads and parses a YAML catalog.
+    """Load and parse a YAML catalog.
 
     This function will handle multiple YAML documents (separated by `---`) and
     correctly format them into a valid catalog structure.
