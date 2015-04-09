@@ -3981,68 +3981,55 @@ function MagentoStackController($scope, $location) {
 
   $scope.tiers = [
     {
-      'title': 'Extra Small',
+      'title': 'Performance 1',
       'repo': '/AutomationSupport/magentostack/',
       'flavor': 'extra-small',
-      'price': 1000,
+      'price': 852.79,
       'unit': 'month',
       'features': [
         {'title': 'Concurrent Users', 'count': 100, 'enabled': true},
-        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
-        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
-        {'title': '7.5G App Server', 'count': 1, 'enabled': true}
+        {'title': '2GB Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'Redis Cache', 'count': 3, 'enabled': true},
+        {'title': '15G Compute App Server', 'count': 1, 'enabled': true}
       ]
     },
     {
-      'title': 'Small',
+      'title': 'Performance 2',
       'repo': '/AutomationSupport/magentostack/',
       'flavor': 'small',
-      'price': 2000,
+      'price': 1524.69,
       'unit': 'month',
       'features': [
         {'title': 'Concurrent Users', 'count': 200, 'enabled': true},
-        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
-        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
-        {'title': '15G App Server', 'count': 1, 'enabled': true}
+        {'title': '4GB Cloud Database', 'count': 1, 'enabled': true},
+        {'title': 'Redis Cache', 'count': 3, 'enabled': true},
+        {'title': 'OnMetal Compute App Server', 'count': 1, 'enabled': true}
       ]
     },
     {
-      'title': 'Medium',
+      'title': 'Enterprise 1',
       'repo': '/AutomationSupport/magentostack/',
       'flavor': 'medium',
-      'price': 3000,
+      'price': 2086.23,
       'unit': 'month',
       'features': [
         {'title': 'Concurrent Users', 'count': 400, 'enabled': true},
-        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
-        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
+        {'title': '4GB Cloud Database', 'count': 2, 'enabled': true},
+        {'title': 'Redis Sentinel Cache', 'count': 3, 'enabled': true},
         {'title': '15G App Server', 'count': 2, 'enabled': true}
       ]
     },
     {
-      'title': 'Large',
+      'title': 'Enterprise 2',
       'repo': '/AutomationSupport/magentostack/',
       'flavor': 'large',
-      'price': 4000,
+      'price': 3415.89,
       'unit': 'month',
       'features': [
         {'title': 'Concurrent Users', 'count': 750, 'enabled': true},
-        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
-        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
-        {'title': '30G App Server', 'count': 2, 'enabled': true}
-      ]
-    },
-    {
-      'title': 'Extra Large',
-      'repo': '/AutomationSupport/magentostack/',
-      'flavor': 'extra-large',
-      'price': 5000,
-      'unit': 'month',
-      'features': [
-        {'title': 'Concurrent Users', 'count': 1125, 'enabled': true},
-        {'title': 'Cloud Database', 'count': 1, 'enabled': true},
-        {'title': 'ObjectRocket Redis', 'count': 3, 'enabled': true},
-        {'title': '30G App Server', 'count': 3, 'enabled': true}
+        {'title': '8GB Cloud Database', 'count': 2, 'enabled': true},
+        {'title': 'Redis Sentinel Cache', 'count': 3, 'enabled': true},
+        {'title': 'OnMetal Compute App Server', 'count': 2, 'enabled': true}
       ]
     }
   ];
