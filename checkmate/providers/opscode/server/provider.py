@@ -20,12 +20,10 @@ import os
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
-from checkmate.common import threadlocal
 from checkmate import exceptions
 from checkmate import middleware as cmmid
 from checkmate.providers.opscode import base
 from checkmate.providers import base as cmbase
-from checkmate.providers.opscode.chef_map import ChefMap
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT', "11.16.4-1")
@@ -48,17 +46,7 @@ class Provider(base.BaseOpscodeProvider):
     }
 
     def __init__(self, provider, key=None):
-        cmbase.ProviderBase.__init__(self, provider, key=key)
-
-        # Map File
-        self.source = self.get_setting('source')
-        if self.source:
-            context = threadlocal.get_context()
-            self.map_file = ChefMap(url=self.source,
-                                    github_token=context.get('github_token'))
-        else:
-            # Create noop map file
-            self.map_file = ChefMap(raw="")
+        super(Provider, self).__init__(provider, key=key)
         self.server_credentials = {}
 
     def prep_environment(self, wfspec, deployment, context):

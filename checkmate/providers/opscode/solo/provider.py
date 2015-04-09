@@ -48,17 +48,6 @@ class Provider(base.BaseOpscodeProvider):
         'OFFLINE': 'OFFLINE',
     }
 
-    def __init__(self, provider, key=None):
-        cmbase.ProviderBase.__init__(self, provider, key=key)
-
-        # Map File
-        self.source = self.get_setting('source')
-        if self.source:
-            self.map_file = ChefMap(url=self.source)
-        else:
-            # Create noop map file
-            self.map_file = ChefMap(raw="")
-
     def prep_environment(self, wfspec, deployment, context):
         cmbase.ProviderBase.prep_environment(self, wfspec, deployment, context)
         if self.prep_task:

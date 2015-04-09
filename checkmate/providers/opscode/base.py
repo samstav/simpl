@@ -26,6 +26,7 @@ from yaml.parser import ParserError
 from yaml.scanner import ScannerError
 
 from checkmate.common import schema
+from checkmate.common import threadlocal
 from checkmate import exceptions
 from checkmate.providers.opscode.chef_map import ChefMap
 from checkmate.providers import base
@@ -37,6 +38,18 @@ class BaseOpscodeProvider(base.ProviderBase):
 
     """Shared class that holds common code for Opscode providers."""
 
+    def __init__(self, *args, **kwargs):
+        super(BaseOpscodeProvider, self).__init__(*args, **kwargs)
+
+        # Map File
+        self.source = self.get_setting('source')
+        if self.source:
+            context = threadlocal.get_context()
+            self.map_file = ChefMap(url=self.source,
+                                    github_token=context.get('github_token'))
+        else:
+            # Create noop map file
+            self.map_file = ChefMap(raw="")
     def get_prep_tasks(self, wfspec, deployment, resource_key, component,
                        context, collect_tag='collect',
                        ready_tag='options-ready',
