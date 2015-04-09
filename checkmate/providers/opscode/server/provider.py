@@ -14,6 +14,7 @@
 
 """Implements a Chef Server configuration management provider."""
 
+import copy
 import logging
 import os
 
@@ -23,7 +24,6 @@ from SpiffWorkflow import specs
 from checkmate import exceptions
 from checkmate import middleware as cmmid
 from checkmate.providers.opscode import base
-from checkmate.providers import base as cmbase
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT', "11.16.4-1")
@@ -50,7 +50,7 @@ class Provider(base.BaseOpscodeProvider):
         self.server_credentials = {}
 
     def prep_environment(self, wfspec, deployment, context):
-        cmbase.ProviderBase.prep_environment(self, wfspec, deployment, context)
+        super(Provider, self).prep_environment(wfspec, deployment, context)
         if self.prep_task:
             return  # already prepped
         settings = deployment.settings()
@@ -146,7 +146,8 @@ class Provider(base.BaseOpscodeProvider):
         component_id = component['id']
         LOG.debug("Determining component from dict: %s", component_id,
                   extra={'data': component})
-        kwargs = self.map_file.get_component_run_list(component)
+        desired = resource['desired-state']
+        kwargs = copy.copy(desired.get('run_list'))
         resource = deployment['resources'][key]
 
         collect_data_tasks = None
@@ -362,7 +363,8 @@ class Provider(base.BaseOpscodeProvider):
             attributes = context_map.get_attributes(resource['component'],
                                                     deployment)
             service_name = resource['service']
-            kwargs = context_map.get_component_run_list(component)
+            desired = resource['desired-state']
+            kwargs = copy.copy(desired.get('run_list'))
 
             # Create chef setup tasks
             register_node_task = specs.Celery(

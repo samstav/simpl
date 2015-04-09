@@ -17,6 +17,7 @@
 """OpsCode Provider Base Module."""
 
 import logging
+import re
 
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
@@ -30,7 +31,7 @@ from checkmate.common import threadlocal
 from checkmate import exceptions
 from checkmate.providers.opscode.chef_map import ChefMap
 from checkmate.providers import base
-
+from checkmate import utils
 LOG = logging.getLogger(__name__)
 
 
@@ -50,6 +51,30 @@ class BaseOpscodeProvider(base.ProviderBase):
         else:
             # Create noop map file
             self.map_file = ChefMap(raw="")
+
+    def generate_template(self, deployment, resource_type, service, context,
+                          index, provider_key, definition, planner):
+        templates = super(BaseOpscodeProvider, self).generate_template(
+            deployment, resource_type, service, context, index, provider_key,
+            definition, planner)
+        # Get run_list option or constraints
+        run_list = deployment.get_setting(
+            'run_list', resource_type=resource_type,
+            service_name=service, provider_key=self.key)
+        if run_list:
+            LOG.debug("Retreived run_list from setting for resource %s",
+                      index)
+        else:
+            run_list = self.map_file.get_component_run_list(definition)
+            if run_list:
+                LOG.debug("Retreived run_list from Chefmap for resource "
+                          "%s", index)
+        if run_list:
+            if isinstance(run_list, basestring):
+                run_list = self.parse_run_list(run_list)
+            for template in templates:
+                template['desired-state']['run_list'] = run_list
+        return templates
     def get_prep_tasks(self, wfspec, deployment, resource_key, component,
                        context, collect_tag='collect',
                        ready_tag='options-ready',
@@ -326,6 +351,23 @@ class BaseOpscodeProvider(base.ProviderBase):
                 result['final'] = collect_data
                 collect_data.properties['task_tags'].append('options-ready')
         return result
+
+    @staticmethod
+    def parse_run_list(run_list_str):
+        """Parse run_list string into dict."""
+        recipes = []
+        roles = []
+        items = [x.strip() for x in run_list_str.split(',')]
+        for item in items:
+            # run_type: 'role' or 'recipe'
+            # name: name of role or recipe, e.g., 'phpstack::apache'
+            run_type, name, _ = re.split(r'[\[\]]', item)
+            if run_type == 'role':
+                roles.append(name)
+            elif run_type == 'recipe':
+                recipes.append(name)
+            # TODO: what do we do with garbage?
+        return dict(recipes=recipes, roles=roles)
 
     def get_catalog(self, context, type_filter=None, source=None):
         """Return stored/override catalog if it exists, else connect, build,
