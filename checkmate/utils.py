@@ -23,6 +23,7 @@ import collections
 import copy
 import filecmp
 import inspect
+import itertools
 import json
 import logging.config
 import os
@@ -1410,3 +1411,42 @@ def create_hashable(obj, hash_all=False):
             return hashed
         else:
             return obj
+
+
+def total_size(obj, handlers={}):
+    """Return the approximate memory footprint of an object and its contents.
+
+    Automatically finds the contents of the following builtin containers and
+    their subclasses:  tuple, list, deque, dict, set and frozenset.
+    To search other containers, add handlers to iterate over their contents:
+
+    :keyword handlers: hash of functions used to iterate on specific types
+        ex. handlers = {SomeContainerClass: iter,
+                    OtherContainerClass: OtherContainerClass.get_elements}
+    """
+    dict_handler = lambda d: itertools.chain.from_iterable(d.items())
+    all_handlers = {
+        tuple: iter,
+        list: iter,
+        collections.deque: iter,
+        dict: dict_handler,
+        set: iter,
+        frozenset: iter,
+    }
+    all_handlers.update(handlers)  # user handlers take precedence
+    seen = set()  # track which object id's have already been seen
+    default_size = sys.getsizeof(0)  # estimate sizeof object w/o __sizeof__
+
+    def sizeof(obj):
+        if id(obj) in seen:  # do not double count the same object
+            return 0
+        seen.add(id(obj))
+        size = sys.getsizeof(obj, default_size)
+
+        for typ, handler in all_handlers.items():
+            if isinstance(obj, typ):
+                size += sum(map(sizeof, handler(obj)))
+                break
+        return size
+
+    return sizeof(obj)
