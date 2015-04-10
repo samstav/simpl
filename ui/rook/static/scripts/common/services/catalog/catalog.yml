@@ -741,3 +741,22 @@ meta-data:
   display-hints:
     icon-20x20: "/images/icon-dns.svg"
     tattoo: "/images/icon-dns.svg"
+---
+id: generic-chef-tier
+is: application
+provides:
+- application: http
+requires:
+- host: linux
+options:
+  berks_entry:
+    type: text
+  run_list:
+    type: text
+  count:
+    type: integer  # we don't really need this in the catalog
+meta-data:
+  display-hints:
+    icon-20x20: "/images/chef-icon-20x20.png"
+    tattoo: "/images/chef-tattoo.png"
+

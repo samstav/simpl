@@ -899,7 +899,10 @@ interfaces/mysql/host
                     dns-name: db01.checkmate.local
                     service: db
                     component: mysql
-                    desired-state: {}
+                    desired-state:
+                      run_list:
+                        recipes:
+                          - 'mysql::server'
                     hosted_on: '1'
                     provider: chef-solo
                     type: database

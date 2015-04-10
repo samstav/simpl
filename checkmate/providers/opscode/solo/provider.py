@@ -24,7 +24,6 @@ from SpiffWorkflow import specs
 from checkmate import exceptions
 from checkmate import keys
 from checkmate.providers.opscode import base
-from checkmate.providers.opscode.chef_map import ChefMap
 from checkmate.providers import base as cmbase
 
 LOG = logging.getLogger(__name__)
@@ -47,17 +46,6 @@ class Provider(base.BaseOpscodeProvider):
         'CONFIGURE': 'CONFIGURE',
         'OFFLINE': 'OFFLINE',
     }
-
-    def __init__(self, provider, key=None):
-        cmbase.ProviderBase.__init__(self, provider, key=key)
-
-        # Map File
-        self.source = self.get_setting('source')
-        if self.source:
-            self.map_file = ChefMap(url=self.source)
-        else:
-            # Create noop map file
-            self.map_file = ChefMap(raw="")
 
     def prep_environment(self, wfspec, deployment, context):
         cmbase.ProviderBase.prep_environment(self, wfspec, deployment, context)

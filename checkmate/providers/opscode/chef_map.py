@@ -385,6 +385,7 @@ class ChefMap(object):
         for component in self.components:
             if component_id == component['id']:
                 return component.get('maps')
+        return []
 
     def get_component_output_template(self, component_id):
         """Get output template for a specific component."""

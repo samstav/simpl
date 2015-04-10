@@ -14,18 +14,16 @@
 
 """Implements a Chef Server configuration management provider."""
 
+import copy
 import logging
 import os
 
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
-from checkmate.common import threadlocal
 from checkmate import exceptions
 from checkmate import middleware as cmmid
 from checkmate.providers.opscode import base
-from checkmate.providers import base as cmbase
-from checkmate.providers.opscode.chef_map import ChefMap
 
 LOG = logging.getLogger(__name__)
 OMNIBUS_DEFAULT = os.environ.get('CHECKMATE_CHEF_OMNIBUS_DEFAULT', "11.16.4-1")
@@ -48,21 +46,11 @@ class Provider(base.BaseOpscodeProvider):
     }
 
     def __init__(self, provider, key=None):
-        cmbase.ProviderBase.__init__(self, provider, key=key)
-
-        # Map File
-        self.source = self.get_setting('source')
-        if self.source:
-            context = threadlocal.get_context()
-            self.map_file = ChefMap(url=self.source,
-                                    github_token=context.get('github_token'))
-        else:
-            # Create noop map file
-            self.map_file = ChefMap(raw="")
+        super(Provider, self).__init__(provider, key=key)
         self.server_credentials = {}
 
     def prep_environment(self, wfspec, deployment, context):
-        cmbase.ProviderBase.prep_environment(self, wfspec, deployment, context)
+        super(Provider, self).prep_environment(wfspec, deployment, context)
         if self.prep_task:
             return  # already prepped
         settings = deployment.settings()
@@ -98,6 +86,7 @@ class Provider(base.BaseOpscodeProvider):
             private_key=private_key,
             secret_key=secret_key,
             source_repo=source_repo,
+            berksfile=self.berksfile,
             server_credentials=self.server_credentials,
             defines={'resource': 'workspace', 'provider': self.key},
             properties={'estimated_duration': 10, 'task_tags': ['root']}
@@ -158,7 +147,8 @@ class Provider(base.BaseOpscodeProvider):
         component_id = component['id']
         LOG.debug("Determining component from dict: %s", component_id,
                   extra={'data': component})
-        kwargs = self.map_file.get_component_run_list(component)
+        desired = resource['desired-state']
+        kwargs = copy.copy(desired.get('run_list'))
         resource = deployment['resources'][key]
 
         collect_data_tasks = None
@@ -374,7 +364,8 @@ class Provider(base.BaseOpscodeProvider):
             attributes = context_map.get_attributes(resource['component'],
                                                     deployment)
             service_name = resource['service']
-            kwargs = context_map.get_component_run_list(component)
+            desired = resource['desired-state']
+            kwargs = copy.copy(desired.get('run_list'))
 
             # Create chef setup tasks
             register_node_task = specs.Celery(

@@ -81,7 +81,7 @@ class Constraint(object):
 
 class RegExConstraint(Constraint):
 
-    """RegEx Constraint.
+    r"""RegEx Constraint.
 
     Syntax:
 

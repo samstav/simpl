@@ -16,8 +16,11 @@
 
 """OpsCode Provider Base Module."""
 
+import copy
 import logging
+import re
 
+from fastfood import book
 from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 import yaml
@@ -26,16 +29,116 @@ from yaml.parser import ParserError
 from yaml.scanner import ScannerError
 
 from checkmate.common import schema
+from checkmate.common import threadlocal
 from checkmate import exceptions
 from checkmate.providers.opscode.chef_map import ChefMap
 from checkmate.providers import base
+from checkmate import utils
 
+GENERIC_TIER_ID = 'generic-chef-tier'
+CATALOG = utils.yaml_to_dict("""
+application:
+  %s:
+    is: application
+    provides:
+    - application: http
+    requires:
+    - host: linux
+    options:
+      berks_entry:
+        type: text
+      run_list:
+        type: text
+      count:
+        type: integer  # we don't really need this in the catalog
+    meta-data:
+      display-hints:
+        icon-20x20: "/images/chef-icon-20x20.png"
+        tattoo: "/images/chef-tattoo.png"
+""" % GENERIC_TIER_ID)
 LOG = logging.getLogger(__name__)
+
+
+def merge_berks_entries(berks_entries):
+    """Combine multiple Berksfie snippets into one."""
+    if not berks_entries:
+        return
+    combined = book.Berksfile.from_string('')
+    for snippet in berks_entries:
+        combined.merge(book.Berksfile.from_string(snippet))
+    combined.seek(0)
+    return combined.read()
 
 
 class BaseOpscodeProvider(base.ProviderBase):
 
     """Shared class that holds common code for Opscode providers."""
+
+    def __init__(self, *args, **kwargs):
+        super(BaseOpscodeProvider, self).__init__(*args, **kwargs)
+
+        # Map File
+        self.source = self.get_setting('source')
+        if self.source:
+            context = threadlocal.get_context()
+            self.map_file = ChefMap(url=self.source,
+                                    github_token=context.get('github_token'))
+        else:
+            # Create noop map file
+            self.map_file = ChefMap(raw="")
+
+        self.berksfile = None
+
+    def generate_template(self, deployment, resource_type, service, context,
+                          index, provider_key, definition, planner):
+        templates = super(BaseOpscodeProvider, self).generate_template(
+            deployment, resource_type, service, context, index, provider_key,
+            definition, planner)
+        if definition['id'] == GENERIC_TIER_ID:
+            # Get berks_entry option or constraints
+            berks_entry = deployment.get_setting(
+                'berks_entry', resource_type=resource_type,
+                service_name=service, provider_key=self.key)
+            if berks_entry:
+                for template in templates:
+                    template['desired-state']['berks_entry'] = berks_entry
+
+        # Get run_list option or constraints
+        run_list = deployment.get_setting(
+            'run_list', resource_type=resource_type,
+            service_name=service, provider_key=self.key)
+        if run_list:
+            LOG.debug("Retreived run_list from setting for resource %s",
+                      index)
+        else:
+            run_list = self.map_file.get_component_run_list(definition)
+            if run_list:
+                LOG.debug("Retreived run_list from Chefmap for resource "
+                          "%s", index)
+        if run_list:
+            if isinstance(run_list, basestring):
+                run_list = self.parse_run_list(run_list)
+            for template in templates:
+                template['desired-state']['run_list'] = run_list
+        return templates
+
+    def prep_environment(self, wfspec, deployment, context):
+        super(BaseOpscodeProvider, self).prep_environment(wfspec, deployment,
+                                                          context)
+        if self.prep_task:
+            return  # already prepped
+
+        # Loop over all components with berks snippets, collect them,
+        # merge them, pass them into the task
+        snippets = []
+        for resource in deployment['resources'].itervalues():
+            if (resource.get('provider') == self.name and
+                    resource.get('component') == GENERIC_TIER_ID):
+                snippet = utils.read_path(resource,
+                                          'desired-state/berks_entry')
+                if snippet:
+                    snippets.append(snippet)
+        self.berksfile = merge_berks_entries(snippets)
 
     def get_prep_tasks(self, wfspec, deployment, resource_key, component,
                        context, collect_tag='collect',
@@ -314,6 +417,23 @@ class BaseOpscodeProvider(base.ProviderBase):
                 collect_data.properties['task_tags'].append('options-ready')
         return result
 
+    @staticmethod
+    def parse_run_list(run_list_str):
+        """Parse run_list string into dict."""
+        recipes = []
+        roles = []
+        items = [x.strip() for x in run_list_str.split(',')]
+        for item in items:
+            # run_type: 'role' or 'recipe'
+            # name: name of role or recipe, e.g., 'phpstack::apache'
+            run_type, name, _ = re.split(r'[\[\]]', item)
+            if run_type == 'role':
+                roles.append(name)
+            elif run_type == 'recipe':
+                recipes.append(name)
+            # TODO: what do we do with garbage?
+        return dict(recipes=recipes, roles=roles)
+
     def get_catalog(self, context, type_filter=None, source=None):
         """Return stored/override catalog if it exists, else connect, build,
         and return one.
@@ -337,6 +457,7 @@ class BaseOpscodeProvider(base.ProviderBase):
             if type_filter is None:
                 self._dict['catalog'] = catalog
             return catalog
+        return copy.deepcopy(CATALOG)
 
     def get_remote_catalog(self, context, source=None):
         """Get the remote catalog from a repo by obtaining a Chefmap file, if

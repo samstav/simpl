@@ -38,7 +38,7 @@ class Manager(object):
     def create_kitchen(name, service_name, path=None, private_key=None,
                        public_key_ssh=None, secret_key=None,
                        source_repo=None, server_credentials=None,
-                       github_token=None,
+                       github_token=None, berksfile=None,
                        simulation=False):
         """Create a workspace and knife kitchen.
 
@@ -75,7 +75,8 @@ class Manager(object):
         environment.ensure_kitchen_path_exists()
 
         kitchen_data = environment.create_kitchen(secret_key=secret_key,
-                                                  source_repo=source_repo)
+                                                  source_repo=source_repo,
+                                                  berksfile=berksfile)
         kitchen_key_path = os.path.join(environment.kitchen_path,
                                         'certificates',
                                         'checkmate-environment.pub')
@@ -103,10 +104,11 @@ class Manager(object):
                     knife_rb['validation_client_name'] = '"%s"' % value
             if knife_rb:
                 environment._knife.update_config(**knife_rb)
-        if source_repo:
+        if source_repo or berksfile:
             environment.fetch_cookbooks()
         else:
-            error_message = "Source repo not supplied and is required"
+            error_message = ("Neither source repo nor Berksfile supplied. At "
+                             "least one of them is required")
             raise exceptions.CheckmateException(
                 error_message, friendly_message=exceptions.BLUEPRINT_ERROR)
 

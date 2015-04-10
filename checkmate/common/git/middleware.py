@@ -149,13 +149,13 @@ class GitMiddleware(object):
 
     def __call__(self, env, handler):
         if env.get('CONTENT_TYPE') in [
-            'application/x-git-upload-pack-request',
-            'application/x-git-receive-pack-request'
+                'application/x-git-upload-pack-request',
+                'application/x-git-receive-pack-request'
         ]:
             pass
         elif env.get('QUERY_STRING') in [
-            'service=git-upload-pack',
-            'service=git-receive-pack'
+                'service=git-upload-pack',
+                'service=git-receive-pack'
         ]:
             pass
         else:
@@ -281,10 +281,8 @@ def _set_git_environ(environ, repo, path):
         cgi_env['GIT_PROJECT_ROOT'] = os.path.join(environ['GIT_PROJECT_BASE'],
                                                    repo)
     cgi_env['PATH_INFO'] = '/%s' % (path or '')
-    if (
-        re.search('/info/refs', cgi_env['PATH_INFO']) and
-        cgi_env['REQUEST_METHOD'] == 'GET'
-    ):
+    if (re.search('/info/refs', cgi_env['PATH_INFO']) and
+            cgi_env['REQUEST_METHOD'] == 'GET'):
         cgi_env['CONTENT_TYPE'] = ''
     return cgi_env
 
@@ -296,8 +294,8 @@ def _git_route_callback(dep_id, path):
         raise bottle.HTTPError(status=404, output="%s not found" %
                                environ['PATH_INFO'])
     manager.init_deployment_repo(environ.get('GIT_PROJECT_ROOT'))
-    (status_line, headers, response_body_generator
-     ) = wsgi_git_http_backend.wsgi_to_git_http_backend(environ)
+    status_line, headers, response_body_generator = (
+        wsgi_git_http_backend.wsgi_to_git_http_backend(environ))
     for header, value in headers:
         bottle.response.set_header(header, value)
     bottle.response.status = status_line

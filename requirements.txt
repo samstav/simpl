@@ -61,6 +61,11 @@
 # Includes SSL support for eventlet for use in simpler debugging for Encore UI
 -e git://github.com/ziadsawalha/bottle.git@ssl#egg=bottle
 
+# Includes Berksfile class
+# Al for: fastfood==0.1.9  # must be greater than 0.1.8
+-e git://github.com/samstav/fastfood@berksfile_class#egg=fastfood
+
+
 #### Checkmate direct dependencies (alphabetical)
 airbrake==1.1.4
 arrow==0.4.4

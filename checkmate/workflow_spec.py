@@ -25,7 +25,7 @@ from checkmate import exceptions
 LOG = logging.getLogger(__name__)
 
 
-class ProviderFactory:
+class ProviderFactory(object):
 
     """Instantiate Required Provider for Resource.
 
@@ -116,7 +116,7 @@ class WorkflowSpec(specs.WorkflowSpec):
         resources = deployment.get_non_deleted_resources()
         resource = deployment['resources'].get(resource_id)
         wf_spec = WorkflowSpec(name="Get resource %s in deployment %s online"
-                                    % (resource_id, deployment["id"]))
+                               % (resource_id, deployment["id"]))
         for _, relation in resource.get('relations', {}).iteritems():
             if relation.get('source'):
                 source_resource = resources[relation.get('source')]
@@ -158,7 +158,7 @@ class WorkflowSpec(specs.WorkflowSpec):
 
         # Build a workflow spec (the spec is the design of the workflow)
         wf_spec = WorkflowSpec(name="Delete deployment %s(%s)" %
-                                    (dep_id, blueprint['name']))
+                               (dep_id, blueprint['name']))
 
         if operation['status'] in ('COMPLETE', 'PAUSED'):
             root_task = wf_spec.start
@@ -187,9 +187,8 @@ class WorkflowSpec(specs.WorkflowSpec):
 
         resources_to_del = deployment.get_non_deleted_resources().iteritems()
         for key, resource in resources_to_del:
-            if ('provider' in resource and 'hosted_on' not in resource):
+            if 'provider' in resource and 'hosted_on' not in resource:
                 provider = factory.get_provider(resource)
-
                 host_del_tasks = []
                 if resource.get("hosts"):
                     host_del_tasks = WorkflowSpec.get_host_delete_tasks(
@@ -569,8 +568,8 @@ class WorkflowSpec(specs.WorkflowSpec):
             if kwargs:
                 for key, value in kwargs.iteritems():
                     if key == 'tag':
-                        if value is not None and value not in\
-                                (task.get_property('task_tags', []) or []):
+                        if (value is not None and value not in
+                                (task.get_property('task_tags', []) or [])):
                             match = False
                             break
                     elif value is not None and task.get_property(key) != value:
@@ -586,8 +585,8 @@ class WorkflowSpec(specs.WorkflowSpec):
             if match:
                 tasks.append(task)
         if not tasks:
-            LOG.debug("No tasks found in find_tasks for %s", ', '.join(
-                      ['%s=%s' % (k, v) for k, v in kwargs.iteritems() or {}]))
+            found = ['%s=%s' % (k, v) for k, v in kwargs.iteritems() or {}]
+            LOG.debug("No tasks found in find_tasks for %s", ', '.join(found))
         return tasks
 
     def wait_for(self, task, wait_list, name=None, **kwargs):
@@ -678,7 +677,7 @@ class WorkflowSpec(specs.WorkflowSpec):
                   resources_to_delete)
         dep_id = deployment["id"]
         wf_spec = WorkflowSpec(name="Delete nodes %s for deployment %s)" %
-                                    (",".join(resources_to_delete), dep_id))
+                               (",".join(resources_to_delete), dep_id))
         resources = deployment.get('resources')
         LOG.debug("Attempting to delete %s", resources_to_delete)
 
@@ -715,14 +714,14 @@ class WorkflowSpec(specs.WorkflowSpec):
                             merge_task = wf_spec.wait_for(
                                 tasks[0], wait_tasks,
                                 name="Wait before deleting resource %s" %
-                                     resource_key)
+                                resource_key)
                             for task in tasks[1:]:
                                 merge_task.connect(task)
                         else:
                             wf_spec.wait_for(
                                 tasks, wait_tasks,
                                 name="Wait before deleting resource %s" %
-                                     resource_key)
+                                resource_key)
                     else:
                         if isinstance(tasks, list) and tasks:
                             for task in tasks:

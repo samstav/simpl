@@ -258,7 +258,7 @@ def manage_environment(context, deployment, name, desc=None, versions=None,
 def create_kitchen(context, name, service_name, path=None,
                    private_key=None, public_key_ssh=None,
                    secret_key=None, source_repo=None,
-                   server_credentials=None):
+                   server_credentials=None, berksfile=None):
     """Create a folder with a configured knife.rb file on it.
 
     The kitchen is a directory structure that is self-contained and
@@ -272,6 +272,8 @@ def create_kitchen(context, name, service_name, path=None,
     :param secret_key: used for data bag encryption
     :param source_repo: provides cookbook repository in valid git syntax
     :param server_credentials: keys and info to connect to chef server
+    :param berksfile: a berksfile string to merge into any existing Berksfile
+        or to write if one does not exist
     """
     def on_failure(exc, task_id, args, kwargs, einfo):
         """Handle task failure."""
@@ -296,6 +298,7 @@ def create_kitchen(context, name, service_name, path=None,
                                   source_repo=source_repo,
                                   github_token=context.get('github_token'),
                                   server_credentials=server_credentials,
+                                  berksfile=berksfile,
                                   simulation=context['simulation'])
 
 

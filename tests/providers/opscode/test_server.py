@@ -398,6 +398,7 @@ class TestMySQLMaplessWorkflow(test.StubbedWorkflowBase):
                 'public_key_ssh': None,
                 'secret_key': None,
                 'source_repo': None,
+                'berksfile': None,
             },
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
@@ -755,7 +756,8 @@ interfaces/mysql/host
                 'private_key': None,
                 'public_key_ssh': None,
                 'secret_key': None,
-                'source_repo': 'http://mock_url'
+                'source_repo': 'http://mock_url',
+                'berksfile': None,
             },
             'result': {
                 'environment': '/var/tmp/%s/' % self.deployment['id'],
@@ -892,7 +894,9 @@ interfaces/mysql/host
                     dns-name: db01.checkmate.local
                     service: db
                     component: mysql
-                    desired-state: {}
+                    desired-state:
+                      run_list:
+                        recipes: ['mysql::server']
                     hosted_on: '1'
                     provider: chef-server
                     type: database

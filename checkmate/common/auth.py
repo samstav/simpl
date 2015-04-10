@@ -138,16 +138,34 @@ class SSOAuthenticator(object):
             http_class = httplib.HTTPConnection
         http = http_class(self.host, self.port, timeout=10)
         if token:
-            body = {"auth": {"token": {"id": token}}}
+            body = {'auth': {'token': {'id': token}}}
         elif password:
-            body = {"auth": {"passwordCredentials": {
-                    "username": username, 'password': password}}}
+            body = {
+                'auth': {
+                    'passwordCredentials': {
+                        'username': username,
+                        'password': password
+                    }
+                }
+            }
         elif apikey:
-            body = {"auth": {"RAX-KSKEY:apiKeyCredentials": {
-                    "username": username, 'apiKey': apikey}}}
+            body = {
+                'auth': {
+                    'RAX-KSKEY:apiKeyCredentials': {
+                        'username': username,
+                        'apiKey': apikey
+                    }
+                }
+            }
         elif rsa_key:
-            body = {"auth": {"RAX-AUTH:rsaCredentials": {
-                    "username": username, 'tokenKey': rsa_key}}}
+            body = {
+                'auth': {
+                    'RAX-AUTH:rsaCredentials': {
+                        'username': username,
+                        'tokenKey': rsa_key
+                    }
+                }
+            }
         else:
             raise HTTPUnauthorized('No credentials supplied or detected')
 
