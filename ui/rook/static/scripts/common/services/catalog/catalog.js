@@ -1,6 +1,6 @@
 angular.module('checkmate.Catalog', []);
 angular.module('checkmate.Catalog')
-  .factory('Catalog', function($rootScope, $http, auth) {
+  .factory('Catalog', function($rootScope, $http, auth, $log) {
     var Catalog = {
       'data': {},
       'components': {},
@@ -71,7 +71,8 @@ angular.module('checkmate.Catalog')
             Catalog.set(parsed);
             that.loading = false;
           } catch(err) {
-            console.log("YAML file for Blueprint documentation could not be parsed", err);
+            $log.error(err);
+            $log.log("Default YAML catalog could not be parsed.");
             that.loading = false;
           }
 
@@ -79,7 +80,8 @@ angular.module('checkmate.Catalog')
         error(function(data, status, headers, config) {
           // called asynchronously if an error occurs
           // or server returns response with an error status.
-          console.error(data, status, headers(), config);
+          $log.error(status + ' ' + config.method + ' ' + config.url);
+          $log.log('Default catalog failed. No idea what to do now.');
         });
     };
 
@@ -103,8 +105,10 @@ angular.module('checkmate.Catalog')
               Catalog.set(parsed);
               that.error = null;
             } catch(err) {
-              that.error = "Provider response for Blueprint documentation could not be parsed";
-              console.log(that.error, err);
+              $log.log('Provider response was successful but failed to parse.');
+              $log.error(err);
+
+              that.getDefaults();
             }
 
             that.loading = false;
@@ -112,8 +116,10 @@ angular.module('checkmate.Catalog')
           error(function(data, status, headers, config) {
             // called asynchronously if an error occurs
             // or server returns response with an error status.
-            console.error(data, status, headers(), config);
-            that.error = 'Responded with a ' + status;
+            $log.error(status + ' ' + config.method + ' ' + config.url);
+            $log.log('Setting default catalog instead.');
+
+            that.getDefaults();
             that.loading = false;
           });
       } else {
