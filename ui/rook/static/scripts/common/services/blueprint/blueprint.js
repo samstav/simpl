@@ -291,6 +291,8 @@ angular.module('checkmate.Blueprint')
             var _interface = _.values(_relation)[0];
             var _type = null;
 
+            if(!_interface) return;
+
             if(!_.isObject(_interface) && _interface.indexOf('#') > -1) {
               _type = _name;
               _name = _interface.split('#')[1];
