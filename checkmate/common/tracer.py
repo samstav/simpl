@@ -43,10 +43,10 @@ if '--trace-calls' in sys.argv or '-t' in sys.argv:
     STACK_DEPTH = 0
 
     # Calculate root project path
-    POSSIBLE_TOPDIR = os.path.normpath(os.path.join(
-                                       os.path.abspath(sys.argv[0]),
-                                       os.pardir,
-                                       os.pardir))
+    POSSIBLE_TOPDIR = os.path.normpath(
+        os.path.join(os.path.abspath(sys.argv[0]),
+                     os.pardir,
+                     os.pardir))
 
     class ConsoleColors(object):
         HEADER = '\033[95m'

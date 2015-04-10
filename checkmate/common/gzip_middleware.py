@@ -174,10 +174,12 @@ DEFAULT_COMPRESSABLES = set(
 
 
 class Gzipper(object):
+
     """WSGI middleware to wrap around and gzip all output.
 
     This automatically adds the content-encoding header.
     """
+
     def __init__(self, app, content_types=None, compresslevel=6):
         self.app = app
         if content_types is None:
@@ -237,8 +239,8 @@ class Gzipper(object):
                 # Added by write_x headers.append(('Vary', 'Accept-Encoding'))
                 for i, header in enumerate(headers):
                     if header[0] == 'Content-Length':
-                        headers[i] = ('Content-Length', str(len(data) +
-                                      len(_buffer['body'])))
+                        headers[i] = ('Content-Length',
+                                      str(len(data) + len(_buffer['body'])))
                         break
             data = [data]
 

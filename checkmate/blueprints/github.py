@@ -165,9 +165,8 @@ class GitHubManager(object):
         collection_count = len(results)
         if results and (only_basic_info or paginate):
             LOG.debug("Paginating blueprints for %s/%s with offset:%d, "
-                      "limit:%d, details:%d" %
-                      (self._github_api_base, self._repo_org,
-                       offset, limit, details))
+                      "limit:%d, details:%d", self._github_api_base,
+                      self._repo_org, offset, limit, details)
 
             blueprint_ids = results.keys()
             blueprint_ids.sort()
@@ -180,8 +179,8 @@ class GitHubManager(object):
                 results = {
                     k: {
                         "name": v.get("blueprint", {}).get("name"),
-                        "description": v.get("blueprint", {})
-                                        .get("description")
+                        "description":
+                        v.get("blueprint", {}).get("description")
                     } for k, v in self._blueprints.iteritems()
                     if k in blueprint_ids[offset:offset + limit]
                 }
@@ -568,11 +567,11 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
             },
         }
         blueprint["documentation"] = {
-            "abstract": "HOT template converted for Rackspace Deployements "
-            "compatibility",
-            "instructions": "This is a demo conversion from HOT (OpenStack's "
-            "Heat Orchestration Template) syntax to Rackspace Deployments "
-            "Service format."
+            "abstract": ("HOT template converted for Rackspace Deployements "
+                         "compatibility"),
+            "instructions": ("This is a demo conversion from HOT (OpenStack's "
+                             "Heat Orchestration Template) syntax to "
+                             "Rackspace Deployments Service format.")
         }
         content['blueprint'] = blueprint
         return content
@@ -869,8 +868,8 @@ class AnonymousGitHubManager(object):
                 results = {
                     k: {
                         "name": v.get("blueprint", {}).get("name"),
-                        "description": v.get("blueprint", {})
-                                        .get("description")
+                        "description":
+                        v.get("blueprint", {}).get("description")
                     } for k, v in self._blueprints.iteritems()
                     if k in blueprint_ids[offset:offset + limit]
                 }
@@ -1168,11 +1167,11 @@ e790e86aa.r66.cf2.rackcdn.com/heat-tattoo.png",
             },
         }
         blueprint["documentation"] = {
-            "abstract": "HOT template converted for Rackspace Deployements "
-            "compatibility",
-            "instructions": "This is a demo conversion from HOT (OpenStack's "
-            "Heat Orchestration Template) syntax to Rackspace Deployments "
-            "Service format."
+            "abstract": ("HOT template converted for Rackspace Deployements "
+                         "compatibility"),
+            "instructions": ("This is a demo conversion from HOT (OpenStack's "
+                             "Heat Orchestration Template) syntax to "
+                             "Rackspace Deployments Service format.")
         }
         content['blueprint'] = blueprint
         return content

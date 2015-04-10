@@ -21,7 +21,7 @@ An extensible dict containing all of the details of a deployment's resources.
 import logging
 
 from morpheus import dict as exceptions
-from morpheus import MorpheusDict as dict
+from morpheus import MorpheusDict as dict  # pylint: disable=W0622
 import simplefsm
 from simplefsm import exceptions as fsmexc
 

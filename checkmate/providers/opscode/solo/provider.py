@@ -24,7 +24,6 @@ from SpiffWorkflow import specs
 from checkmate import exceptions
 from checkmate import keys
 from checkmate.providers.opscode import base
-from checkmate.providers.opscode.chef_map import ChefMap
 from checkmate.providers import base as cmbase
 
 LOG = logging.getLogger(__name__)

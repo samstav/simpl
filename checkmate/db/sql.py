@@ -56,7 +56,7 @@ from checkmate.exceptions import CheckmateInvalidParameterError
 from checkmate import utils
 
 
-__all__ = ['Environment', 'Blueprint', 'Deployment', 'Workflow']
+__all__ = ('Environment', 'Blueprint', 'Deployment', 'Workflow')
 
 LOG = logging.getLogger(__name__)
 BASE = declarative_base()
