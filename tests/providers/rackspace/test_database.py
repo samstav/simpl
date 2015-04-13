@@ -422,10 +422,13 @@ class TestCatalog(unittest.TestCase):
 
     def test_generation(self):
         dbprovider = provider.Provider({})
-        context = self.mox.CreateMockAnything()
+        context = {
+            'auth_token': "DUMMY_TOKEN",
+            'region': None
+        }
         flavor1 = {'id': '1', 'ram': 1024, 'name': 'm1.tiny'}
 
-        context.catalog = [{
+        context['catalog'] = [{
             "endpoints": [
                 {
                     "publicURL": "https://north.databases.com/v1/55BB",
@@ -441,11 +444,46 @@ class TestCatalog(unittest.TestCase):
             "name": "cloudDatabases",
             "type": "rax:database"
         }]
-        context.auth_token = "DUMMY_TOKEN"
-        context.region = None
         expected = {
+            'cache': {
+                'redis_cache': {
+                    'display_name': 'Cloud Redis Cache',
+                        'meta-data': {
+                            'display-hints': {
+                                'tattoo': '/images/redis-tattoo.png',
+                                'icon-20x20': '/images/redis-icon-20x20.png'
+                            }
+                    },
+                    'is': 'cache',
+                    'id': 'redis_cache',
+                    'provides': [{'cache': 'redis'}],
+                    'options': {
+                        'username': {
+                            'required': True,
+                            'type': 'string',
+                        },
+                        'password': {
+                            'required': False,
+                            'type': 'string'
+                        },
+                        'memory': {
+                            'default': 512, 'type': 'integer',
+                            'unit': 'Mb',
+                            'constraints': [{'in': [512, 1024, 2048, 4096]}]
+                        }
+                    }
+                }
+            },
             'compute': {
                 'mysql_instance': {
+                    'display_name': 'Cloud MySQL Server Instance',
+                    'meta-data': {
+                        'display-hints': {
+                            'tattoo': '/images/icon-databases.svg',
+                            'icon-20x20': '/images/icon-databases.svg',
+                            'display': 'hidden'
+                        }
+                    },
                     'is': 'compute',
                     'id': 'mysql_instance',
                     'provides': [{'compute': 'mysql'}],
@@ -460,9 +498,7 @@ class TestCatalog(unittest.TestCase):
                         'memory': {
                             'type': 'integer',
                             'unit': 'Mb',
-                            'constraints': [
-                                {'in': [512, 1024, 2048, 4096]}
-                            ]
+                            'constraints': [{'in': [512, 1024, 2048, 4096]}]
                         }
                     }
                 }
@@ -475,128 +511,85 @@ class TestCatalog(unittest.TestCase):
                 'sizes': {
                     '1': {
                         'name': 'm1.tiny',
-                        'memory': 1024,
-                    },
+                        'memory': 1024
+                    }
                 }
             },
             'database': {
+                'mysql_database': {
+                    'display_name': 'Cloud Database (MySQL)',
+                    'name': 'mysql',
+                    'meta-data': {
+                        'display-hints': {
+                            'tattoo': '/images/icon-databases.svg',
+                            'icon-20x20': '/images/icon-databases.svg'
+                        }
+                    },
+                    'is': 'database',
+                    'options': {
+                        'database/password': {
+                            'required': False,
+                            'type': 'string'
+                        },
+                        'database/name': {
+                            'default': 'db1',
+                            'type': 'string'
+                        },
+                        'database/username': {
+                            'required': True,
+                            'type': 'string'
+                        }
+                    },
+                    'provides': [{'database': 'mysql'}],
+                    'requires': [{
+                        'interface': 'mysql',
+                        'relation': 'host',
+                        'resource_type': 'compute'
+                    }],
+                    'id': 'mysql_database'
+                },
                 'redis_database': {
+                    'display_name': 'Cloud Database (Redis)',
+                    'meta-data': {
+                        'display-hints': {
+                            'tattoo': '/images/redis-tattoo.png',
+                            'icon-20x20': '/images/redis-icon-20x20.png'
+                        }
+                    },
                     'is': 'database',
                     'id': 'redis_database',
                     'provides': [{'database': 'redis'}],
                     'options': {
-                        'password': {
-                            'required': False,
-                            'type': 'string'
-                        },
                         'username': {
                             'required': True,
+                            'type': 'string'
+                        },
+                        'password': {
+                            'required': False,
                             'type': 'string'
                         },
                         'disk': {
+                            'default': 1,
                             'type': 'integer',
                             'unit': 'Gb',
-                            'constraints': [
-                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-                            ],
-                            'default': 1
+                            'constraints': [{
+                                'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}]
                         },
                         'memory': {
+                            'default': 512,
                             'type': 'integer',
                             'unit': 'Mb',
-                            'constraints': [
-                                {'in': [512, 1024, 2048, 4096]}
-                            ],
-                            'default': 512
-                        }
-                    }
-                },
-                'mysql_database': {
-                    'id': 'mysql_database',
-                    'is': 'database',
-                    'provides': [{'database': 'mysql'}],
-                    'requires': [{
-                        'relation': 'host',
-                        'interface': 'mysql',
-                        'resource_type': 'compute'
-                    }],
-                    'options': {
-                        'database/name': {
-                            'type': 'string',
-                            'default': 'db1'
-                        },
-                        'database/username': {
-                            'type': 'string',
-                            'required': True
-                        },
-                        'database/password': {
-                            'type': 'string',
-                            'required': False
-                        }
-                    }
-                },
-                'mysql_replica': {
-                    'id': 'mysql_replica',
-                    'is': 'database-replica',
-                    'provides': [{'database-replica': 'mysql'}],
-                    'requires': [
-                        {
-                            'relation': 'host',
-                            'interface': 'mysql',
-                            'resource_type': 'compute'
-                        },
-                        {
-                            'relation': 'reference',
-                            'interface': 'mysql',
-                            'resource_type': 'database'
-                        }
-                    ],
-                    'options': {
-                        'database/name': {
-                            'type': 'string',
-                            'default': 'db1'
-                        },
-                        'database/username': {
-                            'type': 'string',
-                            'required': True
-                        },
-                        'database/password': {
-                            'type': 'string',
-                            'required': False
-                        }
-                    }
-                },
-            },
-            'cache': {
-                'redis_cache': {
-                    'is': 'cache',
-                    'id': 'redis_cache',
-                    'provides': [{'cache': 'redis'}],
-                    'options': {
-                        'password': {
-                            'required': False,
-                            'type': 'string'
-                        },
-                        'username': {
-                            'required': True,
-                            'type': 'string'
-                        },
-                        'memory': {
-                            'type': 'integer',
-                            'unit': 'Mb',
-                            'constraints': [
-                                {'in': [512, 1024, 2048, 4096]}
-                            ],
-                            'default': 512
+                            'constraints': [{'in': [512, 1024, 2048, 4096]}]
                         }
                     }
                 }
             }
         }
 
-        self.mox.StubOutWithMock(provider, '_get_flavors')
-        provider._get_flavors(context, 'https://north.databases.com/v1/55BB',
-                              'DUMMY_TOKEN').AndReturn([flavor1])
+        self.mox.StubOutWithMock(provider, '_get_cached_flavors')
+        provider._get_cached_flavors(
+            context, 'https://north.databases.com/v1/55BB', 'DUMMY_TOKEN'
+        ).AndReturn([flavor1])
 
         self.mox.ReplayAll()
         results = dbprovider.get_catalog(context)

@@ -1092,7 +1092,8 @@ class Provider(RackspaceComputeProviderBase):
             pyrax.set_setting("identity_type", "rackspace")
 
         servers = []
-        pyrax.auth_with_token(context['auth_token'], tenant_name=context.tenant)
+        pyrax.auth_with_token(context['auth_token'],
+                              tenant_name=context.get('tenant'))
         for region in pyrax.regions:
             api = pyrax.connect_to_cloudservers(region=region)
             servers += api.list()
@@ -1119,7 +1120,7 @@ class Provider(RackspaceComputeProviderBase):
             results.append(resource)
             utils.merge_dictionary(
                 resource['instance'],
-                utils.get_ips_from_server(server, context.roles)
+                utils.get_ips_from_server(server, context.get('roles'))
             )
         return results
 

@@ -1289,7 +1289,7 @@ class TestNovaProxy(unittest.TestCase):
     @mock.patch('checkmate.providers.rackspace.compute.provider.pyrax')
     def test_get_resources_returns_compute_instances(self, mock_pyrax,
                                                      mock_utils):
-        request = mock.Mock()
+        context = {'auth_token': 'irrelevant'}
         server = mock.Mock()
         server.name = 'server_name'
         server.status = 'server_status'
@@ -1303,7 +1303,7 @@ class TestNovaProxy(unittest.TestCase):
         mock_pyrax.connect_to_cloudservers.return_value = servers_response
         mock_pyrax.regions = ["ORD"]
 
-        result = compute.provider.Provider.get_resources(request, 'tenant')
+        result = compute.provider.Provider.get_resources(context, 'tenant')
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['dns-name'], 'server_name')
         self.assertEqual(result[0]['status'], 'server_status')
@@ -1315,7 +1315,7 @@ class TestNovaProxy(unittest.TestCase):
         'checkmate.providers.rackspace.compute.utils.get_ips_from_server')
     @mock.patch('checkmate.providers.rackspace.compute.provider.pyrax')
     def test_get_resources_merges_ip_info(self, mock_pyrax, mock_get_ips):
-        request = mock.Mock()
+        context = {'auth_token': 'irrelevant'}
         server = mock.Mock()
         server.image = {'id': None}
         server.flavor = {'id': None}
@@ -1329,21 +1329,21 @@ class TestNovaProxy(unittest.TestCase):
                                      'public_ip': '2.2.2.2',
                                      'private_ip': '3.3.3.3'}
         self.assertEqual(
-            compute.Provider.get_resources(request,
+            compute.Provider.get_resources(context,
                                            'tenant')[0]['instance']['ip'],
             '1.1.1.1'
         )
 
         self.assertEqual(
             compute.Provider.get_resources(
-                request,
+                context,
                 'tenant')[0]['instance']['public_ip'],
             '2.2.2.2'
         )
 
         self.assertEqual(
             compute.Provider.get_resources(
-                request,
+                context,
                 'tenant')[0]['instance']['private_ip'],
             '3.3.3.3'
         )
@@ -1354,7 +1354,7 @@ class TestNovaProxy(unittest.TestCase):
     def test_get_resources_returns_servers_not_in_checkmate(self,
                                                             mock_pyrax,
                                                             mock_get_ips):
-        request = mock.Mock()
+        context = {'auth_token': 'irrelevant'}
         server = mock.Mock()
         server.image = {'id': 'gotit'}
         server.flavor = {'id': None}
@@ -1385,7 +1385,7 @@ class TestNovaProxy(unittest.TestCase):
         servers_response.servers.list.return_value = [server]
         mock_pyrax.connect_to_cloudservers.return_value = servers_response
 
-        result = compute.Provider.get_resources(request, 'tenant')
+        result = compute.Provider.get_resources(context, 'tenant')
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['instance']['image'], 'gotit')
 

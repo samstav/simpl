@@ -184,7 +184,7 @@ meta-data:
     tattoo: "/images/postgre_sql_256.png"
 ---
 name: mysql
-diplay_name: MySQL Database (Generic)
+display_name: MySQL Database (Generic)
 is: database
 provides:
 - database: mysql
