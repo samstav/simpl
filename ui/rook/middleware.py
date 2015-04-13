@@ -18,7 +18,6 @@ import requests
 from Crypto.Hash import MD5
 from eventlet.green import httplib
 from eventlet.green import socket
-from eventlet.green import urllib2
 import webob
 from webob.exc import HTTPUnauthorized, HTTPNotFound
 
@@ -399,10 +398,6 @@ def githubproxy(path=None):
         port = url.port or 80
     host = url.hostname
 
-    query = ''
-    if bottle.request.query.per_page:
-        query = "?per_page=" + bottle.request.query.per_page
-
     auth = bottle.request.get_header('Authorization')
     if not auth:
         github_token = bottle.request.get_cookie('github_access_token')
@@ -418,23 +413,31 @@ def githubproxy(path=None):
                                                   'application/json'),
     }
     body = None
-    data = None
     try:
         request_url = (url.scheme + '://' + host + ':' + str(port) +
-                       '/' + path + query)
+                       '/' + path)
         LOG.debug('Proxying github call to %s', request_url)
-        req = urllib2.Request(request_url, data, headers)
-        resp = urllib2.urlopen(req)
-        status = resp.getcode()
-        body = resp.read()
-    except socket.gaierror as exc:
+        # NOTE: Should this always be a GET call ?
+        response = requests.get(
+            request_url, params=bottle.request.params, headers=headers)
+        response.raise_for_status()
+
+        try:
+            body = response.json()
+        except ValueError:
+            # not json
+            body = response.content
+    except (requests.ConnectionError, socket.gaierror) as exc:
+        # `response` *will not* be defined
         LOG.error('HTTP connection exception: %s', exc)
         raise bottle.HTTPError(500, output="Unable to communicate with "
                                "github server: %s" % source)
-    except urllib2.HTTPError as exc:
+    except requests.HTTPError as exc:
+        # `response` *will be defined
         LOG.error("HTTP connection exception of type '%s': %s",
                   exc.__class__.__name__, exc)
-        raise bottle.HTTPError(exc.code, output="Unable to communicate with "
+        raise bottle.HTTPError(exc.response.status_code,
+                               output="Unable to communicate with "
                                "github server")
     except Exception as exc:
         LOG.error("Caught exception of type '%s': %s",
@@ -442,22 +445,12 @@ def githubproxy(path=None):
         raise bottle.HTTPError(401, output="Unable to communicate with "
                                "github server")
 
-    if status != 200:
-        LOG.debug('Invalid github call: %s\n\nBody: %s', resp.reason,
+    if response.status_code != 200:
+        LOG.debug('Invalid github call: %s\n\nBody: %s', response.reason,
                   body)
-        raise bottle.HTTPError(status, output=resp.reason)
+        raise bottle.HTTPError(response.status_code, output=response.reason)
 
-    if 'application/json' in resp.info().getheader('Content-type'):
-        try:
-            content = json.loads(body)
-        except ValueError:
-            msg = 'Github did not return json-encoded body'
-            LOG.debug(msg)
-            raise bottle.HTTPError(status, output=msg)
-    else:
-        content = body
-
-    return write_body(content, bottle.request, bottle.response)
+    return write_body(body, bottle.request, bottle.response)
 
 
 @ROOK_API.get('/webhooks/github_auth')
