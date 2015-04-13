@@ -661,6 +661,7 @@ class Provider(cmbase.ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'size':
+            flavors = _get_cached_flavors(context, api_endpoint,
                                           context['auth_token'])
             if 'lists' not in results:
                 results['lists'] = {}
@@ -776,9 +777,19 @@ class Provider(cmbase.ProviderBase):
 @caching.Cache(timeout=3600, sensitive_args=[2], store=API_FLAVOR_CACHE,
                backing_store=REDIS, backing_store_key='rax.database.flavors',
                ignore_args=[0])
-def _get_flavors(context, api_endpoint, auth_token):
+def _get_cached_flavors(context, api_endpoint, auth_token):
+    """Wrap and cache call to DBaaS for Flavors (RAM, CPU, HDD) options.
+
+    :param auth_token: that just exists to make the cache unique per
+        auth_token.
+    :param api_endpoint: that just exists to make the cache unique per
+        api_endpoint.
+    """
+    return _get_flavors(context)
+
+
+def _get_flavors(context):
     """Ask DBaaS for Flavors (RAM, CPU, HDD) options."""
-    # the region must be supplied but is not used
     api = Provider.connect(context)
     LOG.info("Calling Cloud Databases to get flavors for %s",
              api.management_url)
