@@ -1,0 +1,157 @@
+id: mysql_instance
+is: compute
+display_name: Cloud MySQL Server Instance
+provides:
+- compute: mysql
+meta-data:
+  display-hints:
+    display: hidden
+    icon-20x20: /images/icon-databases.svg
+    tattoo: /images/icon-databases.svg
+options:
+  disk:
+    constraints:
+    - in:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
+      - 10
+    type: integer
+    unit: Gb
+  memory:
+    constraints:
+    - in:
+      - 512
+      - 1024
+      - 2048
+      - 4096
+    type: integer
+    unit: Mb
+---
+id: mysql_database
+is: database
+name: mysql
+display_name: Cloud Database (MySQL)
+provides:
+- database: mysql
+requires:
+- interface: mysql
+  relation: host
+  resource_type: compute
+meta-data:
+  display-hints:
+    icon-20x20: /images/icon-databases.svg
+    tattoo: /images/icon-databases.svg
+options:
+  database/name:
+    default: db1
+    type: string
+  database/password:
+    required: false
+    type: string
+  database/username:
+    required: true
+    type: string
+---
+id: mysql_replica
+is: database-replica
+display_name: Cloud Database Replica (MySQL)
+provides:
+- database-replica: mysql
+requires:
+- interface: mysql
+  relation: host
+  resource_type: compute
+- interface: mysql
+  relation: reference
+  resource_type: database
+meta-data:
+  display-hints:
+    icon-20x20: /images/icon-databases.svg
+    tattoo: /images/icon-databases.svg
+options:
+  database/name:
+    default: db1
+    type: string
+  database/password:
+    required: false
+    type: string
+  database/username:
+    required: true
+    type: string
+---
+id: redis_cache
+is: cache
+display_name: Cloud Redis Cache
+provides:
+- cache: redis
+meta-data:
+  display-hints:
+    icon-20x20: /images/redis-icon-20x20.png
+    tattoo: /images/redis-tattoo.png
+options:
+  memory:
+    constraints:
+    - in:
+      - 512
+      - 1024
+      - 2048
+      - 4096
+    default: 512
+    type: integer
+    unit: Mb
+  password:
+    required: false
+    type: string
+  username:
+    required: true
+    type: string
+---
+id: redis_database
+display_name: Cloud Database (Redis)
+is: database
+provides:
+- database: redis
+meta-data:
+  display-hints:
+    icon-20x20: /images/redis-icon-20x20.png
+    tattoo: /images/redis-tattoo.png
+options:
+  disk:
+    constraints:
+    - in:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
+      - 10
+    default: 1
+    type: integer
+    unit: Gb
+  memory:
+    constraints:
+    - in:
+      - 512
+      - 1024
+      - 2048
+      - 4096
+    default: 512
+    type: integer
+    unit: Mb
+  password:
+    required: false
+    type: string
+  username:
+    required: true
+    type: string

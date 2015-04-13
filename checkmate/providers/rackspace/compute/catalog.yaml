@@ -1,5 +1,7 @@
 
 id: linux_instance
+display_name: Linux Cloud Server
+name: server
 is: compute
 provides:
 - compute: linux
@@ -73,8 +75,14 @@ options:
     help: |
       Do not set the key_name for OnMetal servers. Checkmate needs to set that
       value to it's own key so it can access the server.
+meta-data:
+  display-hints:
+    icon-20x20: "/images/icon-servers.svg"
+    tattoo: "/images/icon-servers.svg"
 ---
 id: windows_instance
+display_name: Windows Cloud Server
+name: server
 is: compute
 provides:
 - compute: windows
@@ -131,8 +139,13 @@ options:
     help: |
       Do not set the key_name for OnMetal servers. Checkmate needs to set that
       value to it's own key so it can access the server.
+meta-data:
+  display-hints:
+    icon-20x20: "/images/icon-servers.svg"
+    tattoo: "/images/icon-servers.svg"
 ---
 id: rax:key-pair
+display_name: SSH Key
 is: key-pair
 options:
   'name':

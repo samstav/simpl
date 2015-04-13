@@ -15,6 +15,7 @@ The API is a **REST HTTP API**. It supports POST, PUT, GET, DELETE on:
 - /version
 
 - /anonymous/blueprints[/:id]/
+- /anonymous/catalog/...
 
 *Note: not all verbs on all paths. DELETE not yet ready*
 
@@ -160,6 +161,7 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by
     POST /:tid/workflows/:id/tasks/:task_id/+resubmit
 
     GET /:tid/providers
+    GET /:tid/providers/catalog
     GET /:tid/providers/:pid
     GET /:tid/providers/:pid/catalog
     GET /:tid/providers/:pid/catalog/:cid
@@ -195,3 +197,4 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by
     
     GET /anonymous/blueprints
     GET /anonymous/blueprints/:id/
+    GET /anonymous/catalog/

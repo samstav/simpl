@@ -14,11 +14,15 @@
 
 """Environments."""
 
+import copy
 import logging
+import os
 import uuid
 
 import bottle
 
+from checkmate.common import schema
+from checkmate.common import threadlocal
 from checkmate import db
 from checkmate import environment as cm_env
 from checkmate.providers import base as providers_base
@@ -26,6 +30,12 @@ from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
+ANONYMOUS_CATALOG = schema.load_catalog(
+    os.path.join(
+        os.path.dirname(__file__),
+        os.path.pardir,
+        'ui', 'rook', 'static', 'scripts', 'common', 'services', 'catalog',
+        'catalog.yml'))
 
 
 @bottle.get('/environments')
@@ -130,7 +140,7 @@ def delete_environment(eid, tenant_id=None):
 
 
 #
-# Providers and Resources
+# Environment Providers
 #
 @bottle.get('/environments/<environment_id>/providers')
 @utils.with_tenant
@@ -224,6 +234,58 @@ def get_providers(tenant_id=None):
             provides=provider({}).provides(bottle.request.environ['context'])
         ))
     return utils.write_body(results, bottle.request, bottle.response)
+
+
+@bottle.get('/providers/catalog')
+@utils.with_tenant
+def get_combined_catalog(tenant_id=None):
+    """Return a catalog of all providers."""
+    results = copy.deepcopy(ANONYMOUS_CATALOG)
+    last_error = None
+    context = threadlocal.get_context()
+
+    # FIXME(zns): async=True hangs
+    async = False  # set to False for easier debugging
+    if async:
+        with utils.ContextPool(30) as pool:
+            pile = utils.GreenAsyncPile(pool)
+            for provider in providers_base.PROVIDER_CLASSES.itervalues():
+                pile.spawn(provider({}).get_catalog, dict(context))
+                if pool.free() < 4:
+                    LOG.warning("Threadpool for calling cloud APIs is running "
+                                "low: %s free of %s", pool.free(),
+                                pool.running())
+    else:
+        pile = []
+        for provider in providers_base.PROVIDER_CLASSES.itervalues():
+            try:
+                pile.append(provider({}).get_catalog(context))
+            except Exception as exc:
+                pile.append(exc)
+    for response in pile:
+        if isinstance(response, Exception):
+            last_error = response
+            LOG.error("Error in thread when getting catalog from provider",
+                      exc_info=response)
+        elif response:
+            utils.merge_dictionary(results, response)
+
+    if async:
+        # give any pending requests *some* chance to finish - 0.5s
+        LOG.debug("Waiting for async calls to finish")
+        pile.waitall(0.2)
+        LOG.debug("Finished get catalog call for tenant %s", tenant_id)
+
+    if not results and last_error:
+        raise last_error
+
+    return utils.write_body(results, bottle.request, bottle.response)
+
+
+@bottle.get('/anonymous/catalog')
+def get_anonymous_catalog():
+    """Return generic, anonymous (unauthenticated) catalog."""
+    return utils.write_body(ANONYMOUS_CATALOG, bottle.request, bottle.response)
 
 
 @bottle.get('/providers/<provider_id>/catalog')

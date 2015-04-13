@@ -27,6 +27,7 @@ import itertools
 import json
 import logging.config
 import os
+import Queue
 import re
 import shlex
 import shutil
@@ -42,6 +43,7 @@ import arrow
 import bottle
 from Crypto.Random import random
 import errno
+import eventlet
 from eventlet.green import threading
 import functools
 import yaml
@@ -1450,3 +1452,119 @@ def total_size(obj, handlers={}):
         return size
 
     return sizeof(obj)
+
+
+class ContextPool(eventlet.GreenPool):
+
+    """GreenPool subclassed to kill its coros when it gets gc'ed."""
+
+    def __enter__(self):
+        """."""
+        return self
+
+    def __exit__(self, type, value, traceback):
+        """Kill coroutines on exit."""
+        for coro in list(self.coroutines_running):
+            coro.kill()
+
+
+class GreenAsyncPileWaitallTimeout(eventlet.Timeout):
+
+    """Wait for routines to finish."""
+
+
+class GreenAsyncPile(object):
+
+    """Runs jobs in a pool of green threads with results iterator.
+
+    The results can be retrieved by using this object as an iterator.
+
+    This is very similar in principle to eventlet.GreenPile, except it returns
+    results as they become available rather than in the order they were
+    launched.
+
+    Correlating results with jobs (if necessary) is left to the caller.
+    """
+
+    def __init__(self, size):
+        """Init and set size of pool.
+
+        :param size: size pool of green threads to use.
+        """
+        if isinstance(size, eventlet.GreenPool):
+            self._pool = size
+            self._responses = eventlet.queue.LightQueue(size.size)
+            self._errors = eventlet.queue.LightQueue(size.size)
+        else:
+            self._pool = eventlet.GreenPool(size)
+            self._responses = eventlet.queue.LightQueue(size)
+            self._errors = eventlet.queue.LightQueue(size)
+        self._inflight = 0
+
+    def _run_func(self, func, args, kwargs, _return_value_key=None):
+        try:
+            if _return_value_key:
+                self._responses.put((_return_value_key, func(*args, **kwargs)))
+            else:
+                self._responses.put(func(*args, **kwargs))
+        except Exception as exc:
+            LOG.exception(exc)
+            # if we let this raise here, it won't raise in the
+            # context of the process that spawned it.
+            # Send it back to that thread and allow it
+            # to check for results that are Exceptions
+            if _return_value_key:
+                self._errors.put((_return_value_key, exc))
+                self._responses.put((_return_value_key, exc))
+            else:
+                self._errors.put(exc)
+                self._responses.put(exc)
+        finally:
+            self._inflight -= 1
+
+    def spawn(self, func, *args, **kwargs):
+        """Spawn a job in a green thread on the pile."""
+        _return_value_key = copy.deepcopy(
+            kwargs.pop('_return_value_key', None))
+        self._inflight += 1
+        self._pool.spawn(self._run_func, func, args, kwargs,
+                         _return_value_key=_return_value_key)
+
+    def waitall(self, timeout):
+        """Wait timeout seconds for any results to come in.
+
+        :param timeout: seconds to wait for results
+        :returns: list of results accrued in that time
+        """
+        results = []
+        try:
+            with GreenAsyncPileWaitallTimeout(timeout):
+                while True:
+                    results.append(self.next())
+        except (GreenAsyncPileWaitallTimeout, StopIteration):
+            pass
+        return results
+
+    def __iter__(self):
+        """."""
+        return self
+
+    def next(self):
+        """."""
+        try:
+            return self._responses.get_nowait()
+        except Queue.Empty:
+            if self._inflight == 0:
+                raise StopIteration()
+            else:
+                return self._responses.get()
+
+    def get_errors(self):
+        """Return an iterator of errors from the pile."""
+        def _get_errors():
+            while not self._errors.empty():
+                try:
+                    yield self._errors.get_nowait()
+                except Queue.Empty:
+                    yield
+        return (err for err in _get_errors() if err)

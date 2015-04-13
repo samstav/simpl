@@ -514,7 +514,7 @@ class TestLoadBalancerGetResources(unittest.TestCase):
     @mock.patch('checkmate.providers.rackspace.loadbalancer.provider.pyrax')
     def test_get_resources_returns_load_balancer_resource(self, mock_pyrax,
                                                           mock_connect):
-        request = mock.Mock()
+        context = {'auth_token': 'irrelevant'}
         load_balancer = mock.Mock()
         load_balancer.status = 'status'
         load_balancer.name = 'name'
@@ -530,9 +530,9 @@ class TestLoadBalancerGetResources(unittest.TestCase):
         mock_connect.return_value = lb_api
         mock_pyrax.regions = ["DFW"]
 
-        result = loadbalancer.Provider.get_resources(request, 'tenant')[0]
+        result = loadbalancer.Provider.get_resources(context, 'tenant')[0]
 
-        self.assertEqual(len(result.keys()), 5)
+        self.assertEqual(len(result.keys()), 6)
         self.assertEqual(result['status'], 'status')
         self.assertEqual(result['provider'], 'load-balancer')
         self.assertEqual(result['dns-name'], 'name')
@@ -545,7 +545,7 @@ class TestLoadBalancerGetResources(unittest.TestCase):
     @mock.patch.object(loadbalancer.Provider, 'connect')
     @mock.patch('checkmate.providers.rackspace.loadbalancer.provider.pyrax')
     def test_get_resources_uses_public_ip(self, mock_pyrax, mock_connect):
-        context = mock.Mock()
+        context = {'auth_token': 'irrelevant'}
         load_balancer = mock.Mock()
         vip = mock.Mock()
         vip.type = 'PUBLIC'
@@ -567,7 +567,7 @@ class TestLoadBalancerGetResources(unittest.TestCase):
     @mock.patch('checkmate.providers.rackspace.loadbalancer.provider.pyrax')
     def test_get_resources_dont_return_cm_resources(self, mock_pyrax,
                                                     mock_connect):
-        context = mock.Mock()
+        context = {'auth_token': 'irrelevant'}
         load_balancer = mock.Mock()
         load_balancer.virtual_ips = []
         load_balancer.metadata = [{'key': 'RAX-CHECKMATE'}]

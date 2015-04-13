@@ -1,8 +1,8 @@
 # encoding: utf-8
-"""
-Rackspace Provider base module.
-"""
+"""Rackspace Provider base module."""
+import collections
 import logging
+
 import pyrax
 
 from checkmate import exceptions
@@ -73,9 +73,9 @@ class RackspaceProviderBase(base.ProviderBase):
 
     @staticmethod
     def _connect(context, region=None):
-        '''Use context info to connect to API and return api object.'''
+        """Use context info to connect to API and return api object."""
         # FIXME: figure out better serialization/deserialization scheme
-        if isinstance(context, dict):
+        if isinstance(context, collections.MutableMapping):
             context = middleware.RequestContext(**context)
         elif not isinstance(context, middleware.RequestContext):
             message = ("Context passed into connect is an unsupported type "

@@ -16,6 +16,7 @@
 
 """Provider module for interfacing with Cloud Databases."""
 
+import copy
 import logging
 import os
 import string
@@ -28,6 +29,7 @@ from SpiffWorkflow import operators
 from SpiffWorkflow import specs
 
 from checkmate.common import caching
+from checkmate.common import schema
 from checkmate.exceptions import (
     BLUEPRINT_ERROR,
     CheckmateException,
@@ -47,6 +49,8 @@ if 'CHECKMATE_CACHE_CONNECTION_STRING' in os.environ:
         REDIS = redis.from_url(os.environ['CHECKMATE_CACHE_CONNECTION_STRING'])
     except StandardError as exc:
         LOG.warn("Error connecting to Redis: %s", exc)
+CATALOG_TEMPLATE = schema.load_catalog(os.path.join(os.path.dirname(__file__),
+                                                    'catalog.yaml'))
 
 
 class Provider(cmbase.ProviderBase):
@@ -633,154 +637,20 @@ class Provider(cmbase.ProviderBase):
 
         # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
-        region = getattr(context, 'region', None)
+        region = context.get('region')
         if not region:
-            region = Provider.find_a_region(context.catalog)
-        api_endpoint = Provider.find_url(context.catalog, region)
+            region = Provider.find_a_region(context['catalog'])
+        api_endpoint = Provider.find_url(context['catalog'], region)
         if type_filter is None or type_filter == 'database':
-            results['database'] = {
-                'mysql_database': {
-                    'id': 'mysql_database',
-                    'is': 'database',
-                    'provides': [{'database': 'mysql'}],
-                    'requires': [{
-                        'relation': 'host',
-                        'interface': 'mysql',
-                        'resource_type': 'compute'
-                    }],
-                    'options': {
-                        'database/name': {
-                            'type': 'string',
-                            'default': 'db1'
-                        },
-                        'database/username': {
-                            'type': 'string',
-                            'required': True
-                        },
-                        'database/password': {
-                            'type': 'string',
-                            'required': False
-                        }
-                    }
-                },
-                'mysql_replica': {
-                    'id': 'mysql_replica',
-                    'is': 'database-replica',
-                    'provides': [{'database-replica': 'mysql'}],
-                    'requires': [
-                        {
-                            'relation': 'host',
-                            'interface': 'mysql',
-                            'resource_type': 'compute'
-                        },
-                        {
-                            'relation': 'reference',
-                            'interface': 'mysql',
-                            'resource_type': 'database'
-                        }
-                    ],
-                    'options': {
-                        'database/name': {
-                            'type': 'string',
-                            'default': 'db1'
-                        },
-                        'database/username': {
-                            'type': 'string',
-                            'required': True
-                        },
-                        'database/password': {
-                            'type': 'string',
-                            'required': False
-                        }
-                    }
-                },
-                'redis_database': {
-                    'id': 'redis_database',
-                    'is': 'database',
-                    'provides': [{'database': 'redis'}],
-                    'options': {
-                        'username': {
-                            'type': 'string',
-                            'required': True
-                        },
-                        'password': {
-                            'type': 'string',
-                            'required': False
-                        },
-                        'disk': {
-                            'type': 'integer',
-                            'constraints': [
-                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-                            ],
-                            'unit': 'Gb',
-                            'default': 1,
-                        },
-                        'memory': {
-                            'type': 'integer',
-                            'constraints': [
-                                {'in': [512, 1024, 2048, 4096]}
-                            ],
-                            'unit': 'Mb',
-                            'default': 512,
-                        }
-                    }
-                }
-            }
+            results['database'] = copy.deepcopy(CATALOG_TEMPLATE['database'])
         if type_filter is None or type_filter == 'cache':
-            results['cache'] = {
-                'redis_cache': {
-                    'id': 'redis_cache',
-                    'is': 'cache',
-                    'provides': [{'cache': 'redis'}],
-                    'options': {
-                        'username': {
-                            'type': 'string',
-                            'required': True
-                        },
-                        'password': {
-                            'type': 'string',
-                            'required': False
-                        },
-                        'memory': {
-                            'type': 'integer',
-                            'constraints': [
-                                {'in': [512, 1024, 2048, 4096]}
-                            ],
-                            'unit': 'Mb',
-                            'default': 512,
-                        }
-                    }
-                }
-            }
-
+            results['cache'] = copy.deepcopy(CATALOG_TEMPLATE['cache'])
         if type_filter is None or type_filter == 'compute':
-            results['compute'] = {
-                'mysql_instance': {
-                    'id': 'mysql_instance',
-                    'is': 'compute',
-                    'provides': [{'compute': 'mysql'}],
-                    'options': {
-                        'disk': {
-                            'type': 'integer',
-                            'constraints': [
-                                {'in': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
-                            ],
-                            'unit': 'Gb',
-                        },
-                        'memory': {
-                            'type': 'integer',
-                            'constraints': [
-                                {'in': [512, 1024, 2048, 4096]}
-                            ],
-                            'unit': 'Mb',
-                        },
-                    }
-                }
-            }
+            results['compute'] = copy.deepcopy(CATALOG_TEMPLATE['compute'])
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
-            for service in context.catalog:
+            for service in context['catalog']:
                 if service['type'] == 'rax:database':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
@@ -791,7 +661,8 @@ class Provider(cmbase.ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'size':
-            flavors = _get_flavors(context, api_endpoint, context.auth_token)
+            flavors = _get_cached_flavors(context, api_endpoint,
+                                          context['auth_token'])
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['sizes'] = {
@@ -839,7 +710,13 @@ class Provider(cmbase.ProviderBase):
                         },
                         'flavor': db_host.flavor.id,
                     },
-                    'type': 'database'
+                    'type': 'database',
+                    'meta-data': {
+                        'display-hints': {
+                            'icon-20x20': "/images/edis-icon-20x20",
+                            'tattoo': "/images/redis-tattoo.png",
+                        }
+                    }
                 }
             else:
                 resource = {
@@ -860,7 +737,13 @@ class Provider(cmbase.ProviderBase):
                         'disk': db_host.volume.size,
                     },
                     'hosts': [],
-                    'type': 'compute'
+                    'type': 'compute',
+                    'meta-data': {
+                        'display-hints': {
+                            'icon-20x20': "/images/mysql-small.png",
+                            'tattoo': "/images/mysql-tattoo.png",
+                        }
+                    }
                 }
             results.append(resource)
         return results
@@ -894,9 +777,19 @@ class Provider(cmbase.ProviderBase):
 @caching.Cache(timeout=3600, sensitive_args=[2], store=API_FLAVOR_CACHE,
                backing_store=REDIS, backing_store_key='rax.database.flavors',
                ignore_args=[0])
-def _get_flavors(context, api_endpoint, auth_token):
+def _get_cached_flavors(context, api_endpoint, auth_token):
+    """Wrap and cache call to DBaaS for Flavors (RAM, CPU, HDD) options.
+
+    :param auth_token: that just exists to make the cache unique per
+        auth_token.
+    :param api_endpoint: that just exists to make the cache unique per
+        api_endpoint.
+    """
+    return _get_flavors(context)
+
+
+def _get_flavors(context):
     """Ask DBaaS for Flavors (RAM, CPU, HDD) options."""
-    # the region must be supplied but is not used
     api = Provider.connect(context)
     LOG.info("Calling Cloud Databases to get flavors for %s",
              api.management_url)

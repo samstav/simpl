@@ -340,7 +340,7 @@ class Provider(provider.RackspaceComputeProviderBase):
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
-            for service in context.catalog:
+            for service in context['catalog']:
                 if service['name'] == 'cloudServers':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
@@ -465,10 +465,10 @@ class Provider(provider.RackspaceComputeProviderBase):
         if isinstance(context, dict):
             from checkmate import middleware
             context = middleware.RequestContext(**context)
-        if not context.auth_token:
+        if not context.get('auth_token'):
             raise cmexc.CheckmateNoTokenError()
         api = openstack.compute.Compute()
-        api.client.auth_token = context.auth_token
+        api.client.auth_token = context['auth_token']
 
         def find_url(catalog):
             """Return url endpoint."""
@@ -478,7 +478,7 @@ class Provider(provider.RackspaceComputeProviderBase):
                     for endpoint in endpoints:
                         return endpoint['publicURL']
 
-        url = find_url(context.catalog)
+        url = find_url(context['catalog'])
         api.client.management_url = url
         LOG.debug("Connected to legacy cloud servers using token of length %s "
                   "and url of %s", len(api.client.auth_token), url)

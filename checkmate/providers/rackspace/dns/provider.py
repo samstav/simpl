@@ -27,6 +27,7 @@ import tldextract
 from checkmate.common import caching
 from checkmate.providers import base
 from checkmate.providers.rackspace import base as rsbase
+from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DNS_API_CACHE = {}
@@ -94,7 +95,7 @@ class Provider(rsbase.RackspaceProviderBase):
     def verify_limits(self, context, resources):
         messages = []
         api = self.connect(context)
-        limits = self._get_limits(self._find_url(context.catalog), api)
+        limits = self._get_limits(self._find_url(context['catalog']), api)
         max_doms = limits.get('absolute', {}).get('domains', sys.maxint)
         max_recs = limits.get('absolute', {}).get('records per domain',
                                                   sys.maxint)
@@ -195,7 +196,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
-            for service in context.catalog:
+            for service in context['catalog']:
                 if service['type'] == 'dnsextension:dns':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
@@ -203,6 +204,15 @@ class Provider(rsbase.RackspaceProviderBase):
                             regions[endpoint['region']] = endpoint['publicURL']
             results['regions'] = regions
 
+        if type_filter is None or type_filter == 'dns':
+            results['dns'] == utils.yaml_to_dict("""
+                id: "rax:dns"
+                is: dns
+                meta-data:
+                  display-hints:
+                    icon-20x20: "/images/icon-dns.svg"
+                    tattoo: "/images/icon-dns.svg"
+                """)
         return results
 
     @staticmethod

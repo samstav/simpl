@@ -475,6 +475,8 @@ OPTION_SCHEMA = [
     'source_field_name',
     'type',
     'unit',
+    'sample',  # for legacy support. Consider changing to display-hint
+    'example',  # for legacy support. Consider changing to display-hint
 ]
 
 # Add parts used internally by providers, but not part of the public schema
