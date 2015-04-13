@@ -48,40 +48,73 @@ angular.module('checkmate.Catalog')
       $rootScope.$broadcast('catalog:update', this.data);
     };
 
+    /* Parse a catalog supplied as multiple YAML documents */
+    Catalog.parseMultiDocCatalog = function(data) {
+      var that = this;
+      try {
+        var parsed = {};
+
+        jsyaml.safeLoadAll(data, function(doc) {
+          var category = doc.is || 'other';
+
+          if (!(category in parsed)) {
+            parsed[category] = {};
+          }
+
+          parsed[category][doc.id || doc.name] = doc;
+        });
+
+        Catalog.set(parsed);
+        that.loading = false;
+      } catch(err) {
+        $log.error(err);
+        $log.log("Default YAML catalog could not be parsed.");
+        that.loading = false;
+      }
+    };
+
+    Catalog.parseCatalog = function(data) {
+      var parsed = {};
+
+      _.each(data, function(entries, category) {
+        if (entries && category !== 'regions' && category !== 'lists') {
+          if (!(category in parsed)) {
+            parsed[category] = {};
+          }
+          var parsedCategory = parsed[category];
+
+          _.each(entries, function(item, key) {
+            parsedCategory[key] = item;
+            if (_.isUndefined(item.id)) {
+              item.id = key;
+            }
+          });
+        }
+      });
+      return parsed;
+    };
+
     Catalog.getDefaults = function() {
-      var url = '/scripts/common/services/catalog/catalog.yml';
+      var url = '/anonymous/catalog.json';
       var that = this;
       that.loading = true;
 
       $http.get(url).
         success(function(data, status, headers, config) {
-          try {
-            var parsed = {};
-
-            jsyaml.safeLoadAll(data, function(doc) {
-              var category = doc.is || 'other';
-
-              if (!(category in parsed)) {
-                parsed[category] = {};
-              }
-
-              parsed[category][doc.id || doc.name] = doc;
-            });
-
-            Catalog.set(parsed);
-            that.loading = false;
-          } catch(err) {
-            $log.error(err);
-            $log.log("Default YAML catalog could not be parsed.");
-            that.loading = false;
-          }
-
+          Catalog.parseCatalog(data);
         }).
         error(function(data, status, headers, config) {
-          // called asynchronously if an error occurs
-          // or server returns response with an error status.
-          $log.error(status + ' ' + config.method + ' ' + config.url);
-          $log.log('Default catalog failed. No idea what to do now.');
+          url = '/scripts/common/services/catalog/catalog.yml';
+          $http.get(url).
+            success(function(data, status, headers, config) {
+              Catalog.parseMultiDocCatalog(data);
+            }).
+            error(function(data, status, headers, config) {
+              // called asynchronously if an error occurs
+              // or server returns response with an error status.
+              $log.error(status + ' ' + config.method + ' ' + config.url);
+              $log.log('Default catalog failed. No idea what to do now.');
+            })
         });
     };
 
@@ -95,13 +128,7 @@ angular.module('checkmate.Catalog')
         $http.get(url).
           success(function(data, status, headers, config) {
             try {
-              var parsed = {};
-
-              _.each(data, function(item, key) {
-                if(!parsed[item.name]) parsed[item.name] = {};
-                parsed[item.name][key] = item;
-              });
-
+              var parsed = Catalog.parseCatalog(data);
               Catalog.set(parsed);
               that.error = null;
             } catch(err) {

@@ -14,11 +14,14 @@
 
 """Environments."""
 
+import copy
 import logging
+import os
 import uuid
 
 import bottle
 
+from checkmate.common import schema
 from checkmate import db
 from checkmate import environment as cm_env
 from checkmate.providers import base as providers_base
@@ -26,6 +29,12 @@ from checkmate import utils
 
 LOG = logging.getLogger(__name__)
 DB = db.get_driver()
+ANONYMOUS_CATALOG = schema.load_catalog(
+    os.path.join(
+        os.path.dirname(__file__),
+        os.path.pardir,
+        'ui', 'rook', 'static', 'scripts', 'common', 'services', 'catalog',
+        'catalog.yml'))
 
 
 @bottle.get('/environments')
@@ -130,7 +139,7 @@ def delete_environment(eid, tenant_id=None):
 
 
 #
-# Providers and Resources
+# Environment Providers
 #
 @bottle.get('/environments/<environment_id>/providers')
 @utils.with_tenant
@@ -224,6 +233,12 @@ def get_providers(tenant_id=None):
             provides=provider({}).provides(bottle.request.environ['context'])
         ))
     return utils.write_body(results, bottle.request, bottle.response)
+
+
+@bottle.get('/anonymous/catalog')
+def get_anonymous_catalog():
+    """Return generic, anonymous (unauthenticated) catalog."""
+    return utils.write_body(ANONYMOUS_CATALOG, bottle.request, bottle.response)
 
 
 @bottle.get('/providers/<provider_id>/catalog')
