@@ -719,7 +719,13 @@ class Provider(rsbase.RackspaceProviderBase):
                 'supports': [
                     {'application': 'http'},  # legacy support
                     {'*': {'from': protocols}}],
-                'options': options
+                'options': options,
+                'meta-data': {
+                    'display-hints': {
+                        'icon-20x20': "/images/icon-load-balancing.png",
+                        'tattoo': "/images/icon-load-balancing.png",
+                    }
+                }
             }
 
         self.validate_catalog(results)
@@ -775,7 +781,13 @@ class Provider(rsbase.RackspaceProviderBase):
                     'public_ip': vip,
                     'port': clb.port
                 },
-                'type': 'load-balancer'
+                'type': 'load-balancer',
+                'meta-data': {
+                    'display-hints': {
+                        'icon-20x20': "/images/icon-load-balancing.png",
+                        'tattoo': "/images/icon-load-balancing.png",
+                    }
+                }
             }
             results.append(resource)
         return results

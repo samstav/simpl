@@ -161,6 +161,7 @@ All calls to GET /deployments and GET /workflows may be optionally paginated by
     POST /:tid/workflows/:id/tasks/:task_id/+resubmit
 
     GET /:tid/providers
+    GET /:tid/providers/catalog
     GET /:tid/providers/:pid
     GET /:tid/providers/:pid/catalog
     GET /:tid/providers/:pid/catalog/:cid

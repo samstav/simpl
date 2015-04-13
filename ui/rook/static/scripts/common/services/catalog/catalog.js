@@ -50,27 +50,18 @@ angular.module('checkmate.Catalog')
 
     /* Parse a catalog supplied as multiple YAML documents */
     Catalog.parseMultiDocCatalog = function(data) {
-      var that = this;
-      try {
-        var parsed = {};
+      var parsed = {};
 
-        jsyaml.safeLoadAll(data, function(doc) {
-          var category = doc.is || 'other';
+      jsyaml.safeLoadAll(data, function(doc) {
+        var category = doc.is || 'other';
 
-          if (!(category in parsed)) {
-            parsed[category] = {};
-          }
+        if (!(category in parsed)) {
+          parsed[category] = {};
+        }
 
-          parsed[category][doc.id || doc.name] = doc;
-        });
-
-        Catalog.set(parsed);
-        that.loading = false;
-      } catch(err) {
-        $log.error(err);
-        $log.log("Default YAML catalog could not be parsed.");
-        that.loading = false;
-      }
+        parsed[category][doc.id || doc.name] = doc;
+      });
+      return parsed;
     };
 
     Catalog.parseCatalog = function(data) {
@@ -101,13 +92,27 @@ angular.module('checkmate.Catalog')
 
       $http.get(url).
         success(function(data, status, headers, config) {
-          Catalog.parseCatalog(data);
+          try {
+            Catalog.set(Catalog.parseCatalog(data));
+            that.loading = false;
+          } catch(err) {
+            $log.error(err);
+            $log.log("Anonymous YAML catalog could not be parsed.");
+            that.loading = false;
+          }
         }).
         error(function(data, status, headers, config) {
           url = '/scripts/common/services/catalog/catalog.yml';
           $http.get(url).
             success(function(data, status, headers, config) {
-              Catalog.parseMultiDocCatalog(data);
+              try {
+                Catalog.set(Catalog.parseMultiDocCatalog(data));
+                that.loading = false;
+              } catch(err) {
+                $log.error(err);
+                $log.log("Default YAML catalog could not be parsed.");
+                that.loading = false;
+              }
             }).
             error(function(data, status, headers, config) {
               // called asynchronously if an error occurs
@@ -123,7 +128,7 @@ angular.module('checkmate.Catalog')
       that.loading = true;
 
       if(auth.context.tenantId) {
-        url = url = '/' + auth.context.tenantId + '/providers.json';
+        url = url = '/' + auth.context.tenantId + '/providers/catalog.json';
 
         $http.get(url).
           success(function(data, status, headers, config) {

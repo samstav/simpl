@@ -40,6 +40,7 @@ CATALOG = utils.yaml_to_dict("""
 application:
   %s:
     is: application
+    display_name: Chef Tier (Generic)
     provides:
     - application: http
     requires:
