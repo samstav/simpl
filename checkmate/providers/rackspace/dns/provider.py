@@ -94,7 +94,7 @@ class Provider(rsbase.RackspaceProviderBase):
     def verify_limits(self, context, resources):
         messages = []
         api = self.connect(context)
-        limits = self._get_limits(self._find_url(context.catalog), api)
+        limits = self._get_limits(self._find_url(context['catalog']), api)
         max_doms = limits.get('absolute', {}).get('domains', sys.maxint)
         max_recs = limits.get('absolute', {}).get('records per domain',
                                                   sys.maxint)
@@ -195,7 +195,7 @@ class Provider(rsbase.RackspaceProviderBase):
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
-            for service in context.catalog:
+            for service in context['catalog']:
                 if service['type'] == 'dnsextension:dns':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:

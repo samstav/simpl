@@ -507,7 +507,7 @@ class Provider(RackspaceComputeProviderBase):
         if not region:
             region = Provider.find_a_region(context.catalog)
         url = Provider.find_url(context.catalog, region)
-        flavors = _get_flavors(url, context.auth_token)['flavors']
+        flavors = _get_flavors(url, context['auth_token'])['flavors']
 
         memory_needed = 0
         cores_needed = 0
@@ -517,7 +517,7 @@ class Provider(RackspaceComputeProviderBase):
             memory_needed += details['memory']
             cores_needed += details['cores']
 
-        limits = _get_limits(url, context.auth_token)
+        limits = _get_limits(url, context['auth_token'])
         memory_available = limits['maxTotalRAMSize'] - limits['totalRAMUsed']
         if memory_available < 0:
             memory_available = 0
@@ -941,22 +941,23 @@ class Provider(RackspaceComputeProviderBase):
         urls = {}
         if context.get('region') or kwargs.get('region'):
             region = context.get('region') or kwargs.get('region').upper()
-            urls[region] = Provider.find_url(context.catalog, region)
+            urls[region] = Provider.find_url(context['catalog'], region)
         else:
             LOG.warning('Region not found in context or kwargs.')
             rax_regions = Provider.get_regions(
-                context.catalog, service_name='cloudServersOpenStack',
+                context['catalog'], service_name='cloudServersOpenStack',
                 resource_type='compute')
             if rax_regions:
                 regions = rax_regions
                 LOG.debug("Found Rackspace compute regions: %s", rax_regions)
             else:
-                regions = Provider.get_regions(context.catalog,
+                regions = Provider.get_regions(context['catalog'],
                                                resource_type='compute')
                 LOG.debug("Found generic compute regions: %s", regions)
             for region in regions:
                 if region:
-                    urls[region] = Provider.find_url(context.catalog, region)
+                    urls[region] = Provider.find_url(context['catalog'],
+                                                     region)
         if not urls:
             LOG.warning('No compute endpoints found.')
             return results
@@ -967,8 +968,8 @@ class Provider(RackspaceComputeProviderBase):
                 if not url and len(urls) == 1:
                     LOG.warning("Failed to find compute endpoint for %s in "
                                 "region %s", context.tenant, region)
-                jobs.spawn(_get_flavors, url, context.auth_token)
-                jobs.spawn(_get_images_and_types, url, context.auth_token)
+                jobs.spawn(_get_flavors, url, context['auth_token'])
+                jobs.spawn(_get_images_and_types, url, context['auth_token'])
             for ret in jobs:
                 results = utils.merge_dictionary(
                     results, ret, extend_lists=True)
@@ -979,8 +980,8 @@ class Provider(RackspaceComputeProviderBase):
                         LOG.warning("Failed to find compute endpoint for %s "
                                     "in region %s", context.tenant, region)
                     continue
-                flavors = _get_flavors(url, context.auth_token)
-                images = _get_images_and_types(url, context.auth_token)
+                flavors = _get_flavors(url, context['auth_token'])
+                images = _get_images_and_types(url, context['auth_token'])
                 results = utils.merge_dictionary(
                     results, flavors, extend_lists=True)
                 results = utils.merge_dictionary(
@@ -1007,7 +1008,7 @@ class Provider(RackspaceComputeProviderBase):
         flavors = None
         types = None
 
-        if not context.catalog:
+        if not context['catalog']:
             raise cmexc.CheckmateException(
                 friendly_message="Missing tenant catalog", http_status=400)
 
@@ -1015,7 +1016,7 @@ class Provider(RackspaceComputeProviderBase):
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
-            for service in context.catalog:
+            for service in context['catalog']:
                 if service['name'] == 'cloudServersOpenStack':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
@@ -1091,7 +1092,7 @@ class Provider(RackspaceComputeProviderBase):
             pyrax.set_setting("identity_type", "rackspace")
 
         servers = []
-        pyrax.auth_with_token(context.auth_token, tenant_name=context.tenant)
+        pyrax.auth_with_token(context['auth_token'], tenant_name=context.tenant)
         for region in pyrax.regions:
             api = pyrax.connect_to_cloudservers(region=region)
             servers += api.list()
@@ -1206,7 +1207,7 @@ class Provider(RackspaceComputeProviderBase):
         if isinstance(context, dict):
             context = cmmid.RequestContext(**context)
         # TODO(any): Hard-coded to Rax auth for now
-        if not context.auth_token:
+        if not context.get('auth_token'):
             raise cmexc.CheckmateNoTokenError()
 
         if not region:
@@ -1217,9 +1218,9 @@ class Provider(RackspaceComputeProviderBase):
                 region = utils.read_path(context.resource,
                                          'desired-state/region')
             if not region:
-                region = Provider.find_a_region(context.catalog) or 'DFW'
-        url = Provider.find_url(context.catalog, region)
-        plugin = AuthPlugin(context.auth_token, url,
+                region = Provider.find_a_region(context['catalog']) or 'DFW'
+        url = Provider.find_url(context['catalog'], region)
+        plugin = AuthPlugin(context['auth_token'], url,
                             auth_source=context.auth_source)
         insecure = str(os.environ.get('NOVA_INSECURE')).lower() in ['1',
                                                                     'true']

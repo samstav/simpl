@@ -633,10 +633,10 @@ class Provider(cmbase.ProviderBase):
 
         # build a live catalog this would be the on_get_catalog called if no
         # stored/override existed
-        region = getattr(context, 'region', None)
+        region = context.get('region')
         if not region:
-            region = Provider.find_a_region(context.catalog)
-        api_endpoint = Provider.find_url(context.catalog, region)
+            region = Provider.find_a_region(context['catalog'])
+        api_endpoint = Provider.find_url(context['catalog'], region)
         if type_filter is None or type_filter == 'database':
             results['database'] = {
                 'mysql_database': {
@@ -780,7 +780,7 @@ class Provider(cmbase.ProviderBase):
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
-            for service in context.catalog:
+            for service in context['catalog']:
                 if service['type'] == 'rax:database':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
@@ -791,7 +791,7 @@ class Provider(cmbase.ProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'size':
-            flavors = _get_flavors(context, api_endpoint, context.auth_token)
+                                          context['auth_token'])
             if 'lists' not in results:
                 results['lists'] = {}
             results['lists']['sizes'] = {

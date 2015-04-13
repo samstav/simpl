@@ -185,9 +185,9 @@ class Provider(rsbase.RackspaceProviderBase):
         messages = []
         region = getattr(context, 'region', None)
         if not region:
-            region = Provider.find_a_region(context.catalog)
-        url = Provider.find_url(context.catalog, region)
-        abs_limits = _get_abs_limits(context, context.auth_token, url)
+            region = Provider.find_a_region(context['catalog'])
+        url = Provider.find_url(context['catalog'], region)
+        abs_limits = _get_abs_limits(context, context['auth_token'], url)
         max_nodes = abs_limits.get("NODE_LIMIT", sys.maxint)
         max_lbs = abs_limits.get("LOADBALANCER_LIMIT", sys.maxint)
         clb = self.connect(context, region=region)
@@ -653,15 +653,15 @@ class Provider(rsbase.RackspaceProviderBase):
         results = {}
         region = getattr(context, 'region', None)
         if not region:
-            region = Provider.find_a_region(context.catalog)
-        api_endpoint = Provider.find_url(context.catalog, region)
+            region = Provider.find_a_region(context['catalog'])
+        api_endpoint = Provider.find_url(context['catalog'], region)
         if not api_endpoint:
             LOG.warning("No Cloud Load Balancer endpoint in region %s", region)
             return {}
 
         if type_filter is None or type_filter == 'regions':
             regions = {}
-            for service in context.catalog:
+            for service in context['catalog']:
                 if service['type'] == 'rax:load-balancer':
                     endpoints = service['endpoints']
                     for endpoint in endpoints:
@@ -672,7 +672,7 @@ class Provider(rsbase.RackspaceProviderBase):
             results['lists']['regions'] = regions
 
         if type_filter is None or type_filter == 'load-balancer':
-            algorithms = _get_algorithms(context, context.auth_token,
+            algorithms = _get_algorithms(context, context['auth_token'],
                                          api_endpoint)
             options = {
                 'algorithm': {
@@ -702,7 +702,7 @@ class Provider(rsbase.RackspaceProviderBase):
                 results['load-balancer'] = {}
 
             # provide list of available load balancer protocols
-            protocols = _get_protocols(context, context.auth_token,
+            protocols = _get_protocols(context, context['auth_token'],
                                        api_endpoint)
             protocols = [p.lower() for p in protocols]
             options['protocol']['display-hints'] = {'choice': protocols}
@@ -734,7 +734,8 @@ class Provider(rsbase.RackspaceProviderBase):
             pyrax.set_setting("identity_type", "rackspace")
 
         load_balancers = []
-        pyrax.auth_with_token(context.auth_token, tenant_name=context.tenant)
+        pyrax.auth_with_token(context['auth_token'],
+                              tenant_name=context.get('tenant'))
         for region in pyrax.regions:
             api = Provider.connect(context, region=region)
             load_balancers += api.list()
