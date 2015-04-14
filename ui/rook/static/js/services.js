@@ -656,7 +656,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
     var remote = {};
 
     var url = URI(url_string);
-    var hash = url.hash();
+    var hash = url.fragment();
     var segments = url.path().substring(1).split('/');
     var first_path_part = segments[0];
     remote.server = url.protocol() + '://' + url.host(); //includes port
@@ -667,7 +667,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
     if (segments.length > 1) {
       remote.repo.name = segments[1];
     }
-    remote.branch_name = hash.fragment();
+    remote.branch_name = hash;
 
     // Unknown at this point
     remote.org = null;
