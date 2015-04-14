@@ -731,9 +731,9 @@ class StubbedWorkflowBase(unittest.TestCase):
                     },
                     'post_back_result': True,
                     'resource': key,
-                }, {  # wait_on_build
+                }, {  # wait_on_status
                     'call': 'checkmate.providers.rackspace.database.tasks.'
-                            'wait_on_build',
+                            'wait_on_status',
                     'args': [
                         mox.Func(is_good_context),
                     ],
@@ -784,9 +784,9 @@ class StubbedWorkflowBase(unittest.TestCase):
                     },
                     'post_back_result': True,
                     'resource': key,
-                }, {  # wait_on_build
+                }, {  # wait_on_status
                     'call': 'checkmate.providers.rackspace.database.tasks.'
-                            'wait_on_build',
+                            'wait_on_status',
                     'args': [
                         mox.Func(is_good_context),
                     ],
@@ -1198,10 +1198,11 @@ class MockAttribContext(object):
 
     """Used to mock context in Rackspace py modules."""
 
-    def __init__(self, region, tenant, auth_token):
+    def __init__(self, region, tenant, auth_token, simulation=False):
         self.region = region
         self.tenant = tenant
         self.auth_token = auth_token
+        self.simulation = simulation
 
 
 class MockWsgiFilters(object):
