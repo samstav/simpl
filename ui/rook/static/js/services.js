@@ -667,7 +667,7 @@ services.factory('github', ['$http', '$q', '$cookies', '$cookieStore', '$locatio
     if (segments.length > 1) {
       remote.repo.name = segments[1];
     }
-    remote.branch_name = hash;
+    remote.branch_name = hash.fragment();
 
     // Unknown at this point
     remote.org = null;
