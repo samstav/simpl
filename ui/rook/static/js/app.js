@@ -2922,7 +2922,7 @@ function DeploymentNewController($scope, $location, $routeParams, $resource, opt
     deployment.inputs.blueprint = {};
     var remote = $scope.selected.remote || $scope.remote;
     if (typeof remote == 'object' && remote.url !== undefined)
-      options.substituteVariables(deployment, {"%repo_url%": remote.url});
+      options.substituteVariables(deployment, {"%repo_url%": remote.url + remote.branch});
 
     var break_flag = false;
     var errors = [];
