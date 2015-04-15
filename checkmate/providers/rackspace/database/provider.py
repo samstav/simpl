@@ -643,6 +643,9 @@ class Provider(cmbase.ProviderBase):
         api_endpoint = Provider.find_url(context['catalog'], region)
         if type_filter is None or type_filter == 'database':
             results['database'] = copy.deepcopy(CATALOG_TEMPLATE['database'])
+        if type_filter is None or type_filter == 'database-replica':
+            results['database-replica'] = copy.deepcopy(
+                CATALOG_TEMPLATE['database-replica'])
         if type_filter is None or type_filter == 'cache':
             results['cache'] = copy.deepcopy(CATALOG_TEMPLATE['cache'])
         if type_filter is None or type_filter == 'compute':

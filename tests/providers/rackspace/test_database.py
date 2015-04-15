@@ -515,6 +515,46 @@ class TestCatalog(unittest.TestCase):
                     }
                 }
             },
+            'database-replica': {
+               'mysql_replica': {
+                    'id': 'mysql_replica',
+                    'is': 'database-replica',
+                    'display_name': 'Cloud Database Replica (MySQL)',
+                    'provides': [{'database-replica': 'mysql'}],
+                    'meta-data': {
+                        'display-hints': {
+                            'icon-20x20': '/images/icon-databases.svg',
+                            'tattoo': '/images/icon-databases.svg'
+                        }
+                    },
+                    'requires': [
+                        {
+                            'relation': 'host',
+                            'interface': 'mysql',
+                            'resource_type': 'compute'
+                        },
+                        {
+                            'relation': 'reference',
+                            'interface': 'mysql',
+                            'resource_type': 'database'
+                        }
+                    ],
+                    'options': {
+                        'database/name': {
+                            'type': 'string',
+                            'default': 'db1'
+                        },
+                        'database/username': {
+                            'type': 'string',
+                            'required': True
+                        },
+                        'database/password': {
+                            'type': 'string',
+                            'required': False
+                        }
+                    }
+                }
+            },
             'database': {
                 'mysql_database': {
                     'display_name': 'Cloud Database (MySQL)',
