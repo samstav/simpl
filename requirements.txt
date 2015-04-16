@@ -70,7 +70,7 @@
 airbrake==1.1.4
 arrow==0.4.4
 celery==3.1.17
-eventlet==0.17.2
+eventlet==0.15.2
 futures==2.2.0
 httplib2==0.9
 ipaddress==1.0.7
