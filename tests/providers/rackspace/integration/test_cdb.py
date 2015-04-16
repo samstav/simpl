@@ -202,7 +202,7 @@ class TestCloudDatabases(unittest.TestCase):
         """Invalid token results in an HTTP error."""
         context = test.MockAttribContext(self.region, self.tenant, 'invalid')
         with self.vcr.use_cassette('vcr-cdb-token-invalid.yaml'):
-            with self.assertRaises(requests.HTTPError):
+            with self.assertRaises(dbaas.CDBException):
                 dbaas.get_instances(context)
 
 

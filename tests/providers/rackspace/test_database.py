@@ -27,6 +27,7 @@ from checkmate.deployments import tasks
 from checkmate import exceptions
 from checkmate import middleware
 from checkmate.providers import base
+from checkmate.providers.rackspace import base as rsbase
 from checkmate.providers.rackspace.database import dbaas
 from checkmate.providers.rackspace.database import provider
 from checkmate.providers.rackspace.database import tasks as dbtasks
@@ -49,7 +50,7 @@ class TestDatabase(test.ProviderTester):
         self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
 
         # Stub out wait_on_build
-        self.mox.StubOutWithMock(dbtasks.wait_on_build, 'delay')
+        self.mox.StubOutWithMock(dbtasks.wait_on_status, 'delay')
         expected = {
             'resources': {
                 '1': {
@@ -92,69 +93,58 @@ class TestDatabase(test.ProviderTester):
         self.assertEqual(results, expected)
         self.mox.VerifyAll()
 
-    def test_create_database_fail_building(self):
-        context = middleware.RequestContext(**{
-            'deployment_id': 'DEP',
-            'resource_key': '1'
-        })
-
-        # Mock instance
-        instance = self.mox.CreateMockAnything()
-        instance.id = 'fake_instance_id'
-        instance.name = 'fake_instance'
-        instance.status = 'BUILD'
-        instance.hostname = 'fake.cloud.local'
-
-        # Stub out postback call
-        self.mox.StubOutWithMock(dbtasks.create_database, 'callback')
-        self.mox.StubOutWithMock(tasks.reset_failed_resource_task, 'delay')
-
-        dbtasks.create_database.callback(context, {'status': 'BUILD'})
-        # Create clouddb mock
-        clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.get(instance.id).AndReturn(instance)
-        self.mox.ReplayAll()
-        # Should throw exception when instance.status="BUILD"
-        self.assertRaises(exceptions.CheckmateException,
-                          dbtasks.create_database,
-                          context, 'db1', instance_id=instance.id,
-                          api=clouddb_api_mock)
-
-        self.mox.UnsetStubs()
-        self.mox.VerifyAll()
-
-    @mock.patch.object(tasks, 'postback')
-    def test_create_database(self, mock_postback):
+    @mock.patch.object(dbaas, 'get_instance')
+    def test_create_database_fail_building(self, mock_get):
         context = middleware.RequestContext(**{
             'deployment_id': 'DEP',
             'resource_key': '1',
             'region': 'NORTH'
         })
 
-        # Mock instance
-        instance = self.mox.CreateMockAnything()
-        instance.id = 'fake_instance_id'
-        instance.flavor = self.mox.CreateMockAnything()
-        instance.flavor.id = '1'
-        instance.name = 'fake_instance'
-        instance.status = 'ACTIVE'
-        instance.hostname = 'fake.cloud.local'
-        instance.port = 4000
+        mock_get.return_value = {
+            'instance': {
+                'status': 'BUILD',
+                'id': 'host id',
+                'hostname': 'host name',
+                'flavor': {'id': '1'},
+                'port': 4000
+            }
+        }
+        self.assertRaises(exceptions.CheckmateException,
+                          dbtasks.create_database,
+                          context, 'db1', instance_id='host id')
 
-        # Create clouddb mock
-        clouddb_api_mock = self.mox.CreateMockAnything()
-        clouddb_api_mock.get(instance.id).AndReturn(instance)
-        instance.create_database('db1', None, None).AndReturn(None)
+    @mock.patch.object(rsbase.RackspaceProviderBase, '_connect')
+    @mock.patch.object(dbaas, 'create_database')
+    @mock.patch.object(dbaas, 'get_instance')
+    @mock.patch.object(tasks, 'postback')
+    def test_create_database(self, mock_postback, mock_get, mock_create,
+                             mock_connect):
+        context = middleware.RequestContext(**{
+            'deployment_id': 'DEP',
+            'resource_key': '1',
+            'region': 'NORTH'
+        })
+
+        mock_get.return_value = {
+            'instance': {
+                'status': 'ACTIVE',
+                'id': 'host id',
+                'hostname': 'host name',
+                'flavor': {'id': '1'},
+                'port': 4000
+            }
+        }
 
         expected = {
             'resources': {
                 '1': {
                     'status': 'BUILD',
                     'instance': {
-                        'host_instance': instance.id,
+                        'host_instance': 'host id',
                         'interfaces': {
                             'mysql': {
-                                'host': instance.hostname,
+                                'host': 'host name',
                                 'database_name': 'db1',
                                 'port': 4000,
                             }
@@ -168,12 +158,27 @@ class TestDatabase(test.ProviderTester):
                 }
             }
         }
-        self.mox.ReplayAll()
         results = dbtasks.create_database(context, 'db1',
-                                          instance_id=instance.id,
-                                          api=clouddb_api_mock)
+                                          instance_id='host id')
         self.assertEqual(results, expected)
-        self.mox.VerifyAll()
+        mock_postback.assert_has_calls([
+            mock.call(
+                'DEP',
+                {
+                    'resources': {
+                        '1': {
+                            'status': 'ACTIVE',
+                            'instance': {'status': 'ACTIVE'}
+                        }
+                    }
+                }
+            ),
+            mock.call('DEP', expected)
+        ])
+        mock_get.assert_called_once_with(context, 'host id')
+        mock_create.assert_called_once_with(context, 'host id',
+                                            [{'name': 'db1'}])
+        mock_connect.assert_called_once_with(context, 'NORTH')
 
     def test_template_generation_database(self):
         self.deployment.get_setting(

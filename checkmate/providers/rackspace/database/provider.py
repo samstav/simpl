@@ -21,8 +21,6 @@ import logging
 import os
 import string
 
-from celery import canvas
-
 import pyrax
 import redis
 from SpiffWorkflow import operators
@@ -35,7 +33,6 @@ from checkmate.exceptions import (
     CheckmateException,
     CheckmateNoMapping,
 )
-from checkmate import middleware
 from checkmate.providers import base as cmbase
 from checkmate.providers.rackspace import base
 from checkmate.providers.rackspace.database import dbaas
@@ -349,11 +346,7 @@ class Provider(cmbase.ProviderBase):
                         deployment_id=deployment['id'],
                         resource_key=key
                     ),
-                    db_name,
-                    operators.PathAttrib(
-                        'resources/%s/instance/region' %
-                        resource['hosted_on']
-                    ),
+                    db_name
                 ],
                 instance_id=operators.PathAttrib(
                     'resources/%s/instance/id' % resource['hosted_on']
@@ -379,9 +372,7 @@ class Provider(cmbase.ProviderBase):
                         'resources/%s/instance/host_instance' % key),
                     [db_name],
                     username,
-                    password,
-                    operators.PathAttrib(
-                        'resources/%s/instance/host_region' % key),
+                    password
                 ],
                 replica=is_replica,
                 defines=dict(
@@ -476,7 +467,7 @@ class Provider(cmbase.ProviderBase):
             wait_task = specs.Celery(
                 wfspec,
                 'Wait on %s Instance %s' % (name.capitalize(), key),
-                'checkmate.providers.rackspace.database.tasks.wait_on_build',
+                'checkmate.providers.rackspace.database.tasks.wait_on_status',
                 call_args=[
                     context.get_queued_task_dict(
                         deployment_id=deployment['id'],
@@ -502,125 +493,122 @@ class Provider(cmbase.ProviderBase):
                              "%s" % (component['is'], self.key))
             raise CheckmateException(error_message)
 
-    def get_resource_status(self, context, deployment_id, resource, key,
-                            sync_callable=None, api=None):
+    def get_resource_status(self, context, deployment_id, resource, key):
         """Sync deployment's resource to actual state, and return status."""
         from checkmate.providers.rackspace.database import tasks
-        if (api is None and 'instance' in resource and
-                'region' in resource['instance']):
-            region = resource['instance']['region']
-            api = Provider.connect(context, region=region)
-        return tasks.sync_resource_task(context, resource, api=api)
+        context.region = (
+            context.region or (resource.get('instance') or {}).get('region'))
+        return tasks.sync_resource_task(context, resource)
 
-    @staticmethod
-    def delete_one_resource(context):
-        """Used by ProviderTask to create delete tasks for errored instances.
-
-        :param context:
-        :return:
-        """
-        resource_type = context.get("resource_type")
-        assert resource_type is not None
-        if resource_type == 'compute':
-            return Provider._delete_comp_res_task(context)
-        if resource_type == 'database':
-            return Provider._delete_db_res_task(context)
-        raise CheckmateException("Unknown resource type for resource")
-
-    def delete_resource_tasks(self, wf_spec, context, deployment_id, resource,
+    def delete_resource_tasks(self, wfspec, context, deployment_id, resource,
                               key):
         """Delete `resource` from deployment `deployment_id`."""
         self._verify_existing_resource(resource, key)
-        region = (resource.get('region') or
-                  resource.get('instance', {}).get('host_region'))
-        if isinstance(context, middleware.RequestContext):
-            context = context.get_queued_task_dict(deployment_id=deployment_id,
-                                                   resource_key=key,
-                                                   resource=resource,
-                                                   region=region)
-        else:
-            context['deployment_id'] = deployment_id
-            context['resource_key'] = key
-            context['resource'] = resource
-            context['region'] = region
+        if not context.region:
+            context.region = (
+                resource.get('region') or
+                (resource.get('instance') or {}).get('host_region')
+            )
 
         if resource.get('type') in ('compute', 'cache'):
-            return self._delete_comp_res_tasks(wf_spec, context, key)
+            return self._delete_comp_res_tasks(wfspec, context, deployment_id,
+                                               resource, key)
         if resource.get('type') in ['database', 'database-replica']:
-            return self._delete_db_res_tasks(wf_spec, context, key)
+            return self._delete_db_res_tasks(wfspec, context, deployment_id,
+                                             resource, key)
         message = ("Cannot provide delete tasks for resource %s: Invalid "
                    "resource type '%s'" % (key, resource.get('type')))
         raise CheckmateException(message)
 
     @staticmethod
-    def _delete_comp_res_tasks(wf_spec, context, key):
+    def _delete_comp_res_tasks(wfspec, context, deployment_id, resource, key):
         """Delete Compute Resource Tasks."""
         delete_instance = specs.Celery(
-            wf_spec, 'Delete Compute Resource Tasks (%s)' % key,
+            wfspec, 'Delete Compute Resource Tasks (%s)' % key,
             'checkmate.providers.rackspace.database.tasks.'
             'delete_instance_task',
-            call_args=[context],
-            properties={'estimated_duration': 5}
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment_id=deployment_id,
+                    resource_key=key
+                ),
+                deployment_id,
+                resource,
+                key
+            ],
+            properties={
+                'resource': key,
+                'estimated_duration': 5,
+                'task_tags': ['root']
+            }
         )
 
         wait_on_delete = specs.Celery(
-            wf_spec, 'Wait on delete Database (%s)' % key,
+            wfspec, 'Wait on delete Database (%s)' % key,
             'checkmate.providers.rackspace.database.tasks.'
-            'wait_on_del_instance',
-            call_args=[context],
-            properties={'estimated_duration': 10}
+            'wait_on_status',
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment_id=deployment_id,
+                    resource_key=key
+                )
+            ],
+            instance=operators.PathAttrib('resources/%s/instance' % key),
+            status='DELETED',
+            properties={'resource': key, 'estimated_duration': 10}
         )
 
-        delete_instance.connect(wait_on_delete)
+        wait_on_delete.follow(delete_instance)
+        final = wait_on_delete
 
         # if a configuration exists, delete it too
-        config_id = context['resource'].get(
-            'instance', {}).get('configuration', {}).get('id')
+        instance = resource.get('instance') or {}
+        config_id = (instance.get('configuration') or {}).get('id')
         if config_id:
             delete_configuration = specs.Celery(
-                wf_spec, 'Delete Database Configuration (%s)' % config_id,
+                wfspec, 'Delete Database Configuration (%s)' % config_id,
                 'checkmate.providers.rackspace.database.tasks.'
                 'delete_configuration',
-                call_args=[context, config_id],
-                properties={'estimated_duration': 10}
+                call_args=[
+                    context.get_queued_task_dict(
+                        deployment_id=deployment_id,
+                        resource_key=key
+                    ),
+                    config_id,
+                    resource
+                ],
+                properties={'resource': key, 'estimated_duration': 10}
             )
-            wait_on_delete.connect(delete_configuration)
+            delete_configuration.follow(wait_on_delete)
+            final = delete_configuration
 
-        return {'root': delete_instance, 'final': wait_on_delete}
+        # If this is a replica database, tell the delete master task chain
+        # to wait for the replica to be deleted.
+        if 'replica-of' in resource['desired-state']:
+            master_id = resource['desired-state']['replica-of']
+            del_master = wfspec.find_task_specs(resource=master_id,
+                                                tag='root')
+            if del_master:
+                wfspec.wait_for(del_master[0], [final])
 
-    @staticmethod
-    def _delete_comp_res_task(context):
-        """Return a chain of delete tasks to remove an instance.
-
-        :param context:
-        :return:
-        """
-        from checkmate.providers.rackspace.database import tasks
-        return canvas.chain(
-            tasks.delete_instance_task.si(context),
-            tasks.wait_on_del_instance.si(context)
-        )
+        return {'root': delete_instance, 'final': final}
 
     @staticmethod
-    def _delete_db_res_task(context):
-        """Return a chain of delete task to remove a db resource.
-
-        :param context:
-        :return:
-        """
-        from checkmate.providers.rackspace.database import tasks
-        return canvas.chain(
-            tasks.delete_database.si(context),
-        )
-
-    @staticmethod
-    def _delete_db_res_tasks(wf_spec, context, key):
+    def _delete_db_res_tasks(wfspec, context, deployment_id, resource, key):
         """Return delete tasks for the specified database instance."""
         delete_db = specs.Celery(
-            wf_spec, 'Delete DB Resource tasks (%s)' % key,
+            wfspec, 'Delete DB Resource tasks (%s)' % key,
             'checkmate.providers.rackspace.database.tasks.delete_database',
-            call_args=[context],
-            properties={'estimated_duration': 15}
+            call_args=[
+                context.get_queued_task_dict(
+                    deployment_id=deployment_id,
+                    resource_key=key
+                ),
+                deployment_id,
+                resource,
+                key
+            ],
+            properties={'resource': key, 'estimated_duration': 15}
         )
 
         return {'root': delete_db, 'final': delete_db}
@@ -683,6 +671,7 @@ class Provider(cmbase.ProviderBase):
     @staticmethod
     def get_resources(context, tenant_id=None):
         """Proxy request through to cloud database provider."""
+        # Get list of regions for tenant/service
         if not (pyrax.identity and pyrax.identity.authenticated):
             Provider.connect(context)
         db_hosts = []
@@ -777,6 +766,7 @@ class Provider(cmbase.ProviderBase):
             context, region or context.get('region')), Provider.method)
 
 
+# TODO(pablo): This doesn't look like it caches per tenant: it needs to!
 @caching.Cache(timeout=3600, sensitive_args=[2], store=API_FLAVOR_CACHE,
                backing_store=REDIS, backing_store_key='rax.database.flavors',
                ignore_args=[0])
@@ -793,8 +783,6 @@ def _get_cached_flavors(context, api_endpoint, auth_token):
 
 def _get_flavors(context):
     """Ask DBaaS for Flavors (RAM, CPU, HDD) options."""
-    api = Provider.connect(context)
     LOG.info("Calling Cloud Databases to get flavors for %s",
-             api.management_url)
-    results = api.list_flavors() or []
-    return [flavor._info for flavor in results]  # pylint: disable=W0212
+             context.tenant)
+    return dbaas.get_flavors(context).get('flavors')

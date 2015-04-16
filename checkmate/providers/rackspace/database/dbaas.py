@@ -28,7 +28,6 @@ HEADERS = {
     'Content-Type': 'application/json'
 }
 LOG = logging.getLogger(__name__)
-# TODO(pablo): URL and REGIONS should be populated from a catalog call
 REGIONS = ['DFW', 'HKG', 'IAD', 'LON', 'ORD', 'SYD']
 URL = 'https://%s.databases.api.rackspacecloud.com/v1.0/%s'  # region, t_id
 
@@ -170,6 +169,60 @@ def get_config_params(context, db_type, db_version):
 
 
 ###
+# Database Stuffs
+###
+
+
+def create_database(context, instance_id, db_details):
+    """Create database(s) from the specified database details.
+
+    Database name is required. 'collate' and 'character_set' are optional.
+
+    :params db_details: a list of dicts, specifying database details. Example:
+        {
+            'character_set': 'utf8',
+            'collate': 'utf8_general_ci',
+            'name': 'testingdb'
+        }
+    """
+    url = _build_url(context.region, context.tenant,
+                     '/instances/%s/databases' % instance_id)
+    databases = []
+
+    for detail in db_details:
+        if 'name' not in detail:
+            raise CDBException('"name" is required when creating a database.')
+
+        settings = {'name': detail['name']}
+        if 'character_set' in detail:
+            settings['character_set'] = detail['character_set']
+        if 'collate' in detail:
+            settings['collate'] = detail['collate']
+        databases.append(settings)
+
+    return _handle_response(
+        requests.post(url, headers=_build_headers(context.auth_token),
+                      data=json.dumps({'databases': databases}))
+    )
+
+
+def delete_database(context, instance_id, db_name):
+    """Delete the specified database from the specified instance."""
+    url = _build_url(context.region, context.tenant,
+                     '/instance/%s/databases/%s' % (instance_id, db_name))
+    return _handle_response(
+        requests.delete(url, headers=_build_headers(context.auth_token)))
+
+
+def get_databases(context, instance_id):
+    """Return a list of all databases hosted on the specified instance id."""
+    url = _build_url(context.region, context.tenant,
+                     '/instances/%s/databases' % instance_id)
+    return _handle_response(
+        requests.get(url, headers=_build_headers(context.auth_token)))
+
+
+###
 # Datastore Stuffs
 ###
 
@@ -211,6 +264,13 @@ def latest_datastore_ver(context, db_type):
 def get_flavor(context, flavor_id):
     """List database instance flavors available for the given region/tenant."""
     url = _build_url(context.region, context.tenant, '/flavors/%s' % flavor_id)
+    return _handle_response(
+        requests.get(url, headers=_build_headers(context.auth_token)))
+
+
+def get_flavors(context):
+    """List all avialable database instance flavors for region/tenant."""
+    url = _build_url(context.region, context.tenant, '/flavors')
     return _handle_response(
         requests.get(url, headers=_build_headers(context.auth_token)))
 
@@ -283,7 +343,7 @@ def create_instance(context, name, flavor, **kwargs):
     if kwargs.get('users'):
         inputs['users'] = kwargs['users']
 
-    if kwargs.get('simulate', False) is True:
+    if context.simulation:
         resource_key = context.get('resource_key')
         db_type = inputs.get('datastore', {}).get('type', 'mysql')
         instance = {
@@ -342,7 +402,7 @@ def get_instances(context):
 
 
 ###
-# Replica Functions
+# Replica Stuffs
 #
 # NOTE: Creating a replica is achieved through the create_instance function
 ###
@@ -364,8 +424,69 @@ def get_replicas(context, master_id):
     url = _build_url(context.region, context.tenant,
                      '/instances/%s/replicas' % master_id)
     return _handle_response(
-        requests.get(url, headers=_build_headers(context.auth_token))
+        requests.get(url, headers=_build_headers(context.auth_token)))
+
+
+###
+# User Stuffs
+###
+
+
+def create_user(context, instance_id, user_info):
+    """Create the specified user on the specified instance.
+
+    :params instance_id: the id of the database instance
+    :params user_info: a dict containing user details. Example:
+        {
+            'databases': [
+                {'name': 'db1'},
+                {'name': 'db2'}
+            ],
+            'name': 'dbuser1',
+            'password': 'somepassword',
+            'host': '127.0.0.1'
+        }
+
+    NOTE: 'host' specifies the host from which the user is permitted to
+          connect. '%' allows connecting from any host (default).
+    """
+    if 'name' not in user_info or 'password' not in user_info:
+        raise CDBException('Name and password are required when creating a '
+                           'user')
+    details = {'name': user_info['name'], 'password': user_info['password']}
+    if 'databases' in user_info:
+        details['databases'] = user_info['databases']
+
+    url = _build_url(context.region, context.tenant,
+                     '/instances/%s/users' % instance_id)
+    return _handle_response(
+        requests.post(url, headers=_build_headers(context.auth_token),
+                      data=json.dumps({'users': [details]}))
     )
+
+
+def delete_user(context, instance_id, name):
+    """Delete the specified user from the specified instance."""
+    url = _build_url(context.region, context.tenant,
+                     '/instances/%s/users/%s' % (instance_id, name))
+    return _handle_response(
+        requests.delete(url, headers=_build_headers(context.auth_token)))
+
+
+def get_user(context, instance_id, name):
+    """Return user information for the specified instance/user."""
+    url = _build_url(context.region, context.tenant,
+                     '/instances/%s/users/%s' % (instance_id, name))
+    return _handle_response(
+        requests.get(url, headers=_build_headers(context.auth_token)))
+
+
+def get_users(context, instance_id):
+    """Return a list of users for the given database instance."""
+    url = _build_url(context.region, context.tenant,
+                     '/instances/%s/users' % instance_id)
+    return _handle_response(
+        requests.get(url, headers=_build_headers(context.auth_token)))
 
 
 ###
@@ -465,14 +586,15 @@ def _handle_response(response):
     else:
         try:
             # Check for custom error message and return that in error message
-            # if found. Otherwise falls back to raise_for_status()
+            # if found. Otherwise, just return status code and reason.
             data = response.json()
             error = data.itervalues().next()
             message = error.get('message') or error.get('description')
             raise CDBException(
                 '%d %s: %s' % (response.status_code, response.reason, message))
         except (KeyError, AttributeError, ValueError):
-            response.raise_for_status()
+            raise CDBException(
+                '%d %s' % (response.status_code, response.reason))
 
 
 def _refresh_version_id_cache(context):

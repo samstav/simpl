@@ -16,6 +16,7 @@
 import unittest
 
 
+from checkmate import middleware
 from checkmate.providers.rackspace.database import tasks
 from checkmate.providers.rackspace.database import provider
 from checkmate import test
@@ -30,7 +31,7 @@ class TestDatabaseProvider(unittest.TestCase):
 class TestGetResourceStatus(TestDatabaseProvider):
     def setUp(self):
         super(TestGetResourceStatus, self).setUp()
-        self.context = {}
+        self.context = middleware.RequestContext()
         self.dep_id = '123'
         self.resource = {}
         self.key = 'foo'
@@ -41,32 +42,20 @@ class TestGetResourceStatus(TestDatabaseProvider):
                                              'connect')
 
     def test_dont_create_api_if_it_exists(self):
-        self.api = {'something': True}
         self.db_provider.get_resource_status(self.context, self.dep_id,
-                                             self.resource, self.key,
-                                             api=self.api)
+                                             self.resource, self.key)
         assert not self.mock_connect.called
 
     def test_dont_create_api_if_no_region_on_resource(self):
         self.db_provider.get_resource_status(self.context, self.dep_id,
-                                             self.resource, self.key,
-                                             api=self.api)
+                                             self.resource, self.key)
         assert not self.mock_connect.called
-
-    def test_create_api_if_not_existent_and_region_in_resource(self):
-        self.resource = {'instance': {'region': 'tibet'}}
-        self.db_provider.get_resource_status(self.context, self.dep_id,
-                                             self.resource, self.key,
-                                             api=self.api)
-        self.mock_connect.assert_called_once_with(self.context, region='tibet')
 
     def test_sync_tasks(self):
         self.db_provider.get_resource_status(self.context, self.dep_id,
-                                             self.resource, self.key,
-                                             api=self.api)
+                                             self.resource, self.key)
         self.mock_sync_resource_task.assert_called_once_with(self.context,
-                                                             self.resource,
-                                                             api=self.api)
+                                                             self.resource)
 
 if __name__ == '__main__':
     test.run_with_params()
