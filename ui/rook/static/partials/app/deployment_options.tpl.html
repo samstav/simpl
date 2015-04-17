@@ -1,0 +1,92 @@
+<div>
+  <div class="rs-detail-section">
+    <div class="rs-detail-section-header">
+      <div class="rs-detail-section-title">
+        Options
+      </div>
+    </div>
+    <div class="rs-detail-section-body">
+      <form class="rs-form-horizontal rs-form-large">
+        <div class="rs-control-group">
+          <label class="rs-control-label">Deployment Name</label>
+         <div class="rs-controls">
+            <input type="text"
+                   class="rs-input-large"
+                   ng-model="deployment.environment.name">
+          </div>
+        </div>
+
+        <div class="rs-control-group">
+          <label class="rs-control-label">Blueprint Name</label>
+         <div class="rs-controls">
+            <input type="text"
+                   class="rs-input-large"
+                   ng-model="deployment.blueprint.name">
+          </div>
+        </div>
+
+        <div class="rs-control-group">
+          <label class="rs-control-label">Blueprint Description</label>
+         <div class="rs-controls">
+            <textarea type="text"
+                   class="rs-input-large"
+                   ng-model="deployment.blueprint.description">
+            </textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div> <!-- /.rs-detail-section -->
+
+  <div class="rs-detail-section">
+    <div class="rs-detail-section-header">
+      <div class="rs-detail-section-title">
+        Providers
+      </div>
+    </div>
+    <div class="rs-detail-section-body">
+      <table class="rs-list-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="(key, provider) in deployment.environment.providers">
+            <td>
+              {{key}}
+              <span class="rs-quiet"
+                    ng-show="provider.vendor">
+                ({{provider.vendor}})
+              </span>
+            </td>
+            <td>
+              <a href="#" ng-click="providers.remove(key)">
+                <i class="fa fa-times rs-pull-right"></i>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="padding:10px;background-color:#f3f7fb;"
+           ng-hide="providers.isVisible || providers.hasNoProviders()">
+        <i class="fa fa-cloud" style="opacity:.2;margin-right:5px;"></i>
+        You don't have any providers set up yet.
+      </div>
+    </div>
+  </div> <!-- /.rs-detail-section -->
+
+  <div class="rs-detail-section">
+    <div class="rs-detail-section-header rs-btn-group">
+      <button class="rs-btn rs-btn-primary"
+              type="button"
+              ng-click="save()">
+        Update Deployment Options
+      </button>
+      <button class="rs-btn rs-btn-link"
+              type="button"
+              ng-click="close()">Cancel</a>
+    </div>
+  </div>
+</div>
