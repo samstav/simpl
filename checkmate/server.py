@@ -570,7 +570,7 @@ def main():
 
 class EventletSSLServer(bottle.ServerAdapter):
 
-    """Eventlet SSL-Cpabale Bottle Server Adapter.
+    """Eventlet SSL-Capable Bottle Server Adapter.
 
     * `backlog` adjust the eventlet backlog parameter which is the maximum
       number of queued connections. Should be at least 1; the maximum
