@@ -3971,7 +3971,7 @@ function MagentoStackController($scope, $location) {
       'title': 'Performance 1',
       'repo': '/AutomationSupport/magentostack/',
       'flavor': 'extra-small',
-      'price': 852.79,
+      'price': 899.70,
       'unit': 'month',
       'features': [
         {'title': 'Concurrent Users', 'count': 100, 'enabled': true},
@@ -3984,7 +3984,7 @@ function MagentoStackController($scope, $location) {
       'title': 'Performance 2',
       'repo': '/AutomationSupport/magentostack/',
       'flavor': 'small',
-      'price': 1524.69,
+      'price': 1716.58,
       'unit': 'month',
       'features': [
         {'title': 'Concurrent Users', 'count': 200, 'enabled': true},
@@ -3994,28 +3994,28 @@ function MagentoStackController($scope, $location) {
       ]
     },
     {
-      'title': 'Enterprise 1',
+      'title': 'Enhanced 1 - Not Supported',
       'repo': '/AutomationSupport/magentostack/',
       'flavor': 'medium',
-      'price': 2086.23,
+      'price': 2065.42,
       'unit': 'month',
       'features': [
         {'title': 'Concurrent Users', 'count': 400, 'enabled': true},
         {'title': '4GB Cloud Database', 'count': 2, 'enabled': true},
-        {'title': 'Redis Sentinel Cache', 'count': 3, 'enabled': true},
-        {'title': '15G App Server', 'count': 2, 'enabled': true}
+        {'title': 'HA Cloud Redis Cache', 'count': 3, 'enabled': true},
+        {'title': '15G Compute App Server', 'count': 2, 'enabled': true}
       ]
     },
     {
-      'title': 'Enterprise 2',
+      'title': 'Enhanced 2 - Not Supported',
       'repo': '/AutomationSupport/magentostack/',
       'flavor': 'large',
-      'price': 3415.89,
+      'price': 3395.08,
       'unit': 'month',
       'features': [
         {'title': 'Concurrent Users', 'count': 750, 'enabled': true},
         {'title': '8GB Cloud Database', 'count': 2, 'enabled': true},
-        {'title': 'Redis Sentinel Cache', 'count': 3, 'enabled': true},
+        {'title': 'HA Cloud Redis Cache', 'count': 3, 'enabled': true},
         {'title': 'OnMetal Compute App Server', 'count': 2, 'enabled': true}
       ]
     }
