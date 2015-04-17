@@ -31,20 +31,28 @@
 .rs-app-launch-sidebar.stick-left {
   left: -260px;
   width: 260px;
-  background-color: rgba(253,253,253,.9);
+  background-color: rgba(253,253,253,1);
 }
 .rs-app-launch-sidebar.stick-left.visible {
   left: 0;
 }
 .rs-app-launch-sidebar.stick-left.dark {
   z-index: 450;
-  background-color: rgba(40,40,40,1);
+  background-color: rgba(40,40,40,.95);
   color: #fff;
 }
 .rs-app-launch-sidebar.stick-right {
+  background-color: rgba(253,253,253,1);
+}
+.rs-app-launch-sidebar.stick-right.dark {
   background-color: rgba(0,0,0,.85);
 }
-.rs-app-launch-sidebar input {
+.rs-app-launch-sidebar.scrollable {
+  overflow-y: scroll;
+}
+
+/* Sidebar Dark Form Manipulation */
+.rs-app-launch-sidebar.dark input {
   box-sizing: content-box;
   padding: 5px 6px;
   height: auto;
@@ -53,22 +61,22 @@
   border: 0;
   color: #fff;
 }
-.rs-app-launch-sidebar .btn {
+.rs-app-launch-sidebar.dark .btn {
   margin-left: auto;
 }
-.rs-app-launch-sidebar input:focus {
+.rs-app-launch-sidebar.dark input:focus {
   background-color: #555;
 }
-.rs-app-launch-sidebar label {
+.rs-app-launch-sidebar.dark label {
   text-transform: uppercase;
   font-size: 11px;
   font-weight: bold;
   color: #999;
 }
-.rs-app-launch-sidebar label:after {
+.rs-app-launch-sidebar.dark label:after {
   content: '';
 }
-.rs-app-launch-sidebar p {
+.rs-app-launch-sidebar.dark p {
   color: #ccc;
   font-size: 11px;
 }
@@ -95,7 +103,7 @@
 .rs-app-launch-search-bar input[type=text] {
   width: 100%;
   font-size: 15px;
-  height: 20px;
+  height: 30px;
   margin: 0;
   border-radius: 0;
   -webkit-box-shadow: none;
@@ -257,6 +265,12 @@
   z-index: 900;
   cursor: pointer;
 }
+.codemirror-toggle-button .fa-stack {
+  opacity: .4;
+}
+.codemirror-toggle-button .fa-stack:hover {
+  opacity: 1;
+}
 .text-danger {
   color: #a94442;
 }
@@ -394,32 +408,25 @@
   width: 450px;
 }
 .rs-app-launch-sidebar.stick-left.app-selection,
-.editor-full-screen .rs-app-launch-sidebar.stick-left.app-selection {
+.editor-full-screen .rs-app-launch-sidebar.stick-left.app-selection.app-selection-open {
   left: -450px;
 }
-.selection-open .rs-app-launch-sidebar.stick-left {
+.rs-app-launch-sidebar.stick-left.app-selection-open {
   left: 0;
 }
 
 /* Right sidebar */
 .rs-app-launch-sidebar.stick-right {
   right: -30%;
-  left: 100%;
+  left: 101%;
 }
-.editor-open .rs-app-launch-sidebar.stick-right {
+.rs-app-launch-sidebar.stick-right.open {
   right: 0%;
   left: 70%;
 }
-.editor-full-screen.editor-open .rs-app-launch-sidebar.stick-right {
+.rs-app-launch-sidebar.stick-right.editor-full-screen.open {
   width: auto;
   left: 260px;
-}
-
-.codemirror-toggle-button .fa-stack {
-  opacity: .4;
-}
-.codemirror-toggle-button:hover .fa-stack {
-  opacity: 1;
 }
 
 .codemirror-full-screen-button i {

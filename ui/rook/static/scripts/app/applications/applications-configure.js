@@ -4,13 +4,14 @@ angular.module('checkmate.applications-configure', [
   'checkmate.Catalog',
   'checkmate.Flavors',
   'checkmate.DeploymentData',
+  'checkmate.DeploymentOptions',
   'checkmate.Drag',
   'checkmate.ComponentOptions',
   'ngDialog'
 ]);
 
 angular.module('checkmate.applications-configure')
-  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window, Flavors, ngDialog) {
+  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window, Flavors, ngDialog, $rootScope) {
     $scope.deployment = DeploymentData.get();
 
     $scope.export = function() {
@@ -70,10 +71,25 @@ angular.module('checkmate.applications-configure')
       hasError: Catalog.hasError
     };
 
+    $scope.openDeploymentOptions = function() {
+      $rootScope.$broadcast('deployment:toggle_options');
+    };
+
     // This is the codemirror model for the sidebar.
     $scope.codemirror = {
       isFocused: false,
-      hasError: false
+      hasError: false,
+      toggle: function() {
+        $scope.$broadcast('editor:toggle');
+      }
+    };
+
+    // This is the deployment options model for the sidebar.
+    $scope.deploymentOptions = {
+      isVisible: false,
+      toggle: function() {
+        $scope.$broadcast('deployment:toggle_options');
+      }
     };
 
     $scope.controls = {
@@ -235,8 +251,10 @@ angular.module('checkmate.applications-configure')
     }
 
     $scope.$on('catalog:update', function(event, data) {
-      $scope.catalog.data = Catalog.get();
-      $scope.catalog.components = Catalog.getComponents();
+      $timeout(function() {
+        $scope.catalog.data = Catalog.get();
+        $scope.catalog.components = Catalog.getComponents();
+      }, 50);
     });
 
     $scope.$on('deployment:update', function(event, data) {
@@ -257,6 +275,10 @@ angular.module('checkmate.applications-configure')
       unblockUi();
     });
 
+    $scope.$on('deployment:toggle_options', function(selection) {
+      $scope.deploymentOptions.isVisible = !$scope.deploymentOptions.isVisible;
+    });
+
     $scope.$on('blueprint:invalid', function(event, data) {
       prepareUiBlock();
     });
@@ -274,6 +296,13 @@ angular.module('checkmate.applications-configure')
 
     $scope.$on('topology:error', function(event, data) {
       blockUi();
+    });
+
+    $scope.$on('editor:toggle', function(event, data) {
+      $scope.codemirror.isVisible = !$scope.codemirror.isVisible;
+      if($scope.deploymentOptions.isVisible && $scope.codemirror.isVisible) {
+        $scope.deploymentOptions.isVisible = false;
+      }
     });
 
     $scope.$on('editor:focus', function(event, data) {
