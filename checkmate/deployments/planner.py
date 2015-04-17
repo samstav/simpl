@@ -607,6 +607,9 @@ class Planner(classes.ExtensibleDict):
             try:
                 component = self.identify_component(
                     definition, self.environment, context)
+            except CheckmateException as cm_exc:
+                LOG.info("Error resolving component: %s", cm_exc)
+                raise
             except Exception as exc:
                 LOG.info("Error resolving component: %s", exc)
                 raise CheckmateException(
