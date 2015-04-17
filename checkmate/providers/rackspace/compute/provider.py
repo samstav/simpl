@@ -964,15 +964,28 @@ class Provider(RackspaceComputeProviderBase):
 
         if CONFIG.eventlet:
             jobs = eventlet.GreenPile(min(len(urls) * 2, 16))
+            found = False
+            msg = (
+                "Failed to find compute endpoint for tenant %(tenant)s in "
+                "region %(region)s"
+            )
             for region, url in urls.items():
                 if not url and len(urls) == 1:
-                    LOG.warning("Failed to find compute endpoint for %s in "
-                                "region %s", context.tenant, region)
-                jobs.spawn(_get_flavors, url, context['auth_token'])
-                jobs.spawn(_get_images_and_types, url, context['auth_token'])
-            for ret in jobs:
-                results = utils.merge_dictionary(
-                    results, ret, extend_lists=True)
+                    LOG.warning(msg,
+                                dict(tenant=context.tenant, region=region))
+                else:
+                    found = True
+                    jobs.spawn(_get_flavors, url, context['auth_token'])
+                    jobs.spawn(_get_images_and_types, url,
+                               context['auth_token'])
+            if found:
+                for ret in jobs:
+                    results = utils.merge_dictionary(
+                        results, ret, extend_lists=True)
+            else:
+                raise cmexc.CheckmateException(
+                    friendly_message=msg % dict(tenant=context.tenant,
+                                                region=region))
         else:
             for region, url in urls.items():
                 if not url:
