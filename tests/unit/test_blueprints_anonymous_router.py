@@ -63,7 +63,7 @@ class TestDisabledAnonymousAPICalls(unittest.TestCase):
     def setUp(self):
         self.root_app = bottle.Bottle()
         self.root_app.catchall = False
-        self.root_app.error_handler = {404: server.error_formatter}
+        self.root_app.error_handler = {404: server.bottle_error_formatter}
         self.filters = test.MockWsgiFilters(self.root_app)
         self.filters.context.roles = []
         self.app = webtest.TestApp(self.filters)
@@ -90,3 +90,7 @@ class TestDisabledAnonymousAPICalls(unittest.TestCase):
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.content_type, 'application/json')
         self.assertNotEqual(res.json, data)
+
+
+if __name__ == '__main__':
+    test.run_with_params()

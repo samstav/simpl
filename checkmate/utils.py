@@ -255,8 +255,9 @@ def read_body(request):
             if result:
                 return result
         raise cmexc.CheckmateValidationException(
-            friendly_message=("Unable to parse content. Form POSTs only "
-                              "support objects in the 'object' field"),
+            friendly_message=("Unable to parse '%s' content. Form POSTs only "
+                              "support objects in the 'object' field" %
+                              content_type),
             http_status=406)
     else:
         raise cmexc.CheckmateException(

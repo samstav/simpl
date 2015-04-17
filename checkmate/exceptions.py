@@ -47,6 +47,8 @@ class CheckmateException(Exception):
     Base for all Checkmate server errors
     """
 
+    http_status = 400
+
     def __init__(self, message=None, friendly_message=None, options=0,
                  http_status=None):
         """Create Checkmate Exception.
@@ -63,13 +65,13 @@ class CheckmateException(Exception):
 
                     Ex.  '404 Not Found'
         """
-        args = ()
+        super(CheckmateException, self).__init__(
+            message, friendly_message, options, http_status)
         self._message = message
         self._friendly_message = friendly_message
         self.options = options
-        self.http_status = http_status
-        args = (message, friendly_message, options, http_status)
-        super(CheckmateException, self).__init__(*args)
+        if http_status:
+            self.http_status = http_status
 
     @property
     def message(self):
@@ -108,6 +110,13 @@ class CheckmateDatabaseConnectionError(CheckmateException):
 
     """Error connecting to backend database."""
 
+    http_status = 500
+
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or self._message or UNEXPECTED_ERROR
+
 
 class CheckmateNoTokenError(CheckmateException):
 
@@ -126,6 +135,8 @@ class CheckmateNoTokenError(CheckmateException):
 class CheckmateNoMapping(CheckmateException):
 
     """No mapping found between parameter types."""
+
+    http_status = 400
 
     @property
     def friendly_message(self):
@@ -147,10 +158,17 @@ class CheckmateNoData(CheckmateException):
 
     """No data found."""
 
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or self._message or "No data found"
+
 
 class CheckmateDoesNotExist(CheckmateException):
 
     """Object does not exist."""
+
+    http_status = 404
 
     @property
     def friendly_message(self):
@@ -161,6 +179,8 @@ class CheckmateDoesNotExist(CheckmateException):
 class CheckmateBadState(CheckmateException):
 
     """Object is not in correct state for the requested operation."""
+
+    http_status = 409
 
     @property
     def friendly_message(self):
@@ -229,6 +249,12 @@ class CheckmateDataIntegrityError(CheckmateException):
 class CheckmateHOTTemplateException(CheckmateException):
 
     """A HOT template was encountered, but expected a Checkmate blueprint."""
+
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return (self._friendly_message or self._message or
+                "Operation not supported with HOT template")
 
 
 class CheckmateNothingToDo(CheckmateException):

@@ -43,6 +43,7 @@ import celery  # noqa
 import eventlet
 from eventlet import debug
 from eventlet.green import threading
+import webob
 
 import checkmate
 from checkmate import admin
@@ -106,13 +107,50 @@ DEFAULT_AUTH_ENDPOINTS = [{
 }]
 
 
-def error_formatter(error):
-    """Catch errors and output them in the correct format/media-type.
+def error_formatter(exception):
+    """Format exception into http error messages.
 
     We return all errors formatted according to requested format. We default to
     json if we don't recognize or support the content.
 
-    The content is:
+    :param error:
+
+    :returns: dict where content is:
+
+        error:             - this is the wrapper for the returned error object
+            code:          - the HTTP error code (ex. 404)
+            description:   - the plain english, user-friendly description. Use
+                             this to to surface a UI/CLI. non-technical message
+    """
+    output = {}
+
+    if isinstance(exception, cmexc.CheckmateException):
+        output['code'] = 400
+        output['description'] = exception.friendly_message
+    elif isinstance(exception, AssertionError):
+        output['code'] = 400
+        output['description'] = str(exception)
+        LOG.error(exception)
+    elif isinstance(exception, bottle.HTTPError):
+        output['code'] = exception.status_code
+        output['description'] = exception.message or exception.body
+        LOG.error(exception)
+    elif exception:
+        output['code'] = 500
+        output['description'] = cmexc.UNEXPECTED_ERROR
+
+    return output
+
+
+def bottle_error_formatter(bottle_error):
+    """Format error for bottle.
+
+    We return all errors formatted according to requested format. We default to
+    json if we don't recognize or support the content.
+
+    :param error:
+
+    :returns: dict where content is:
 
         error:             - this is the wrapper for the returned error object
             code:          - the HTTP error code (ex. 404)
@@ -120,84 +158,83 @@ def error_formatter(error):
             description:   - the plain english, user-friendly description. Use
                              this to to surface a UI/CLI. non-technical message
             reason:        - (optional) any additional technical information to
-                             thelp a technical user help troubleshooting
+                             help a technical user help troubleshooting
     """
-    output = {}
+    output = error_formatter(bottle_error.exception)
+    if 'description' not in output:
+        if bottle_error.status_code == 404:
+            output['description'] = bottle_error.body
+        else:
+            output['description'] = cmexc.UNEXPECTED_ERROR
+    bottle_error.output = output['description']
+
+    if 'code' in output and output['code'] != bottle_error.status_code:
+        bottle_error._status_code = output['code']
+
     accept = bottle.request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
-        error.headers.update({"content-type": "application/x-yaml"})
+        bottle_error.headers.update({"content-type": "application/x-yaml"})
     else:  # default to JSON
-        error.headers.update({"content-type": "application/json"})
+        bottle_error.headers.update({"content-type": "application/json"})
 
-    if isinstance(error.exception, cmexc.CheckmateNoMapping):
-        error.status = error.exception.http_status or 406
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateInvalidParameterError):
-        error.status = error.exception.http_status or 406
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateHOTTemplateException):
-        error.status = error.exception.http_status or 406
-        # TODO(zns): move this to exception.py
-        error.output = error.exception.friendly_message or (
-            "Operation not supported with HOT template")
-    elif isinstance(error.exception, cmexc.CheckmateDoesNotExist):
-        error.status = error.exception.http_status or 404
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateValidationException):
-        error.status = error.exception.http_status or 400
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateNoData):
-        error.status = error.exception.http_status or 400
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateBadState):
-        error.status = error.exception.http_status or 409
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateDatabaseConnectionError):
-        error.status = error.exception.http_status or 500
-        # TODO(zns): move this to exception.py
-        error.output = "Database connection error on server."
-    elif isinstance(error.exception, cmexc.CheckmateException):
-        error.status = error.exception.http_status or 500
-        error.output = error.exception.friendly_message
-        LOG.exception(error.exception)
+    output['message'] = httplib.responses[bottle_error.status_code]
 
-    elif isinstance(error.exception, AssertionError):
-        error.status = 400
-        error.output = str(error.exception)
-        LOG.error(error.exception)
-    elif error.exception:
-        # For other errors, log underlying cause
-        errmsg = ("%s - %s"
-                  % (error.status, utils.pytb_lastline(error.exception)))
-        context = {
-            'request': "%s %s" % (bottle.request.method, bottle.request.url),
-            'user': threadlocal.get_context().get('username'),
-            'query': bottle.request.query_string,
-        }
-        exc_info = type(error.exception), error.exception, error.traceback
-        LOG.critical(errmsg, exc_info=exc_info, extra=context)
-        error.status = 500
-        error.output = cmexc.UNEXPECTED_ERROR
+    bottle_error.apply(bottle.response)
+    return utils.write_body({'error': output}, bottle.request, bottle.response)
 
-    if not hasattr(error, 'output'):
-        if error.status_code == 404:
-            error.output = error.body
-        else:
-            error.output = cmexc.UNEXPECTED_ERROR
-    if not hasattr(error, 'status'):
-        error.status = 500
 
-    if hasattr(error.exception, 'args'):
-        if len(error.exception.args) > 1:
-            LOG.warning('HTTPError: %s', error.exception.args)
+class FormatExceptionMiddleware(object):
 
-    output['description'] = error.output
-    output['code'] = error.status_code
-    output['message'] = httplib.responses[error.status_code]
+    """Format outgoing exceptions.
 
-    error.apply(bottle.response)
-    return utils.write_body(
-        dict(error=output), bottle.request, bottle.response)
+    Uses and is compatible-with bottle exception formatting.
+
+    - Handle Bottle Exceptions (even when catchall=False).
+    - Handle CheckmateExceptions.
+    - Handle other exceptions.
+    - Fail-safe to a generic error (UNEXPECTED_ERROR)
+    """
+
+    def __init__(self, app, conf):
+        self.app = app
+        self.config = conf
+
+    def __call__(self, environ, start_response):
+        """Catch exceptions and format them based on config."""
+        try:
+            return self.app(environ, start_response)
+        except bottle.HTTPError as exc:
+            # Set correct traceback and response based on bottle
+            exc_info = sys.exc_info()
+            exc.traceback = exc_info[1]
+            start_response(exc.status_line, exc.headerlist)
+            return error_formatter(exc.exception)
+        except cmexc.CheckmateException as exc:
+            exc_info = sys.exc_info()
+            bottle_exc = bottle.HTTPError(
+                status=exc.http_status, body=exc.friendly_message,
+                exception=exc, traceback=exc_info[2])
+            response = bottle_error_formatter(bottle_exc)
+            start_response(bottle_exc.status_line, bottle_exc.headerlist)
+            return response
+        except Exception as exc:
+            exc_info = sys.exc_info()
+            bottle_exc = bottle.HTTPError(
+                status=500, body=cmexc.UNEXPECTED_ERROR, exception=exc,
+                traceback=exc_info[2])
+            response = bottle_error_formatter(bottle_exc)
+            # For other errors, log underlying cause
+            req = webob.Request(environ)
+            errmsg = "%s - %s" % (bottle_exc.status_code,
+                                  utils.pytb_lastline(exc))
+            context = {
+                'request': "%s %s" % (req.method, req.path_url),
+                'user': threadlocal.get_context().get('username'),
+                'query': req.query_string,
+            }
+            LOG.critical(errmsg, context=context, exc_info=exc_info)
+            start_response(bottle_exc.status_line, bottle_exc.headerlist)
+            return response
 
 
 def main():
@@ -265,15 +302,18 @@ def main():
     # Build WSGI Chain:
     next_app = root_app = bottle.default_app()  # the main checkmate app
     root_app.error_handler = {
-        500: error_formatter,
-        400: error_formatter,
-        401: error_formatter,
-        404: error_formatter,
-        405: error_formatter,
-        406: error_formatter,
-        415: error_formatter,
+        500: bottle_error_formatter,
+        400: bottle_error_formatter,
+        401: bottle_error_formatter,
+        404: bottle_error_formatter,
+        405: bottle_error_formatter,
+        406: bottle_error_formatter,
+        415: bottle_error_formatter,
     }
-    root_app.catchall = True
+    # disable catchall to prevent bottle from setting error.traceback to
+    # format_exc(). We need an intact traceback to use for airbrake. We also
+    # use the traceback in FormatExceptionMiddleware.
+    root_app.catchall = False
 
     # Load routes from other modules
     LOG.info("Loading Checkmate API")
@@ -511,6 +551,7 @@ def main():
             'staging-checkmate.rax.io',
         ]
     )
+    next_app = FormatExceptionMiddleware(next_app, CONFIG)
 
     # Start listening. Enable reload by default to pick up file changes
     try:
