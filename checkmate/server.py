@@ -204,20 +204,25 @@ class FormatExceptionMiddleware(object):
         try:
             return self.app(environ, start_response)
         except bottle.HTTPError as exc:
-            # Set correct traceback and response based on bottle
+            LOG.debug("Formatting a bottle exception.",
+                      exc_info=exc)
             exc_info = sys.exc_info()
             exc.traceback = exc_info[1]
             start_response(exc.status_line, exc.headerlist)
-            return error_formatter(exc.exception)
+            return [bottle_error_formatter(exc.exception)]
         except cmexc.CheckmateException as exc:
+            LOG.debug("Formatting a Checkmate exception.",
+                      exc_info=exc)
             exc_info = sys.exc_info()
             bottle_exc = bottle.HTTPError(
                 status=exc.http_status, body=exc.friendly_message,
                 exception=exc, traceback=exc_info[2])
             response = bottle_error_formatter(bottle_exc)
             start_response(bottle_exc.status_line, bottle_exc.headerlist)
-            return response
+            return [response]
         except Exception as exc:
+            LOG.debug("Formatting a standard, unexpected exception.",
+                      exc_info=exc)
             exc_info = sys.exc_info()
             bottle_exc = bottle.HTTPError(
                 status=500, body=cmexc.UNEXPECTED_ERROR, exception=exc,
@@ -234,7 +239,7 @@ class FormatExceptionMiddleware(object):
             }
             LOG.critical(errmsg, context=context, exc_info=exc_info)
             start_response(bottle_exc.status_line, bottle_exc.headerlist)
-            return response
+            return [response]
 
 
 def main():
