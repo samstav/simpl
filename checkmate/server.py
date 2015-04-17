@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# pylint: disable=E1101
 
 # Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
@@ -169,7 +168,7 @@ def bottle_error_formatter(bottle_error):
     bottle_error.output = output['description']
 
     if 'code' in output and output['code'] != bottle_error.status_code:
-        bottle_error._status_code = output['code']
+        bottle_error._status_code = output['code']  # pylint: disable=W0212
 
     accept = bottle.request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
@@ -183,7 +182,7 @@ def bottle_error_formatter(bottle_error):
     return utils.write_body({'error': output}, bottle.request, bottle.response)
 
 
-class FormatExceptionMiddleware(object):
+class FormatExceptionMiddleware(object):  # pylint: disable=R0903
 
     """Format outgoing exceptions.
 
@@ -204,6 +203,7 @@ class FormatExceptionMiddleware(object):
         try:
             return self.app(environ, start_response)
         except bottle.HTTPError as exc:
+            #import ipdb;ipdb.set_trace()
             LOG.debug("Formatting a bottle exception.",
                       exc_info=exc)
             exc_info = sys.exc_info()
@@ -211,6 +211,7 @@ class FormatExceptionMiddleware(object):
             start_response(exc.status_line, exc.headerlist)
             return [bottle_error_formatter(exc.exception)]
         except cmexc.CheckmateException as exc:
+            #import ipdb;ipdb.set_trace()
             LOG.debug("Formatting a Checkmate exception.",
                       exc_info=exc)
             exc_info = sys.exc_info()
@@ -220,7 +221,8 @@ class FormatExceptionMiddleware(object):
             response = bottle_error_formatter(bottle_exc)
             start_response(bottle_exc.status_line, bottle_exc.headerlist)
             return [response]
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=W0703
+            #import ipdb;ipdb.set_trace()
             LOG.debug("Formatting a standard, unexpected exception.",
                       exc_info=exc)
             exc_info = sys.exc_info()
@@ -496,7 +498,9 @@ def main():
         worker = celery_app.WorkController(pool_cls="solo")
         worker.disable_rate_limits = True
         worker.concurrency = 1
+        # pylint: disable=E1101
         worker_thread = threading.Thread(target=worker.start)
+        # pylint: enable=E1101
         worker_thread.start()
 
     # Pick up IP/port from last param (default is 127.0.0.1:8080)
@@ -599,6 +603,7 @@ class EventletSSLServer(bottle.ServerAdapter):
     """
 
     def get_socket(self):
+        """Create listener socket based on bottle vserver parameters."""
         from eventlet import listen, wrap_ssl
 
         # Separate out socket.listen arguments
@@ -628,6 +633,7 @@ class EventletSSLServer(bottle.ServerAdapter):
         return sock
 
     def run(self, handler):
+        """Start bottle server."""
         from eventlet import wsgi, patcher
         if not patcher.is_monkey_patched(os):
             msg = "Bottle requires eventlet.monkey_patch() (before import)"
@@ -654,7 +660,7 @@ class EventletSSLServer(bottle.ServerAdapter):
         return self.__class__.__name__
 
 
-class EventletLogFilter(object):
+class EventletLogFilter(object):  # pylint: disable=R0903
 
     """Receives eventlet log.write() calls and routes them."""
 
@@ -672,11 +678,12 @@ class EventletLogFilter(object):
 
 
 def run_with_profiling():
-    """Start srver with yappi profiling and eventlet blocking detection on."""
+    """Start server with yappi profiling and eventlet blocking detection on."""
     LOG.warn("Profiling and blocking detection enabled")
     debug.hub_blocking_detection(state=True)
     # pylint: disable=F0401
     import yappi
+    # pylint: enable=F0401
     try:
         yappi.start(True)
         main()
