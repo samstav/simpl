@@ -133,6 +133,12 @@ angular.module('checkmate.applications-configure')
       var blueprint = deployment.blueprint;
       var services = blueprint.services;
 
+      // Move the deployment ID to the blueprint on deploy.
+      if(deployment.id) {
+        blueprint.id = deployment.id;
+        delete deployment.id;
+      }
+
       _.each(services, function(value, key) {
         var components = value.components;
         var component;
