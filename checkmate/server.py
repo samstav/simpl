@@ -107,16 +107,19 @@ DEFAULT_AUTH_ENDPOINTS = [{
 
 
 def error_formatter(exception):
-    """Format exception into http error messages.
+    """Format exception into http error message information.
 
-    We return all errors formatted according to requested format. We default to
-    json if we don't recognize or support the content.
+    The returned dict is expected to become part of an error response body
+    which is in the format:
+        error:  wrapper and json root element
+            code: the http error code (ex. 404)
+            message: the http message matching the code (ex. Not Found)
+            description: hopefully useful information about the error
 
-    :param error:
+    :param exception: any python exception
 
     :returns: dict where content is:
 
-        error:             - this is the wrapper for the returned error object
             code:          - the HTTP error code (ex. 404)
             description:   - the plain english, user-friendly description. Use
                              this to to surface a UI/CLI. non-technical message
@@ -144,12 +147,15 @@ def error_formatter(exception):
 def bottle_error_formatter(bottle_error):
     """Format error for bottle.
 
+    This is called directly by bottle.
+
     We return all errors formatted according to requested format. We default to
     json if we don't recognize or support the content.
 
-    :param error:
+    :param bottle_error: the bottle.HTTPError passed in by bottle.
 
-    :returns: dict where content is:
+    :returns: appropriate wsgi response where content is formatted from this
+        dict:
 
         error:             - this is the wrapper for the returned error object
             code:          - the HTTP error code (ex. 404)
@@ -603,7 +609,7 @@ class EventletSSLServer(bottle.ServerAdapter):
     """
 
     def get_socket(self):
-        """Create listener socket based on bottle vserver parameters."""
+        """Create listener socket based on bottle server parameters."""
         from eventlet import listen, wrap_ssl
 
         # Separate out socket.listen arguments
