@@ -251,20 +251,27 @@ class Planner(classes.ExtensibleDict):
         It contains code that is not yet fully refactored. This will go away
         over time.
         """
-        blueprint = self.blueprint
-        environment = self.environment
-        services = blueprint.get('services', {})
+        # TODO(pablo): to minimize the potential for unexpected behavior,
+        # only do this for database-replica for now. Eventually this could be
+        # replaced with a Topological Sort (tsort), so that dependencies are
+        # graphed and sorted correctly.
 
-        # Prepare resources and connections to create
-        LOG.debug("Add resources")
-        for service_name in services:
+        # Sort services into pre and post
+        pre_services = []
+        post_services = []
+        for key, details in self.blueprint.get('services', {}).iteritems():
+            if details['component'].get('type') == 'database-replica':
+                post_services.append(key)
+            else:
+                pre_services.append(key)
+
+        def process_svc(context, service_name):
             LOG.debug("  For service '%s'", service_name)
             service_analysis = self['services'][service_name]
             definition = service_analysis['component']
-
             # Get main component for this service
             provider_key = definition['provider-key']
-            provider = environment.get_provider(provider_key)
+            provider = self.environment.get_provider(provider_key)
             component = provider.get_component(context, definition['id'])
             resource_type = component.get('is')
             count = self.deployment.get_setting('count',
@@ -272,12 +279,19 @@ class Planner(classes.ExtensibleDict):
                                                 resource_type=resource_type,
                                                 service_name=service_name,
                                                 default=1)
-
             # Create as many as we have been asked to create
             for service_index in range(1, count + 1):
                 # Create the main resource template
                 self.add_resource_for_service(context, service_name,
                                               service_index)
+
+        # Prepare resources and connections to create
+        LOG.debug("Add resources")
+        # Process pre-services
+        [process_svc(context, s) for s in pre_services]
+
+        # Process post-services
+        [process_svc(context, s) for s in post_services]
 
     def add_resource_for_service(self, context, service_name, service_index):
         """Add a new 'resource' block to the deployment, based on service name.
