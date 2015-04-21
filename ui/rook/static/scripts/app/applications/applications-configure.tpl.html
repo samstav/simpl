@@ -2,7 +2,8 @@
   <div class="rs-app-launch-container rs-panel"
         ng-class="{
           'catalog-open': catalog.isVisible,
-          'editor-open': codemirror.isVisible,
+          'editor-open': codemirror.isVisible || deploymentOptions.isVisible,
+          'options-open': deploymentOptions.isVisible,
           'editor-full-screen': codemirror.isFullScreen,
           'editor-error': codemirror.hasError,
           'github-invalid-import-open': prompts.githubInvalidImport.isVisible,
@@ -60,7 +61,8 @@
       </div> <!-- /.rs-app-launch-list-container -->
     </div> <!-- /.rs-app-launch-sidebar -->
 
-    <div class="rs-app-launch-sidebar stick-left dark app-selection">
+    <div class="rs-app-launch-sidebar stick-left dark app-selection"
+         ng-class="{'app-selection-open': selection.isVisible}">
       <header class="rs-app-launch-header">
         <div class="rs-app-launch-subtitle">
           Options
@@ -73,7 +75,7 @@
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
       </header> <!-- /.rs-app-launch-header -->
       <section class="rs-app-launch-list-section">
-        <component-options ng-if="selection.data.component"
+        <component-options ng-if="selection.data.component && selection.isVisible"
                            service-id="selection.data.service"
                            component="selection.data.component"
                            options="catalog.component(selection.data.component.id || selection.data.component.name).options">
@@ -92,12 +94,19 @@
       </blueprint-topology>
 
       <!-- Code Mirror -->
-      <div class="codemirror-toggle-button"
-           ng-click="codemirror.isVisible = !codemirror.isVisible">
-        <span class="fa-stack fa-lg">
+      <div class="codemirror-toggle-button">
+        <span class="fa-stack fa-lg" ng-click="deploymentOptions.toggle()">
+          <i class="fa fa-cog fa-stack-1x"
+             ng-class="{
+               'fa-inverse': codemirror.isVisible && !deploymentOptions.isVisible
+             }"></i>
+        </span>
+        <span class="fa-stack fa-lg" ng-click="codemirror.toggle()">
           <i class="fa fa-ban fa-stack-2x text-danger" ng-show="codemirror.isVisible"></i>
           <i class="fa fa-code fa-stack-1x"
-             ng-class="{'fa-inverse': codemirror.isVisible}"></i>
+             ng-class="{
+               'fa-inverse': codemirror.isVisible && !deploymentOptions.isVisible
+             }"></i>
         </span>
       </div>
 
@@ -112,9 +121,19 @@
         </span>
       </div>
 
-      <deployment-editor class="rs-app-launch-sidebar stick-right"
-                         ng-class="{'visible': codemirror.isVisible}">
+      <deployment-editor class="rs-app-launch-sidebar stick-right dark"
+                         ng-class="{
+                           'open': codemirror.isVisible,
+                           'editor-full-screen': codemirror.isFullScreen
+                         }">
       </deployment-editor>
+
+      <div class="rs-app-launch-sidebar stick-right rs-panel scrollable"
+           ng-class="{
+             'open': deploymentOptions.isVisible
+           }">
+        <deployment-options></deployment-options>
+      </div>
 
       <div class="rs-table-overlay rs-app-launch-empty-canvas"
            ng-show="!deployment.blueprint.services">
