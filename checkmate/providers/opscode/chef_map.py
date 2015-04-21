@@ -219,10 +219,12 @@ class ChefMap(object):
                 url = ChefMap.parse_map_uri(mapping['source'])
                 if url['scheme'] == 'requirements':
                     key = url['netloc']
-                    relations = [
-                        r for r in resource['relations'].values()
-                        if (r.get('requires-key') == key and 'target' in r)
-                    ]
+                    relations = None
+                    if 'relations' in resource:
+                        relations = [
+                            r for r in resource['relations'].values()
+                            if (r.get('requires-key') == key and 'target' in r)
+                        ]
                     if relations:
                         target = relations[0]['target']
                         #  account for host
@@ -240,10 +242,12 @@ class ChefMap(object):
                     result.append(mapping)
                 elif url['scheme'] == 'supported':
                     key = url['netloc']
-                    relations = [
-                        r for r in resource['relations'].values()
-                        if (r.get('supports-key') == key and 'target' in r)
-                    ]
+                    relations = None
+                    if 'relations' in resource:
+                        relations = [
+                            r for r in resource['relations'].values()
+                            if (r.get('supports-key') == key and 'target' in r)
+                        ]
                     if relations:
                         target = relations[0]['target']
                         #  account for host
