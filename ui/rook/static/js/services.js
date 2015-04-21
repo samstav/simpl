@@ -1497,6 +1497,10 @@ services.factory('auth', ['$http', '$resource', '$rootScope', '$q', '$cookieStor
     var data = {auth: {identity: auth.identity, context: auth.context, endpoints: auth.endpoints, cache: auth.cache}};
     localStorage.setItem('auth', JSON.stringify(data));
 
+    if(sessionStorage.getItem('auth')) {
+      sessionStorage.setItem('auth', JSON.stringify(data));
+    }
+
     var previous_tenants = _.map(auth.cache.tenants, function(tenant) {
       return _.pick(tenant, 'username', 'tenantId'); // remove sensitive information
     });
