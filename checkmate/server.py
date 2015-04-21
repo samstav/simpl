@@ -42,6 +42,7 @@ import celery  # noqa
 import eventlet
 from eventlet import debug
 from eventlet.green import threading
+from eventlet import wsgi
 import webob
 
 import checkmate
@@ -534,8 +535,7 @@ def main():
         kwargs['backlog'] = 100
         kwargs['log'] = EventletLogFilter
         eventlet_backdoor.initialize_if_enabled()
-        from eventlet import wsgi  # noqa
-        eventlet.wsgi.MAX_HEADER_LINE = 32768  # to accept x-catalog
+        wsgi.MAX_HEADER_LINE = 32768  # to accept x-catalog
     else:
         if CONFIG.access_log:
             print("--access-log only works with --eventlet")
@@ -640,7 +640,7 @@ class EventletSSLServer(bottle.ServerAdapter):
 
     def run(self, handler):
         """Start bottle server."""
-        from eventlet import wsgi, patcher
+        from eventlet import patcher
         if not patcher.is_monkey_patched(os):
             msg = "Bottle requires eventlet.monkey_patch() (before import)"
             raise RuntimeError(msg)
