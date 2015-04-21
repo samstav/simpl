@@ -63,6 +63,9 @@ body {
 .navbar .container {
   width: 100%;
 }
+.navbar li.big-icon i {
+  font-size: 20px;
+}
 
 .dropdown .dropdown-menu .nav-text {
   padding: 3px 20px;

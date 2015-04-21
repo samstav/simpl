@@ -67,11 +67,14 @@
   </div>
 
   <div class="modal-body">
-    <ng-include ng-if="!(clientId && github.config.accessToken)"
+    <ng-include ng-show="false"
+                ng-if="!(clientId && github.config.accessToken)"
                 src="'/partials/app/auth_providers/github.tpl.html'">
     </ng-include>
 
-    <div class="junction" ng-if="!(clientId && github.config.accessToken) || !auth.endpoints.length">
+    <div class="junction"
+         ng-show="false"
+         ng-if="!(clientId && github.config.accessToken) || !auth.endpoints.length">
       <span>Or</span>
     </div>
 

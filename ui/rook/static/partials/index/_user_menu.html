@@ -4,9 +4,21 @@
     <li class="divider-vertical"></li>
 
     <!-- NOT LOGGED IN -->
+    <li class="pull-right big-icon"
+        ng-hide="!clientId"
+        ng-cloak
+        ng-class="{'active': github.currentUser.login}">
+      <a ng-href="#"
+         ng-click="github.go_auth()"
+         title="{{ clientId && github.config.accessToken ? 'Github.com: ' + github.currentUser.login : 'Link your Github.com account.'}}">
+        <i class="fa fa-github" ng-class="{'rs-status-ok': github.currentUser.login}"></i>
+      </a>
+    </li>
+
+    <!-- NOT LOGGED IN -->
     <li class="pull-right"
         ng-cloak
-        ng-hide="auth.is_logged_in() || (clientId && github.config.accessToken)">
+        ng-hide="auth.is_logged_in()">
       <a ng-click="loginPrompt()">
         <i class="icon-user icon-white"></i>
         Log In
@@ -15,16 +27,16 @@
 
     <!-- LOGGED IN -->
     <li class="dropdown pull-right"
-        ng-show="auth.is_logged_in() || (clientId && github.config.accessToken)"
+        ng-show="auth.is_logged_in()"
         title="Token expires {{auth.context.token.expires | formattedDate}}">
 
       <a class="dropdown-toggle" id="user_button">
-        <img ng-show="github.currentUser.avatar_url"
+        <img ng-show="auth.is_logged_in() && github.currentUser.avatar_url"
              ng-src="{{ github.currentUser.avatar_url }}"
              style="height: 20px; margin-right: 5px;"
              title="GitHub Login: {{ github.currentUser.login }}">
-        <i ng-hide="github.currentUser.avatar_url" class="icon-user icon-white"></i>
-        {{auth.context.username || github.currentUser.login}}
+        <i ng-hide="auth.is_logged_in()" class="icon-user icon-white"></i>
+        {{auth.context.username}}
         <span ng-show="auth.context.tenantId">
           ({{auth.context.tenantId}})
         </span>
