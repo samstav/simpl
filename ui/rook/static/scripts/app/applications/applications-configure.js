@@ -5,12 +5,12 @@ angular.module('checkmate.applications-configure', [
   'checkmate.Flavors',
   'checkmate.DeploymentData',
   'checkmate.Drag',
-  'checkmate.ComponentOptions'
+  'checkmate.ComponentOptions',
+  'ngDialog'
 ]);
 
 angular.module('checkmate.applications-configure')
-  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window, Flavors) {
-
+  .controller('ConfigureCtrl', function($scope, DeploymentData, Blueprint, Catalog, options, Drag, $timeout, $location, $resource, deployment, github, $window, Flavors, ngDialog) {
     $scope.deployment = DeploymentData.get();
 
     $scope.export = function() {
@@ -132,25 +132,51 @@ angular.module('checkmate.applications-configure')
       var deployment = angular.copy(newFormatDeployment);
       var blueprint = deployment.blueprint;
       var services = blueprint.services;
+
+      // Move the deployment ID to the blueprint on deploy.
+      if(deployment.id) {
+        blueprint.id = deployment.id;
+        delete deployment.id;
+      }
+
       _.each(services, function(value, key) {
         var components = value.components;
         var component;
-        if (angular.isArray(components)) {
+
+        if(angular.isArray(components)) {
           component = components[0];
         } else {
           component = components;
         }
-        delete value.components;
-        if (angular.isString(component)) {
+
+        if(angular.isString(component)) {
           component = {id: component};
         }
+
         value.component = component;
+
+        delete value.components;
         delete value.annotations;
       });
+
       return deployment;
     };
 
-    $scope.submit = function(action){
+    $scope.save = function() {
+      if($scope.deployment.id) {
+        var save = ngDialog.openConfirm({
+          template: 'dialog-save-and-overwrite-blueprint'
+        });
+
+        save.then(function (data) {
+          $scope.$broadcast('blueprint:save', data);
+        });
+      } else {
+        $scope.$broadcast('blueprint:save');
+      }
+    };
+
+    $scope.submit = function(action) {
       if ($scope.submitting === true)
         return;
       $scope.submitting = true;
@@ -237,6 +263,13 @@ angular.module('checkmate.applications-configure')
 
     $scope.$on('blueprint:valid', function(event, data) {
       unblockUi();
+    });
+
+    $scope.$on('blueprint:save', function(event, data) {
+      var deployment = $scope.prepDeployment($scope.deployment);
+      var overwrite = (data === 'UPDATE');
+
+      DeploymentData.save($scope.auth.context.tenantId, deployment, overwrite);
     });
 
     $scope.$on('topology:error', function(event, data) {
