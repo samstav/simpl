@@ -164,7 +164,7 @@ angular.module('checkmate.Blueprint')
 
                 // Map out multiple connections from a service to another service.
                 if(_entry.relations) {
-                  for (i = _entry.relations.length - 1; i >= 0; i--) {
+                  for (i = (_entry.relations || []).length - 1; i >= 0; i--) {
                     for(var component in _entry.relations[i]) {
                       var protocol = _entry.relations[i][component];
 
@@ -202,7 +202,7 @@ angular.module('checkmate.Blueprint')
               draw(blueprint);
             } catch(e) {
               scope.$emit('topology:error', e);
-              console.error(e);
+              console.error(e.stack);
             }
           }
         }, true);
@@ -268,7 +268,7 @@ angular.module('checkmate.Blueprint')
           selector.append('rect')
             .attr('class', 'interface-container')
             .attr('height', function() {
-              return connections.length * 25;
+              return (connections || []).length * 25;
             })
             .attr('width', sizes.interfaces.width())
             .attr('x', 0)
@@ -323,7 +323,7 @@ angular.module('checkmate.Blueprint')
                 text = d.interface;
               }
 
-              if(text.length > 16) {
+              if(text && text.length > 16) {
                 text = text.substring(0,16);
                 text += '...';
               }
@@ -538,13 +538,13 @@ angular.module('checkmate.Blueprint')
           indicator.append('rect')
             .attr('width', sizes.indicator.width)
             .attr('height', function(d, i) {
-              return d.connections.length * 24;
+              return (d.connections || []).length * 24;
             })
             .attr('x', 0)
             .attr('y', 0)
             .attr('transform', function(d, i) {
               var x = -1 * (sizes.indicator.width / 2);
-              var y = ((d.connections.length * 24) + sizes.indicator.radius * 2.5) * -1;
+              var y = (((d.connections || []).length * 24) + sizes.indicator.radius * 2.5) * -1;
               return 'translate('+x+','+y+')';
             })
             .attr('class', 'connections-container');
@@ -606,7 +606,7 @@ angular.module('checkmate.Blueprint')
           // This appends components to service container.
           component = service.selectAll('g.component')
               .data(function(d) {
-                return d.component ? [d.component] : d.components;
+                return d.component ? [d.component] : (d.components || []);
               })
             .enter()
               .append('g')
@@ -709,7 +709,7 @@ angular.module('checkmate.Blueprint')
             .text(function(d) {
               var label = getDisplayName(d);
 
-              if(label.length > 12) {
+              if(label && label.length > 12) {
                 label = label.substring(0,11) + '...';
               }
 
@@ -792,7 +792,7 @@ angular.module('checkmate.Blueprint')
               if (state.linking) {
                 var target = Drag.target.get();
                 var source = Drag.source.get();
-                var connections = Blueprint.canConnect(source, target);
+                var connections = Blueprint.canConnect(source, target) || [];
                 var components = Catalog.getComponents();
 
                 // Add interface
