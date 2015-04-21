@@ -4,14 +4,22 @@
       <tr>
         <th>ID</th>
         <th>Name</th>
-        <th>Tenant</th>
+        <th ng-show="is_admin(true)">Tenant</th>
+        <th>Local</th>
       </tr>
     </thead>
     <tbody>
       <tr ng-repeat="item in items | orderBy:'name'" >
-        <td>{{item.id}}</td>
+        <td>
+          <a ng-show="item.tenantId"
+             ng-href="/{{item.tenantId}}/blueprints/{{item.id}}">
+            {{item.id}}
+          </a>
+          <span ng-hide="item.tenantId">{{item.id}}</span>
+        </td>
         <td>{{item.name}}</td>
-        <td>{{item.tenantId}}</td>
+        <td ng-show="is_admin(true)">{{item.tenantId}}</td>
+        <td>{{item.isLocal ? 'Locally Saved' : 'External'}}</td>
       </tr>
     </tbody>
   </table>

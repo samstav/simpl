@@ -273,6 +273,24 @@ checkmate
     templateUrl: '/partials/blueprints/blueprints.html',
     controller: 'BlueprintsController'
   })
+  .when('/:tenantId/blueprints/:id', {
+    templateUrl: '/partials/blueprints/design.html',
+    controller: 'ConfigureCtrl',
+    reloadOnSearch: false,
+    resolve: {
+      deployment: function($route, $http) {
+        var id = $route.current.params.id;
+        var tenantId = $route.current.params.tenantId;
+
+        if(!tenantId && !id) return {};
+
+        return $http.get('/'+tenantId+'/blueprints/'+id)
+          .then(function(resp) {
+            return resp.data;
+          });
+      }
+    }
+  })
   .when('/:tenantId/deployments', {
     templateUrl: '/partials/deployments/index.html',
     controller: 'DeploymentListController'
@@ -1857,8 +1875,17 @@ function WorkflowController($scope, $resource, $http, $routeParams, $location, $
 }
 
 //Blueprint controllers
-function BlueprintsController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, DeploymentData, redirectUri) {
-  BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, {}, null, {}, null, DeploymentData, redirectUri);
+function BlueprintsController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, DeploymentData, redirectUri, $http) {
+  var url = '/blueprints/';
+
+  if($routeParams.tenantId) {
+    url =  '/' + $routeParams.tenantId + url;
+  }
+
+  $http.get(url).then(function(resp) {
+    var blueprints = resp.data.results;
+    BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, blueprints, null, {}, null, DeploymentData, redirectUri);
+  });
 }
 function BlueprintListController($scope, $location, $routeParams, $resource, items, navbar, options, workflow, blueprints, initial_blueprint, environments, initial_environment, DeploymentData, redirectUri) {
   //Model: UI
@@ -1870,7 +1897,17 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
   $scope.environments = environments;
   $scope.environment = (typeof environments == "object" && Object.keys(environments).length >= 0) ? environments[initial_environment || Object.keys(environments)[0]] : null;
   var received_items = items.receive(blueprints, function(item, key) {
-    return {key: key, id: item.id, name: item.name, description: item.description, selected: false};});
+    return {
+      key: key,
+      id: item.id,
+      name: item.blueprint.name,
+      tenantId: item.tenantId,
+      isLocal: item.tenantId ? true : false, // TODO(cb): force API to return this.
+      description: item.blueprint.description,
+      selected: false
+    };
+  });
+
   $scope.items = received_items.all;
   $scope.count = received_items.count;
 
@@ -1887,9 +1924,8 @@ function BlueprintListController($scope, $location, $routeParams, $resource, ite
       break;
     }
   }
-  if (typeof $scope.selected != 'object' && $scope.count > 0) {
-    console.log('Selecting first blueprint');
-    $scope.selectItem(index);
+  if (typeof $scope.selected != 'object' && $scope.count > 0 && initial_blueprint) {
+    $scope.selectItem(initial_blueprint);
   }
 
   //Inherit from Deployment Initializer
@@ -2375,7 +2411,7 @@ function DeploymentListController($scope, $location, $http, $resource, scroll, i
       // Error
       function(response) {
         $scope.items = [];
-        $scope.error_message = response.data.error.explanation;
+        $scope.error_message = (((response || {}).data || {}).error || {}).explanation || 'Oops. Something went wrong.';
       }
     );
   };
