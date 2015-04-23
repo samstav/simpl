@@ -13,7 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-"""Tests for Schema module."""
+"""Tests for Server module."""
 import unittest
 
 import bottle
@@ -25,6 +25,7 @@ from checkmate import utils
 
 
 class TestServerErrorParsing(unittest.TestCase):
+
     """Check that error formatting writes correct content and safe data."""
 
     @mock.patch.object(server.bottle, 'request')
@@ -34,7 +35,7 @@ class TestServerErrorParsing(unittest.TestCase):
         """Error response is the safe default for non-checkmate exceptions."""
         exception = Exception('test')
         error = bottle.HTTPError(exception=exception)
-        server.error_formatter(error)
+        server.bottle_error_formatter(error)
         expected = {
             'error': {
                 'code': 500,
@@ -52,11 +53,11 @@ class TestServerErrorParsing(unittest.TestCase):
         """Error response is the safe default for CheckmateExceptions."""
         exception = exceptions.CheckmateException('test')
         error = bottle.HTTPError(exception=exception)
-        server.error_formatter(error)
+        server.bottle_error_formatter(error)
         expected = {
             'error': {
-                'code': 500,
-                'message': 'Internal Server Error',
+                'code': 400,
+                'message': 'Bad Request',
                 'description': exceptions.UNEXPECTED_ERROR
             }
         }
@@ -71,11 +72,11 @@ class TestServerErrorParsing(unittest.TestCase):
         exception = exceptions.CheckmateException(
             'test', friendly_message="Hi!")
         error = bottle.HTTPError(exception=exception)
-        server.error_formatter(error)
+        server.bottle_error_formatter(error)
         expected = {
             'error': {
-                'code': 500,
-                'message': 'Internal Server Error',
+                'code': 400,
+                'message': 'Bad Request',
                 'description': "Hi!"
             }
         }
@@ -89,11 +90,11 @@ class TestServerErrorParsing(unittest.TestCase):
         mock_request.get_header.return_value = 'application/x-yaml'
         exception = exceptions.CheckmateException('test')
         error = bottle.HTTPError(exception=exception)
-        server.error_formatter(error)
+        server.bottle_error_formatter(error)
         expected = {
             'error': {
-                'code': 500,
-                'message': 'Internal Server Error',
+                'code': 400,
+                'message': 'Bad Request',
                 'description': exceptions.UNEXPECTED_ERROR
             }
         }

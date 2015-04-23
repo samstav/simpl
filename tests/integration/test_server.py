@@ -76,13 +76,13 @@ class TestServer(unittest.TestCase):
         self.root_app = bottle.default_app.pop()
         self.root_app.catchall = False
         self.root_app.error_handler = {
-            500: server.error_formatter,
-            400: server.error_formatter,
-            401: server.error_formatter,
-            404: server.error_formatter,
-            405: server.error_formatter,
-            406: server.error_formatter,
-            415: server.error_formatter,
+            500: server.bottle_error_formatter,
+            400: server.bottle_error_formatter,
+            401: server.bottle_error_formatter,
+            404: server.bottle_error_formatter,
+            405: server.bottle_error_formatter,
+            406: server.bottle_error_formatter,
+            415: server.bottle_error_formatter,
         }
 
         deployments_manager = deployments.Manager()
@@ -97,7 +97,8 @@ class TestServer(unittest.TestCase):
         tenant = tenant_middleware.TenantMiddleware(self.root_app)
         context = cmmid.ContextMiddleware(tenant)
         extension = cmmid.ExtensionsMiddleware(context)
-        self.app = webtest.TestApp(extension)
+        errs_parsed = server.FormatExceptionMiddleware(extension, None)
+        self.app = webtest.TestApp(errs_parsed)
 
     def tearDown(self):
         TestServer.testdb.clean()
@@ -319,8 +320,7 @@ class TestServer(unittest.TestCase):
 
     def test_put_deployment_tenant_id_mismatch(self):
         """Using PUT /deployments/<oid> to exercise _content_to_deployment."""
-        self.root_app.error_handler = {500: server.error_formatter}
-        self.root_app.catchall = True
+        self.root_app.catchall = False
         id1 = uuid.uuid4().hex[0:7]
         data = """
             deployment:

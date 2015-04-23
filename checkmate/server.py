@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# pylint: disable=E1101
 
 # Copyright (c) 2011-2015 Rackspace US, Inc.
 # All Rights Reserved.
@@ -44,6 +43,7 @@ import eventlet
 from eventlet import debug
 from eventlet.green import threading
 from eventlet import wsgi
+import webob
 
 import checkmate
 from checkmate import admin
@@ -107,13 +107,56 @@ DEFAULT_AUTH_ENDPOINTS = [{
 }]
 
 
-def error_formatter(error):
-    """Catch errors and output them in the correct format/media-type.
+def error_formatter(exception):
+    """Format exception into http error message information.
+
+    The returned dict is expected to become part of an error response body
+    which is in the format:
+        error:  wrapper and json root element
+            code: the http error code (ex. 404)
+            message: the http message matching the code (ex. Not Found)
+            description: hopefully useful information about the error
+
+    :param exception: any python exception
+
+    :returns: dict where content is:
+
+            code:          - the HTTP error code (ex. 404)
+            description:   - the plain english, user-friendly description. Use
+                             this to to surface a UI/CLI. non-technical message
+    """
+    output = {}
+
+    if isinstance(exception, cmexc.CheckmateException):
+        output['code'] = 400
+        output['description'] = exception.friendly_message
+    elif isinstance(exception, AssertionError):
+        output['code'] = 400
+        output['description'] = str(exception)
+        LOG.error(exception)
+    elif isinstance(exception, bottle.HTTPError):
+        output['code'] = exception.status_code
+        output['description'] = exception.message or exception.body
+        LOG.error(exception)
+    elif exception:
+        output['code'] = 500
+        output['description'] = cmexc.UNEXPECTED_ERROR
+
+    return output
+
+
+def bottle_error_formatter(bottle_error):
+    """Format error for bottle.
+
+    This is called directly by bottle.
 
     We return all errors formatted according to requested format. We default to
     json if we don't recognize or support the content.
 
-    The content is:
+    :param bottle_error: the bottle.HTTPError passed in by bottle.
+
+    :returns: appropriate wsgi response where content is formatted from this
+        dict:
 
         error:             - this is the wrapper for the returned error object
             code:          - the HTTP error code (ex. 404)
@@ -121,83 +164,91 @@ def error_formatter(error):
             description:   - the plain english, user-friendly description. Use
                              this to to surface a UI/CLI. non-technical message
             reason:        - (optional) any additional technical information to
-                             thelp a technical user help troubleshooting
+                             help a technical user help troubleshooting
     """
-    output = {}
+    output = error_formatter(bottle_error.exception)
+    if 'description' not in output:
+        if bottle_error.status_code == 404:
+            output['description'] = bottle_error.body
+        else:
+            output['description'] = cmexc.UNEXPECTED_ERROR
+    bottle_error.output = output['description']
+
+    if 'code' in output and output['code'] != bottle_error.status_code:
+        bottle_error._status_code = output['code']  # pylint: disable=W0212
+
     accept = bottle.request.get_header("Accept") or ""
     if "application/x-yaml" in accept:
-        error.headers.update({"content-type": "application/x-yaml"})
+        bottle_error.headers.update({"content-type": "application/x-yaml"})
     else:  # default to JSON
-        error.headers.update({"content-type": "application/json"})
+        bottle_error.headers.update({"content-type": "application/json"})
 
-    if isinstance(error.exception, cmexc.CheckmateNoMapping):
-        error.status = error.exception.http_status or 406
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateInvalidParameterError):
-        error.status = error.exception.http_status or 406
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateHOTTemplateException):
-        error.status = error.exception.http_status or 406
-        # TODO(zns): move this to exception.py
-        error.output = error.exception.friendly_message or (
-            "Operation not supported with HOT template")
-    elif isinstance(error.exception, cmexc.CheckmateDoesNotExist):
-        error.status = error.exception.http_status or 404
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateValidationException):
-        error.status = error.exception.http_status or 400
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateNoData):
-        error.status = error.exception.http_status or 400
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateBadState):
-        error.status = error.exception.http_status or 409
-        error.output = error.exception.friendly_message
-    elif isinstance(error.exception, cmexc.CheckmateDatabaseConnectionError):
-        error.status = error.exception.http_status or 500
-        # TODO(zns): move this to exception.py
-        error.output = "Database connection error on server."
-    elif isinstance(error.exception, cmexc.CheckmateException):
-        error.status = error.exception.http_status or 500
-        error.output = error.exception.friendly_message
-        LOG.exception(error.exception)
+    output['message'] = httplib.responses[bottle_error.status_code]
 
-    elif isinstance(error.exception, AssertionError):
-        error.status = 400
-        error.output = str(error.exception)
-        LOG.error(error.exception)
-    elif error.exception:
-        # For other errors, log underlying cause
-        errmsg = ("%s - %s"
-                  % (error.status, utils.pytb_lastline(error.exception)))
-        context = {
-            'request': "%s %s" % (bottle.request.method, bottle.request.url),
-            'user': threadlocal.get_context().get('username'),
-            'query': bottle.request.query_string,
-        }
-        LOG.critical(errmsg, exc_info=error.exc_info, extra=context)
-        error.status = 500
-        error.output = cmexc.UNEXPECTED_ERROR
+    bottle_error.apply(bottle.response)
+    return utils.write_body({'error': output}, bottle.request, bottle.response)
 
-    if not hasattr(error, 'output'):
-        if error.status_code == 404:
-            error.output = error.body
-        else:
-            error.output = cmexc.UNEXPECTED_ERROR
-    if not hasattr(error, 'status'):
-        error.status = 500
 
-    if hasattr(error.exception, 'args'):
-        if len(error.exception.args) > 1:
-            LOG.warning('HTTPError: %s', error.exception.args)
+class FormatExceptionMiddleware(object):  # pylint: disable=R0903
 
-    output['description'] = error.output
-    output['code'] = error.status_code
-    output['message'] = httplib.responses[error.status_code]
+    """Format outgoing exceptions.
 
-    error.apply(bottle.response)
-    return utils.write_body(
-        dict(error=output), bottle.request, bottle.response)
+    Uses and is compatible-with bottle exception formatting.
+
+    - Handle Bottle Exceptions (even when catchall=False).
+    - Handle CheckmateExceptions.
+    - Handle other exceptions.
+    - Fail-safe to a generic error (UNEXPECTED_ERROR)
+    """
+
+    def __init__(self, app, conf):
+        self.app = app
+        self.config = conf
+
+    def __call__(self, environ, start_response):
+        """Catch exceptions and format them based on config."""
+        try:
+            return self.app(environ, start_response)
+        except bottle.HTTPError as exc:
+            #import ipdb;ipdb.set_trace()
+            LOG.debug("Formatting a bottle exception.",
+                      exc_info=exc)
+            exc_info = sys.exc_info()
+            exc.traceback = exc_info[1]
+            start_response(exc.status_line, exc.headerlist)
+            return [bottle_error_formatter(exc.exception)]
+        except cmexc.CheckmateException as exc:
+            #import ipdb;ipdb.set_trace()
+            LOG.debug("Formatting a Checkmate exception.",
+                      exc_info=exc)
+            exc_info = sys.exc_info()
+            bottle_exc = bottle.HTTPError(
+                status=exc.http_status, body=exc.friendly_message,
+                exception=exc, traceback=exc_info[2])
+            response = bottle_error_formatter(bottle_exc)
+            start_response(bottle_exc.status_line, bottle_exc.headerlist)
+            return [response]
+        except Exception as exc:  # pylint: disable=W0703
+            #import ipdb;ipdb.set_trace()
+            LOG.debug("Formatting a standard, unexpected exception.",
+                      exc_info=exc)
+            exc_info = sys.exc_info()
+            bottle_exc = bottle.HTTPError(
+                status=500, body=cmexc.UNEXPECTED_ERROR, exception=exc,
+                traceback=exc_info[2])
+            response = bottle_error_formatter(bottle_exc)
+            # For other errors, log underlying cause
+            req = webob.Request(environ)
+            errmsg = "%s - %s" % (bottle_exc.status_code,
+                                  utils.pytb_lastline(exc))
+            context = {
+                'request': "%s %s" % (req.method, req.path_url),
+                'user': threadlocal.get_context().get('username'),
+                'query': req.query_string,
+            }
+            LOG.critical(errmsg, context=context, exc_info=exc_info)
+            start_response(bottle_exc.status_line, bottle_exc.headerlist)
+            return [response]
 
 
 def main():
@@ -265,15 +316,18 @@ def main():
     # Build WSGI Chain:
     next_app = root_app = bottle.default_app()  # the main checkmate app
     root_app.error_handler = {
-        500: error_formatter,
-        400: error_formatter,
-        401: error_formatter,
-        404: error_formatter,
-        405: error_formatter,
-        406: error_formatter,
-        415: error_formatter,
+        500: bottle_error_formatter,
+        400: bottle_error_formatter,
+        401: bottle_error_formatter,
+        404: bottle_error_formatter,
+        405: bottle_error_formatter,
+        406: bottle_error_formatter,
+        415: bottle_error_formatter,
     }
-    root_app.catchall = True
+    # disable catchall to prevent bottle from setting error.traceback to
+    # format_exc(). We need an intact traceback to use for airbrake. We also
+    # use the traceback in FormatExceptionMiddleware.
+    root_app.catchall = False
 
     # Load routes from other modules
     LOG.info("Loading Checkmate API")
@@ -451,7 +505,9 @@ def main():
         worker = celery_app.WorkController(pool_cls="solo")
         worker.disable_rate_limits = True
         worker.concurrency = 1
+        # pylint: disable=E1101
         worker_thread = threading.Thread(target=worker.start)
+        # pylint: enable=E1101
         worker_thread.start()
 
     # Pick up IP/port from last param (default is 127.0.0.1:8080)
@@ -474,12 +530,12 @@ def main():
     if CONFIG.eventlet is True:
         if CONFIG.bottle_reloader:
             LOG.warning("Bottle reloader not available with eventlet server.")
-        kwargs['server'] = CustomEventletServer
+        kwargs['server'] = EventletSSLServer
         kwargs['reloader'] = False  # reload fails in bottle with eventlet
         kwargs['backlog'] = 100
         kwargs['log'] = EventletLogFilter
         eventlet_backdoor.initialize_if_enabled()
-        eventlet.wsgi.MAX_HEADER_LINE = 32768  # to accept x-catalog
+        wsgi.MAX_HEADER_LINE = 32768  # to accept x-catalog
     else:
         if CONFIG.access_log:
             print("--access-log only works with --eventlet")
@@ -510,6 +566,7 @@ def main():
             'staging-checkmate.rax.io',
         ]
     )
+    next_app = FormatExceptionMiddleware(next_app, CONFIG)
 
     # Start listening. Enable reload by default to pick up file changes
     try:
@@ -526,30 +583,90 @@ def main():
             print("Unexpected error shutting down worker:", exc)
 
 
-class CustomEventletServer(bottle.ServerAdapter):
+class EventletSSLServer(bottle.ServerAdapter):
 
-    """Handles added backlog."""
+    """Eventlet SSL-Capable Bottle Server Adapter.
 
-    def run(self, handler):
-        """Fire up the custom Eventlet server."""
+    * `backlog` adjust the eventlet backlog parameter which is the maximum
+      number of queued connections. Should be at least 1; the maximum
+      value is system-dependent.
+    * `family`: (default is 2) socket family, optional. See socket
+      documentation for available families.
+    * `**kwargs`: directly map to python's ssl.wrap_socket arguments from
+      https://docs.python.org/2/library/ssl.html#ssl.wrap_socket and
+      wsgi.server arguments from
+      http://eventlet.net/doc/modules/wsgi.html#wsgi-wsgi-server
+
+    To create a self-signed key and start the eventlet server using SSL::
+
+      openssl genrsa -des3 -out server.orig.key 2048
+      openssl rsa -in server.orig.key -out test.key
+      openssl req -new -key test.key -out server.csr
+      openssl x509 -req -days 365 -in server.csr -signkey test.key -out \
+      test.crt
+
+      bottle.run(server='eventlet', keyfile='test.key', certfile='test.crt')
+    """
+
+    def get_socket(self):
+        """Create listener socket based on bottle server parameters."""
+        from eventlet import listen, wrap_ssl
+
+        # Separate out socket.listen arguments
+        socket_args = {}
+        for arg in ('backlog', 'family'):
+            try:
+                socket_args[arg] = self.options.pop(arg)
+            except KeyError:
+                pass
+        # Separate out wrap_ssl arguments
+        ssl_args = {}
+        for arg in ('keyfile', 'certfile', 'server_side', 'cert_reqs',
+                    'ssl_version', 'ca_certs', 'do_handshake_on_connect',
+                    'suppress_ragged_eofs', 'ciphers'):
+            try:
+                ssl_args[arg] = self.options.pop(arg)
+            except KeyError:
+                pass
+        address = (self.host, self.port)
         try:
-            socket_args = {}
-            for arg in ['backlog', 'family']:
-                if arg in self.options:
-                    socket_args[arg] = self.options.pop(arg)
-            if 'log_output' not in self.options:
-                self.options['log_output'] = (not self.quiet)
-            socket = eventlet.listen((self.host, self.port), **socket_args)
-            wsgi.server(socket, handler, **self.options)
+            sock = listen(address, **socket_args)
         except TypeError:
             # Fallback, if we have old version of eventlet
-            wsgi.server(eventlet.listen((self.host, self.port)), handler)
+            sock = listen(address)
+        if ssl_args:
+            sock = wrap_ssl(sock, **ssl_args)
+        return sock
+
+    def run(self, handler):
+        """Start bottle server."""
+        from eventlet import patcher
+        if not patcher.is_monkey_patched(os):
+            msg = "Bottle requires eventlet.monkey_patch() (before import)"
+            raise RuntimeError(msg)
+
+        # Separate out wsgi.server arguments
+        wsgi_args = {}
+        for arg in ('log', 'environ', 'max_size', 'max_http_version',
+                    'protocol', 'server_event', 'minimum_chunk_size',
+                    'log_x_forwarded_for', 'custom_pool', 'keepalive',
+                    'log_output', 'log_format', 'url_length_limit', 'debug',
+                    'socket_timeout', 'capitalize_response_headers'):
+            try:
+                wsgi_args[arg] = self.options.pop(arg)
+            except KeyError:
+                pass
+        if 'log_output' not in wsgi_args:
+            wsgi_args['log_output'] = not self.quiet
+
+        sock = self.options.pop('shared_socket', None) or self.get_socket()
+        wsgi.server(sock, handler, **wsgi_args)
 
     def __repr__(self):
         return self.__class__.__name__
 
 
-class EventletLogFilter(object):
+class EventletLogFilter(object):  # pylint: disable=R0903
 
     """Receives eventlet log.write() calls and routes them."""
 
@@ -567,11 +684,12 @@ class EventletLogFilter(object):
 
 
 def run_with_profiling():
-    """Start srver with yappi profiling and eventlet blocking detection on."""
+    """Start server with yappi profiling and eventlet blocking detection on."""
     LOG.warn("Profiling and blocking detection enabled")
     debug.hub_blocking_detection(state=True)
     # pylint: disable=F0401
     import yappi
+    # pylint: enable=F0401
     try:
         yappi.start(True)
         main()
