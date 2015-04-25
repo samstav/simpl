@@ -22,9 +22,11 @@ import shutil
 import sys
 import time
 
+from simpl import git as simpl_git
+from simpl import exceptions as simpl_exc
+
 from checkmate.common import backports
 from checkmate.common import config
-from checkmate.common import git as common_git
 from checkmate.contrib import urlparse
 from checkmate import exceptions as cmexc
 from checkmate import utils
@@ -132,27 +134,6 @@ def get_repo_cache_path(source_repo, github_token=None):
     return os.path.join(repo_cache_base(), suffix)
 
 
-def good_cache_exists(cache_path):
-    """Determine if a good cache exists.
-
-    If a good cache exists, return the path to its HEAD or FETCH_HEAD.
-    """
-    if not os.path.exists(cache_path):
-        return False
-    dotgit = os.path.join(cache_path, '.git')
-    if not os.path.exists(dotgit):
-        return False
-    # The mtime of .git/FETCH_HEAD changes upon every "git
-    # fetch".  FETCH_HEAD is only created after the first
-    # fetch, so use HEAD if it's not there
-    fetch_head = os.path.join(dotgit, 'FETCH_HEAD')
-    if os.path.isfile(fetch_head):
-        return fetch_head
-    head = os.path.join(dotgit, 'HEAD')
-    if os.path.isfile(head):
-        return head
-
-
 def ensure_writable_cache_dir():
     """Check cache dir exists and is writeable. Create it if not."""
     base_dir = repo_cache_base()
@@ -177,16 +158,28 @@ class BlueprintCache(object):
         ensure_writable_cache_dir()
         self.source_repo = source_repo
         self.github_token = github_token
-        self.cache_path = get_repo_cache_path(
-            source_repo, github_token=github_token)
-        self._repo = None
 
-    @property
-    def repo(self):
-        """Pointer to this cache's GitRepo instance."""
-        if not self._repo:
-            self._repo = common_git.GitRepo(self.cache_path)
-        return self._repo
+        # source_repo can be:
+        #    github.com/user/repo#<commit_hash>
+        #    github.com/user/repo#<short_commit_hash>
+        #    github.com/user/repo#branch_name
+        #    github.com/user/repo#tag_name
+
+        if "#" in self.source_repo:
+            self.source_url, self.source_ref = self.source_repo.split("#", 1)
+        else:
+            self.source_url = self.source_repo
+            self.source_ref = "master"
+        self._temp_branch = 'temp-%s-branch' % self.source_ref
+        self.remote = self.source_url
+        if self.github_token:
+            self.remote = utils.set_url_creds(
+                self.source_url, username=self.github_token,
+                password='x-oauth-basic')
+
+        self.cache_path = get_repo_cache_path(
+            self.source_repo, github_token=self.github_token)
+        self.repo = None
 
     def delete(self):
         """Delete this cache from disk."""
@@ -194,87 +187,114 @@ class BlueprintCache(object):
 
     def update(self):
         """Cache a blueprint repo or update an existing cache, if necessary."""
-        if "#" in self.source_repo:
-            url, ref = self.source_repo.split("#", 1)
-        else:
-            url = self.source_repo
-            ref = "master"
-        remote = url
-        if self.github_token:
-            remote = utils.set_url_creds(url, username=self.github_token,
-                                         password='x-oauth-basic')
-        head_file = good_cache_exists(self.cache_path)
-        if head_file:
-            return self._update_existing(
-                head_file, url, ref)
-        else:
-            # if a good cache does not exist, blow away the broken cache
-            try:
-                shutil.rmtree(self.cache_path)
-            except OSError as err:
-                if err.errno != errno.ENOENT:
-                    raise
-            return self._create_new_cache(remote, ref)
+        try:
+            self.repo = simpl_git.GitRepo(self.cache_path)
+            return self._update_existing()
+        except simpl_exc.SimplGitNotRepo:
+            LOG.warning("Cached blueprint repo found at %s but it was "
+                        "not a valid git repository. Re-creating.",
+                        self.cache_path)
+            # exists but is not a git repo. start from scratch
+            delete_cache(self.cache_path)
+            return self._create_new_cache()
+        except OSError as err:
+            if err.errno != errno.ENOENT:
+                raise
+            # does not exist at all
+            LOG.debug("Blueprint repo %s does not exist yet. "
+                      "Doing inital clone/create.",
+                      self.cache_path)
+            return self._create_new_cache()
 
-    def _update_existing(self, head_file, remote, ref):
-        """Cache exists, fetch latest (if stale) and perform checkout."""
-        last_update = time.time() - os.path.getmtime(head_file)
-        cache_expire_time = CONFIG.blueprint_cache_expiration
-        LOG.debug("(cache) cache_expire_time: %s", cache_expire_time)
-        LOG.debug("(cache) last_update: %s", last_update)
+    def _update_existing(self):
+        """Fetch and checkout the correct revision."""
+        if not self.repo:
+            raise ValueError(
+                "No existing self.repo (simpl GitRepo) "
+                "attribute set on %s instance." % self)
 
-        if last_update > cache_expire_time:  # Cache miss
-            LOG.info("(cache) Updating repo: %s", self.cache_path)
-            tags = self.repo.list_tags()
-            if ref in tags:
-                refspec = "refs/tags/" + ref + ":refs/tags/" + ref
-                try:
-                    self.repo.fetch(remote=remote, refspec=refspec)
-                    self.repo.checkout('FETCH_HEAD')
-                except cmexc.CheckmateCalledProcessError as exc:
-                    LOG.error("Unable to fetch tag '%s' from the git "
-                              "repository at %s. Using the cached repo."
-                              "The output during error was '%s'",
-                              ref, hide_git_url_password(remote), exc.output)
+        LOG.info("(cache) Updating repo: %s", self.repo)
+        # first see if we can checkout the ref/revision
+        def checkout_ref(ref):
+            self.repo.checkout(ref)
+            if self.repo.current_branch == 'HEAD':
+                # if we are in detached head state...
+                self.repo.branch(self._temp_branch, checkout=True)
+
+        try:
+            checkout_ref(self.source_ref)
+        except simpl_exc.SimplGitCommandError as err:
+            # nothing on-hand matches the ref. go fetch!
+            LOG.info("Could not checkout ref '%s', will fetch objects from "
+                     "%s and try again. Error output was: %s",
+                     self.source_ref, self.source_url, err)
+            self._fetch()
+            # TODO(sam): How do we want to react if the following line fails??
+            checkout_ref(self.source_ref)
+        else:
+            # self.source_ref might be a commit hash !
+            if self.repo.head.startswith(self.source_ref):
+                LOG.info("Blueprint repo source ref '%s' is a commit hash.",
+                         self.source_ref)
+                return
             else:
-                try:
-                    self.repo.fetch(remote=remote, refspec=ref)
-                    self.repo.checkout('FETCH_HEAD')
-                except cmexc.CheckmateCalledProcessError as exc:
-                    LOG.error("Unable to fetch ref '%s' from the git "
-                              "repository at %s. Using the cached "
-                              "repository. The output during error was %s",
-                              ref, hide_git_url_password(remote), exc.output)
-        else:  # Cache hit
-            LOG.info("(cache) Using cached repo: %s", self.cache_path)
+                # verify that the correct revision is now checked out
+                # querying the remote is a better alternative to
+                # having a "TTL" on the blueprint repo
+                revision = self.repo.remote_resolve_reference(
+                    self.source_ref, remote=self.remote)
+                LOG.info("Found revision for ref '%s' --> %s",
+                         self.source_ref, revision)
+                if revision != self.repo.head:
+                    LOG.info("The local revision for ref '%s' does not "
+                             "match the remote revision for the same ref.",
+                             self.source_ref)
+                    self._fetch()
+                    checkout_ref(revision)
+                else:
+                    LOG.info("Current revision for ref '%s' matches remote.",
+                             self.source_ref)
+        LOG.info("Successfully checked out ref '%s' for repo %s",
+                 self.source_ref, self.repo)
 
-    def _create_new_cache(self, remote, ref):
+    def _create_new_cache(self):
         """Create cache directory, init & clone the repository."""
         LOG.info("(cache) Cloning repo to %s", self.cache_path)
 
         with CommitableTemporaryDirectory(dir=repo_cache_base()) as tempdir:
-            repo = common_git.GitRepo(tempdir.name)
             try:
-                repo.clone(remote, branch_or_tag=ref)
-            except cmexc.CheckmateCalledProcessError as exc:
-                LOG.error("Git repository could not be cloned from '%s'. The "
-                          "output during error was '%s'",
-                          hide_git_url_password(remote), exc.output,
-                          exc_info=exc)
+                self.repo = simpl_git.GitRepo.clone(
+                    self.remote, repo_dir=tempdir.name)
+            except simpl_exc.SimplGitCommandError as err:
+                LOG.error("Git repository could not be cloned from '%s'. %s",
+                          hide_git_url_password(self.remote), err,
+                          exc_info=err)
                 raise
-
-            try:
-                tags = repo.list_tags()
-                if ref in tags:
-                    repo.checkout(ref)
-                # the ref *should* already be checked out
-            except cmexc.CheckmateCalledProcessError as exc:
-                LOG.error("Failed to checkout '%s' for git repository %s "
-                          "located at %s. The output during error was '%s'.",
-                          ref, hide_git_url_password(remote),
-                          tempdir.name, exc.output)
-                raise
+            # this will ensure the ref gets checked out
+            self._update_existing()
             tempdir.commit(self.cache_path)
+            # self.repo.repo_dir gets deleted by __exit__
+            # so now we reset the self.repo attribute to point to the
+            # correct directory
+            self.repo.repo_dir = self.cache_path
 
         LOG.info("(cache) Repo %s cloned to cache.",
-                 hide_git_url_password(remote))
+                 hide_git_url_password(self.remote))
+
+    def _fetch(self):
+        """Fetch updates from the remote into the cache."""
+        if not self.repo:
+            raise ValueError(
+                "No existing self.repo (simpl GitRepo) "
+                "attribute set on %s instance." % self)
+        LOG.info("Fetching the latest revisions from remote at %s.",
+                 self.source_url)
+        # need to do both of these fetches on git < 1.9
+        self.repo.fetch(remote=self.remote, tags=False)
+        self.repo.fetch(remote=self.remote, tags=True)
+
+
+
+
+
+
