@@ -206,7 +206,8 @@ class Provider(cmbase.ProviderBase):
             master_service = master_db['satisfied-by']['service']
             master_db_id = None
             for r_id, resource in planner.resources.iteritems():
-                if resource['service'] == master_service:
+                if (resource['service'] == master_service and
+                        resource['component'] == 'mysql_database'):
                     master_db_id = r_id
 
             for template in templates:

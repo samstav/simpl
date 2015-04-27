@@ -246,7 +246,7 @@ class FormatExceptionMiddleware(object):  # pylint: disable=R0903
                 'user': threadlocal.get_context().get('username'),
                 'query': req.query_string,
             }
-            LOG.critical(errmsg, context=context, exc_info=exc_info)
+            LOG.critical(errmsg, extra=context, exc_info=exc_info)
             start_response(bottle_exc.status_line, bottle_exc.headerlist)
             return [response]
 
