@@ -21,21 +21,47 @@ import tempfile
 import unittest
 
 from checkmate import exceptions as cmexc
-from checkmate.common import git as common_git
-from checkmate.providers.opscode.blueprint_cache import BlueprintCache
-from checkmate.providers.opscode.blueprint_cache import \
-    CommitableTemporaryDirectory
+from checkmate.providers.opscode import blueprint_cache as bpc_mod
 
 
-class TestUpdate(unittest.TestCase):
+class TestBlueprintCache(unittest.TestCase):
+
+    """Patches the repo cache into a temporary directory."""
+
+    repo_cache_base = os.path.join(
+        tempfile.gettempdir(), 'checkmate-test-blueprint-cache')
+
+    @classmethod
+    def setUpClass(cls):
+        cls.patch_repo_cache_base()
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            shutil.rmtree(cls.repo_cache_base)
+        except OSError as err:
+            if err.errno != errno.ENOENT:
+                raise
+
+    @classmethod
+    def patch_repo_cache_base(self):
+        # patch repo_cache_base to avoid
+        # OSError: [Errno 13] Permission denied: '/var/local'
+        bpc_mod.repo_cache_base = lambda: self.repo_cache_base
+
+
+class TestUpdateBPC(TestBlueprintCache):
+
     def setUp(self):
+        super(TestUpdateBPC, self).setUp()
         self.source_repo = "https://foo.com/checkmate/wordpress.git"
+        self.cache = bpc_mod.BlueprintCache(self.source_repo)
 
     def test_cache_creation_succeeds(self):
         temp_base_dir = tempfile.gettempdir()
         target_dir_name = next(tempfile._get_candidate_names())
         target_dir_path = os.path.join(temp_base_dir, target_dir_name)
-        with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
+        with bpc_mod.CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
             with open(os.path.join(tdc.name, 'foo.txt'), 'w') as handle:
                 handle.write("Hi!")
             tdc.commit(target_dir_path)
@@ -50,10 +76,11 @@ class TestUpdate(unittest.TestCase):
         temp_base_dir = tempfile.gettempdir()
         target_dir_name = next(tempfile._get_candidate_names())
         target_dir_path = os.path.join(temp_base_dir, target_dir_name)
-        with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
+        with bpc_mod.CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
             with open(os.path.join(tdc.name, 'foo.txt'), 'w') as handle:
                 handle.write("Hi!")
-            with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc2:
+            with bpc_mod.CommitableTemporaryDirectory(
+                    dir=temp_base_dir) as tdc2:
                 with open(os.path.join(tdc2.name, 'foo.txt'), 'w') as handle2:
                     handle2.write("Not Hi!!!!")
                 tdc2.commit(target_dir_path)
@@ -64,10 +91,11 @@ class TestUpdate(unittest.TestCase):
         temp_base_dir = tempfile.gettempdir()
         target_dir_name = next(tempfile._get_candidate_names())
         target_dir_path = os.path.join(temp_base_dir, target_dir_name)
-        with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
+        with bpc_mod.CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
             with open(os.path.join(tdc.name, 'foo.txt'), 'w') as handle:
                 handle.write("Hi!")
-            with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc2:
+            with bpc_mod.CommitableTemporaryDirectory(
+                    dir=temp_base_dir) as tdc2:
                 with open(os.path.join(tdc2.name, 'foo.txt'), 'w') as handle2:
                     handle2.write("Hi!")
                 tdc2.commit(target_dir_path)
