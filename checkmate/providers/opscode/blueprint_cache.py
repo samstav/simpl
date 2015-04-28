@@ -20,7 +20,6 @@ import logging
 import os
 import shutil
 import sys
-import time
 
 from simpl import git as simpl_git
 from simpl import exceptions as simpl_exc
@@ -214,7 +213,7 @@ class BlueprintCache(object):
                 "attribute set on %s instance." % self)
 
         LOG.info("(cache) Updating repo: %s", self.repo)
-        # first see if we can checkout the ref/revision
+
         def checkout_ref(ref):
             self.repo.checkout(ref)
             if self.repo.current_branch == 'HEAD':
@@ -222,6 +221,7 @@ class BlueprintCache(object):
                 self.repo.branch(self._temp_branch, checkout=True)
 
         try:
+            # first see if we can checkout the ref/revision
             checkout_ref(self.source_ref)
         except simpl_exc.SimplGitCommandError as err:
             # nothing on-hand matches the ref. go fetch!
@@ -230,7 +230,17 @@ class BlueprintCache(object):
                      self.source_ref, self.source_url, err)
             self._fetch()
             # TODO(sam): How do we want to react if the following line fails??
-            checkout_ref(self.source_ref)
+            try:
+                checkout_ref(self.source_ref)
+            except simpl_exc.SimplGitCommandError as err:
+                error = ("Invalid ref '%s' for repo. The ref must be "
+                         "a tag, branch, or commit hash known to %s."
+                         % (self.source_ref, self.source_url))
+                LOG.error('%s | %r', error, err, exc_info=1)
+                # NOTE: you could even get valid suggestions by calling
+                #     self.repo.list_refs().keys()
+                raise cmexc.CheckmateInvalidRepoUrl(
+                    message=repr(err), friendly_message=error)
         else:
             # self.source_ref might be a commit hash !
             if self.repo.head.startswith(self.source_ref):
@@ -241,8 +251,30 @@ class BlueprintCache(object):
                 # verify that the correct revision is now checked out
                 # querying the remote is a better alternative to
                 # having a "TTL" on the blueprint repo
-                revision = self.repo.remote_resolve_reference(
-                    self.source_ref, remote=self.remote)
+
+                # NOTE: If we are to have any "continue anyway" logic,
+                # it will be right here. For example, a deployment is
+                # created from a repo_url while it exists or is public,
+                # then the owner deletes it from github or makes it private.
+                # We still have a copy of the repo here, so should we use it?
+                # In that circumstance, the following will throw an exception
+                # because ls-remote will return
+                # "Could not read from the remote repository"
+                # TODO(sam): determine what, if any, fallback behavior we
+                # want built in here**
+                try:
+                    revision = self.repo.remote_resolve_reference(
+                        self.source_ref, remote=self.remote)
+                except simpl_exc.SimplGitCommandError as err:
+                    # TODO(sam): **Should we just continue w/ what we have?
+                    #              (probably not)
+                    error = ("Could not access a repo previously "
+                             "cloned from %s"
+                             % hide_git_url_password(self.remote))
+                    LOG.error('%s | %r', error, err, exc_info=1)
+                    raise cmexc.CheckmateInvalidRepoUrl(
+                        message=repr(err), friendly_message=error)
+
                 LOG.info("Found revision for ref '%s' --> %s",
                          self.source_ref, revision)
                 if revision != self.repo.head:
@@ -266,10 +298,11 @@ class BlueprintCache(object):
                 self.repo = simpl_git.GitRepo.clone(
                     self.remote, repo_dir=tempdir.name)
             except simpl_exc.SimplGitCommandError as err:
-                LOG.error("Git repository could not be cloned from '%s'. %s",
-                          hide_git_url_password(self.remote), err,
-                          exc_info=err)
-                raise
+                error = ("Git repository could not be cloned from '%s'."
+                         % hide_git_url_password(self.remote))
+                LOG.error('%s | %r', error, err, exc_info=1)
+                raise cmexc.CheckmateInvalidRepoUrl(
+                    message=repr(err), friendly_message=error)
             # this will ensure the ref gets checked out
             self._update_existing()
             tempdir.commit(self.cache_path)
@@ -292,9 +325,3 @@ class BlueprintCache(object):
         # need to do both of these fetches on git < 1.9
         self.repo.fetch(remote=self.remote, tags=False)
         self.repo.fetch(remote=self.remote, tags=True)
-
-
-
-
-
-
