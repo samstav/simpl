@@ -100,11 +100,6 @@ knife.rb file should be in there.
 If not specified, 10.12.0-1 is used. This can also be overridden by a constraint
 in a deployment.
 
-**CHECKMATE_BLUEPRINT_CACHE_EXPIRE**: the number of seconds before the
-blueprint cache expires.  When the cache is expired, there will be an attempt to
-update the blueprint repository via a "git pull".  If the git host is down, the
-expired cache will be used.  All of this logic happens at deployment time.
-
 **CHECKMATE_BROKER_USERNAME**: the username to use to connect to the message
 queue
 
