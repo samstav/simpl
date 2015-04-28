@@ -261,11 +261,6 @@ OPTIONS = [
                   type=config.comma_separated_pairs,
                   default=None
                   ),
-    config.Option("--blueprint-cache-expiration",
-                  env="CHECKMATE_BLUEPRINT_CACHE_EXPIRE",
-                  type=int,
-                  default=3600,
-                  ),
 
     #
     # Anonymous Blueprints

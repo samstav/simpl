@@ -16,168 +16,51 @@
 
 import errno
 import os
+import shutil
 import tempfile
-import time
 
 import mock
+import simpl
 import unittest
 
 from checkmate import exceptions as cmexc
-from checkmate.common import git as common_git
-from checkmate.providers.opscode.blueprint_cache import BlueprintCache
-from checkmate.providers.opscode.blueprint_cache import \
-    CommitableTemporaryDirectory
+from checkmate.providers.opscode import blueprint_cache as bpc_mod
 
 
-class TestUpdate(unittest.TestCase):
+class TestBlueprintCache(unittest.TestCase):
+
+    """Patches the repo cache into a temporary directory."""
+
+    repo_cache_base = os.path.join(
+        tempfile.gettempdir(), 'checkmate-test-blueprint-cache')
+
     def setUp(self):
+        self.repo_cache_base_patcher = mock.patch.object(
+            bpc_mod, 'repo_cache_base')
+        repo_cache_base_mock = self.repo_cache_base_patcher.start()
+        repo_cache_base_mock.return_value = self.repo_cache_base
+
+    def tearDown(self):
+        self.repo_cache_base_patcher.stop()
+        try:
+            shutil.rmtree(self.repo_cache_base)
+        except OSError as err:
+            if err.errno != errno.ENOENT:
+                raise
+
+
+class TestUpdateBPC(TestBlueprintCache):
+
+    def setUp(self):
+        super(TestUpdateBPC, self).setUp()
         self.source_repo = "https://foo.com/checkmate/wordpress.git"
-        self.cache = BlueprintCache(self.source_repo)
-
-    @unittest.skip("TODO(zns): I doubt this test's usefulness")
-    @mock.patch('checkmate.common.git.git_checkout')
-    @mock.patch('checkmate.common.git.git_list_tags')
-    @mock.patch('checkmate.common.git.git_clone')
-    @mock.patch('os.makedirs')
-    @mock.patch('os.path.exists')
-    @mock.patch('os.listdir')
-    def test_non_existing_cache(self, mock_listdir, mock_path_exists,
-                                mock_make_dirs, mock_clone, mock_tags,
-                                mock_checkout):
-        mock_listdir.return_value = []
-        mock_path_exists.return_value = False
-        mock_tags.return_value = ['master', 'working']
-
-        self.cache.update()
-
-        mock_path_exists.assert_called_with(self.cache.cache_path)
-        mock_make_dirs.assert_called_with(
-            os.path.dirname(self.cache.cache_path), 0o770)
-        mock_clone.assert_called_with(
-            self.cache.cache_path, self.source_repo,
-            branch_or_tag='master', verbose=False)
-        mock_tags.assert_called_once_with(self.cache.cache_path,
-                                          with_messages=False)
-        mock_checkout.assert_called_with(self.cache.cache_path, 'master')
-
-    @unittest.skip("TODO(zns): I doubt this test's usefulness")
-    @mock.patch.object(common_git.GitRepo, '__init__')
-    @mock.patch('checkmate.common.git.git_clone')
-    @mock.patch('os.makedirs')
-    @mock.patch('os.rmdir')
-    @mock.patch('os.path.exists')
-    @mock.patch('os.listdir')
-    def test_non_existing_cache_exc_handling(self, mock_listdir,
-                                             mock_path_exists, mock_rm,
-                                             mock_make_dirs, mock_clone,
-                                             mock_repo_init):
-        mock_listdir.return_value = []
-        mock_repo_init.return_value = None
-        self.cache.repo.repo_dir = self.cache.cache_path
-        mock_path_exists.return_value = False
-        mock_clone.side_effect = cmexc.CheckmateCalledProcessError(1, "cmd")
-
-        self.assertRaises(cmexc.CheckmateCalledProcessError, self.cache.update)
-
-        mock_path_exists.assert_called()
-        mock_make_dirs.assert_called_once()
-        mock_clone.assert_called_once_with(mock.ANY,
-                                           self.source_repo,
-                                           branch_or_tag='master',
-                                           verbose=False)
-
-    @mock.patch('os.environ.get')
-    @mock.patch('os.path.getmtime')
-    @mock.patch('time.time')
-    @mock.patch('os.path.isfile')
-    @mock.patch('os.path.exists')
-    def test_cache_hit(self, mock_path_exists, mock_is_file, mock_time,
-                       mock_mtime, mock_environ_get):
-        head_file_path = "%s/.git/FETCH_HEAD" % self.cache.cache_path
-        mock_path_exists.return_value = True
-        mock_is_file.return_value = True
-        mock_time.return_value = 100
-        mock_mtime.return_value = 50
-        mock_environ_get.return_value = None
-
-        self.cache.update()
-
-        mock_path_exists.assert_any_call(self.cache.cache_path)
-        mock_is_file.assert_called_once_with(head_file_path)
-        self.assertTrue(time.time.called)
-        mock_mtime.assert_called_once_with(head_file_path)
-
-    @unittest.skip("TODO(zns): works in python, fails in nose")
-    @mock.patch('checkmate.common.git.git_checkout')
-    @mock.patch('checkmate.common.git.git_list_tags')
-    @mock.patch('checkmate.common.git.git_fetch')
-    @mock.patch('os.path.getmtime')
-    @mock.patch('time.time')
-    @mock.patch('os.path.isfile')
-    @mock.patch('os.path.exists')
-    def test_cache_miss_for_default_branch(self, mock_path_exists,
-                                           mock_is_file, mock_time,
-                                           mock_mtime, mock_fetch, mock_tags,
-                                           mock_checkout):
-        head_file_path = "%s/.git/FETCH_HEAD" % self.cache.cache_path
-        mock_path_exists.return_value = True
-        mock_is_file.return_value = True
-        mock_time.return_value = 4000
-        mock_mtime.return_value = 50
-        mock_tags.return_value = ['master']
-
-        self.cache.update()
-
-        mock_path_exists.assert_any_call(self.cache.cache_path)
-        mock_is_file.assert_called_once_with(head_file_path)
-        self.assertTrue(time.time.called)
-        mock_mtime.assert_called_once_with(head_file_path)
-        mock_tags.assert_called_once_with(
-            os.path.normpath(self.cache.cache_path), with_messages=False)
-        mock_fetch.assert_called_once_with(
-            self.cache.cache_path, remote=self.source_repo,
-            refspec="refs/tags/master:refs/tags/master",
-            verbose=False)
-        mock_checkout.assert_called_once_with(self.cache.cache_path,
-                                              'FETCH_HEAD')
-
-    @unittest.skip("TODO(zns): works in python, fails in nose")
-    @mock.patch('checkmate.common.git.git_list_tags')
-    @mock.patch('checkmate.common.git.git_fetch')
-    @mock.patch('checkmate.common.git.git_checkout')
-    @mock.patch('os.path.getmtime')
-    @mock.patch('time.time')
-    @mock.patch('os.path.isfile')
-    @mock.patch('os.path.exists')
-    def test_cache_miss_for_missing_tag(self, mock_path_exists,
-                                        mock_is_file, mock_time, mock_mtime,
-                                        mock_checkout, mock_fetch, mock_tags):
-        head_file_path = "%s/.git/FETCH_HEAD" % self.cache.cache_path
-        mock_path_exists.return_value = True
-        mock_is_file.return_value = True
-        mock_time.return_value = 4000
-        mock_mtime.return_value = 50
-        mock_tags.return_value = []
-
-        self.cache.update()
-
-        mock_path_exists.assert_any_call(self.cache.cache_path)
-        mock_is_file.assert_called_once_with(head_file_path)
-        self.assertTrue(time.time.called)
-        mock_mtime.assert_called_once_with(head_file_path)
-        mock_tags.assert_called_once_with(
-            os.path.normpath(self.cache.cache_path), with_messages=False)
-        mock_fetch.assert_called_once_with(
-            self.cache.cache_path, remote=self.source_repo,
-            verbose=False, refspec="master")
-        mock_checkout.assert_called_once_with(self.cache.cache_path,
-                                              'FETCH_HEAD')
+        self.cache = bpc_mod.BlueprintCache(self.source_repo)
 
     def test_cache_creation_succeeds(self):
         temp_base_dir = tempfile.gettempdir()
         target_dir_name = next(tempfile._get_candidate_names())
         target_dir_path = os.path.join(temp_base_dir, target_dir_name)
-        with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
+        with bpc_mod.CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
             with open(os.path.join(tdc.name, 'foo.txt'), 'w') as handle:
                 handle.write("Hi!")
             tdc.commit(target_dir_path)
@@ -192,10 +75,11 @@ class TestUpdate(unittest.TestCase):
         temp_base_dir = tempfile.gettempdir()
         target_dir_name = next(tempfile._get_candidate_names())
         target_dir_path = os.path.join(temp_base_dir, target_dir_name)
-        with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
+        with bpc_mod.CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
             with open(os.path.join(tdc.name, 'foo.txt'), 'w') as handle:
                 handle.write("Hi!")
-            with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc2:
+            with bpc_mod.CommitableTemporaryDirectory(
+                    dir=temp_base_dir) as tdc2:
                 with open(os.path.join(tdc2.name, 'foo.txt'), 'w') as handle2:
                     handle2.write("Not Hi!!!!")
                 tdc2.commit(target_dir_path)
@@ -206,17 +90,174 @@ class TestUpdate(unittest.TestCase):
         temp_base_dir = tempfile.gettempdir()
         target_dir_name = next(tempfile._get_candidate_names())
         target_dir_path = os.path.join(temp_base_dir, target_dir_name)
-        with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
+        with bpc_mod.CommitableTemporaryDirectory(dir=temp_base_dir) as tdc:
             with open(os.path.join(tdc.name, 'foo.txt'), 'w') as handle:
                 handle.write("Hi!")
-            with CommitableTemporaryDirectory(dir=temp_base_dir) as tdc2:
+            with bpc_mod.CommitableTemporaryDirectory(
+                    dir=temp_base_dir) as tdc2:
                 with open(os.path.join(tdc2.name, 'foo.txt'), 'w') as handle2:
                     handle2.write("Hi!")
                 tdc2.commit(target_dir_path)
             tdc.commit(target_dir_path)  # Should not fail
 
 
+TEST_GIT_USERNAME = 'checkmate_blueprint_cache_test_user'
+
+
+def _configure_test_user(gitrepo):
+
+    email = '%s@%s.test' % (TEST_GIT_USERNAME, TEST_GIT_USERNAME)
+    gitrepo.run_command('git config --local user.name %s' % TEST_GIT_USERNAME)
+    gitrepo.run_command('git config --local user.email %s' % email)
+
+
+class TestBPCRefs(TestBlueprintCache):
+
+    def setUp(self):
+        super(TestBPCRefs, self).setUp()
+        self.remote = simpl.git.GitRepo.init(temp=True)
+        _configure_test_user(self.remote)
+        self.remote.commit(message='Initial commit')
+        self.initial_revision = self.remote.head
+
+    def test_defaults_to_master_ref(self):
+        source_repo = self.remote.repo_dir
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        self.assertTrue(bpc.source_ref == 'master')
+
+    def test_ref_can_be_tag(self):
+        self.remote.commit(message='tag this commit')
+        tag = 'whatatag'
+        tagged_revision = self.remote.head
+        self.remote.tag(tag)
+        self.remote.run_command(
+            ['git', 'reset', '--hard', self.initial_revision])
+        source_repo = '%s#%s' % (self.remote.repo_dir, tag)
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        bpc.update()
+        # this assertion is to prove we aren't "just getting lucky"
+        self.assertNotEqual(bpc.repo.head, self.remote.head)
+        self.assertEqual(bpc.repo.head, tagged_revision)
+
+    def test_ref_can_be_branch(self):
+        self.remote.commit(message='branch from this commit')
+        branch = 'whatabranch'
+        branched_revision = self.remote.head
+        self.remote.branch(branch)
+        self.remote.run_command(
+            ['git', 'reset', '--hard', self.initial_revision])
+        source_repo = '%s#%s' % (self.remote.repo_dir, branch)
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        bpc.update()
+        # this assertion is to prove we aren't "just getting lucky"
+        self.assertNotEqual(bpc.repo.head, self.remote.head)
+        self.assertEqual(bpc.repo.head, branched_revision)
+
+    def test_ref_can_be_commit_hash(self):
+        self.remote.commit(message='reference this commit')
+        committed_revision = self.remote.head
+        self.remote.run_command(
+            ['git', 'reset', '--hard', self.initial_revision])
+        source_repo = '%s#%s' % (self.remote.repo_dir, committed_revision)
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        bpc.update()
+        # this assertion is to prove we aren't "just getting lucky"
+        self.assertNotEqual(bpc.repo.head, self.remote.head)
+        self.assertEqual(bpc.repo.head, committed_revision)
+
+    def test_ref_can_be_short_commit_hash(self):
+        self.remote.commit(message='reference this commit')
+        short_committed_revision = self.remote.head[:8]
+        self.remote.run_command(
+            ['git', 'reset', '--hard', self.initial_revision])
+        source_repo = '%s#%s' % (
+            self.remote.repo_dir, short_committed_revision)
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        bpc.update()
+        # this assertion is to prove we aren't "just getting lucky"
+        self.assertNotEqual(bpc.repo.head, self.remote.head)
+        self.assertTrue(bpc.repo.head.startswith(short_committed_revision))
+
+    def test_tag_ref_gets_updated_on_remote(self):
+        tag = 'whatatag'
+        self.remote.tag(tag)
+        source_repo = '%s#%s' % (self.remote.repo_dir, tag)
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        bpc.update()
+        self.remote.commit(message='re-tag this commit')
+        desired_revision = self.remote.head
+        self.remote.tag(tag)
+        # assert that we *need* to update
+        self.assertNotEqual(bpc.repo.head, desired_revision)
+        bpc.update()
+        # assert that calling update() fixed our clone
+        self.assertEqual(bpc.repo.head, desired_revision)
+
+    def test_branch_ref_gets_updated_on_remote(self):
+        branch = 'whatabranch'
+        self.remote.branch(branch)
+        source_repo = '%s#%s' % (self.remote.repo_dir, branch)
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        bpc.update()
+        self.remote.commit(message='re-branch this commit')
+        desired_revision = self.remote.head
+        # this will overwrite the 'whatabranch' branch
+        self.remote.branch(branch)
+        # assert that we *need* to update
+        self.assertNotEqual(bpc.repo.head, desired_revision)
+        bpc.update()
+        # assert that calling update() fixed our clone
+        self.assertEqual(bpc.repo.head, desired_revision)
+
+    def test_bad_person_uses_same_name_gets_tag(self):
+        """Prefer tags to branches."""
+        tag_and_branch = 'spam'
+        self.remote.commit(message='tag me')
+        self.remote.tag(tag_and_branch)
+        tagged_revision = self.remote.head
+        self.remote.commit(message='branch me')
+        self.remote.branch(tag_and_branch)
+        source_repo = '%s#%s' % (self.remote.repo_dir, tag_and_branch)
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        bpc.update()
+        self.assertEqual(bpc.repo.head, tagged_revision)
+
+    def test_no_such_ref(self):
+        self.remote.tag('realness')
+        source_repo = '%s#%s' % (self.remote.repo_dir, 'wat')
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        with self.assertRaises(cmexc.CheckmateInvalidRepoUrl) as cntxt:
+            bpc.update()
+        friendly = ("Invalid ref 'wat' for repo. The ref must be a tag, "
+                    "branch, or commit hash known to %s."
+                    % self.remote.repo_dir)
+        self.assertEqual(friendly, cntxt.exception.friendly_message)
+
+    def test_no_such_repo(self):
+        source_repo = '%s' % 'i/dont/exist'
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        with self.assertRaises(cmexc.CheckmateInvalidRepoUrl) as cntxt:
+            bpc.update()
+        friendly = "Git repository could not be cloned from 'i/dont/exist'."
+        self.assertEqual(friendly, cntxt.exception.friendly_message)
+
+    def test_has_been_deleted_or_made_private_since_clone(self):
+        source_repo = self.remote.repo_dir
+        bpc = bpc_mod.BlueprintCache(source_repo)
+        bpc.update()
+        # this should be equivalent to a repo going private
+        shutil.rmtree(self.remote.repo_dir)
+        with self.assertRaises(cmexc.CheckmateInvalidRepoUrl) as cntxt:
+            bpc.update()
+        friendly = ('Could not access a repo previously cloned from %s'
+                    % self.remote.repo_dir)
+        self.assertEqual(friendly, cntxt.exception.friendly_message)
+
+
 if __name__ == '__main__':
+
     import sys
+
     from checkmate import test as cmtest
+
     cmtest.run_with_params(sys.argv[:])

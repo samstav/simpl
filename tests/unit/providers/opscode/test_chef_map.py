@@ -16,180 +16,125 @@
 
 """Tests for ChefMap."""
 
-import hashlib
+import errno
 import logging
 import os
 import shutil
+import tempfile
 import unittest
 
-import mox
+import mock
+import simpl
 
-from checkmate.common import git as common_git
 from checkmate.contrib import urlparse
-from checkmate.providers.opscode import blueprint_cache
+from checkmate.providers.opscode import blueprint_cache as bpc_mod
 from checkmate.providers.opscode import chef_map
 from checkmate import test
 from checkmate import utils
 
 LOG = logging.getLogger(__name__)
+TEST_GIT_USERNAME = 'checkmate_blueprint_cache_test_user'
+
+
+def _configure_test_user(gitrepo):
+
+    email = '%s@%s.test' % (TEST_GIT_USERNAME, TEST_GIT_USERNAME)
+    gitrepo.run_command('git config --local user.name %s' % TEST_GIT_USERNAME)
+    gitrepo.run_command('git config --local user.email %s' % email)
 
 
 class TestChefMap(unittest.TestCase):
-    def setUp(self):
-        self.mox = mox.Mox()
-        blueprint_cache.CONFIG = self.mox.CreateMockAnything()
-        blueprint_cache.CONFIG.cache_dir = '/tmp/checkmate-chefmap'
-        self.local_path = '/tmp/checkmate-chefmap'
-        self.url = 'https://github.com/checkmate/app.git'
-        self.cache_path = self.local_path + "/cache/blueprints/" + \
-            hashlib.md5(self.url).hexdigest()
-        self.fetch_head_path = os.path.join(self.cache_path, ".git",
-                                            "FETCH_HEAD")
-        self.chef_map_path = os.path.join(self.cache_path, "Chefmap")
 
-        # Clean up from previous failed run
-        if os.path.exists(self.local_path):
-            shutil.rmtree(self.local_path)
-            LOG.info("Removed '%s'", self.local_path)
+    def update_fake_remote_chefmap(self):
+        """Helper method to mock update_map."""
+        chefmap = os.path.join(
+            self.github_checkmate_app_repo.repo_dir, 'Chefmap')
+        with open(chefmap, 'a') as the_file:
+            the_file.write("new information")
+        self.github_checkmate_app_repo.commit(
+            message='updated chefmap with new information')
+
+    def setup_fake_remote_repo(self):
+
+        # we will mock clones from github.com/checkmate/app to this fake
+        # see def proxy_clone_mock() below
+        self.github_checkmate_app_repo = simpl.git.GitRepo.init(temp=True)
+        _configure_test_user(self.github_checkmate_app_repo)
+        self.github_checkmate_app_repo.commit(message='Initial commit')
+        chef_map_path = os.path.join(
+            self.github_checkmate_app_repo.repo_dir, "Chefmap")
+        with open(chef_map_path, 'w') as the_file:
+            the_file.write(TEMPLATE)
+        self.github_checkmate_app_repo.commit(message='add chefmap')
+
+    def setUp(self):
+        self.local_path = os.path.join(
+            tempfile.gettempdir(), 'checkmate-test-chefmap-cache-dir',
+            'blueprint-repos')
+        self.repo_cache_base_patcher = mock.patch.object(
+            bpc_mod, 'repo_cache_base')
+        self.repo_cache_base_mock = self.repo_cache_base_patcher.start()
+        self.repo_cache_base_mock.return_value = self.local_path
+
+        self.url = 'https://github.com/checkmate/app.git'
+        self.cache_path = bpc_mod.get_repo_cache_path(self.url)
+
+        self.setup_fake_remote_repo()
+
+        def proxy_clone_mock(target_dir, repo_location,
+                             branch_or_tag=None, verbose=False):
+            original_clone = self.mock_clone_patcher.temp_original
+            if repo_location == self.url:
+                # self.url --> self.github_checkmate_app_repo (GitRepo)
+                repo_location = self.github_checkmate_app_repo.repo_dir
+            result = original_clone(target_dir, repo_location,
+                                    branch_or_tag=branch_or_tag,
+                                    verbose=verbose)
+            _configure_test_user(simpl.git.GitRepo(target_dir))
+            return result
+
+        def proxy_ls_remote_mock(repo_dir, remote='origin', refs=None):
+            original_ls_remote = self.mock_ls_remote_patcher.temp_original
+            if remote == self.url:
+                # self.url --> self.github_checkmate_app_repo (GitRepo)
+                remote = self.github_checkmate_app_repo.repo_dir
+            return original_ls_remote(repo_dir, remote=remote, refs=refs)
+
+        self.mock_clone_patcher = mock.patch.object(
+            bpc_mod.simpl_git, 'git_clone')
+        self.mock_clone = self.mock_clone_patcher.start()
+        self.mock_clone.side_effect = proxy_clone_mock
+
+        self.mock_ls_remote_patcher = mock.patch.object(
+            bpc_mod.simpl_git, 'git_ls_remote')
+        self.mock_ls_remote = self.mock_ls_remote_patcher.start()
+        self.mock_ls_remote.side_effect = proxy_ls_remote_mock
 
     def tearDown(self):
-        self.mox.UnsetStubs()
-        if os.path.exists(self.local_path):
-            shutil.rmtree('/tmp/checkmate-chefmap')
+        self.repo_cache_base_patcher.stop()
+        self.mock_clone_patcher.stop()
+        self.mock_ls_remote_patcher.stop()
+        try:
+            shutil.rmtree(self.local_path)
+        except OSError as err:
+            if err.errno != errno.ENOENT:
+                raise
 
-    def test_get_map_file_hit_cache(self):
+    def test_get_map_file_gets_update(self):
 
-        def fake_clone(repo_dir, location, branch_or_tag=None, verbose=False):
-            """Helper method to fake a git clone."""
-            git_path = os.path.join(repo_dir, ".git")
-            os.makedirs(git_path)
-            fetch_head_path = os.path.join(git_path, "FETCH_HEAD")
-            chef_map_path = os.path.join(repo_dir, "Chefmap")
-
-            with file(fetch_head_path, 'a'):
-                os.utime(fetch_head_path, None)
-            with open(chef_map_path, 'w') as the_file:
-                the_file.write(TEMPLATE)
-
-        # Make sure cache_expire_time is set to something that
-        # shouldn't cause a cache miss
         chefmap = chef_map.ChefMap()
-        os.environ["CHECKMATE_BLUEPRINT_CACHE_EXPIRE"] = "3600"
-
         chefmap.url = self.url
-
-        def update_map(repo_dir=None, head=None, branch_or_tag='master',
-                       verbose=False):
-            """Helper method to mock update_map."""
-            chef_map_path = os.path.join(repo_dir, "Chefmap")
-            with open(chef_map_path, 'a') as the_file:
-                the_file.write("new information")
-
-        self.mox.StubOutWithMock(common_git, 'git_clone')
-        common_git.git_clone(
-            mox.IgnoreArg(), mox.IgnoreArg(), branch_or_tag='master',
-            verbose=False).WithSideEffects(fake_clone)
-        self.mox.StubOutWithMock(common_git, 'git_list_tags')
-        common_git.git_list_tags(
-            mox.IgnoreArg(), with_messages=False).AndReturn(['master'])
-        self.mox.StubOutWithMock(common_git, 'git_checkout')
-        common_git.git_checkout(
-            mox.IgnoreArg(), mox.IgnoreArg()).WithSideEffects(update_map)
-
-        self.mox.ReplayAll()
+        self.update_fake_remote_chefmap()
         map_file = chefmap.get_map_file()
         self.assertEqual(map_file, TEMPLATE + 'new information')
 
-    def test_get_map_file_miss_cache(self):
-
-        def fake_clone(repo_dir, location, branch_or_tag=None, verbose=False):
-            """Helper method to fake a git clone."""
-            git_path = os.path.join(repo_dir, ".git")
-            os.makedirs(git_path)
-            fetch_head_path = os.path.join(git_path, "FETCH_HEAD")
-            chef_map_path = os.path.join(repo_dir, "Chefmap")
-
-            with file(fetch_head_path, 'a'):
-                os.utime(fetch_head_path, None)
-            with open(chef_map_path, 'w') as the_file:
-                the_file.write(TEMPLATE)
-
-        # Make sure the expire time is set to something that WILL
-        # cause a cache miss
-        blueprint_cache.CONFIG.blueprint_cache_expiration = 0
-
-        def update_map(repo_dir=None, head=None, branch_or_tag=None,
-                       verbose=False):
-            """Helper method to fake an update."""
-            chef_map_path = os.path.join(repo_dir, "Chefmap")
-            with open(chef_map_path, 'a') as the_file:
-                the_file.write("new information")
-
-        self.mox.StubOutWithMock(common_git, 'git_clone')
-        common_git.git_clone(
-            mox.IgnoreArg(), mox.IgnoreArg(), branch_or_tag='master',
-            verbose=False).WithSideEffects(fake_clone)
-        self.mox.StubOutWithMock(common_git, 'git_list_tags')
-        common_git.git_list_tags(
-            mox.IgnoreArg(), with_messages=False).AndReturn(['master'])
-        self.mox.StubOutWithMock(common_git, 'git_fetch')
-        self.mox.StubOutWithMock(common_git, 'git_checkout')
-        common_git.git_checkout(
-            mox.IgnoreArg(), mox.IgnoreArg()).WithSideEffects(update_map)
-
-        self.mox.ReplayAll()
-        chefmap = chef_map.ChefMap()
-        chefmap.url = self.url
-        map_file = chefmap.get_map_file()
-
-        self.assertNotEqual(map_file, TEMPLATE)
-        self.mox.VerifyAll()
-        self.mox.UnsetStubs()
-
-    def test_get_map_file_no_cache(self):
-        chefmap = chef_map.ChefMap()
-
-        def fake_clone(repo_dir, location, branch_or_tag=None, verbose=False):
-            """Helper method to fake a git clone."""
-            git_path = os.path.join(repo_dir, ".git")
-            os.makedirs(git_path)
-            fetch_head_path = os.path.join(git_path, "FETCH_HEAD")
-            chef_map_path = os.path.join(repo_dir, "Chefmap")
-
-            with file(fetch_head_path, 'a'):
-                os.utime(fetch_head_path, None)
-            with open(chef_map_path, 'w') as the_file:
-                the_file.write(TEMPLATE)
-
-        self.mox.StubOutWithMock(common_git, 'git_clone')
-        common_git.git_clone(
-            mox.IgnoreArg(), mox.IgnoreArg(), branch_or_tag=mox.IgnoreArg(),
-            verbose=False).WithSideEffects(fake_clone)
-        self.mox.StubOutWithMock(common_git, 'git_list_tags')
-        common_git.git_list_tags(
-            mox.IgnoreArg(), with_messages=False).AndReturn(['master'])
-        self.mox.StubOutWithMock(common_git, 'git_checkout')
-        common_git.git_checkout(mox.IgnoreArg(), mox.IgnoreArg())
-        self.mox.ReplayAll()
-
-        chefmap.url = self.url
-        map_file = chefmap.get_map_file()
-
-        self.assertEqual(map_file, TEMPLATE)
-        self.mox.VerifyAll()
-
     def test_get_map_file_local(self):
-        blueprint = os.path.join(self.local_path, "blueprint")
-        os.makedirs(blueprint)
 
-        # Create a dummy Chefmap
-        with file(os.path.join(blueprint, "Chefmap"), 'a') as the_file:
-            the_file.write(TEMPLATE)
-
+        # just use existing self.github_checkmate_app_repo
+        blueprint = self.github_checkmate_app_repo.repo_dir
         url = "file://" + blueprint
         chefmap = chef_map.ChefMap(url=url)
         map_file = chefmap.get_map_file()
-
         self.assertEqual(map_file, TEMPLATE)
 
     def test_map_uri_parser(self):
