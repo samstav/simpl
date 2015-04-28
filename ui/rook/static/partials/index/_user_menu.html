@@ -6,8 +6,7 @@
     <!-- NOT LOGGED IN -->
     <li class="pull-right big-icon"
         ng-hide="!clientId"
-        ng-cloak
-        ng-class="{'active': github.currentUser.login}">
+        ng-cloak>
       <a ng-href="#"
          ng-click="github.go_auth()"
          title="{{ clientId && github.config.accessToken ? 'Github.com: ' + github.currentUser.login : 'Link your Github.com account.'}}">
