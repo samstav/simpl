@@ -36,6 +36,14 @@ python setup.py develop
 
 echo "source /vagrant/.checkmate_env" >> $HOME/.bashrc
 
+# Set motd to help with starting the checkmate server
+echo '\n
+STARTING CHECKMATE SERVER:\n
+  cd /workspace
+  workon checkmate  # activate checkmate virtulenv
+  bin/checkmate-server START --with-admin --worker --eventlet --with-ui --with-simulator 0.0.0.0:8080
+\n\n' | sudo tee /etc/motd
+
 SCRIPT
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
