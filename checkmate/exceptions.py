@@ -164,6 +164,18 @@ class CheckmateNoData(CheckmateException):
         return self._friendly_message or self._message or "No data found"
 
 
+class CheckmateInvalidRepoUrl(CheckmateException):
+
+    """The blueprint repo url is invalid."""
+
+    http_status = 400
+
+    @property
+    def friendly_message(self):
+        """Return a friendly message always."""
+        return self._friendly_message or self._message or UNEXPECTED_ERROR
+
+
 class CheckmateDoesNotExist(CheckmateException):
 
     """Object does not exist."""
