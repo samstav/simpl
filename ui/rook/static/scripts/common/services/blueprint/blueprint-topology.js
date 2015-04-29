@@ -9,7 +9,6 @@ angular.module('checkmate.Blueprint')
         $scope.components = Catalog.getComponents();
 
         $scope.getTattoo = function(componentId) {
-
           return (((Catalog.getComponent(componentId) || {})['meta-data'] || {})['display-hints'] || {}).tattoo || '';
         };
 
