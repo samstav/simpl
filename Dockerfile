@@ -2,6 +2,9 @@ FROM debian:wheezy
 
 # Base packages and Python install
 ADD docker/config/sources.list /etc/apt/
+# add wheezy-backport to sources for git 1.9.1
+RUN echo "deb http://http.debian.net/debian wheezy-backports main" \
+    | sudo tee -a /etc/apt/sources.list
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
     apt-get install -y \
     procps \
@@ -9,11 +12,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
     build-essential \
     python \
     python-dev \
-    git \
     libssl-dev \
     wget \
     libreadline-dev \
     locales
+RUN apt-get -t wheezy-backports install -y git
 
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
 ENV LANG en_US.UTF-8
