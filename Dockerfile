@@ -4,7 +4,7 @@ FROM debian:wheezy
 ADD docker/config/sources.list /etc/apt/
 # add wheezy-backport to sources for git 1.9.1
 RUN echo "deb http://http.debian.net/debian wheezy-backports main" \
-    | sudo tee -a /etc/apt/sources.list
+    | tee -a /etc/apt/sources.list
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
     apt-get install -y \
     procps \
