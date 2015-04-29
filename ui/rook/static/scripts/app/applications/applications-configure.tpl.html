@@ -75,7 +75,7 @@
         </div> <!-- /.rs-app-launch-input.rs-app-launch-search-bar -->
       </header> <!-- /.rs-app-launch-header -->
       <section class="rs-app-launch-list-section">
-        <component-options ng-if="selection.data.component && selection.isVisible"
+        <component-options ng-show="selection.data.component && selection.isVisible"
                            service-id="selection.data.service"
                            component="selection.data.component"
                            options="catalog.component(selection.data.component.id || selection.data.component.name).options">
