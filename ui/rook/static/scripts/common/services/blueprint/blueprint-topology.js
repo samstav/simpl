@@ -9,7 +9,7 @@ angular.module('checkmate.Blueprint')
         $scope.components = Catalog.getComponents();
 
         $scope.getTattoo = function(componentId) {
-          return (((Catalog.getComponent(componentId) || {})['meta-data'] || {})['display-hints'] || {}).tattoo || '';
+          return (((Catalog.getComponent(componentId) || {})['meta-data'] || {})['display-hints'] || {}).tattoo || '/images/empty-tattoo.png';
         };
 
         $scope.select = function(selection) {
@@ -835,7 +835,7 @@ angular.module('checkmate.Blueprint')
         }
 
         function getDisplayName(d) {
-          var id = d.id || d.name || d.type;
+          var id = d.name || d.id || d.type;
           var display = (Catalog.getComponent(id) || {}).display_name;
           var label =  display || id || '';
 
