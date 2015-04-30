@@ -482,7 +482,6 @@ function ModalInstanceController($scope, $modalInstance, data) {
 }
 
 function LoginModalController($scope, $modalInstance, auth, $route) {
-
   $scope.dismiss = function(response) {
     return $modalInstance.dismiss({ logged_in: false, reason: 'dismissed' });
   }
@@ -714,6 +713,10 @@ function AppController($scope, $http, $location, $resource, auth, $route, $q, $m
   $scope.display_alert = function(alert_id) {
     return !$scope.hidden_alerts[alert_id];
   };
+
+  $scope.$on('app:login_prompt_spawn', function() {
+    $scope.loginPrompt();
+  });
 
   // Display log in prompt
   $scope.loginPrompt = function() {
