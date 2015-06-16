@@ -64,6 +64,38 @@ class SimplException(Exception):
     """Base exception for all exceptions raised by the simpl package."""
 
 
+class SimplHTTPError(SimplException):
+
+    """Errors that correspond to 300-500 HTTP status codes.
+
+    The friendly message will be sent to the user of the HTTP API.
+    """
+
+    default_code = 500
+    default_friendly_message = 'Internal Server Error'
+
+    def __init__(self, message, status_code=None,
+                 friendly_message=None):
+        #if type(self) is SimplHTTPError:
+        #    raise TypeError("Use either SimplClientError or SimplServerError.")
+        super(SimpleHTTPError, self).__init__(message)
+        self.status_code = status_code or self.default_code
+        self.friendly_message = friendly_message or self.default_message
+
+
+class SimplClientError(SimplHTTPError):
+
+    """Exceptions that correspond to a 4xx HTTP status code."""
+
+    default_code = 400
+    default_friendly_message = 'Bad Request'
+
+
+class SimplServerError(SimplHTTPError):
+
+    """Exceptions that correspond to a 4xx HTTP status code."""
+
+
 # TODO(sam): add SimpleConfigException and NoGroupForOption
 
 

@@ -1,1 +1,2 @@
 -r cors-requirements.txt
+-r format-exception-requirements.txt
