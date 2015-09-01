@@ -447,7 +447,7 @@ class Config(collections.MutableMapping):
             raise AttributeError("'config' object has no attribute '%s'"
                                  % attr)
 
-    def build_parser(self, options, permissive=False, **override_kwargs):
+    def build_parser(self, options=None, permissive=False, **override_kwargs):
         """Construct an argparser from supplied options.
 
         :keyword override_kwargs: keyword arguments to override when calling
@@ -461,10 +461,16 @@ class Config(collections.MutableMapping):
         kwargs.update(override_kwargs)
         if 'fromfile_prefix_chars' not in kwargs:
             kwargs['fromfile_prefix_chars'] = '@'
-        if options:
-            for option in options:
-                option.add_argument(parser, permissive=permissive)
         parser = self._parser_class(**kwargs)
+        if options is None:
+            options = []
+            for _opt in self._options:
+                _kw = _opt.kwargs.copy()
+                if _kw.get('default') is None:
+                    _kw['default'] = argparse.SUPPRESS
+                options.append(Option(*_opt.args, **_kw))
+        for option in options:
+            option.add_argument(parser, permissive=permissive)
         return parser
 
     def parse_cli(self, argv=None, permissive=False):
@@ -475,20 +481,13 @@ class Config(collections.MutableMapping):
         """
         if argv is None:
             argv = self._argv or sys.argv
-        options = []
-        for option in self._options:
-            kwargs = option.kwargs.copy()
-            if kwargs.get('default') is None:
-                kwargs['default'] = argparse.SUPPRESS
-            temp = Option(*option.args, **kwargs)
-            options.append(temp)
-        parser = self.build_parser(options, permissive=permissive)
+        parser = self.build_parser(permissive=permissive)
         parsed, extras = parser.parse_known_args(argv[1:])
         if extras:
             valid, pass_thru = self.parse_passthru_args(argv[1:])
             parsed, extras = parser.parse_known_args(valid)
             if extras and not permissive:
-                self.build_parser(options, permissive=permissive)
+                self.build_parser(permissive=permissive)
                 parser.parse_args(argv[1:])
             self.pass_thru_args = pass_thru + extras
         else:
@@ -525,7 +524,7 @@ class Config(collections.MutableMapping):
                 del opt.kwargs['required']
             except KeyError:
                 pass
-        parser = self.build_parser(options, permissive=True)
+        parser = self.build_parser(options=options, permissive=True)
         parsed, _ = parser.parse_known_args([])
         return vars(parsed)
 
