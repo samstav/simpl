@@ -155,38 +155,35 @@ def schema(body_schema=None, body_required=False, query_schema=None,
         """Return a decorated callable."""
         def wrapped(*args, **kwargs):
             """Validate/coerce request body and parameters."""
-            try:
-                # validate the request body per the schema (if applicable):
-                body = bottle.request.json
-                if body is None:
-                    body = default_body
-                if body_required and not body:
-                    bottle.abort(400, 'Call body cannot be empty')
-                if body_schema:
-                    try:
-                        body = body_schema(body)
-                    except volup.MultipleInvalid as exc:
-                        raise MultiValidationError(exc.errors)
+            # validate the request body per the schema (if applicable):
+            body = bottle.request.json
+            if body is None:
+                body = default_body
+            if body_required and not body:
+                bottle.abort(400, 'Call body cannot be empty')
+            if body_schema:
+                try:
+                    body = body_schema(body)
+                except volup.MultipleInvalid as exc:
+                    raise MultiValidationError(exc.errors)
 
-                # validate the query string per the schema (if application):
-                query = bottle.request.query.dict
-                if query_schema is not None:
-                    try:
-                        query = query_schema(query)
-                    except volup.MultipleInvalid as exc:
-                        raise MultiValidationError(exc.errors)
-                if not query:
-                    # If the query dict is empty, just set it to None.
-                    query = None
+            # validate the query string per the schema (if application):
+            query = bottle.request.query.dict
+            if query_schema is not None:
+                try:
+                    query = query_schema(query)
+                except volup.MultipleInvalid as exc:
+                    raise MultiValidationError(exc.errors)
+            if not query:
+                # If the query dict is empty, just set it to None.
+                query = None
 
-                # Pass `body` and `query` as kwargs to the decorated function.
-                return func(
-                    *args,
-                    body=body,
-                    query=query,
-                    **kwargs
-                )
-            except Exception as exc:
-                bottle.abort(400, str(exc))
+            # Pass `body` and `query` as kwargs to the decorated function.
+            return func(
+                *args,
+                body=body,
+                query=query,
+                **kwargs
+            )
         return wrapped
     return deco
